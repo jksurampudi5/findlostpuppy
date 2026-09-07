@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#E06D44" />
+    <meta name="description" content="FindLostPuppy 🐾 — Community-powered platform to help lost dogs find their way home. Report lost pups, share sightings, and reunite furry family members." />
+    <meta property="og:title" content="FindLostPuppy 🐾 — Bring Lost Dogs Home" />
+    <meta property="og:description" content="Every paw deserves to find its way home. Community-powered lost & found dog network." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="/findlostpuppy/favicon.svg" />
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <title>FindLostPuppy 🐾 — Bring Lost Dogs Home</title>
+
+    <!-- GitHub Pages Single Page App Redirect Restoration Script -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&') 
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
