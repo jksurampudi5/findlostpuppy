@@ -13,13 +13,16 @@ import {
   Sparkles,
   PawPrint,
   PlusCircle,
+  Trash2,
+  Check,
 } from 'lucide-react';
-import type { LostReport, Sighting } from '../types';
+import type { LostReport, Sighting, ReportStatus } from '../types';
 import { storageService } from '../services/storageService';
 import { StatusBadge } from '../components/StatusBadge';
 import { SightingModal } from '../components/SightingModal';
 import { ReportModal } from '../components/ReportModal';
 import { useToast } from '../context/ToastContext';
+import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 
 export const DogDetailPage: React.FC = () => {
@@ -54,6 +57,31 @@ export const DogDetailPage: React.FC = () => {
     if (updated) {
       setReport({ ...updated });
       setSightings(storageService.getSightingsForReport(updated.id));
+    }
+  };
+
+  const handleStatusChange = (newStatus: ReportStatus) => {
+    if (!report) return;
+    storageService.updateReportStatus(report.id, newStatus);
+    if (newStatus === 'REUNITED') {
+      triggerStarCelebration();
+      showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+    } else if (newStatus === 'LOST') {
+      showToast('🚨 Alert marked as actively MISSING.', 'info');
+    }
+    refreshData();
+  };
+
+  const handleDeleteReport = () => {
+    if (!report) return;
+    const dogName = getDogDisplayName(report.dog, report);
+    const confirmed = window.confirm(`Are you sure you want to remove the alert for "${dogName}"?`);
+    if (!confirmed) return;
+
+    const success = storageService.deleteReport(report.id);
+    if (success) {
+      showToast(`🗑️ Alert for ${dogName} removed successfully.`, 'info');
+      navigate('/dashboard');
     }
   };
 
@@ -139,10 +167,50 @@ export const DogDetailPage: React.FC = () => {
             <code>{report.id}</code>
           </div>
           <div className="breadcrumb-actions-right">
+            {status === 'LOST' && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange('REUNITED')}
+                className="btn btn-sm"
+                style={{
+                  backgroundColor: '#ECFDF5',
+                  color: '#059669',
+                  borderColor: '#A7F3D0',
+                  fontWeight: 700,
+                }}
+                title="Mark Pup Reunited & Safe"
+              >
+                <Check size={14} />
+                <span>Mark Reunited ❤️</span>
+              </button>
+            )}
+
+            {status === 'REUNITED' && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange('LOST')}
+                className="btn btn-sm btn-ghost text-amber-600"
+                title="Re-open Missing Search"
+              >
+                <span>Re-open Missing 🚨</span>
+              </button>
+            )}
+
             <button onClick={handleShare} className="btn btn-outline btn-sm share-btn">
               <Share2 size={15} />
               <span>Share Alert</span>
             </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteReport}
+              className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+              title="Remove / Delete this report"
+            >
+              <Trash2 size={15} />
+              <span>Remove Alert</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -152,19 +220,9 @@ export const DogDetailPage: React.FC = () => {
               className="btn btn-ghost btn-sm report-btn"
               title="Report this listing for moderation"
             >
-              <span>⚠️ Report Listing</span>
+              <span>⚠️ Report</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setReportType('user');
-                setIsReportModalOpen(true);
-              }}
-              className="btn btn-ghost btn-sm report-btn"
-              title="Report user"
-            >
-              <span>👤 Report User</span>
-            </button>
+
             <button
               type="button"
               onClick={handleBlockToggle}

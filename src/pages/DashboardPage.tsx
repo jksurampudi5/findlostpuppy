@@ -13,6 +13,8 @@ import {
   Sparkles,
   Edit3,
   Share2,
+  Trash2,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -32,7 +34,7 @@ export const DashboardPage: React.FC = () => {
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const initialTab = searchParams.get('tab') === 'browse' ? 'browse' : 'missing';
-  const [activeTab, setActiveTab] = useState<'missing' | 'reunited' | 'awaiting' | 'browse' | 'my_pups'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'missing' | 'reunited' | 'browse' | 'my_pups'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Browse All Dogs tab filters
@@ -73,10 +75,11 @@ export const DashboardPage: React.FC = () => {
     };
   }, []);
 
-  // Filter reports by status
+  // Filter reports strictly by 3 mutually-exclusive dog states:
+  // 1. Missing Dogs (status === 'LOST')
+  // 2. Reunited Dogs (status === 'REUNITED')
   const missingDogs = useMemo(() => reports.filter((r) => r.status === 'LOST'), [reports]);
   const reunitedDogs = useMemo(() => reports.filter((r) => r.status === 'REUNITED'), [reports]);
-  const awaitingDogs = useMemo(() => reports.filter((r) => r.status === 'SIGHTED'), [reports]);
 
   // Unique breeds and locations for Browse filters
   const availableBreeds = useMemo(() => {
@@ -128,7 +131,6 @@ export const DashboardPage: React.FC = () => {
 
   const displayedMissing = useMemo(() => applySearch(missingDogs), [missingDogs, applySearch]);
   const displayedReunited = useMemo(() => applySearch(reunitedDogs), [reunitedDogs, applySearch]);
-  const displayedAwaiting = useMemo(() => applySearch(awaitingDogs), [awaitingDogs, applySearch]);
 
   // Filter for Browse All Dogs tab
   const displayedBrowse = useMemo(() => {
@@ -164,15 +166,30 @@ export const DashboardPage: React.FC = () => {
       });
   }, [reports, browseStatus, browseBreed, browseLocation, searchQuery, browseSort]);
 
+  // Action: Atomically change report status with mutual exclusivity
   const handleStatusChange = (reportId: string, newStatus: ReportStatus) => {
     storageService.updateReportStatus(reportId, newStatus);
     if (newStatus === 'REUNITED') {
       triggerStarCelebration();
       showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+    } else if (newStatus === 'LOST') {
+      showToast('🚨 Alert marked as actively MISSING.', 'info');
     } else {
       showToast(`Report status updated to ${newStatus}`, 'info');
     }
     reloadData();
+  };
+
+  // Action: Delete / Remove Report permanently
+  const handleDeleteReport = (reportId: string, dogName?: string) => {
+    const confirmed = window.confirm(`Are you sure you want to remove the alert for "${dogName || 'this dog'}"?`);
+    if (!confirmed) return;
+
+    const success = storageService.deleteReport(reportId);
+    if (success) {
+      showToast(`🗑️ Alert for ${dogName || 'dog'} removed successfully.`, 'info');
+      reloadData();
+    }
   };
 
   return (
@@ -229,15 +246,6 @@ export const DashboardPage: React.FC = () => {
               <span className="metric-label">🎉 Returned Home ❤️</span>
             </div>
             <div
-              className={`metric-box ${activeTab === 'awaiting' ? 'active-metric' : ''}`}
-              onClick={() => setActiveTab('awaiting')}
-              role="button"
-              tabIndex={0}
-            >
-              <span className="metric-number text-blue-600">{awaitingDogs.length}</span>
-              <span className="metric-label">👀 Awaiting Reunion</span>
-            </div>
-            <div
               className={`metric-box ${activeTab === 'browse' ? 'active-metric' : ''}`}
               onClick={() => setActiveTab('browse')}
               role="button"
@@ -289,19 +297,7 @@ export const DashboardPage: React.FC = () => {
               <span className="tab-counter-pill green-pill">{reunitedDogs.length}</span>
             </button>
 
-            {/* TAB 3: AWAITING / SIGHTINGS */}
-            <button
-              className={`dashboard-tab-btn ${activeTab === 'awaiting' ? 'active' : ''}`}
-              onClick={() => setActiveTab('awaiting')}
-              role="tab"
-              aria-selected={activeTab === 'awaiting'}
-            >
-              <Eye size={18} className="text-blue-500" />
-              <span>Awaiting / Sighted</span>
-              <span className="tab-counter-pill blue-pill">{awaitingDogs.length}</span>
-            </button>
-
-            {/* TAB 4: BROWSE ALL COMMUNITY DOGS */}
+            {/* TAB 3: BROWSE ALL COMMUNITY DOGS */}
             <button
               className={`dashboard-tab-btn ${activeTab === 'browse' ? 'active' : ''}`}
               onClick={() => setActiveTab('browse')}
@@ -313,7 +309,7 @@ export const DashboardPage: React.FC = () => {
               <span className="tab-counter-pill amber-pill">{reports.length}</span>
             </button>
 
-            {/* TAB 5: MY PUPS & REPORTS */}
+            {/* TAB 4: MY PUPS & REPORTS */}
             <button
               className={`dashboard-tab-btn ${activeTab === 'my_pups' ? 'active' : ''}`}
               onClick={() => setActiveTab('my_pups')}
@@ -321,7 +317,7 @@ export const DashboardPage: React.FC = () => {
               aria-selected={activeTab === 'my_pups'}
             >
               <PawPrint size={18} className="text-indigo-500" />
-              <span>My Pup & Reports</span>
+              <span>My Pup & Alerts</span>
               {myPet && <span className="tab-counter-pill purple-pill">{myPet.name}</span>}
             </button>
           </div>
@@ -466,6 +462,22 @@ export const DashboardPage: React.FC = () => {
 
                         <button
                           type="button"
+                          onClick={() => handleStatusChange(report.id, 'REUNITED')}
+                          className="btn btn-sm"
+                          style={{
+                            backgroundColor: '#ECFDF5',
+                            color: '#059669',
+                            borderColor: '#A7F3D0',
+                            fontWeight: 700,
+                          }}
+                          title="Mark Pup Reunited & Safe"
+                        >
+                          <Check size={14} />
+                          <span>Reunited ❤️</span>
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => {
                             const sightingUrl = `${window.location.origin}/report-sighting/${report.id}`;
                             const msg = `🚨 *EMERGENCY LOST PUPPY ALERT* 🐾\n\nPlease help find *"${report.dog.name}"* (${report.dog.breed})!\n📍 *Last seen:* ${report.lastKnownLocation}.\n\n🐾 *Sighted or found this dog?* Report location & photos (*No login required!*):\n👉 ${sightingUrl}\n\nFindLostPuppy Network 🐕❤️`;
@@ -490,6 +502,15 @@ export const DashboardPage: React.FC = () => {
                         <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
                           <span>Flyer →</span>
                         </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
+                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                          title="Remove this alert"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -564,99 +585,27 @@ export const DashboardPage: React.FC = () => {
                       </div>
 
                       <div className="dog-card-actions">
-                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm full-width-btn">
+                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
                           <span>View Reunion Details ❤️</span>
                         </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* TAB 3 CONTENT: AWAITING / SIGHTED DOG PROFILES */}
-        {/* ========================================================================= */}
-        {activeTab === 'awaiting' && (
-          <div className="dashboard-tab-pane">
-            <div className="tab-header-strip">
-              <div>
-                <h2 className="tab-section-title text-blue-700">👀 Dogs Sighted & Awaiting Reunion</h2>
-                <p className="tab-section-desc">
-                  Neighbors have reported recent sightings for these dogs. Rescue teams and owners are actively searching these locations.
-                </p>
-              </div>
-              <span className="results-count-badge blue-badge">
-                {displayedAwaiting.length} Dogs Sighted
-              </span>
-            </div>
-
-            {displayedAwaiting.length === 0 ? (
-              <div className="empty-state-card card">
-                <Eye size={44} className="empty-icon text-blue-500" />
-                <h3>No Awaiting Dogs Found</h3>
-                <p>
-                  {searchQuery
-                    ? `No dogs match "${searchQuery}".`
-                    : 'Dogs with confirmed community sightings awaiting recovery will show up here.'}
-                </p>
-              </div>
-            ) : (
-              <div className="dog-profiles-grid">
-                {displayedAwaiting.map((report) => (
-                  <div key={report.id} className="dog-profile-dashboard-card card awaiting-card">
-                    <div className="dog-profile-photo-container">
-                      <img
-                        src={getDogPhotoUrl(report.dog, report)}
-                        alt={getDogDisplayName(report.dog, report)}
-                        className="dog-profile-photo"
-                        onError={handleDogImageError}
-                      />
-                      <div className="dog-profile-floating-badge">
-                        <StatusBadge status="SIGHTED" size="sm" />
-                      </div>
-                      <div className="sighting-count-tag blue-tag">
-                        <Eye size={12} />
-                        <span>Active Sighting Log</span>
-                      </div>
-                    </div>
-
-                    <div className="dog-profile-content">
-                      <div className="dog-name-row">
-                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
-                        <span className="dog-id-code">#{report.id.split('-').pop()}</span>
-                      </div>
-
-                      <div className="dog-meta-tags">
-                        <span className="meta-tag">🐕 {report.dog.breed}</span>
-                        <span className="meta-tag">{report.dog.gender}</span>
-                      </div>
-
-                      <div className="sighting-location-highlight">
-                        <div className="sighting-spot-title">
-                          <MapPin size={14} className="text-blue-600" />
-                          <span><strong>Sighted Near:</strong> {report.lastKnownLocation}</span>
-                        </div>
-                        <p className="sighting-notes-preview">
-                          {report.additionalNotes || 'Spotted drinking water near the road. Responders alerted.'}
-                        </p>
-                      </div>
-
-                      <div className="dog-card-actions">
                         <button
                           type="button"
-                          onClick={() => setSightingReport(report)}
-                          className="btn btn-secondary btn-sm sighting-trigger-btn"
+                          onClick={() => handleStatusChange(report.id, 'LOST')}
+                          className="btn btn-ghost btn-sm text-amber-600"
+                          title="Re-open missing search if needed"
                         >
-                          <Eye size={15} />
-                          <span>Add New Sighting</span>
+                          <span>Re-open Search 🚨</span>
                         </button>
 
-                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                          <span>Track Sighting Log →</span>
-                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
+                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                          title="Remove this report"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -667,7 +616,7 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 4 CONTENT: BROWSE ALL COMMUNITY DOGS */}
+        {/* TAB 3 CONTENT: BROWSE ALL COMMUNITY DOGS */}
         {/* ========================================================================= */}
         {activeTab === 'browse' && (
           <div className="dashboard-tab-pane">
@@ -696,9 +645,8 @@ export const DashboardPage: React.FC = () => {
                     onChange={(e) => setBrowseStatus(e.target.value as any)}
                   >
                     <option value="ALL">All Statuses</option>
-                    <option value="LOST">🚨 Lost (Active Search)</option>
-                    <option value="SIGHTED">👀 Sighted (Nearby)</option>
-                    <option value="REUNITED">💚 Reunited (Home Safe)</option>
+                    <option value="LOST">🚨 Missing (Lost)</option>
+                    <option value="REUNITED">🎉 Reunited ❤️</option>
                   </select>
                 </div>
 
@@ -788,7 +736,7 @@ export const DashboardPage: React.FC = () => {
                       <div className="dog-profile-floating-badge">
                         <StatusBadge status={report.status} size="sm" />
                       </div>
-                      {report.sightingCount > 0 && (
+                      {report.sightingCount > 0 && report.status !== 'REUNITED' && (
                         <div className="sighting-count-tag">
                           <Eye size={12} />
                           <span>{report.sightingCount} sighting{report.sightingCount > 1 ? 's' : ''}</span>
@@ -825,9 +773,36 @@ export const DashboardPage: React.FC = () => {
                           </button>
                         )}
 
+                        {report.status === 'LOST' && (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(report.id, 'REUNITED')}
+                            className="btn btn-sm"
+                            style={{
+                              backgroundColor: '#ECFDF5',
+                              color: '#059669',
+                              borderColor: '#A7F3D0',
+                              fontWeight: 700,
+                            }}
+                            title="Mark Reunited ❤️"
+                          >
+                            <Check size={14} />
+                            <span>Reunited ❤️</span>
+                          </button>
+                        )}
+
                         <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
                           <span>View Details →</span>
                         </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
+                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                          title="Remove this listing"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -838,7 +813,7 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5 CONTENT: MY PUPS & REPORTS */}
+        {/* TAB 4 CONTENT: MY PUPS & REPORTS */}
         {/* ========================================================================= */}
         {activeTab === 'my_pups' && (
           <div className="dashboard-tab-pane">
@@ -1008,8 +983,7 @@ export const DashboardPage: React.FC = () => {
                                 handleStatusChange(report.id, e.target.value as ReportStatus)
                               }
                             >
-                              <option value="LOST">🔴 LOST (Active Alert)</option>
-                              <option value="SIGHTED">🔵 SIGHTED (Near Area)</option>
+                              <option value="LOST">🔴 MISSING (Active Alert)</option>
                               <option value="REUNITED">🟢 REUNITED (Home Safe!)</option>
                               <option value="CLOSED">⚪ CLOSED</option>
                             </select>
@@ -1031,6 +1005,16 @@ export const DashboardPage: React.FC = () => {
                                 <span>Mark Reunited ❤️</span>
                               </button>
                             )}
+
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                              onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
+                              title="Delete this alert"
+                            >
+                              <Trash2 size={15} />
+                              <span>Remove Alert</span>
+                            </button>
                           </div>
                         </div>
                       </div>

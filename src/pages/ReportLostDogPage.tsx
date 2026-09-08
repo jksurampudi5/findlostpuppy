@@ -11,6 +11,7 @@ import {
   Share2,
   ShieldCheck,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -184,7 +185,23 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
   };
 
-  // ACTION 5: 1-Click WhatsApp SOS Alert Share
+  // ACTION 5: Delete / Remove Alert permanently
+  const handleDeleteAlert = () => {
+    if (!existingReport && !user) return;
+    const targetId = existingReport?.id;
+    const confirmed = window.confirm(`Are you sure you want to remove the missing alert for ${dogName}?`);
+    if (!confirmed) return;
+
+    if (targetId) {
+      storageService.deleteReport(targetId);
+    }
+    markPetSafe();
+    setUserSelectedChoice('safe');
+    setIsMissingModalOpen(false);
+    showToast(`🗑️ Missing alert for ${dogName} removed. Pet is marked safe at home.`, 'info');
+  };
+
+  // ACTION 6: 1-Click WhatsApp SOS Alert Share
   const handleWhatsAppShare = () => {
     const activeReport = existingReport || (user ? storageService.getLatestReportByUserId(user.id) : null);
     const activeReportId = activeReport?.id || '';
@@ -428,6 +445,16 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
                       >
                         <Heart size={15} />
                         <span>Mark Pup Reunited & Safe ❤️</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleDeleteAlert}
+                        className="btn btn-ghost btn-md text-red-600 hover:bg-red-50"
+                        title="Remove this missing alert"
+                      >
+                        <Trash2 size={15} />
+                        <span>Remove Alert</span>
                       </button>
                     </div>
 

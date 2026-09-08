@@ -153,9 +153,8 @@ export const DiscoveryPage: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value as any)}
               >
                 <option value="ALL">All Statuses</option>
-                <option value="LOST">Lost (Active Search)</option>
-                <option value="SIGHTED">Sighted (Nearby)</option>
-                <option value="REUNITED">Reunited ❤️</option>
+                <option value="LOST">🚨 Missing Dogs (Lost)</option>
+                <option value="REUNITED">🎉 Reunited Dogs ❤️</option>
               </select>
             </div>
 
