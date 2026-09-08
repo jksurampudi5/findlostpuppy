@@ -92,12 +92,22 @@ export const DogDetailPage: React.FC = () => {
   if (!report) {
     return (
       <div className="app-container detail-not-found">
-        <div className="empty-state-card card">
-          <h2>🐾 Lost Dog Report Not Found</h2>
-          <p>This report may have been resolved, archived, or the link is incorrect.</p>
-          <Link to="/find" className="btn btn-primary">
-            Browse All Lost Dogs
-          </Link>
+        <div className="empty-state-card card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <PawPrint size={48} className="text-terracotta mx-auto mb-3" />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+            🐾 Lost Dog Alert Resolved or Not Found
+          </h2>
+          <p className="text-secondary max-w-md mx-auto mb-6">
+            This pet alert may have safely concluded with a happy family reunion, or the report ID has been updated.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <Link to="/dashboard" className="btn btn-primary">
+              <span>Explore Community Dashboard 📊</span>
+            </Link>
+            <Link to="/find" className="btn btn-outline">
+              <span>Browse All Dogs 🐾</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -114,9 +124,15 @@ export const DogDetailPage: React.FC = () => {
       <div className="app-container">
         {/* Navigation Breadcrumb */}
         <div className="detail-breadcrumb-bar">
-          <button onClick={() => navigate(-1)} className="btn btn-ghost btn-sm back-nav-btn">
+          <button
+            onClick={() => {
+              if (window.history.length > 2) navigate(-1);
+              else navigate('/dashboard');
+            }}
+            className="btn btn-ghost btn-sm back-nav-btn"
+          >
             <ArrowLeft size={16} />
-            <span>Back</span>
+            <span>Back to Dashboard</span>
           </button>
           <div className="breadcrumb-report-id">
             <span>Report ID:</span>

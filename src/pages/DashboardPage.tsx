@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   PawPrint,
   AlertTriangle,
@@ -26,6 +26,7 @@ import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils
 
 export const DashboardPage: React.FC = () => {
   const { user, setActiveOnboardingTab } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
 
@@ -195,7 +196,10 @@ export const DashboardPage: React.FC = () => {
             <div className="dashboard-header-actions">
               <button
                 type="button"
-                onClick={() => setActiveOnboardingTab('report')}
+                onClick={() => {
+                  setActiveOnboardingTab('report');
+                  navigate('/alert');
+                }}
                 className="btn btn-primary"
               >
                 <PlusCircle size={18} />
@@ -379,7 +383,10 @@ export const DashboardPage: React.FC = () => {
                 <div style={{ marginTop: '0.75rem' }}>
                   <button
                     type="button"
-                    onClick={() => setActiveOnboardingTab('report')}
+                    onClick={() => {
+                      setActiveOnboardingTab('report');
+                      navigate('/alert');
+                    }}
                     className="btn btn-outline btn-sm"
                   >
                     <span>Check or Update Pet Safety Status 🐾</span>
@@ -894,7 +901,10 @@ export const DashboardPage: React.FC = () => {
                     <div className="my-pet-actions-row">
                       <button
                         type="button"
-                        onClick={() => setActiveOnboardingTab('dog')}
+                        onClick={() => {
+                          setActiveOnboardingTab('dog');
+                          navigate('/pet');
+                        }}
                         className="btn btn-outline btn-sm"
                       >
                         <Edit3 size={14} />
@@ -903,7 +913,10 @@ export const DashboardPage: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => setActiveOnboardingTab('report')}
+                        onClick={() => {
+                          setActiveOnboardingTab('report');
+                          navigate('/alert');
+                        }}
                         className="btn btn-secondary btn-sm"
                       >
                         <AlertTriangle size={14} />
@@ -934,7 +947,10 @@ export const DashboardPage: React.FC = () => {
                 <p>Register your pet’s details so neighbors can recognize them if they ever wander.</p>
                 <button
                   type="button"
-                  onClick={() => setActiveOnboardingTab('dog')}
+                  onClick={() => {
+                    setActiveOnboardingTab('dog');
+                    navigate('/pet');
+                  }}
                   className="btn btn-primary btn-md"
                 >
                   <PlusCircle size={16} />

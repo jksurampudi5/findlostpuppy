@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
@@ -18,6 +18,9 @@ export const Navbar = () => {
     petSafetyStatus,
     logout,
   } = useAuth();
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
@@ -38,16 +41,50 @@ export const Navbar = () => {
     existingProfile?.city ||
     'Local Area';
 
+  const handleTabClick = (tab: OnboardingTab, routePath: string) => {
+    setActiveOnboardingTab(tab);
+    navigate(routePath);
+    setIsPetAlertHovered(false);
+  };
+
+  const isOwnerActive =
+    location.pathname === '/owner' ||
+    (location.pathname === '/' && activeOnboardingTab === 'owner');
+
+  const isLocationActive =
+    location.pathname === '/location' ||
+    (location.pathname === '/' && activeOnboardingTab === 'location');
+
+  const isPetActive =
+    location.pathname === '/pet' ||
+    location.pathname === '/dog' ||
+    location.pathname === '/dog-profile' ||
+    (location.pathname === '/' && (activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet'));
+
+  const isAlertActive =
+    location.pathname === '/alert' ||
+    location.pathname === '/report' ||
+    location.pathname === '/report-lost' ||
+    (location.pathname === '/' && activeOnboardingTab === 'report');
+
+  const isDashboardActive =
+    location.pathname === '/dashboard' ||
+    location.pathname === '/find' ||
+    (location.pathname === '/' && (activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed'));
+
   return (
     <header className="navbar-header">
       <div className="app-container navbar-container">
         {/* Brand Logo & Mobile Quick Controls */}
         <div className="navbar-brand-row">
           <Link
-            to="/"
+            to={isAuthenticated ? '/dashboard' : '/'}
             className="brand-logo"
             onClick={() => {
-              if (isAuthenticated) setActiveOnboardingTab('dashboard');
+              if (isAuthenticated) {
+                setActiveOnboardingTab('dashboard');
+                navigate('/dashboard');
+              }
             }}
           >
             <div className="brand-icon-wrapper">
@@ -82,8 +119,8 @@ export const Navbar = () => {
               <div className="nav-tab-wrapper">
                 <button
                   type="button"
-                  className={`nav-space-pill owner-space-pill ${activeOnboardingTab === 'owner' ? 'active' : ''}`}
-                  onClick={() => setActiveOnboardingTab('owner')}
+                  className={`nav-space-pill owner-space-pill ${isOwnerActive ? 'active' : ''}`}
+                  onClick={() => handleTabClick('owner', '/owner')}
                   title="View / Edit Pet Parent Profile"
                 >
                   <div className="space-pill-icon owner-icon">
@@ -105,8 +142,8 @@ export const Navbar = () => {
               <div className="nav-tab-wrapper">
                 <button
                   type="button"
-                  className={`nav-space-pill location-space-pill ${activeOnboardingTab === 'location' ? 'active' : ''}`}
-                  onClick={() => setActiveOnboardingTab('location')}
+                  className={`nav-space-pill location-space-pill ${isLocationActive ? 'active' : ''}`}
+                  onClick={() => handleTabClick('location', '/location')}
                   title="View / Edit Location"
                 >
                   <div className="space-pill-icon location-icon">
@@ -126,8 +163,8 @@ export const Navbar = () => {
               <div className="nav-tab-wrapper">
                 <button
                   type="button"
-                  className={`nav-space-pill pet-space-pill ${activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? 'active' : ''}`}
-                  onClick={() => setActiveOnboardingTab('dog')}
+                  className={`nav-space-pill pet-space-pill ${isPetActive ? 'active' : ''}`}
+                  onClick={() => handleTabClick('dog', '/pet')}
                   title="View / Edit Pet Profile"
                 >
                   <div className="space-pill-icon pet-icon">
@@ -162,11 +199,8 @@ export const Navbar = () => {
                       : petSafetyStatus === 'SAFE'
                       ? 'pet-safe-home-pill'
                       : ''
-                  } ${activeOnboardingTab === 'report' ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveOnboardingTab('report');
-                    setIsPetAlertHovered(false);
-                  }}
+                  } ${isAlertActive ? 'active' : ''}`}
+                  onClick={() => handleTabClick('report', '/alert')}
                   title={
                     petSafetyStatus === 'LOST'
                       ? 'Urgent Missing Dog Alert'
@@ -243,8 +277,7 @@ export const Navbar = () => {
                       className="btn btn-primary btn-sm btn-block popover-cta-btn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveOnboardingTab('report');
-                        setIsPetAlertHovered(false);
+                        handleTabClick('report', '/alert');
                       }}
                     >
                       <span>Manage Pet Alert</span>
@@ -258,8 +291,8 @@ export const Navbar = () => {
               <div className="nav-tab-wrapper">
                 <button
                   type="button"
-                  className={`nav-space-pill dashboard-space-pill ${activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed' ? 'active' : ''}`}
-                  onClick={() => setActiveOnboardingTab('dashboard')}
+                  className={`nav-space-pill dashboard-space-pill ${isDashboardActive ? 'active' : ''}`}
+                  onClick={() => handleTabClick('dashboard', '/dashboard')}
                   title="Community Recovery Dashboard & Browse Dogs"
                 >
                   <div className="space-pill-icon dashboard-icon">

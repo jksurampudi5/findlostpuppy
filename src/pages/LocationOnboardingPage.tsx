@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Navigation,
   RefreshCw,
@@ -36,6 +37,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onBack,
 }) => {
   const { user, refreshProgress, setActiveOnboardingTab, petSafetyStatus } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
@@ -399,6 +401,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       onSuccess();
     } else {
       setActiveOnboardingTab('dog');
+      navigate('/pet');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -408,6 +411,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       onBack();
     } else {
       setActiveOnboardingTab('owner');
+      navigate('/owner');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
