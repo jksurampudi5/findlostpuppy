@@ -9617,84 +9617,89 @@
    UNIFIED LEGAL AGREEMENT FORM & INTERACTIVE FORM POPUPS
    ========================================================================== */
 
+/* ==========================================================================
+   UNIFIED LEGAL AGREEMENT FORM & INTERACTIVE FORM POPUPS (DESKTOP & MOBILE)
+   ========================================================================== */
+
 .consent-page-shell {
   min-height: 100vh;
   background: #F8FAFC;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1rem;
+  padding: 3rem 1.5rem;
 }
 
 .consent-form-wrapper {
   width: 100%;
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
 .consent-form-card {
   background: #FFFFFF;
-  border-radius: 20px;
+  border-radius: 24px;
   border: 1px solid #E2E8F0;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-  padding: 2.5rem;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 8px 16px -4px rgba(0, 0, 0, 0.04);
+  padding: 3rem 2.75rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 2rem;
 }
 
 .consent-badge-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   background: #FFF7ED;
   color: #EA580C;
   border: 1px solid #FED7AA;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  padding: 0.3rem 0.8rem;
+  padding: 0.4rem 1rem;
   border-radius: 9999px;
   letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.65rem;
 }
 
 .consent-form-title {
-  font-size: 1.85rem;
+  font-size: 2.35rem;
   font-weight: 800;
   color: #0F172A;
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.02em;
+  margin: 0 0 0.65rem 0;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .consent-form-subtitle {
-  font-size: 0.95rem;
-  color: #64748B;
+  font-size: 1.08rem;
+  color: #475569;
   margin: 0 auto;
-  max-width: 580px;
-  line-height: 1.5;
+  max-width: 680px;
+  line-height: 1.6;
 }
 
 /* Key Safety Declaration Summary Box */
 .declaration-summary-box {
   background: #FEF2F2;
   border: 1px solid #FECACA;
-  border-left: 4px solid #EF4444;
-  border-radius: 12px;
-  padding: 1.25rem 1.35rem;
+  border-left: 5px solid #EF4444;
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .declaration-summary-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   color: #991B1B;
 }
 
 .declaration-summary-header h3 {
-  font-size: 0.95rem;
+  font-size: 1.08rem;
   font-weight: 800;
   color: #991B1B;
   margin: 0;
@@ -9704,25 +9709,25 @@
 .declaration-points-list {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.85rem;
 }
 
 .declaration-point-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  font-size: 0.875rem;
+  gap: 0.75rem;
+  font-size: 0.98rem;
   color: #450A0A;
-  line-height: 1.45;
+  line-height: 1.55;
 }
 
 .point-badge {
   background: #FEE2E2;
   color: #991B1B;
   font-weight: 800;
-  font-size: 0.72rem;
-  width: 20px;
-  height: 20px;
+  font-size: 0.8rem;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -9735,7 +9740,7 @@
 .legal-forms-group-section {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .forms-section-header {
@@ -9743,31 +9748,32 @@
   justify-content: space-between;
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.15rem;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .forms-section-title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 800;
   color: #1E293B;
   margin: 0;
 }
 
 .forms-section-desc {
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   color: #64748B;
   display: block;
+  margin-top: 0.2rem;
 }
 
 .select-all-forms-btn {
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #EA580C;
-  padding: 0.3rem 0.65rem;
+  padding: 0.45rem 0.95rem;
   background: #FFF7ED;
-  border: 1px solid #FED7AA;
-  border-radius: 6px;
+  border: 1.5px solid #FED7AA;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -9781,20 +9787,21 @@
 .form-row-card {
   background: #F8FAFC;
   border: 1.5px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 0.95rem 1.15rem;
+  border-radius: 14px;
+  padding: 1.15rem 1.4rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .form-row-card:hover {
   background: #FFFFFF;
   border-color: #CBD5E1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
 }
 
 .form-row-card.is-consented {
@@ -9805,14 +9812,15 @@
 .form-row-left {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
   min-width: 0;
+  flex: 1;
 }
 
 .form-icon-bubble {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   display: inline-flex;
@@ -9827,26 +9835,31 @@
   border-color: #BBF7D0;
 }
 
+.form-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .form-row-title-line {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   flex-wrap: wrap;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
 }
 
 .form-name {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #0F172A;
 }
 
 .form-tag {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   background: #E2E8F0;
   color: #475569;
-  padding: 0.15rem 0.45rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 4px;
 }
 
@@ -9856,31 +9869,31 @@
 }
 
 .form-desc {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: #64748B;
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
 .form-row-right {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
   flex-shrink: 0;
 }
 
 .form-row-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #334155;
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
+  border: 1.5px solid #CBD5E1;
   user-select: none;
   transition: all 0.2s;
 }
@@ -9896,17 +9909,20 @@
 }
 
 .form-row-checkbox-input {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
   accent-color: #16A34A;
 }
 
 .open-form-arrow-btn {
-  padding: 0.35rem;
+  padding: 0.45rem;
   color: #64748B;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .open-form-arrow-btn:hover {
@@ -9918,134 +9934,221 @@
 .consent-form-signature-box {
   background: #F8FAFC;
   border: 1.5px solid #CBD5E1;
-  border-radius: 14px;
-  padding: 1.35rem;
+  border-radius: 16px;
+  padding: 1.6rem 1.75rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.35rem;
 }
 
 .master-signature-label {
   display: flex;
   align-items: flex-start;
-  gap: 0.85rem;
+  gap: 0.95rem;
   cursor: pointer;
   user-select: none;
 }
 
 .master-signature-checkbox {
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
+  width: 22px;
+  height: 22px;
+  margin-top: 3px;
   cursor: pointer;
   accent-color: #EA580C;
   flex-shrink: 0;
 }
 
 .master-signature-text {
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   color: #1E293B;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .consent-form-action-row {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
+}
+
+.btn-agree-continue {
+  font-size: 1.15rem;
+  padding: 1.15rem 2.5rem;
+  min-height: 56px;
+  border-radius: 14px;
 }
 
 .consent-storage-note {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.76rem;
+  gap: 0.45rem;
+  font-size: 0.85rem;
   color: #15803D;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
 }
 
 /* Interactive Legal Modal Form Card */
 .legal-form-modal-card {
-  max-width: 720px;
+  max-width: 840px;
   width: 100%;
-  max-height: 88vh;
+  max-height: 90vh;
   background: #FFFFFF;
-  border-radius: 18px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
+.legal-modal-header {
+  padding: 1.4rem 1.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  border-bottom: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.legal-modal-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.legal-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #FFF7ED;
+  border: 1.5px solid #FED7AA;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.legal-modal-title-texts {
+  flex: 1;
+}
+
 .legal-form-badge-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin-bottom: 0.35rem;
 }
 
 .badge-form-official {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   background: #EFF6FF;
   color: #1D4ED8;
   border: 1px solid #BFDBFE;
-  padding: 0.15rem 0.45rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
 
 .badge-consented-pill {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   background: #DCFCE7;
   color: #15803D;
   border: 1px solid #86EFAC;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
 .badge-review-pill {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   background: #FEF3C7;
   color: #B45309;
   border: 1px solid #FDE68A;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
+}
+
+.legal-modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0.15rem 0 0.35rem 0;
+  letter-spacing: -0.01em;
+}
+
+.legal-modal-version {
+  font-size: 0.85rem;
+  color: #64748B;
+  display: block;
 }
 
 .legal-modal-notice-banner {
   background: #F1F5F9;
   border-bottom: 1px solid #E2E8F0;
-  padding: 0.6rem 1.5rem;
-  font-size: 0.8rem;
+  padding: 0.75rem 1.75rem;
+  font-size: 0.88rem;
   color: #475569;
+  line-height: 1.5;
 }
 
 .legal-modal-notice-banner p {
   margin: 0;
 }
 
+.legal-modal-body {
+  padding: 1.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.legal-doc-section h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0 0 0.65rem 0;
+  display: flex;
+  align-items: center;
+}
+
 .section-number-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background: #E2E8F0;
   color: #1E293B;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   border-radius: 50%;
-  margin-right: 0.45rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.legal-paragraph,
+.legal-bullet-list li {
+  font-size: 0.96rem;
+  color: #334155;
+  line-height: 1.65;
+}
+
+.legal-modal-footer.form-action-footer {
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid #E2E8F0;
+  background: #F8FAFC;
 }
 
 .modal-consent-action-group {
@@ -10060,16 +10163,16 @@
 .modal-form-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  font-size: 0.85rem;
+  gap: 0.65rem;
+  font-size: 0.95rem;
   color: #1E293B;
   cursor: pointer;
   user-select: none;
 }
 
 .modal-form-checkbox-input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   cursor: pointer;
   accent-color: #16A34A;
 }
@@ -10077,125 +10180,286 @@
 .modal-footer-btns {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 /* Settings breakdown box */
 .consent-forms-breakdown-box {
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  padding: 1.15rem;
+  border-radius: 12px;
+  padding: 1.25rem;
   margin-top: 1rem;
 }
 
 .consent-forms-breakdown-title {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   color: #1E293B;
-  margin: 0 0 0.65rem 0;
+  margin: 0 0 0.75rem 0;
 }
 
 .consent-forms-tags-grid {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .consented-form-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
+  gap: 0.6rem;
+  font-size: 0.88rem;
   color: #334155;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  padding: 0.4rem 0.65rem;
-  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
 }
 
-/* Responsive Overrides */
-@media (max-width: 640px) {
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE OVERRIDES (PERFECT COMPATIBILITY)
+   ========================================================================== */
+
+@media (max-width: 768px) {
   .consent-page-shell {
-    padding: 1rem 0.5rem;
+    padding: 1.5rem 0.85rem;
   }
 
   .consent-form-card {
-    padding: 1.5rem 1rem;
-    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    gap: 1.5rem;
+    border-radius: 20px;
   }
 
   .consent-form-title {
-    font-size: 1.45rem;
+    font-size: 1.85rem;
+  }
+
+  .consent-form-subtitle {
+    font-size: 1rem;
+  }
+
+  .declaration-summary-box {
+    padding: 1.25rem;
+  }
+
+  .declaration-point-item {
+    font-size: 0.92rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .consent-page-shell {
+    padding: 1rem 0.5rem;
+    align-items: flex-start;
+  }
+
+  .consent-form-card {
+    padding: 1.5rem 1.15rem;
+    gap: 1.35rem;
+    border-radius: 16px;
+  }
+
+  .consent-badge-pill {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .consent-form-title {
+    font-size: 1.65rem;
+  }
+
+  .consent-form-subtitle {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .declaration-summary-box {
+    padding: 1.15rem 1rem;
+    gap: 0.85rem;
+  }
+
+  .declaration-summary-header h3 {
+    font-size: 0.98rem;
+  }
+
+  .declaration-point-item {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    gap: 0.6rem;
+  }
+
+  .point-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+  }
+
+  .forms-section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .forms-section-title {
+    font-size: 1.1rem;
+  }
+
+  .select-all-forms-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.55rem;
+    font-size: 0.9rem;
   }
 
   .form-row-card {
-    padding: 0.85rem 0.95rem;
+    padding: 1.1rem 1rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
   }
 
-  .form-row-title-line {
-    gap: 0.35rem;
+  .form-row-left {
+    gap: 0.75rem;
+  }
+
+  .form-icon-bubble {
+    width: 40px;
+    height: 40px;
+  }
+
+  .form-name {
+    font-size: 1rem;
+  }
+
+  .form-desc {
+    font-size: 0.85rem;
+    line-height: 1.4;
   }
 
   .form-row-right {
-    gap: 0.4rem;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed #E2E8F0;
+    padding-top: 0.65rem;
+  }
+
+  .form-row-checkbox-label {
+    flex: 1;
+    justify-content: center;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    min-height: 42px;
+  }
+
+  .form-row-checkbox-input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .open-form-arrow-btn {
+    padding: 0.55rem 0.85rem;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    min-height: 42px;
+  }
+
+  .consent-form-signature-box {
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+
+  .master-signature-label {
+    gap: 0.75rem;
+  }
+
+  .master-signature-checkbox {
+    width: 22px;
+    height: 22px;
+  }
+
+  .master-signature-text {
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .btn-agree-continue {
+    width: 100%;
+    min-height: 52px;
+    font-size: 1.05rem;
+    padding: 0.95rem 1.25rem;
+  }
+
+  .consent-storage-note {
+    font-size: 0.8rem;
+    flex-direction: column;
+  }
+
+  /* Modal Form Mobile */
+  .legal-form-modal-card {
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: 16px;
+    margin: 0;
+  }
+
+  .legal-modal-header {
+    padding: 1.1rem 1rem;
+  }
+
+  .legal-modal-title-wrap {
+    gap: 0.75rem;
+  }
+
+  .legal-icon-wrap {
+    width: 40px;
+    height: 40px;
+  }
+
+  .legal-modal-title {
+    font-size: 1.15rem;
+  }
+
+  .legal-modal-notice-banner {
+    padding: 0.6rem 1rem;
+    font-size: 0.82rem;
+  }
+
+  .legal-modal-body {
+    padding: 1.15rem 1rem;
+    gap: 1.15rem;
+  }
+
+  .legal-paragraph,
+  .legal-bullet-list li {
+    font-size: 0.9rem;
+  }
+
+  .legal-modal-footer.form-action-footer {
+    padding: 1rem;
   }
 
   .modal-consent-action-group {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .modal-form-checkbox-label {
+    font-size: 0.88rem;
   }
 
   .modal-footer-btns {
     width: 100%;
-    justify-content: flex-end;
+    display: flex;
   }
-}
 
-.legal-modal-header {
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  border-bottom: 1px solid #E2E8F0;
-  background: #FFFFFF;
-}
-
-.legal-modal-title-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  flex: 1;
-}
-
-.legal-icon-wrap {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: #FFF7ED;
-  border: 1px solid #FED7AA;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.legal-modal-title-texts {
-  flex: 1;
-}
-
-.legal-modal-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0F172A;
-  margin: 0.15rem 0 0.35rem 0;
-  letter-spacing: -0.01em;
-}
-
-.legal-modal-version {
-  font-size: 0.8rem;
-  color: #64748B;
-  display: block;
+  .modal-footer-btns button {
+    flex: 1;
+    min-height: 44px;
+  }
 }
