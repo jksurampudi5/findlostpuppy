@@ -42,24 +42,32 @@ export const DogDetailPage: React.FC = () => {
   const [reportType, setReportType] = useState<'listing' | 'user'>('listing');
   const [isBlocked, setIsBlocked] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    const foundReport = storageService.getReportById(id);
-    if (foundReport) {
-      setReport(foundReport);
-      setSightings(storageService.getSightingsForReport(foundReport.id));
-      setIsBlocked(storageService.isUserBlocked(foundReport.ownerId));
-    }
-  }, [id]);
-
   const refreshData = () => {
     if (!id) return;
     const updated = storageService.getReportById(id);
     if (updated) {
       setReport({ ...updated });
       setSightings(storageService.getSightingsForReport(updated.id));
+      setIsBlocked(storageService.isUserBlocked(updated.ownerId));
     }
   };
+
+  useEffect(() => {
+    if (!id) return;
+    refreshData();
+
+    const handleUpdate = () => {
+      refreshData();
+    };
+
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [id]);
 
   const handleStatusChange = (newStatus: ReportStatus) => {
     if (!report) return;

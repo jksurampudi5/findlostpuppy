@@ -9,6 +9,18 @@ class AuthService {
 
   constructor() {
     this.init();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key === CURRENT_USER_KEY) {
+          try {
+            this.currentUser = e.newValue ? JSON.parse(e.newValue) : null;
+          } catch {
+            this.currentUser = null;
+          }
+          window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: this.currentUser }));
+        }
+      });
+    }
   }
 
   private init() {
@@ -43,14 +55,27 @@ class AuthService {
     } catch (e) {
       console.warn('Failed to persist session:', e);
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
+    }
   }
 
   getCurrentUser(): User | null {
+    try {
+      const storedSession = typeof localStorage !== 'undefined' ? localStorage.getItem(CURRENT_USER_KEY) : null;
+      if (storedSession) {
+        this.currentUser = JSON.parse(storedSession);
+      } else {
+        this.currentUser = null;
+      }
+    } catch {
+      // Fall back to memory state
+    }
     return this.currentUser;
   }
 
   isAuthenticated(): boolean {
-    return !!this.currentUser;
+    return !!this.getCurrentUser();
   }
 
   // Pure Email Authentication with persistent remembrance

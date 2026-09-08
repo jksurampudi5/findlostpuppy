@@ -33,6 +33,14 @@ class ConsentService {
 
   constructor() {
     this.loadConsent();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key === CONSENT_STORAGE_KEY) {
+          this.loadConsent();
+          window.dispatchEvent(new CustomEvent('findlostpuppy_consent_updated'));
+        }
+      });
+    }
   }
 
   private loadConsent() {
@@ -105,6 +113,10 @@ class ConsentService {
       console.warn('Failed to persist consent record:', e);
     }
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_consent_updated'));
+    }
+
     return record;
   }
 
@@ -117,6 +129,10 @@ class ConsentService {
       localStorage.removeItem(CONSENT_STORAGE_KEY);
     } catch (e) {
       console.warn('Failed to remove consent record:', e);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_consent_updated'));
     }
   }
 }

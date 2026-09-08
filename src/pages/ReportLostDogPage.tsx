@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -49,6 +49,14 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
   // Active status choice: 'safe' | 'missing' | null (undecided)
   const [userSelectedChoice, setUserSelectedChoice] = useState<'safe' | 'missing' | null>(null);
+
+  useEffect(() => {
+    if (petSafetyStatus === 'LOST') {
+      setUserSelectedChoice('missing');
+    } else if (petSafetyStatus === 'SAFE') {
+      setUserSelectedChoice('safe');
+    }
+  }, [petSafetyStatus]);
 
   const safetyChoice: 'safe' | 'missing' | null =
     userSelectedChoice ??
