@@ -25,6 +25,8 @@ import type { LostReport, DogProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { DogGoingHomeAnimation } from '../components/DogGoingHomeAnimation';
 import { DogAwayFromHomeAnimation } from '../components/DogAwayFromHomeAnimation';
+import safePuppyImg from '../assets/safe_puppy.jpg';
+import missingPuppyImg from '../assets/missing_puppy.jpg';
 
 interface ReportLostDogPageProps {
   onBackToPet?: () => void;
@@ -261,7 +263,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
             >
               <div className="card-visual-header">
                 <img
-                  src="/images/safe_puppy.jpg"
+                  src={safePuppyImg}
                   alt="Happy pup safe at home"
                   className="decision-card-img"
                 />
@@ -295,7 +297,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
             >
               <div className="card-visual-header">
                 <img
-                  src="/images/missing_puppy.jpg"
+                  src={missingPuppyImg}
                   alt="Pet rescue search"
                   className="decision-card-img"
                 />
