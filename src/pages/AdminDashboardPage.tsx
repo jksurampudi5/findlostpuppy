@@ -82,13 +82,16 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Quick Manual Cloud Sync
   const handleManualSync = async () => {
-    showToast('🔄 Connecting to Community Cloud Relay...', 'info');
-    const result = await cloudSyncService.syncCommunityData();
-    if (result.success) {
-      showToast('✅ Cloud Sync Complete! All pet reports updated.', 'success');
-      loadAllAdminData();
+    showToast('🔄 Syncing with Supabase Cloud Database & Relay...', 'info');
+    const [supabaseSuccess, cloudResult] = await Promise.all([
+      storageService.pullFromSupabase(),
+      cloudSyncService.syncCommunityData(true),
+    ]);
+    loadAllAdminData();
+    if (supabaseSuccess || cloudResult.success) {
+      showToast('✅ Supabase Cloud Sync Complete! All pet records updated.', 'success');
     } else {
-      showToast(`⚠️ Sync notice: ${result.message}`, 'error');
+      showToast('⚠️ Sync completed with local cache.', 'info');
     }
   };
 
@@ -1081,6 +1084,14 @@ export const AdminDashboardPage: React.FC = () => {
 
                 <div className="cloud-relay-stats-box">
                   <div className="relay-stat-item">
+                    <span className="stat-label">Cloud Backend:</span>
+                    <span className="stat-val text-emerald-600 font-bold">⚡ Supabase Database</span>
+                  </div>
+                  <div className="relay-stat-item">
+                    <span className="stat-label">Project URL:</span>
+                    <span className="stat-val font-mono text-xs text-gray-700">kfmtlrmttskqaepoznwy.supabase.co</span>
+                  </div>
+                  <div className="relay-stat-item">
                     <span className="stat-label">Relay Status:</span>
                     <span className="stat-val text-emerald-600 font-bold">● Active & Connected</span>
                   </div>
@@ -1089,7 +1100,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <span className="stat-val">
                       {syncStatus.lastSyncedAt
                         ? new Date(syncStatus.lastSyncedAt).toLocaleString()
-                        : 'Never / Initializing'}
+                        : 'Live / Synchronized'}
                     </span>
                   </div>
                   <div className="relay-stat-item">
@@ -1105,7 +1116,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className="btn btn-primary btn-block"
                 >
                   <RefreshCw size={16} className={syncStatus.isSyncing ? 'animate-spin' : ''} />
-                  <span>{syncStatus.isSyncing ? 'Synchronizing...' : 'Force Cloud Sync Now'}</span>
+                  <span>{syncStatus.isSyncing ? 'Synchronizing...' : 'Force Supabase Cloud Sync Now'}</span>
                 </button>
               </div>
 

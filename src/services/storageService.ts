@@ -12,6 +12,7 @@ import type {
   UserReportCategory,
 } from '../types';
 import { consentService } from './consentService';
+import { supabaseSyncService } from './supabaseSyncService';
 
 import abulluImg from '../assets/abullu.jpg';
 
@@ -168,6 +169,18 @@ class StorageService {
           this.notifyUpdate();
         }
       });
+
+      // Pull latest cloud data on startup
+      setTimeout(() => {
+        this.pullFromSupabase().catch(() => {});
+      }, 500);
+
+      // Periodic cloud background sync (every 30s)
+      setInterval(() => {
+        if (navigator.onLine) {
+          this.pullFromSupabase().catch(() => {});
+        }
+      }, 30000);
     }
   }
 
@@ -555,6 +568,9 @@ class StorageService {
         report.updatedAt = new Date().toISOString();
       }
 
+      // Background sync to Supabase
+      supabaseSyncService.syncSighting(sighting).catch((e) => console.warn('[Supabase Sync Sighting Notice]:', e));
+
       return sighting;
     });
   }
@@ -625,6 +641,9 @@ class StorageService {
         }
       }
 
+      // Background sync to Supabase
+      supabaseSyncService.syncPet(pet).catch((e) => console.warn('[Supabase Sync Pet Notice]:', e));
+
       return pet;
     });
   }
@@ -690,6 +709,14 @@ class StorageService {
         this.reports.unshift(report);
       }
 
+      // Background sync to Supabase
+      supabaseSyncService.syncLostReport(report).catch((e) => console.warn('[Supabase Sync Report Notice]:', e));
+
+      supabaseSyncService.updatePetSafetyStatus(
+        report.dogId || report.dog?.id || report.id,
+        report.status === 'LOST'
+      ).catch((e) => console.warn('[Supabase Update Safety Notice]:', e));
+
       return report;
     });
   }
@@ -752,6 +779,10 @@ class StorageService {
       } else {
         this.profiles.push(profile);
       }
+
+      // Background sync to Supabase
+      supabaseSyncService.syncOwnerProfile(profile, profile.userId || profile.id).catch((e) => console.warn('[Supabase Sync Owner Notice]:', e));
+
       return profile;
     });
   }
@@ -950,6 +981,7 @@ class StorageService {
   deleteUserAsAdmin(userId: string): boolean {
     return this.executeTransaction(() => {
       this.deleteUserAccount(userId);
+      supabaseSyncService.deleteUserAsAdmin(userId).catch((e) => console.warn('[Supabase Delete User Notice]:', e));
       return true;
     });
   }
@@ -960,6 +992,7 @@ class StorageService {
       this.pets = this.pets.filter((p) => p.id !== petId);
       // Also remove any linked reports
       this.reports = this.reports.filter((r) => r.dogId !== petId && r.dog?.id !== petId);
+      supabaseSyncService.deletePetAsAdmin(petId).catch((e) => console.warn('[Supabase Delete Pet Notice]:', e));
       return this.pets.length < initLen;
     });
   }
@@ -977,6 +1010,7 @@ class StorageService {
         }
       }
       this.sightings = this.sightings.filter((s) => s.id !== sightingId);
+      supabaseSyncService.deleteSightingAsAdmin(sightingId).catch((e) => console.warn('[Supabase Delete Sighting Notice]:', e));
       return true;
     });
   }
@@ -1181,6 +1215,129 @@ class StorageService {
       });
     } catch (e) {
       console.warn('Community sync merge failed:', e);
+    }
+  }
+
+  async pullFromSupabase(): Promise<boolean> {
+    try {
+      const data = await supabaseSyncService.fetchAllCloudData();
+      if (!data) return false;
+
+      const { profiles, pets, reports, sightings } = data;
+
+      // Map Supabase profiles to OwnerProfile and User
+      const mappedProfiles: OwnerProfile[] = (profiles || []).map((p: any) => ({
+        id: p.id,
+        userId: p.id,
+        fullName: p.name || 'Pet Parent',
+        email: p.email,
+        phone: p.phone || '',
+        address: p.address || '',
+        photo: p.avatar_url,
+        preferredContact: 'phone',
+        hasLocationConsent: true,
+        updatedAt: p.created_at || new Date().toISOString(),
+      }));
+
+      const mappedUsers: User[] = (profiles || []).map((p: any) => ({
+        id: p.id,
+        name: p.name || p.email?.split('@')[0] || 'Pet Parent',
+        email: p.email,
+        phone: p.phone,
+        avatar: p.avatar_url,
+        isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
+        createdAt: p.created_at || new Date().toISOString(),
+      }));
+
+      // Map Supabase pets to DogProfile
+      const mappedPets: DogProfile[] = (pets || []).map((p: any) => ({
+        id: p.id,
+        ownerId: p.user_id,
+        name: p.name,
+        breed: p.breed || 'Companion Pet',
+        gender: p.gender || 'Unknown',
+        age: '2 years',
+        size: 'Medium (10-25kg)',
+        color: p.color || '',
+        distinguishingMarks: p.markings || '',
+        collarInfo: '',
+        primaryPhoto: p.photo_url || abulluImg,
+        photos: p.photo_url ? [p.photo_url] : [abulluImg],
+        createdAt: p.created_at || new Date().toISOString(),
+      }));
+
+      // Map Supabase missing_reports to LostReport
+      const mappedReports: LostReport[] = (reports || []).map((r: any) => {
+        const petInfo = (pets || []).find((p: any) => p.id === r.pet_id);
+        return {
+          id: r.id,
+          dogId: r.pet_id,
+          ownerId: r.user_id,
+          dog: {
+            id: r.pet_id,
+            ownerId: r.user_id,
+            name: r.pet_name || petInfo?.name || 'Pet',
+            breed: petInfo?.breed || 'Companion Dog',
+            gender: petInfo?.gender || 'Unknown',
+            age: '2 years',
+            size: 'Medium (10-25kg)',
+            color: petInfo?.color || '',
+            distinguishingMarks: petInfo?.markings || '',
+            collarInfo: '',
+            primaryPhoto: r.pet_photo || petInfo?.photo_url || abulluImg,
+            photos: [r.pet_photo || petInfo?.photo_url || abulluImg],
+            createdAt: r.created_at || new Date().toISOString(),
+          },
+          ownerApproximateLocation: r.district || 'West Godavari',
+          lastKnownLocation: r.landmark || 'Nearby',
+          dateLost: r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          timeLost: '12:00 PM',
+          status: r.is_resolved ? 'SAFE' : 'LOST',
+          contactMechanism: {
+            showPhone: true,
+            showEmail: true,
+            safeContactPhone: r.contact_phone || '8639452948',
+            safeContactEmail: r.contact_email || 'contact@findlostpuppy.org',
+            contactNote: 'Please contact immediately if spotted.',
+          },
+          sightingCount: (sightings || []).filter((s: any) => s.report_id === r.id || s.pet_id === r.pet_id).length,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      // Map Supabase sightings to Sighting
+      const mappedSightings: Sighting[] = (sightings || []).map((s: any) => ({
+        id: s.id,
+        reportId: s.report_id,
+        dogName: s.reporter_name || 'Lost Dog',
+        date: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        time: '12:00 PM',
+        location: s.landmark || 'Seen nearby',
+        description: s.notes || '',
+        photo: s.photo_url || undefined,
+        reporterName: s.reporter_name || 'Anonymous',
+        reporterPhone: s.reporter_phone || undefined,
+        createdAt: s.created_at || new Date().toISOString(),
+      }));
+
+      this.mergeCommunityData({
+        users: mappedUsers,
+        profiles: mappedProfiles,
+        pets: mappedPets,
+        reports: mappedReports,
+        sightings: mappedSightings,
+      });
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+        window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced', { detail: { count: profiles.length } }));
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('Failed to pull from Supabase:', e);
+      return false;
     }
   }
 
