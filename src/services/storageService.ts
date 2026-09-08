@@ -11,11 +11,6 @@ import type {
   UserReportCategory,
 } from '../types';
 import { consentService } from './consentService';
-import {
-  INITIAL_COMMUNITY_REPORTS,
-  INITIAL_COMMUNITY_SIGHTINGS,
-  INITIAL_COMMUNITY_PROFILES,
-} from '../data/seedReports';
 
 const REPORTS_KEY = 'findlostpuppy_reports_v1';
 const SIGHTINGS_KEY = 'findlostpuppy_sightings_v1';
@@ -49,30 +44,41 @@ class StorageService {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
       
-      // Merge initial community reports with user stored reports so every new user immediately sees active missing alerts
-      const reportMap = new Map<string, LostReport>();
-      INITIAL_COMMUNITY_REPORTS.forEach((r) => reportMap.set(r.id, r));
-      rawReports.forEach((r) => {
-        // If user updated a community report or created their own, preserve user version
-        reportMap.set(r.id, r);
-      });
-      this.reports = Array.from(reportMap.values());
+      // Keep only genuine user-uploaded reports (filter out any mock/seed dummy data)
+      this.reports = rawReports.filter(
+        (r) =>
+          !r.id.startsWith('LOST-849201') &&
+          !r.id.startsWith('LOST-732910') &&
+          !r.id.startsWith('LOST-621804') &&
+          !r.id.startsWith('LOST-510492') &&
+          !r.id.startsWith('LOST-BRUNO-') &&
+          !r.id.startsWith('LOST-BELLA-') &&
+          !r.id.startsWith('LOST-MILO-') &&
+          !r.id.startsWith('LOST-LUNA-') &&
+          !r.id.startsWith('LOST-ROCKY-') &&
+          !r.id.startsWith('LOST-SIMBA-') &&
+          !r.id.startsWith('LOST-LEO-') &&
+          !r.ownerId.startsWith('owner-00') &&
+          !r.ownerId.startsWith('owner-community-')
+      );
       this.saveReports();
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      const sightingMap = new Map<string, Sighting>();
-      INITIAL_COMMUNITY_SIGHTINGS.forEach((s) => sightingMap.set(s.id, s));
-      rawSightings.forEach((s) => sightingMap.set(s.id, s));
-      this.sightings = Array.from(sightingMap.values());
+      this.sightings = rawSightings.filter(
+        (s) =>
+          !s.id.startsWith('sight-comm-') &&
+          !s.id.startsWith('sight-00')
+      );
       this.saveSightings();
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      const profileMap = new Map<string, OwnerProfile>();
-      INITIAL_COMMUNITY_PROFILES.forEach((p) => profileMap.set(p.id, p));
-      rawProfiles.forEach((p) => profileMap.set(p.id, p));
-      this.profiles = Array.from(profileMap.values());
+      this.profiles = rawProfiles.filter(
+        (p) =>
+          !p.id.startsWith('owner-community-') &&
+          !p.id.startsWith('owner-00')
+      );
       this.saveProfiles();
 
       const storedPets = localStorage.getItem(PETS_KEY);
@@ -93,9 +99,9 @@ class StorageService {
       const storedBlocked = localStorage.getItem(BLOCKED_USERS_KEY);
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : [];
     } catch {
-      this.reports = [...INITIAL_COMMUNITY_REPORTS];
-      this.sightings = [...INITIAL_COMMUNITY_SIGHTINGS];
-      this.profiles = [...INITIAL_COMMUNITY_PROFILES];
+      this.reports = [];
+      this.sightings = [];
+      this.profiles = [];
       this.pets = [];
       this.skippedPetUserIds = [];
       this.skippedReportUserIds = [];
@@ -230,9 +236,16 @@ class StorageService {
     return sighting;
   }
 
-  // OWNER PROFILES:
   getOwnerProfileByUserId(userId: string): OwnerProfile | undefined {
-    return this.profiles.find((p) => p.userId === userId);
+    const rawUserId = userId.replace('owner-', '');
+    return this.profiles.find(
+      (p) =>
+        p.userId === userId ||
+        p.userId === rawUserId ||
+        p.id === userId ||
+        p.id === `owner-${userId}` ||
+        p.id === `owner-${rawUserId}`
+    );
   }
 
   hasCompletedOwnerProfile(userId: string): boolean {
