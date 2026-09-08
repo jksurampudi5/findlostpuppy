@@ -402,29 +402,15 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     <div className="onboarding-page-container">
       <div className="onboarding-card-wrapper">
         <div className="card onboarding-card location-onboarding-card">
-          <div className="onboarding-header text-center">
-            <div className="badge badge-accent mb-2">
-              <Sparkles size={14} className="mr-1" />
-              <span>Step 2 of 4 • Community Search Radius</span>
-            </div>
-            <h1 className="onboarding-title">Where is Your Pet's Neighborhood?</h1>
-            <p className="onboarding-subtitle">
-              Set your official State, District, Mandal/Taluk, and Village so verified local pet lovers
-              nearby can instantly receive search alerts if your dog ever goes missing.
-            </p>
-          </div>
-
-          {/* PRIVACY SHIELD CALLOUT */}
-          <div className="privacy-callout-banner">
-            <div className="privacy-callout-icon-wrap">
-              <ShieldCheck size={20} className="text-terracotta" />
-            </div>
-            <div className="privacy-callout-content">
-              <h4 className="privacy-callout-heading">100% Pet-Safe Community Radius</h4>
-              <p className="privacy-callout-text">
-                Your private home address is never shown publicly. Only your safe public area (
-                <em>e.g. "{calculatePublicArea()}"</em>) will be visible on community search alerts.
-              </p>
+          <div className="onboarding-header">
+            <div className="cute-welcome-banner">
+              <div className="cute-welcome-icon">📍</div>
+              <div className="cute-welcome-text">
+                <h1 className="cute-page-title">Pet Neighborhood & Search Area 🐾</h1>
+                <p className="cute-page-sub">
+                  Official community radius where neighbors can receive instant search alerts! 💛
+                </p>
+              </div>
             </div>
           </div>
 
@@ -481,57 +467,62 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
             </div>
           )}
 
-          {/* CASE 1: SUBMITTED STATE -> SHOW PREVIEW WITH DIRECT UPDATE OPTION */}
+          {/* CASE 1: SUBMITTED STATE -> CLEAN SPACIOUS SHOWCASE CARD */}
           {isSubmitted && !isEditing ? (
             <div className="location-preview-showcase">
               <div className="preview-showcase-header">
-                <div className="preview-showcase-icon">📍</div>
-                <div>
-                  <h3 className="preview-showcase-title">Your Location Preview</h3>
-                  <p className="preview-showcase-sub">
-                    This community area is shown on search alerts and flyers to help find your puppy.
-                  </p>
+                <div className="showcase-verified-badge">
+                  <Check size={15} className="badge-check-icon" />
+                  <span>Verified Public Search Radius ✨</span>
                 </div>
               </div>
 
-              <div className="preview-highlight-box">
-                <div className="preview-highlight-label">
-                  <Check size={14} />
-                  <span>Verified Public Area</span>
+              <div className="showcase-main-card">
+                <div className="showcase-location-title">
+                  {calculatePublicArea()}
                 </div>
-                <div className="preview-highlight-text">{calculatePublicArea()}</div>
-                <div className="preview-highlight-meta">
-                  <span>
-                    State: <strong>{state}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    District: <strong>{district}</strong>
-                  </span>
+
+                <div className="showcase-hierarchy-chips">
+                  <div className="showcase-chip">
+                    <span className="chip-icon">🏛️</span>
+                    <span className="chip-label">State:</span>
+                    <strong className="chip-value">{state}</strong>
+                  </div>
+
+                  <div className="showcase-chip">
+                    <span className="chip-icon">🏙️</span>
+                    <span className="chip-label">District:</span>
+                    <strong className="chip-value">{district}</strong>
+                  </div>
+
                   {mandalOrMunicipality && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Mandal: <strong>{mandalOrMunicipality}</strong>
-                      </span>
-                    </>
+                    <div className="showcase-chip">
+                      <span className="chip-icon">📍</span>
+                      <span className="chip-label">Mandal:</span>
+                      <strong className="chip-value">{mandalOrMunicipality}</strong>
+                    </div>
                   )}
+
                   {city && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Locality: <strong>{city}</strong>
-                      </span>
-                    </>
+                    <div className="showcase-chip">
+                      <span className="chip-icon">🏡</span>
+                      <span className="chip-label">Locality:</span>
+                      <strong className="chip-value">{city}</strong>
+                    </div>
                   )}
+
                   {pinCode && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        PIN: <strong>{pinCode}</strong>
-                      </span>
-                    </>
+                    <div className="showcase-chip">
+                      <span className="chip-icon">📮</span>
+                      <span className="chip-label">PIN:</span>
+                      <strong className="chip-value">{pinCode}</strong>
+                    </div>
                   )}
+                </div>
+
+                <div className="showcase-privacy-pill">
+                  <ShieldCheck size={14} className="privacy-pill-icon" />
+                  <span>Private home address is 100% hidden • Only safe public radius is shared</span>
                 </div>
               </div>
 
@@ -544,7 +535,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     className="btn btn-outline btn-md edit-details-btn"
                   >
                     <Edit3 size={16} />
-                    <span>✏️ Update Details</span>
+                    <span>✏️ Update Location</span>
                   </button>
 
                   <button
@@ -554,7 +545,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     className="btn btn-ghost btn-sm"
                   >
                     <RefreshCw size={15} className={detecting ? 'spin' : ''} />
-                    <span>Re-Detect (GPS)</span>
+                    <span>🔄 Re-Detect (GPS)</span>
                   </button>
                 </div>
 
@@ -564,7 +555,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     onClick={handleProceedToPup}
                     className="btn btn-primary btn-lg continue-to-pup-btn"
                   >
-                    <span>Continue to Pup Profile</span>
+                    <span>Continue to Pup Profile 🐕</span>
                     <ArrowRight size={18} />
                   </button>
                 </div>
@@ -609,8 +600,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 >
                   <div className="form-section-card cute-section-card">
                     <h3 className="section-title-sm cute-section-title">
-                      <span className="cute-title-icon">📝</span>
-                      <span>{isEditing ? 'Edit Location Details' : 'Review & Confirm Details'}</span>
+                      <span className="cute-title-icon">📍</span>
+                      <span>{isEditing ? 'Update Neighborhood Location' : 'Select Neighborhood Location'}</span>
                     </h3>
 
                     <div className="form-vertical-stack">
