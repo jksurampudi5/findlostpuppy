@@ -276,19 +276,37 @@ class StorageService {
   }
 
   private commitAllStorage(): void {
-    try {
-      localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
-      localStorage.setItem(PETS_KEY, JSON.stringify(this.pets));
-      localStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
-      localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(this.sightings));
-      localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify(this.skippedPetUserIds));
-      localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify(this.skippedReportUserIds));
-      localStorage.setItem(LISTING_REPORTS_KEY, JSON.stringify(this.listingReports));
-      localStorage.setItem(USER_REPORTS_KEY, JSON.stringify(this.userReports));
-      localStorage.setItem(BLOCKED_USERS_KEY, JSON.stringify(this.blockedUsers));
-    } catch (e) {
-      console.warn('LocalStorage commit error:', e);
-    }
+    const safeSet = (key: string, data: any) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (err: any) {
+        if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.message?.includes('quota')) {
+          try {
+            // Strip oversized base64 strings to stay well within browser quota
+            const sanitized = JSON.parse(
+              JSON.stringify(data, (k, v) => {
+                if (k === 'photos' && Array.isArray(v) && v.length > 2) return v.slice(0, 2);
+                if (typeof v === 'string' && v.startsWith('data:image/') && v.length > 150000) {
+                  return '';
+                }
+                return v;
+              })
+            );
+            localStorage.setItem(key, JSON.stringify(sanitized));
+          } catch {}
+        }
+      }
+    };
+
+    safeSet(REPORTS_KEY, this.reports);
+    safeSet(PETS_KEY, this.pets);
+    safeSet(PROFILES_KEY, this.profiles);
+    safeSet(SIGHTINGS_KEY, this.sightings);
+    safeSet(SKIPPED_PET_KEY, this.skippedPetUserIds);
+    safeSet(SKIPPED_REPORT_KEY, this.skippedReportUserIds);
+    safeSet(LISTING_REPORTS_KEY, this.listingReports);
+    safeSet(USER_REPORTS_KEY, this.userReports);
+    safeSet(BLOCKED_USERS_KEY, this.blockedUsers);
   }
 
   private init() {
