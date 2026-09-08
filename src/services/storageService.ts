@@ -170,9 +170,11 @@ class StorageService {
         }
       });
 
-      // Pull latest cloud data on startup
+      // Push any locally cached data to Supabase, then pull any new cloud records
       setTimeout(() => {
-        this.pullFromSupabase().catch(() => {});
+        this.pushLocalToSupabase()
+          .then(() => this.pullFromSupabase())
+          .catch(() => {});
       }, 500);
 
       // Periodic cloud background sync (every 30s)
@@ -1338,6 +1340,44 @@ class StorageService {
     } catch (e) {
       console.warn('Failed to pull from Supabase:', e);
       return false;
+    }
+  }
+
+  /**
+   * Automatically migrates any locally-cached user profiles, pets, and lost reports
+   * to Supabase when a returning user visits the updated site on their phone.
+   */
+  async pushLocalToSupabase(): Promise<void> {
+    try {
+      if (!supabaseSyncService.isConfigured()) return;
+
+      // 1. Sync all registered users
+      const users = this.getAllRegisteredUsers();
+      for (const u of users) {
+        await supabaseSyncService.syncUserProfile(u).catch(() => {});
+      }
+
+      // 2. Sync all owner profiles
+      for (const p of this.profiles) {
+        await supabaseSyncService.syncOwnerProfile(p, p.userId || p.id).catch(() => {});
+      }
+
+      // 3. Sync all pets
+      for (const pet of this.pets) {
+        await supabaseSyncService.syncPet(pet).catch(() => {});
+      }
+
+      // 4. Sync all reports
+      for (const r of this.reports) {
+        await supabaseSyncService.syncLostReport(r).catch(() => {});
+      }
+
+      // 5. Sync all sightings
+      for (const s of this.sightings) {
+        await supabaseSyncService.syncSighting(s).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Auto local-to-cloud migration notice:', e);
     }
   }
 
