@@ -66,6 +66,42 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     updatedAt: new Date().toISOString(),
   },
   {
+    id: 'LOST-CHARLIE-01',
+    dogId: 'dog-charlie-01',
+    ownerId: 'owner-charlie-rescuers',
+    dog: {
+      id: 'dog-charlie-01',
+      ownerId: 'owner-charlie-rescuers',
+      name: 'charlie',
+      breed: 'Indian Pariah Dog • Rescued Pup',
+      gender: 'Male',
+      age: '1.5 years',
+      size: 'Medium (10-25kg)',
+      color: 'Light Tan & White',
+      distinguishingMarks: 'Dark patch over left ear, active and energetic',
+      collarInfo: 'Red collar',
+      primaryPhoto: abulluImg,
+      photos: [abulluImg],
+      createdAt: '2026-09-07T14:00:00.000Z',
+    },
+    ownerApproximateLocation: 'Tanuku Road, Undrajavaram, West Godavari',
+    lastKnownLocation: 'Near Undrajavaram Main Junction, West Godavari',
+    dateLost: '2026-09-07',
+    timeLost: '02:00 PM',
+    additionalNotes: 'Neighbors reported sighting Charlie near the junction. Volunteers actively monitoring area.',
+    status: 'LOST',
+    contactMechanism: {
+      showPhone: true,
+      showEmail: true,
+      safeContactPhone: '8639452948',
+      safeContactEmail: 'community.care@findlostpuppy.org',
+      contactNote: 'Volunteer search team on site.',
+    },
+    sightingCount: 3,
+    createdAt: '2026-09-07T14:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
     id: 'LOST-BRUNO-WESTGODAVARI',
     dogId: 'dog-bruno-01',
     ownerId: 'owner-bruno-family',
@@ -99,42 +135,6 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     },
     sightingCount: 2,
     createdAt: '2026-09-05T16:30:00.000Z',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'LOST-CHARLIE-SIGHTED',
-    dogId: 'dog-charlie-01',
-    ownerId: 'owner-charlie-rescuers',
-    dog: {
-      id: 'dog-charlie-01',
-      ownerId: 'owner-charlie-rescuers',
-      name: 'charlie',
-      breed: 'Indian Pariah Dog • Rescued Pup',
-      gender: 'Male',
-      age: '1.5 years',
-      size: 'Medium (10-25kg)',
-      color: 'Light Tan & White',
-      distinguishingMarks: 'Dark patch over left ear, active and energetic',
-      collarInfo: 'Red collar',
-      primaryPhoto: abulluImg,
-      photos: [abulluImg],
-      createdAt: '2026-09-07T14:00:00.000Z',
-    },
-    ownerApproximateLocation: 'Tanuku Road, Undrajavaram, West Godavari',
-    lastKnownLocation: 'Near Undrajavaram Main Junction, West Godavari',
-    dateLost: '2026-09-07',
-    timeLost: '02:00 PM',
-    additionalNotes: 'Neighbors reported sighting Charlie near the junction. Volunteers actively monitoring area.',
-    status: 'SIGHTED',
-    contactMechanism: {
-      showPhone: true,
-      showEmail: true,
-      safeContactPhone: '8639452948',
-      safeContactEmail: 'community.care@findlostpuppy.org',
-      contactNote: 'Volunteer search team on site.',
-    },
-    sightingCount: 3,
-    createdAt: '2026-09-07T14:00:00.000Z',
     updatedAt: new Date().toISOString(),
   },
 ];
@@ -224,7 +224,7 @@ class StorageService {
       const petActiveKey = `${ownerClean}::${dogNameClean}`;
 
       // If active LOST report for same pet is encountered, keep only the latest one
-      if (r.status === 'LOST' || r.status === 'SIGHTED') {
+      if (r.status === 'LOST') {
         if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
           continue; // Skip duplicate active report for same dog
         }
@@ -272,7 +272,7 @@ class StorageService {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
       
-      // Filter out old legacy random seed IDs but preserve genuine reports
+      // Filter out old legacy random seed IDs and unwanted test duplicates
       const userReports = rawReports.filter(
         (r) =>
           !r.id.startsWith('LOST-849201') &&
@@ -284,7 +284,9 @@ class StorageService {
           !r.id.startsWith('LOST-LUNA-') &&
           !r.id.startsWith('LOST-ROCKY-') &&
           !r.id.startsWith('LOST-SIMBA-') &&
-          !r.id.startsWith('LOST-LEO-')
+          !r.id.startsWith('LOST-LEO-') &&
+          !r.id.includes('1788863155592') &&
+          r.id !== 'LOST-CHARLIE-SIGHTED'
       );
 
       // Merge with verified community baseline reports
@@ -406,7 +408,23 @@ class StorageService {
           map.set(normalizeReportId(r.id), r);
         }
 
-        for (const r of parsed) {
+        const filteredParsed = parsed.filter(
+          (r) =>
+            !r.id.startsWith('LOST-849201') &&
+            !r.id.startsWith('LOST-732910') &&
+            !r.id.startsWith('LOST-621804') &&
+            !r.id.startsWith('LOST-510492') &&
+            !r.id.startsWith('LOST-BELLA-') &&
+            !r.id.startsWith('LOST-MILO-') &&
+            !r.id.startsWith('LOST-LUNA-') &&
+            !r.id.startsWith('LOST-ROCKY-') &&
+            !r.id.startsWith('LOST-SIMBA-') &&
+            !r.id.startsWith('LOST-LEO-') &&
+            !r.id.includes('1788863155592') &&
+            r.id !== 'LOST-CHARLIE-SIGHTED'
+        );
+
+        for (const r of filteredParsed) {
           const rawId = r.ownerId ? r.ownerId.replace(/^owner-/, '') : '';
           const registeredPet = this.pets.find(
             (p) => p.ownerId === r.ownerId || p.ownerId === `owner-${rawId}` || p.ownerId === rawId
@@ -429,7 +447,7 @@ class StorageService {
           const petActiveKey = `${ownerClean}::${dogNameClean}`;
 
           // Deduplicate active reports for same pet
-          if (r.status === 'LOST' || r.status === 'SIGHTED') {
+          if (r.status === 'LOST') {
             if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
               continue;
             }
@@ -495,6 +513,26 @@ class StorageService {
     return this.saveReport(report);
   }
 
+  deleteReport(reportId: string): boolean {
+    return this.executeTransaction(() => {
+      const canonicalId = normalizeReportId(reportId);
+      const initialCount = this.reports.length;
+      this.reports = this.reports.filter(
+        (r) =>
+          normalizeReportId(r.id) !== canonicalId &&
+          r.id !== reportId &&
+          r.id.toLowerCase() !== reportId.toLowerCase()
+      );
+      this.sightings = this.sightings.filter(
+        (s) =>
+          normalizeReportId(s.reportId) !== canonicalId &&
+          s.reportId !== reportId &&
+          s.reportId.toLowerCase() !== reportId.toLowerCase()
+      );
+      return this.reports.length < initialCount;
+    });
+  }
+
   updateReportStatus(reportId: string, status: ReportStatus): boolean {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
@@ -525,8 +563,9 @@ class StorageService {
       );
       if (report) {
         report.sightingCount = (report.sightingCount || 0) + 1;
-        if (report.status === 'LOST') {
-          report.status = 'SIGHTED';
+        // Keep status as strictly LOST if not REUNITED
+        if (report.status !== 'REUNITED') {
+          report.status = 'LOST';
         }
         report.updatedAt = new Date().toISOString();
       }
