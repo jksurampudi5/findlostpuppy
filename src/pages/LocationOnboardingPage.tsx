@@ -13,6 +13,7 @@ import {
   X,
   Compass,
   Edit3,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -404,11 +405,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         <div className="card onboarding-card location-onboarding-card">
           <div className="onboarding-header">
             <div className="cute-welcome-banner">
-              <div className="cute-welcome-icon">📍</div>
+              <div className="cute-welcome-icon">🐾</div>
               <div className="cute-welcome-text">
-                <h1 className="cute-page-title">Pet Neighborhood & Search Area 🐾</h1>
+                <h1 className="cute-page-title">Pet Location 🐾</h1>
                 <p className="cute-page-sub">
-                  Official community radius where neighbors can receive instant search alerts! 💛
+                  Where your pet stays to connect with local neighbors
                 </p>
               </div>
             </div>
@@ -467,98 +468,117 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
             </div>
           )}
 
-          {/* CASE 1: SUBMITTED STATE -> CLEAN SPACIOUS SHOWCASE CARD */}
+          {/* CASE 1: SUBMITTED STATE -> VISUAL LOCATION JOURNEY SHOWCASE */}
           {isSubmitted && !isEditing ? (
             <div className="location-preview-showcase">
-              <div className="preview-showcase-header">
+              {/* TOP ACTION BAR: Verified Badge & Re-Detect GPS */}
+              <div className="showcase-top-bar">
                 <div className="showcase-verified-badge">
-                  <Check size={15} className="badge-check-icon" />
-                  <span>Verified Public Search Radius ✨</span>
+                  <Check size={14} className="badge-check-icon" />
+                  <span>Verified Safe Area</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDetectClick}
+                  disabled={detecting}
+                  className="btn btn-outline btn-sm showcase-redetect-btn"
+                  title="Re-detect location using GPS"
+                >
+                  <RefreshCw size={14} className={detecting ? 'spin' : ''} />
+                  <span>Re-Detect GPS</span>
+                </button>
+              </div>
+
+              {/* VISUAL 4-STEP LOCATION JOURNEY FLOW */}
+              <div className="showcase-journey-flow">
+                {/* 1. State */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">🏛️</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">State</span>
+                    <strong className="journey-step-value">{state || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 2. District */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">🏙️</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">District</span>
+                    <strong className="journey-step-value">{district || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 3. Mandal */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">📍</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">Mandal</span>
+                    <strong className="journey-step-value">{mandalOrMunicipality || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 4. Locality (Highlighted Active) */}
+                <div className="journey-card journey-card-active">
+                  <div className="journey-card-icon-wrap active-icon">
+                    <span className="journey-emoji">🏡</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">Locality</span>
+                    <strong className="journey-step-value">{city || 'Not set'}</strong>
+                    {pinCode && (
+                      <span className="journey-pin-badge">
+                        📮 PIN {pinCode}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="showcase-main-card">
-                <div className="showcase-location-title">
-                  {calculatePublicArea()}
-                </div>
-
-                <div className="showcase-hierarchy-chips">
-                  <div className="showcase-chip">
-                    <span className="chip-icon">🏛️</span>
-                    <span className="chip-label">State:</span>
-                    <strong className="chip-value">{state}</strong>
-                  </div>
-
-                  <div className="showcase-chip">
-                    <span className="chip-icon">🏙️</span>
-                    <span className="chip-label">District:</span>
-                    <strong className="chip-value">{district}</strong>
-                  </div>
-
-                  {mandalOrMunicipality && (
-                    <div className="showcase-chip">
-                      <span className="chip-icon">📍</span>
-                      <span className="chip-label">Mandal:</span>
-                      <strong className="chip-value">{mandalOrMunicipality}</strong>
-                    </div>
-                  )}
-
-                  {city && (
-                    <div className="showcase-chip">
-                      <span className="chip-icon">🏡</span>
-                      <span className="chip-label">Locality:</span>
-                      <strong className="chip-value">{city}</strong>
-                    </div>
-                  )}
-
-                  {pinCode && (
-                    <div className="showcase-chip">
-                      <span className="chip-icon">📮</span>
-                      <span className="chip-label">PIN:</span>
-                      <strong className="chip-value">{pinCode}</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div className="showcase-privacy-pill">
-                  <ShieldCheck size={14} className="privacy-pill-icon" />
-                  <span>Private home address is 100% hidden • Only safe public radius is shared</span>
-                </div>
+              {/* Subtle Privacy Assurance Note */}
+              <div className="showcase-privacy-note">
+                <ShieldCheck size={14} className="privacy-note-icon" />
+                <span>Private home address is 100% hidden</span>
               </div>
 
-              {/* Action Buttons on Preview */}
-              <div className="preview-actions-row">
-                <div className="action-buttons-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="btn btn-outline btn-md edit-details-btn"
-                  >
-                    <Edit3 size={16} />
-                    <span>✏️ Update Location</span>
-                  </button>
+              {/* BOTTOM ACTIONS: Update Location (Centered) & Continue */}
+              <div className="showcase-bottom-actions">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="btn btn-outline btn-md edit-details-btn showcase-center-edit-btn"
+                >
+                  <Edit3 size={16} />
+                  <span>Update Location</span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={handleDetectClick}
-                    disabled={detecting}
-                    className="btn btn-ghost btn-sm"
-                  >
-                    <RefreshCw size={15} className={detecting ? 'spin' : ''} />
-                    <span>🔄 Re-Detect (GPS)</span>
-                  </button>
-                </div>
-
-                <div className="action-buttons-wrap">
-                  <button
-                    type="button"
-                    onClick={handleProceedToPup}
-                    className="btn btn-primary btn-lg continue-to-pup-btn"
-                  >
-                    <span>Continue to Pup Profile 🐕</span>
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleProceedToPup}
+                  className="btn btn-primary btn-lg continue-to-pup-btn"
+                >
+                  <span>Continue to Pup Profile 🐕</span>
+                  <ArrowRight size={18} />
+                </button>
               </div>
             </div>
           ) : (
@@ -601,7 +621,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   <div className="form-section-card cute-section-card">
                     <h3 className="section-title-sm cute-section-title">
                       <span className="cute-title-icon">📍</span>
-                      <span>{isEditing ? 'Update Neighborhood Location' : 'Select Neighborhood Location'}</span>
+                      <span>{isEditing ? 'Update Pet Location' : 'Select Pet Location'}</span>
                     </h3>
 
                     <div className="form-vertical-stack">
