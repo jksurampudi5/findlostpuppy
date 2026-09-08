@@ -85,8 +85,9 @@ export const DashboardPage: React.FC = () => {
   const availableLocations = useMemo(() => {
     const locs = new Set(
       reports.map((r) => {
-        const parts = r.ownerApproximateLocation.split(',');
-        return parts[parts.length - 1]?.trim() || r.ownerApproximateLocation;
+        const locStr = r.ownerApproximateLocation || r.lastKnownLocation || '';
+        const parts = locStr.split(',');
+        return parts[parts.length - 1]?.trim() || locStr;
       })
     );
     return Array.from(locs).filter(Boolean).sort();
@@ -102,7 +103,7 @@ export const DashboardPage: React.FC = () => {
       (r) =>
         r.ownerId === `owner-${user.id}` ||
         r.ownerId === user.id ||
-        r.contactMechanism.safeContactEmail === user.email
+        r.contactMechanism?.safeContactEmail === user.email
     );
   }, [reports, user]);
 
@@ -113,10 +114,10 @@ export const DashboardPage: React.FC = () => {
       const q = searchQuery.toLowerCase();
       return list.filter(
         (r) =>
-          r.dog.name.toLowerCase().includes(q) ||
-          r.dog.breed.toLowerCase().includes(q) ||
-          r.ownerApproximateLocation.toLowerCase().includes(q) ||
-          r.lastKnownLocation.toLowerCase().includes(q) ||
+          r.dog?.name?.toLowerCase().includes(q) ||
+          r.dog?.breed?.toLowerCase().includes(q) ||
+          (r.ownerApproximateLocation || '').toLowerCase().includes(q) ||
+          (r.lastKnownLocation || '').toLowerCase().includes(q) ||
           r.additionalNotes?.toLowerCase().includes(q)
       );
     },
@@ -132,20 +133,20 @@ export const DashboardPage: React.FC = () => {
     return reports
       .filter((r) => {
         if (browseStatus !== 'ALL' && r.status !== browseStatus) return false;
-        if (browseBreed !== 'ALL' && r.dog.breed !== browseBreed) return false;
+        if (browseBreed !== 'ALL' && r.dog?.breed !== browseBreed) return false;
         if (
           browseLocation !== 'ALL' &&
-          !r.ownerApproximateLocation.toLowerCase().includes(browseLocation.toLowerCase())
+          !(r.ownerApproximateLocation || '').toLowerCase().includes(browseLocation.toLowerCase())
         ) {
           return false;
         }
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchName = r.dog.name.toLowerCase().includes(q);
-          const matchBreed = r.dog.breed.toLowerCase().includes(q);
-          const matchColor = r.dog.color.toLowerCase().includes(q);
-          const matchLoc = r.ownerApproximateLocation.toLowerCase().includes(q);
-          const matchMarks = r.dog.distinguishingMarks?.toLowerCase().includes(q) || false;
+          const matchName = (r.dog?.name || '').toLowerCase().includes(q);
+          const matchBreed = (r.dog?.breed || '').toLowerCase().includes(q);
+          const matchColor = (r.dog?.color || '').toLowerCase().includes(q);
+          const matchLoc = (r.ownerApproximateLocation || '').toLowerCase().includes(q) || (r.lastKnownLocation || '').toLowerCase().includes(q);
+          const matchMarks = r.dog?.distinguishingMarks?.toLowerCase().includes(q) || false;
           const matchNotes = r.additionalNotes?.toLowerCase().includes(q) || false;
           if (!matchName && !matchBreed && !matchColor && !matchLoc && !matchMarks && !matchNotes) {
             return false;

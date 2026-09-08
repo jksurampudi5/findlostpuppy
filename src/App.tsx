@@ -31,22 +31,19 @@ function MainAppFlow() {
   } = useAuth();
   const location = useLocation();
 
-  // STEP 0: MANDATORY PRE-AUTHENTICATION CONSENT GATE
-  // A new or returning user without current consent (v1.0) must accept consent first.
-  // Direct URLs, refreshes, or navigation cannot bypass this.
-  if (!hasValidConsent) {
-    return <ConsentPage onConsentAgreed={agreeToConsent} />;
-  }
-
-  // PUBLIC GUEST ROUTES (Accessible directly without login via WhatsApp links!)
+  // STEP 0: PUBLIC EMERGENCY GUEST ROUTES (Instant 0-roadblock access via WhatsApp links)
+  // Neighbors, finders, and WhatsApp recipients can directly see the pet details, photos,
+  // owner contact info, submit sightings, and explore the community dashboard without login or legal consent roadblocks!
   if (
     location.pathname.startsWith('/report-sighting/') ||
-    location.pathname.startsWith('/found/')
+    location.pathname.startsWith('/found/') ||
+    location.pathname.startsWith('/alert/')
   ) {
     return (
       <Routes>
         <Route path="/report-sighting/:id" element={<GuestSightingPage />} />
         <Route path="/found/:id" element={<GuestSightingPage />} />
+        <Route path="/alert/:id" element={<GuestSightingPage />} />
       </Routes>
     );
   }
@@ -59,7 +56,21 @@ function MainAppFlow() {
     );
   }
 
-  // STEP 1: Not authenticated -> Clean Email Sign In (Zero dog images shown)
+  if (location.pathname === '/dashboard' || location.pathname === '/find') {
+    return (
+      <Routes>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/find" element={<DiscoveryPage />} />
+      </Routes>
+    );
+  }
+
+  // STEP 1: MANDATORY PRE-AUTHENTICATION CONSENT GATE FOR REGISTERING PETS & AUTH
+  if (!hasValidConsent) {
+    return <ConsentPage onConsentAgreed={agreeToConsent} />;
+  }
+
+  // STEP 2: Not authenticated -> Clean Email Sign In (Zero dog images shown)
   if (!isAuthenticated) {
     return <EmailAuthPage />;
   }
