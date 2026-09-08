@@ -307,7 +307,19 @@ class StorageService {
           map.set(r.id.toLowerCase(), r);
         }
         for (const r of parsed) {
-          if (r.id.toLowerCase() === 'lost-1788807276098' && (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5)) {
+          const rawId = r.ownerId ? r.ownerId.replace('owner-', '') : '';
+          const registeredPet = this.pets.find(
+            (p) => p.ownerId === r.ownerId || p.ownerId === `owner-${rawId}` || p.ownerId === rawId
+          );
+          if (registeredPet) {
+            if (registeredPet.name && (!r.dog.name || r.dog.name === 'My Dog')) {
+              r.dog.name = registeredPet.name;
+            }
+            if (registeredPet.primaryPhoto && (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5)) {
+              r.dog.primaryPhoto = registeredPet.primaryPhoto;
+            }
+          }
+          if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5) {
             r.dog.primaryPhoto = abulluImg;
           }
           map.set(r.id.toLowerCase(), r);
@@ -428,6 +440,32 @@ class StorageService {
       this.pets.push(pet);
     }
     this.savePets();
+
+    // Dynamically sync any existing reports for this owner
+    let reportChanged = false;
+    for (const r of this.reports) {
+      if (r.ownerId === pet.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) {
+        r.dog = {
+          ...r.dog,
+          name: pet.name,
+          breed: pet.breed,
+          gender: pet.gender,
+          age: pet.age,
+          size: pet.size,
+          color: pet.color,
+          distinguishingMarks: pet.distinguishingMarks,
+          collarInfo: pet.collarInfo,
+          primaryPhoto: pet.primaryPhoto || r.dog.primaryPhoto || abulluImg,
+          photos: pet.photos && pet.photos.length > 0 ? pet.photos : r.dog.photos,
+        };
+        r.updatedAt = new Date().toISOString();
+        reportChanged = true;
+      }
+    }
+    if (reportChanged) {
+      this.saveReports();
+    }
+
     return pet;
   }
 

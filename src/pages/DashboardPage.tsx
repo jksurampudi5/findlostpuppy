@@ -22,6 +22,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ReportModal } from '../components/ReportModal';
 import type { LostReport, ReportStatus } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 
 export const DashboardPage: React.FC = () => {
   const { user, setActiveOnboardingTab } = useAuth();
@@ -391,9 +392,10 @@ export const DashboardPage: React.FC = () => {
                   <div key={report.id} className="dog-profile-dashboard-card card">
                     <div className="dog-profile-photo-container">
                       <img
-                        src={report.dog.primaryPhoto}
-                        alt={report.dog.name}
+                        src={getDogPhotoUrl(report.dog, report)}
+                        alt={getDogDisplayName(report.dog, report)}
                         className="dog-profile-photo"
+                        onError={handleDogImageError}
                       />
                       <div className="dog-profile-floating-badge">
                         <StatusBadge status="LOST" size="sm" />
@@ -408,7 +410,7 @@ export const DashboardPage: React.FC = () => {
 
                     <div className="dog-profile-content">
                       <div className="dog-name-row">
-                        <h3 className="dog-card-name">{report.dog.name}</h3>
+                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
                         <span className="dog-id-code">#{report.id.split('-').pop()}</span>
                       </div>
 
@@ -523,9 +525,10 @@ export const DashboardPage: React.FC = () => {
                   <div key={report.id} className="dog-profile-dashboard-card card reunited-card">
                     <div className="dog-profile-photo-container">
                       <img
-                        src={report.dog.primaryPhoto}
-                        alt={report.dog.name}
+                        src={getDogPhotoUrl(report.dog, report)}
+                        alt={getDogDisplayName(report.dog, report)}
                         className="dog-profile-photo"
+                        onError={handleDogImageError}
                       />
                       <div className="dog-profile-floating-badge">
                         <span className="reunited-celebration-pill">
@@ -537,7 +540,7 @@ export const DashboardPage: React.FC = () => {
 
                     <div className="dog-profile-content">
                       <div className="dog-name-row">
-                        <h3 className="dog-card-name">{report.dog.name}</h3>
+                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
                         <span className="reunion-badge">Reunited</span>
                       </div>
 
@@ -599,9 +602,10 @@ export const DashboardPage: React.FC = () => {
                   <div key={report.id} className="dog-profile-dashboard-card card awaiting-card">
                     <div className="dog-profile-photo-container">
                       <img
-                        src={report.dog.primaryPhoto}
-                        alt={report.dog.name}
+                        src={getDogPhotoUrl(report.dog, report)}
+                        alt={getDogDisplayName(report.dog, report)}
                         className="dog-profile-photo"
+                        onError={handleDogImageError}
                       />
                       <div className="dog-profile-floating-badge">
                         <StatusBadge status="SIGHTED" size="sm" />
@@ -614,7 +618,7 @@ export const DashboardPage: React.FC = () => {
 
                     <div className="dog-profile-content">
                       <div className="dog-name-row">
-                        <h3 className="dog-card-name">{report.dog.name}</h3>
+                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
                         <span className="dog-id-code">#{report.id.split('-').pop()}</span>
                       </div>
 
@@ -769,9 +773,10 @@ export const DashboardPage: React.FC = () => {
                   <div key={report.id} className="dog-profile-dashboard-card card">
                     <div className="dog-profile-photo-container">
                       <img
-                        src={report.dog.primaryPhoto}
-                        alt={report.dog.name}
+                        src={getDogPhotoUrl(report.dog, report)}
+                        alt={getDogDisplayName(report.dog, report)}
                         className="dog-profile-photo"
+                        onError={handleDogImageError}
                       />
                       <div className="dog-profile-floating-badge">
                         <StatusBadge status={report.status} size="sm" />
@@ -786,7 +791,7 @@ export const DashboardPage: React.FC = () => {
 
                     <div className="dog-profile-content">
                       <div className="dog-name-row">
-                        <h3 className="dog-card-name">{report.dog.name}</h3>
+                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
                         <span className="dog-id-code">#{report.id.split('-').pop()}</span>
                       </div>
 
@@ -844,19 +849,18 @@ export const DashboardPage: React.FC = () => {
               <div className="my-pet-dashboard-card card">
                 <div className="my-pet-card-grid">
                   <div className="my-pet-photo-frame">
-                    {myPet.primaryPhoto ? (
-                      <img src={myPet.primaryPhoto} alt={myPet.name} className="my-pet-photo" />
-                    ) : (
-                      <div className="my-pet-avatar-fallback">
-                        <PawPrint size={40} />
-                      </div>
-                    )}
+                    <img
+                      src={getDogPhotoUrl(myPet)}
+                      alt={getDogDisplayName(myPet)}
+                      className="my-pet-photo"
+                      onError={handleDogImageError}
+                    />
                   </div>
 
                   <div className="my-pet-info">
                     <div className="my-pet-header-row">
                       <div>
-                        <h2 className="my-pet-name">{myPet.name}</h2>
+                        <h2 className="my-pet-name">{getDogDisplayName(myPet)}</h2>
                         <span className="my-pet-breed-tag">🐕 {myPet.breed} • {myPet.gender}</span>
                       </div>
 
@@ -947,16 +951,20 @@ export const DashboardPage: React.FC = () => {
                   {myReports.map((report) => (
                     <div key={report.id} className="owner-report-card card">
                       <div className="report-card-media">
-                        <img src={report.dog.primaryPhoto} alt={report.dog.name} />
+                        <img
+                          src={getDogPhotoUrl(report.dog, report)}
+                          alt={getDogDisplayName(report.dog, report)}
+                          onError={handleDogImageError}
+                        />
                       </div>
 
                       <div className="report-card-info">
                         <div className="report-card-top-row">
                           <div>
                             <div className="report-id-pill">{report.id}</div>
-                            <h3 className="report-pup-name">{report.dog.name}</h3>
+                            <h3 className="report-pup-name">{getDogDisplayName(report.dog, report)}</h3>
                             <span className="report-pup-breed">
-                              {report.dog.breed} • {report.dog.gender}
+                              {report.dog?.breed || 'Companion Pet'} • {report.dog?.gender || 'Male'}
                             </span>
                           </div>
                           <StatusBadge status={report.status} size="md" />

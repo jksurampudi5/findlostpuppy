@@ -4,6 +4,7 @@ import { PawPrint, PlusCircle, Search, ShieldCheck, Heart, Users, MapPin, Sparkl
 import type { LostReport } from '../types';
 import { storageService } from '../services/storageService';
 import { DogCard } from '../components/DogCard';
+import { handleDogImageError } from '../utils/dogPhotoHelper';
 
 export const HomePage: React.FC = () => {
   const [reports, setReports] = useState<LostReport[]>([]);
@@ -73,6 +74,7 @@ export const HomePage: React.FC = () => {
                   src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80"
                   alt="Bruno the Golden Retriever"
                   className="hero-dog-img"
+                  onError={handleDogImageError}
                 />
                 <div className="hero-card-floating-badge">
                   <span className="pulse-dot" />

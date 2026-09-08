@@ -20,6 +20,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { SightingModal } from '../components/SightingModal';
 import { ReportModal } from '../components/ReportModal';
 import { useToast } from '../context/ToastContext';
+import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 
 export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,9 +59,10 @@ export const DogDetailPage: React.FC = () => {
 
   const handleShare = () => {
     if (navigator.share && report) {
+      const name = getDogDisplayName(report.dog, report);
       navigator.share({
-        title: `Find ${report.dog.name} - Lost Dog Report`,
-        text: `Please help find ${report.dog.name}, a ${report.dog.breed} lost in ${report.ownerApproximateLocation}.`,
+        title: `Find ${name} - Lost Dog Report`,
+        text: `Please help find ${name}, a ${report.dog?.breed || 'Companion Pet'} lost in ${report.ownerApproximateLocation || report.lastKnownLocation}.`,
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -102,8 +104,10 @@ export const DogDetailPage: React.FC = () => {
   }
 
   const { dog, status, ownerApproximateLocation, lastKnownLocation, dateLost, timeLost, contactMechanism } = report;
-  const allPhotos = [dog.primaryPhoto, ...(dog.photos || [])].filter(Boolean);
-  const currentPhoto = allPhotos[selectedPhotoIndex] || dog.primaryPhoto;
+  const displayName = getDogDisplayName(dog, report);
+  const primaryPhoto = getDogPhotoUrl(dog, report);
+  const allPhotos = [primaryPhoto, ...(dog?.photos || [])].filter(Boolean);
+  const currentPhoto = allPhotos[selectedPhotoIndex] || primaryPhoto;
 
   return (
     <div className="dog-detail-page">
@@ -185,8 +189,9 @@ export const DogDetailPage: React.FC = () => {
             <div className="main-photo-frame card">
               <img
                 src={currentPhoto}
-                alt={`${dog.name} - ${dog.breed}`}
+                alt={`${displayName} - ${dog?.breed || 'Companion Pet'}`}
                 className="main-photo-img"
+                onError={handleDogImageError}
               />
               <div className="main-photo-status-badge">
                 <StatusBadge status={status} size="lg" />

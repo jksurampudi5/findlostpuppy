@@ -15,6 +15,7 @@ import { useToast } from '../context/ToastContext';
 import { ImageUploader } from '../components/ImageUploader';
 import { storageService } from '../services/storageService';
 import type { DogGender, DogSize, DogProfile } from '../types';
+import { handleDogImageError, getDogPhotoUrl } from '../utils/dogPhotoHelper';
 
 interface DogOnboardingPageProps {
   onBackToLocation?: () => void;
@@ -188,7 +189,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                         <div className="family-avatar-card pet-avatar-card">
                           <div className="family-avatar-img-wrap">
                             {existingPet.primaryPhoto ? (
-                              <img src={existingPet.primaryPhoto} alt={existingPet.name} className="family-avatar-img" />
+                              <img
+                                src={getDogPhotoUrl(existingPet)}
+                                alt={existingPet.name}
+                                className="family-avatar-img"
+                                onError={handleDogImageError}
+                              />
                             ) : (
                               <div className="family-avatar-placeholder">🐶</div>
                             )}
@@ -215,9 +221,10 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   <div className="pet-summary-photo-wrap">
                     {existingPet.primaryPhoto ? (
                       <img
-                        src={existingPet.primaryPhoto}
+                        src={getDogPhotoUrl(existingPet)}
                         alt={existingPet.name}
                         className="pet-summary-photo"
+                        onError={handleDogImageError}
                       />
                     ) : (
                       <div className="pet-summary-avatar-placeholder">
