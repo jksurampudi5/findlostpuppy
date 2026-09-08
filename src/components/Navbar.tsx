@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PawPrint, LogOut, Check, Settings, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
-import { SettingsLegalModal } from './SettingsLegalModal';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
 
@@ -24,7 +23,6 @@ export const Navbar = () => {
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
   const hasSkippedPet = user ? storageService.hasSkippedPetProfile(user.id) : false;
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPetAlertHovered, setIsPetAlertHovered] = useState(false);
 
   const previewPhoto =
@@ -65,15 +63,6 @@ export const Navbar = () => {
             <div className="nav-user-actions-mobile">
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(true)}
-                className="btn btn-ghost btn-sm settings-nav-btn mobile-settings-btn"
-                title="Settings & Legal"
-                aria-label="Settings and Legal Center"
-              >
-                <Settings size={16} />
-              </button>
-              <button
-                type="button"
                 onClick={logout}
                 className="btn btn-ghost btn-sm logout-nav-btn mobile-logout-btn"
                 title="Sign out"
@@ -99,16 +88,14 @@ export const Navbar = () => {
                 >
                   <div className="space-pill-icon owner-icon">
                     {existingProfile?.photo ? (
-                      <img src={existingProfile.photo} alt={existingProfile.fullName} className="pill-avatar-img" />
+                      <img src={existingProfile.photo} alt="Owner" className="pill-avatar-img" />
                     ) : (
                       <span className="pill-avatar-emoji">🧑‍🦱</span>
                     )}
                   </div>
                   <div className="space-pill-content">
                     <span className="space-pill-title">Owner</span>
-                    <span className="space-pill-detail">
-                      {existingProfile?.fullName ? existingProfile.fullName.split(' ')[0] : 'Profile'}
-                    </span>
+                    <span className="space-pill-detail">Profile</span>
                   </div>
                   {hasCompletedOwner && <Check size={13} className="space-pill-check" />}
                 </button>
@@ -289,17 +276,6 @@ export const Navbar = () => {
             <div className="nav-desktop-actions">
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(true)}
-                className="btn btn-ghost btn-sm settings-nav-btn desktop-settings-btn"
-                title="Settings & Legal Information"
-                aria-label="Settings and Legal Center"
-              >
-                <Settings size={17} />
-                <span className="settings-btn-text">Settings & Legal</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={logout}
                 className="btn btn-ghost btn-sm logout-nav-btn desktop-logout-btn"
                 title="Sign out of account"
@@ -311,12 +287,6 @@ export const Navbar = () => {
           </div>
         ) : null}
       </div>
-
-      {/* Global In-App Settings & Legal Modal */}
-      <SettingsLegalModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
     </header>
   );
 };

@@ -11,6 +11,11 @@ import type {
   UserReportCategory,
 } from '../types';
 import { consentService } from './consentService';
+import {
+  INITIAL_COMMUNITY_REPORTS,
+  INITIAL_COMMUNITY_SIGHTINGS,
+  INITIAL_COMMUNITY_PROFILES,
+} from '../data/seedReports';
 
 const REPORTS_KEY = 'findlostpuppy_reports_v1';
 const SIGHTINGS_KEY = 'findlostpuppy_sightings_v1';
@@ -43,28 +48,31 @@ class StorageService {
     try {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
-      // Clean out legacy dummy seed reports while preserving user reports
-      this.reports = rawReports.filter(
-        (r) =>
-          !r.id.startsWith('LOST-BRUNO-') &&
-          !r.id.startsWith('LOST-BELLA-') &&
-          !r.id.startsWith('LOST-MILO-') &&
-          !r.id.startsWith('LOST-LUNA-') &&
-          !r.id.startsWith('LOST-ROCKY-') &&
-          !r.id.startsWith('LOST-SIMBA-') &&
-          !r.id.startsWith('LOST-LEO-') &&
-          !r.ownerId.startsWith('owner-00')
-      );
+      
+      // Merge initial community reports with user stored reports so every new user immediately sees active missing alerts
+      const reportMap = new Map<string, LostReport>();
+      INITIAL_COMMUNITY_REPORTS.forEach((r) => reportMap.set(r.id, r));
+      rawReports.forEach((r) => {
+        // If user updated a community report or created their own, preserve user version
+        reportMap.set(r.id, r);
+      });
+      this.reports = Array.from(reportMap.values());
       this.saveReports();
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      this.sightings = rawSightings.filter((s) => !s.id.startsWith('sight-00'));
+      const sightingMap = new Map<string, Sighting>();
+      INITIAL_COMMUNITY_SIGHTINGS.forEach((s) => sightingMap.set(s.id, s));
+      rawSightings.forEach((s) => sightingMap.set(s.id, s));
+      this.sightings = Array.from(sightingMap.values());
       this.saveSightings();
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles.filter((p) => !p.id.startsWith('owner-00'));
+      const profileMap = new Map<string, OwnerProfile>();
+      INITIAL_COMMUNITY_PROFILES.forEach((p) => profileMap.set(p.id, p));
+      rawProfiles.forEach((p) => profileMap.set(p.id, p));
+      this.profiles = Array.from(profileMap.values());
       this.saveProfiles();
 
       const storedPets = localStorage.getItem(PETS_KEY);
@@ -85,9 +93,9 @@ class StorageService {
       const storedBlocked = localStorage.getItem(BLOCKED_USERS_KEY);
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : [];
     } catch {
-      this.reports = [];
-      this.sightings = [];
-      this.profiles = [];
+      this.reports = [...INITIAL_COMMUNITY_REPORTS];
+      this.sightings = [...INITIAL_COMMUNITY_SIGHTINGS];
+      this.profiles = [...INITIAL_COMMUNITY_PROFILES];
       this.pets = [];
       this.skippedPetUserIds = [];
       this.skippedReportUserIds = [];
@@ -121,9 +129,16 @@ class StorageService {
     }
   }
 
+  private notifyUpdate() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    }
+  }
+
   private saveReports() {
     try {
       localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
+      this.notifyUpdate();
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
     }
