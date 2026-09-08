@@ -1,4 +1,5 @@
 import type { User } from '../types';
+import { supabaseSyncService } from './supabaseSyncService';
 
 const CURRENT_USER_KEY = 'findlostpuppy_session_v1';
 const USERS_KEY = 'findlostpuppy_registered_users_v1';
@@ -145,6 +146,10 @@ class AuthService {
 
     // Persist session to remember user across refreshes and visits
     this.saveSession(user);
+
+    // Background sync to Supabase profiles table
+    supabaseSyncService.syncUserProfile(user).catch((e) => console.warn('[Supabase Sync User Notice]:', e));
+
     return { success: true, user };
   }
 
