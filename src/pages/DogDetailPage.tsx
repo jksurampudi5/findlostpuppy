@@ -18,6 +18,7 @@ import type { LostReport, Sighting } from '../types';
 import { storageService } from '../services/storageService';
 import { StatusBadge } from '../components/StatusBadge';
 import { SightingModal } from '../components/SightingModal';
+import { ReportModal } from '../components/ReportModal';
 import { useToast } from '../context/ToastContext';
 
 export const DogDetailPage: React.FC = () => {
@@ -31,12 +32,18 @@ export const DogDetailPage: React.FC = () => {
   const [isSightingModalOpen, setIsSightingModalOpen] = useState(false);
   const [contactRevealed, setContactRevealed] = useState(false);
 
+  // Safety, reporting and blocking
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState<'listing' | 'user'>('listing');
+  const [isBlocked, setIsBlocked] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     const foundReport = storageService.getReportById(id);
     if (foundReport) {
       setReport(foundReport);
       setSightings(storageService.getSightingsForReport(foundReport.id));
+      setIsBlocked(storageService.isUserBlocked(foundReport.ownerId));
     }
   }, [id]);
 
@@ -59,6 +66,24 @@ export const DogDetailPage: React.FC = () => {
     } else {
       navigator.clipboard.writeText(window.location.href);
       showToast('🐾 Link copied to clipboard! Share it with friends & neighbors.', 'success');
+    }
+  };
+
+  const handleBlockToggle = () => {
+    if (!report) return;
+    if (isBlocked) {
+      storageService.unblockUser(report.ownerId);
+      setIsBlocked(false);
+      showToast('User has been unblocked.', 'info');
+    } else {
+      const confirmed = window.confirm(
+        'Are you sure you want to block this user? Listings and sightings from this user will be hidden from your feed.'
+      );
+      if (confirmed) {
+        storageService.blockUser(report.ownerId, contactMechanism.safeContactEmail);
+        setIsBlocked(true);
+        showToast('User blocked. Their listings are now hidden.', 'info');
+      }
     }
   };
 
@@ -93,11 +118,50 @@ export const DogDetailPage: React.FC = () => {
             <span>Report ID:</span>
             <code>{report.id}</code>
           </div>
-          <button onClick={handleShare} className="btn btn-outline btn-sm share-btn">
-            <Share2 size={15} />
-            <span>Share Alert</span>
-          </button>
+          <div className="breadcrumb-actions-right">
+            <button onClick={handleShare} className="btn btn-outline btn-sm share-btn">
+              <Share2 size={15} />
+              <span>Share Alert</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReportType('listing');
+                setIsReportModalOpen(true);
+              }}
+              className="btn btn-ghost btn-sm report-btn"
+              title="Report this listing for moderation"
+            >
+              <span>⚠️ Report Listing</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReportType('user');
+                setIsReportModalOpen(true);
+              }}
+              className="btn btn-ghost btn-sm report-btn"
+              title="Report user"
+            >
+              <span>👤 Report User</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleBlockToggle}
+              className={`btn btn-sm ${isBlocked ? 'btn-secondary' : 'btn-ghost'}`}
+              title={isBlocked ? 'Unblock this user' : 'Block this user'}
+            >
+              <span>{isBlocked ? '✓ Unblock' : '🚫 Block'}</span>
+            </button>
+          </div>
         </div>
+
+        {/* Blocked User Warning Banner */}
+        {isBlocked && (
+          <div className="blocked-user-banner card" role="alert">
+            <span>🚫 <strong>You have blocked this user.</strong> You can unblock them at any time above or from Settings → Legal.</span>
+          </div>
+        )}
 
         {/* Reunited Celebration Banner if applicable */}
         {status === 'REUNITED' && (
@@ -447,6 +511,19 @@ export const DogDetailPage: React.FC = () => {
         reportId={report.id}
         dogName={dog.name}
         onSightingAdded={refreshData}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        type={reportType}
+        targetId={reportType === 'listing' ? report.id : report.ownerId}
+        targetTitle={reportType === 'listing' ? report.dog.name : report.contactMechanism.safeContactEmail || 'Listing Creator'}
+        targetUserId={report.ownerId}
+        onSuccess={() => {
+          showToast(`Report received. Thank you for keeping our community safe.`, 'success');
+        }}
       />
     </div>
   );

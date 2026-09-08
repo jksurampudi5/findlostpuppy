@@ -2,12 +2,14 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '../types';
 import { authService } from '../services/authService';
 import { storageService } from '../services/storageService';
+import { consentService } from '../services/consentService';
 
 export type OnboardingTab = 'owner' | 'location' | 'dog' | 'pet' | 'report' | 'dashboard' | 'completed';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  hasValidConsent: boolean;
   isLoading: boolean;
   hasCompletedOwner: boolean;
   hasCompletedLocation: boolean;
@@ -19,8 +21,10 @@ interface AuthContextType {
   setActiveOnboardingTab: (tab: OnboardingTab) => void;
   markPetSafe: () => void;
   markPetLost: () => void;
+  agreeToConsent: () => void;
   loginWithEmail: (email: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  deleteAccount: () => Promise<boolean>;
   refreshProgress: () => void;
 }
 
@@ -28,6 +32,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
+  const [hasValidConsent, setHasValidConsent] = useState<boolean>(() =>
+    consentService.hasAcceptedCurrentConsent()
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [hasCompletedOwner, setHasCompletedOwner] = useState<boolean>(() => {
     const u = authService.getCurrentUser();
@@ -120,11 +127,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPetSafetyStatus('UNDECIDED');
       setActiveOnboardingTab('owner');
     }
+    setHasValidConsent(consentService.hasAcceptedCurrentConsent());
   };
 
   useEffect(() => {
     refreshProgress();
   }, []);
+
+  const agreeToConsent = () => {
+    consentService.recordConsent(user?.id);
+    setHasValidConsent(true);
+  };
+
+  const deleteAccount = async (): Promise<boolean> => {
+    if (!user) return false;
+    const userId = user.id;
+    storageService.deleteUserAccount(userId);
+    authService.logout();
+    setUser(null);
+    setHasCompletedOwner(false);
+    setHasCompletedLocation(false);
+    setHasCompletedDog(false);
+    setHasCompletedReport(false);
+    setPetSafetyStatus('UNDECIDED');
+    setActiveOnboardingTab('owner');
+    setHasValidConsent(false);
+    return true;
+  };
 
   const loginWithEmail = async (email: string, name?: string) => {
     setIsLoading(true);
@@ -174,6 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
+        hasValidConsent,
         isLoading,
         hasCompletedOwner,
         hasCompletedLocation,
@@ -185,8 +215,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setActiveOnboardingTab,
         markPetSafe,
         markPetLost,
+        agreeToConsent,
         loginWithEmail,
         logout,
+        deleteAccount,
         refreshProgress,
       }}
     >

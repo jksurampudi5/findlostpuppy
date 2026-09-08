@@ -4,6 +4,8 @@ import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
+import { ConsentPage } from './pages/ConsentPage';
+
 // Guided Sequential Flow Pages
 import { EmailAuthPage } from './pages/EmailAuthPage';
 import { PetParentContactPage } from './pages/PetParentContactPage';
@@ -20,8 +22,21 @@ import { DashboardPage } from './pages/DashboardPage';
 import './App.css';
 
 function MainAppFlow() {
-  const { isAuthenticated, activeOnboardingTab, setActiveOnboardingTab } = useAuth();
+  const {
+    isAuthenticated,
+    activeOnboardingTab,
+    setActiveOnboardingTab,
+    hasValidConsent,
+    agreeToConsent,
+  } = useAuth();
   const location = useLocation();
+
+  // STEP 0: MANDATORY PRE-AUTHENTICATION CONSENT GATE
+  // A new or returning user without current consent (v1.0) must accept consent first.
+  // Direct URLs, refreshes, or navigation cannot bypass this.
+  if (!hasValidConsent) {
+    return <ConsentPage onConsentAgreed={agreeToConsent} />;
+  }
 
   // PUBLIC GUEST ROUTES (Accessible directly without login via WhatsApp links!)
   if (
