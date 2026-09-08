@@ -13,6 +13,7 @@ import {
   X,
   Compass,
   Edit3,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -402,29 +403,15 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     <div className="onboarding-page-container">
       <div className="onboarding-card-wrapper">
         <div className="card onboarding-card location-onboarding-card">
-          <div className="onboarding-header text-center">
-            <div className="badge badge-accent mb-2">
-              <Sparkles size={14} className="mr-1" />
-              <span>Step 2 of 4 • Community Search Radius</span>
-            </div>
-            <h1 className="onboarding-title">Where is Your Pet's Neighborhood?</h1>
-            <p className="onboarding-subtitle">
-              Set your official State, District, Mandal/Taluk, and Village so verified local pet lovers
-              nearby can instantly receive search alerts if your dog ever goes missing.
-            </p>
-          </div>
-
-          {/* PRIVACY SHIELD CALLOUT */}
-          <div className="privacy-callout-banner">
-            <div className="privacy-callout-icon-wrap">
-              <ShieldCheck size={20} className="text-terracotta" />
-            </div>
-            <div className="privacy-callout-content">
-              <h4 className="privacy-callout-heading">100% Pet-Safe Community Radius</h4>
-              <p className="privacy-callout-text">
-                Your private home address is never shown publicly. Only your safe public area (
-                <em>e.g. "{calculatePublicArea()}"</em>) will be visible on community search alerts.
-              </p>
+          <div className="onboarding-header">
+            <div className="cute-welcome-banner">
+              <div className="cute-welcome-icon">🐾</div>
+              <div className="cute-welcome-text">
+                <h1 className="cute-page-title">Pet Location 🐾</h1>
+                <p className="cute-page-sub">
+                  Where your pet stays to connect with local neighbors
+                </p>
+              </div>
             </div>
           </div>
 
@@ -481,93 +468,117 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
             </div>
           )}
 
-          {/* CASE 1: SUBMITTED STATE -> SHOW PREVIEW WITH DIRECT UPDATE OPTION */}
+          {/* CASE 1: SUBMITTED STATE -> VISUAL LOCATION JOURNEY SHOWCASE */}
           {isSubmitted && !isEditing ? (
             <div className="location-preview-showcase">
-              <div className="preview-showcase-header">
-                <div className="preview-showcase-icon">📍</div>
-                <div>
-                  <h3 className="preview-showcase-title">Your Location Preview</h3>
-                  <p className="preview-showcase-sub">
-                    This community area is shown on search alerts and flyers to help find your puppy.
-                  </p>
+              {/* TOP ACTION BAR: Verified Badge & Re-Detect GPS */}
+              <div className="showcase-top-bar">
+                <div className="showcase-verified-badge">
+                  <Check size={14} className="badge-check-icon" />
+                  <span>Verified Safe Area</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDetectClick}
+                  disabled={detecting}
+                  className="btn btn-outline btn-sm showcase-redetect-btn"
+                  title="Re-detect location using GPS"
+                >
+                  <RefreshCw size={14} className={detecting ? 'spin' : ''} />
+                  <span>Re-Detect GPS</span>
+                </button>
+              </div>
+
+              {/* VISUAL 4-STEP LOCATION JOURNEY FLOW */}
+              <div className="showcase-journey-flow">
+                {/* 1. State */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">🏛️</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">State</span>
+                    <strong className="journey-step-value">{state || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 2. District */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">🏙️</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">District</span>
+                    <strong className="journey-step-value">{district || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 3. Mandal */}
+                <div className="journey-card">
+                  <div className="journey-card-icon-wrap">
+                    <span className="journey-emoji">📍</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">Mandal</span>
+                    <strong className="journey-step-value">{mandalOrMunicipality || 'Not set'}</strong>
+                  </div>
+                </div>
+
+                <div className="journey-step-arrow" aria-hidden="true">
+                  <ChevronRight size={18} />
+                </div>
+
+                {/* 4. Locality (Highlighted Active) */}
+                <div className="journey-card journey-card-active">
+                  <div className="journey-card-icon-wrap active-icon">
+                    <span className="journey-emoji">🏡</span>
+                  </div>
+                  <div className="journey-card-content">
+                    <span className="journey-step-label">Locality</span>
+                    <strong className="journey-step-value">{city || 'Not set'}</strong>
+                    {pinCode && (
+                      <span className="journey-pin-badge">
+                        📮 PIN {pinCode}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="preview-highlight-box">
-                <div className="preview-highlight-label">
-                  <Check size={14} />
-                  <span>Verified Public Area</span>
-                </div>
-                <div className="preview-highlight-text">{calculatePublicArea()}</div>
-                <div className="preview-highlight-meta">
-                  <span>
-                    State: <strong>{state}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    District: <strong>{district}</strong>
-                  </span>
-                  {mandalOrMunicipality && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Mandal: <strong>{mandalOrMunicipality}</strong>
-                      </span>
-                    </>
-                  )}
-                  {city && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Locality: <strong>{city}</strong>
-                      </span>
-                    </>
-                  )}
-                  {pinCode && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        PIN: <strong>{pinCode}</strong>
-                      </span>
-                    </>
-                  )}
-                </div>
+              {/* Subtle Privacy Assurance Note */}
+              <div className="showcase-privacy-note">
+                <ShieldCheck size={14} className="privacy-note-icon" />
+                <span>Private home address is 100% hidden</span>
               </div>
 
-              {/* Action Buttons on Preview */}
-              <div className="preview-actions-row">
-                <div className="action-buttons-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="btn btn-outline btn-md edit-details-btn"
-                  >
-                    <Edit3 size={16} />
-                    <span>✏️ Update Details</span>
-                  </button>
+              {/* BOTTOM ACTIONS: Update Location (Centered) & Continue */}
+              <div className="showcase-bottom-actions">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="btn btn-outline btn-md edit-details-btn showcase-center-edit-btn"
+                >
+                  <Edit3 size={16} />
+                  <span>Update Location</span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={handleDetectClick}
-                    disabled={detecting}
-                    className="btn btn-ghost btn-sm"
-                  >
-                    <RefreshCw size={15} className={detecting ? 'spin' : ''} />
-                    <span>Re-Detect (GPS)</span>
-                  </button>
-                </div>
-
-                <div className="action-buttons-wrap">
-                  <button
-                    type="button"
-                    onClick={handleProceedToPup}
-                    className="btn btn-primary btn-lg continue-to-pup-btn"
-                  >
-                    <span>Continue to Pup Profile</span>
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleProceedToPup}
+                  className="btn btn-primary btn-lg continue-to-pup-btn"
+                >
+                  <span>Continue to Pup Profile 🐕</span>
+                  <ArrowRight size={18} />
+                </button>
               </div>
             </div>
           ) : (
@@ -609,8 +620,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 >
                   <div className="form-section-card cute-section-card">
                     <h3 className="section-title-sm cute-section-title">
-                      <span className="cute-title-icon">📝</span>
-                      <span>{isEditing ? 'Edit Location Details' : 'Review & Confirm Details'}</span>
+                      <span className="cute-title-icon">📍</span>
+                      <span>{isEditing ? 'Update Pet Location' : 'Select Pet Location'}</span>
                     </h3>
 
                     <div className="form-vertical-stack">
