@@ -1,3 +1,11 @@
+export interface AcceptedFormsState {
+  terms: boolean;
+  privacy: boolean;
+  disclaimer: boolean;
+  guidelines: boolean;
+  declaration: boolean;
+}
+
 export interface ConsentRecord {
   consentVersion: string;
   termsVersion: string;
@@ -7,6 +15,8 @@ export interface ConsentRecord {
   agreedAt: string;
   userId?: string;
   appVersion: string;
+  acceptedForms: AcceptedFormsState;
+  consentMethod: 'all_forms_accepted' | 'master_declaration';
 }
 
 export const CURRENT_CONSENT_VERSION = '1.0';
@@ -60,9 +70,21 @@ class ConsentService {
   }
 
   /**
-   * Explicitly records user consent with timestamp and versioning.
+   * Explicitly records user consent with timestamp, versioning, and accepted forms breakdown.
    */
-  recordConsent(userId?: string): ConsentRecord {
+  recordConsent(
+    userId?: string,
+    acceptedForms?: Partial<AcceptedFormsState>,
+    method: 'all_forms_accepted' | 'master_declaration' = 'master_declaration'
+  ): ConsentRecord {
+    const fullForms: AcceptedFormsState = {
+      terms: acceptedForms?.terms ?? true,
+      privacy: acceptedForms?.privacy ?? true,
+      disclaimer: acceptedForms?.disclaimer ?? true,
+      guidelines: acceptedForms?.guidelines ?? true,
+      declaration: acceptedForms?.declaration ?? true,
+    };
+
     const record: ConsentRecord = {
       consentVersion: CURRENT_CONSENT_VERSION,
       termsVersion: CURRENT_TERMS_VERSION,
@@ -72,6 +94,8 @@ class ConsentService {
       agreedAt: new Date().toISOString(),
       userId: userId || undefined,
       appVersion: CURRENT_APP_VERSION,
+      acceptedForms: fullForms,
+      consentMethod: method,
     };
 
     try {

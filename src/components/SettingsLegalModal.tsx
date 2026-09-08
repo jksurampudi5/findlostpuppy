@@ -254,6 +254,32 @@ export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
               </div>
             </div>
 
+            <div className="consent-forms-breakdown-box">
+              <h4 className="consent-forms-breakdown-title">Consented Legal Forms on Record:</h4>
+              <div className="consent-forms-tags-grid">
+                <div className="consented-form-item">
+                  <span className="text-forest">✓</span>
+                  <span>Terms & Conditions Agreement Form (v{consentRecord?.termsVersion || '1.0'})</span>
+                </div>
+                <div className="consented-form-item">
+                  <span className="text-forest">✓</span>
+                  <span>Privacy & Data Protection Form (v{consentRecord?.privacyVersion || '1.0'})</span>
+                </div>
+                <div className="consented-form-item">
+                  <span className="text-forest">✓</span>
+                  <span>Dog Safety & Zero-Liability Disclaimer Form (v{consentRecord?.disclaimerVersion || '1.0'})</span>
+                </div>
+                <div className="consented-form-item">
+                  <span className="text-forest">✓</span>
+                  <span>Community Standards & User Guidelines Form (v{consentRecord?.guidelinesVersion || '1.0'})</span>
+                </div>
+                <div className="consented-form-item">
+                  <span className="text-forest">✓</span>
+                  <span>Solemn Platform Declaration & Waiver Form</span>
+                </div>
+              </div>
+            </div>
+
             <div className="consent-info-box">
               <p>
                 📌 If our Terms, Disclaimers, or Privacy Policy materially change in the future,

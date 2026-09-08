@@ -9612,3 +9612,590 @@
     margin-top: 0.5rem;
   }
 }
+
+/* ==========================================================================
+   UNIFIED LEGAL AGREEMENT FORM & INTERACTIVE FORM POPUPS
+   ========================================================================== */
+
+.consent-page-shell {
+  min-height: 100vh;
+  background: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+}
+
+.consent-form-wrapper {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.consent-form-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.consent-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #FFF7ED;
+  color: #EA580C;
+  border: 1px solid #FED7AA;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.3rem 0.8rem;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.consent-form-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.consent-form-subtitle {
+  font-size: 0.95rem;
+  color: #64748B;
+  margin: 0 auto;
+  max-width: 580px;
+  line-height: 1.5;
+}
+
+/* Key Safety Declaration Summary Box */
+.declaration-summary-box {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-left: 4px solid #EF4444;
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.declaration-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #991B1B;
+}
+
+.declaration-summary-header h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #991B1B;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.declaration-points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.declaration-point-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: #450A0A;
+  line-height: 1.45;
+}
+
+.point-badge {
+  background: #FEE2E2;
+  color: #991B1B;
+  font-weight: 800;
+  font-size: 0.72rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Legal Forms Group */
+.legal-forms-group-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.forms-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.forms-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0;
+}
+
+.forms-section-desc {
+  font-size: 0.8rem;
+  color: #64748B;
+  display: block;
+}
+
+.select-all-forms-btn {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #EA580C;
+  padding: 0.3rem 0.65rem;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-all-forms-btn:hover {
+  background: #FFEDD5;
+  color: #C2410C;
+}
+
+/* Form Row Card */
+.form-row-card {
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 0.95rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.form-row-card:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.form-row-card.is-consented {
+  background: #F0FDF4;
+  border-color: #86EFAC;
+}
+
+.form-row-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.form-icon-bubble {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #EA580C;
+  flex-shrink: 0;
+}
+
+.form-row-card.is-consented .form-icon-bubble {
+  color: #16A34A;
+  border-color: #BBF7D0;
+}
+
+.form-row-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
+.form-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.form-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #E2E8F0;
+  color: #475569;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.form-tag.highlight {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.form-desc {
+  font-size: 0.8rem;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.form-row-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.form-row-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.form-row-checkbox-label:hover {
+  border-color: #94A3B8;
+}
+
+.form-row-card.is-consented .form-row-checkbox-label {
+  background: #DCFCE7;
+  border-color: #86EFAC;
+  color: #15803D;
+}
+
+.form-row-checkbox-input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #16A34A;
+}
+
+.open-form-arrow-btn {
+  padding: 0.35rem;
+  color: #64748B;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.open-form-arrow-btn:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+/* Master Signature & Consent Footer */
+.consent-form-signature-box {
+  background: #F8FAFC;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 14px;
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.master-signature-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.master-signature-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #EA580C;
+  flex-shrink: 0;
+}
+
+.master-signature-text {
+  font-size: 0.88rem;
+  color: #1E293B;
+  line-height: 1.5;
+}
+
+.consent-form-action-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.consent-storage-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  color: #15803D;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Interactive Legal Modal Form Card */
+.legal-form-modal-card {
+  max-width: 720px;
+  width: 100%;
+  max-height: 88vh;
+  background: #FFFFFF;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.legal-form-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.badge-form-official {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.badge-consented-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.badge-review-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.legal-modal-notice-banner {
+  background: #F1F5F9;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.legal-modal-notice-banner p {
+  margin: 0;
+}
+
+.section-number-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #E2E8F0;
+  color: #1E293B;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 50%;
+  margin-right: 0.45rem;
+}
+
+.modal-consent-action-group {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.modal-form-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: #1E293B;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-form-checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #16A34A;
+}
+
+.modal-footer-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* Settings breakdown box */
+.consent-forms-breakdown-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 1.15rem;
+  margin-top: 1rem;
+}
+
+.consent-forms-breakdown-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0 0 0.65rem 0;
+}
+
+.consent-forms-tags-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.consented-form-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #334155;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+}
+
+/* Responsive Overrides */
+@media (max-width: 640px) {
+  .consent-page-shell {
+    padding: 1rem 0.5rem;
+  }
+
+  .consent-form-card {
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .consent-form-title {
+    font-size: 1.45rem;
+  }
+
+  .form-row-card {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .form-row-title-line {
+    gap: 0.35rem;
+  }
+
+  .form-row-right {
+    gap: 0.4rem;
+  }
+
+  .modal-consent-action-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modal-footer-btns {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.legal-modal-header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  border-bottom: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.legal-modal-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex: 1;
+}
+
+.legal-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.legal-modal-title-texts {
+  flex: 1;
+}
+
+.legal-modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0.15rem 0 0.35rem 0;
+  letter-spacing: -0.01em;
+}
+
+.legal-modal-version {
+  font-size: 0.8rem;
+  color: #64748B;
+  display: block;
+}

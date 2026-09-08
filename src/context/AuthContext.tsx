@@ -21,7 +21,10 @@ interface AuthContextType {
   setActiveOnboardingTab: (tab: OnboardingTab) => void;
   markPetSafe: () => void;
   markPetLost: () => void;
-  agreeToConsent: () => void;
+  agreeToConsent: (
+    acceptedForms?: Partial<import('../services/consentService').AcceptedFormsState>,
+    method?: 'all_forms_accepted' | 'master_declaration'
+  ) => void;
   loginWithEmail: (email: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   deleteAccount: () => Promise<boolean>;
@@ -134,8 +137,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshProgress();
   }, []);
 
-  const agreeToConsent = () => {
-    consentService.recordConsent(user?.id);
+  const agreeToConsent = (
+    acceptedForms?: Partial<import('../services/consentService').AcceptedFormsState>,
+    method?: 'all_forms_accepted' | 'master_declaration'
+  ) => {
+    consentService.recordConsent(user?.id, acceptedForms, method);
     setHasValidConsent(true);
   };
 
