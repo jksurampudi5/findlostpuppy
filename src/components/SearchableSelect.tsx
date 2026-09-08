@@ -57,28 +57,15 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     );
   }, [options, value]);
 
-  // Filtered Options (Capped at top 100 for instant UI responsiveness)
+  // Filtered Options (Display all matching locations without arbitrary truncation)
   const filteredOptions = useMemo(() => {
-    if (!search.trim()) return options.slice(0, 100);
-    const query = search.trim().toLowerCase();
-    return options
-      .filter(
-        (opt) =>
-          opt.label.toLowerCase().includes(query) ||
-          (opt.subLabel && opt.subLabel.toLowerCase().includes(query))
-      )
-      .slice(0, 100);
-  }, [options, search]);
-
-  // Total matching count for hint
-  const totalMatches = useMemo(() => {
-    if (!search.trim()) return options.length;
+    if (!search.trim()) return options;
     const query = search.trim().toLowerCase();
     return options.filter(
       (opt) =>
         opt.label.toLowerCase().includes(query) ||
         (opt.subLabel && opt.subLabel.toLowerCase().includes(query))
-    ).length;
+    );
   }, [options, search]);
 
   const handleToggle = () => {
@@ -311,13 +298,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   Use "{search.trim()}" as custom location
                 </button>
               )}
-            </div>
-          )}
-
-          {/* Total match count hint */}
-          {totalMatches > 100 && (
-            <div className="searchable-select-count-hint">
-              Showing top 100 of {totalMatches} results. Type to filter...
             </div>
           )}
 
