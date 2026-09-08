@@ -23,22 +23,36 @@ export const Navbar = () => {
   return (
     <header className="navbar-header">
       <div className="app-container navbar-container">
-        {/* Brand Logo */}
-        <Link
-          to="/"
-          className="brand-logo"
-          onClick={() => {
-            if (isAuthenticated) setActiveOnboardingTab('dashboard');
-          }}
-        >
-          <div className="brand-icon-wrapper">
-            <PawPrint size={24} className="brand-icon" />
-          </div>
-          <div className="brand-text">
-            <span className="brand-title">FindLostPuppy</span>
-            <span className="brand-badge">Community Network</span>
-          </div>
-        </Link>
+        {/* Brand Logo & Mobile Quick Logout */}
+        <div className="navbar-brand-row">
+          <Link
+            to="/"
+            className="brand-logo"
+            onClick={() => {
+              if (isAuthenticated) setActiveOnboardingTab('dashboard');
+            }}
+          >
+            <div className="brand-icon-wrapper">
+              <PawPrint size={22} className="brand-icon" />
+            </div>
+            <div className="brand-text">
+              <span className="brand-title">FindLostPuppy</span>
+              <span className="brand-badge">Community Network</span>
+            </div>
+          </Link>
+
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={logout}
+              className="btn btn-ghost btn-sm logout-nav-btn mobile-logout-btn"
+              title="Sign out"
+            >
+              <LogOut size={15} />
+              <span className="logout-text">Sign Out</span>
+            </button>
+          )}
+        </div>
 
         {isAuthenticated ? (
           <div className="onboarding-nav-status">
@@ -188,7 +202,7 @@ export const Navbar = () => {
             <button
               type="button"
               onClick={logout}
-              className="btn btn-ghost btn-sm logout-nav-btn"
+              className="btn btn-ghost btn-sm logout-nav-btn desktop-logout-btn"
               title="Sign out"
             >
               <LogOut size={15} />

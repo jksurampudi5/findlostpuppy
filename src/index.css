@@ -73,12 +73,20 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
   background-color: #FFFDF9;
   background-image: 
     radial-gradient(#FED7AA 0.75px, transparent 0.75px),
@@ -91,6 +99,27 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -129,6 +158,7 @@ input, select, textarea {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.25rem;
+  box-sizing: border-box;
 }
 
 /* Accessible focus styling */
@@ -395,6 +425,20 @@ input, select, textarea {
   width: 100%;
 }
 
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .form-grid-2col {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+}
+
 /* ==========================================================================
    STEPPER WIZARD
    ========================================================================== */
@@ -597,4 +641,43 @@ input, select, textarea {
   background-color: #FAF8F5;
   border-bottom-left-radius: var(--radius-xl);
   border-bottom-right-radius: var(--radius-xl);
+}
+
+/* ==========================================================================
+   GLOBAL MOBILE RESPONSIVENESS (PHONES & TABLETS)
+   ========================================================================== */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents unwanted iOS Safari auto-zooming on focus */
+  }
+
+  .app-container {
+    padding: 0 0.85rem;
+  }
+
+  .modal-backdrop {
+    padding: 0.65rem;
+  }
+
+  .modal-dialog {
+    border-radius: var(--radius-lg);
+    max-height: 94vh;
+  }
+
+  .modal-header {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-body {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-footer {
+    padding: 0.85rem 1.15rem;
+    flex-direction: column-reverse;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
 }
