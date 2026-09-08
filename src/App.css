@@ -10767,11 +10767,19 @@
   font-weight: 700;
 }
 
-/* 2-Column Date & Time Row */
-.missing-datetime-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+/* Vertical Missing Form Group */
+.missing-form-group {
+  margin-bottom: 0.1rem;
+}
+
+.missing-form-group .cute-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .location-field-label-row {
@@ -10780,7 +10788,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
 .location-action-btns-wrap {
@@ -10857,14 +10865,6 @@
   border-radius: 6px;
 }
 
-.modal-privacy-card {
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  padding: 0.65rem 0.85rem;
-  margin: 0;
-}
-
 .missing-modal-footer {
   padding: 0.9rem 1.25rem;
   border-top: 1px solid #E2E8F0;
@@ -10931,8 +10931,8 @@
   }
 
   .missing-modal-body {
-    padding: 0.75rem 1rem;
-    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    gap: 0.85rem;
   }
 
   .missing-modal-pet-strip {
@@ -10949,27 +10949,21 @@
     padding: 0.15rem 0.4rem;
   }
 
-  .missing-datetime-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
+  .missing-form-group .cute-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
   }
 
-  .missing-datetime-row .cute-label {
-    font-size: 0.8rem;
-    margin-bottom: 0.2rem;
+  .missing-form-group .form-input {
+    font-size: 0.88rem;
+    padding-left: 2.2rem;
+    min-height: 42px;
   }
 
-  .missing-datetime-row .form-input {
-    font-size: 0.82rem;
-    padding-left: 2rem;
-    padding-right: 0.4rem;
-    min-height: 38px;
-  }
-
-  .missing-datetime-row .input-icon {
-    left: 0.5rem;
-    width: 13px;
-    height: 13px;
+  .missing-form-group .input-icon {
+    left: 0.65rem;
+    width: 15px;
+    height: 15px;
   }
 
   .location-field-label-row {
@@ -10999,7 +10993,7 @@
 
   .location-text-input {
     font-size: 0.88rem;
-    min-height: 40px;
+    min-height: 42px;
   }
 
   .missing-modal-footer {
