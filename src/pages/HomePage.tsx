@@ -8,7 +8,7 @@ import { handleDogImageError } from '../utils/dogPhotoHelper';
 
 export const HomePage: React.FC = () => {
   const [reports, setReports] = useState<LostReport[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'LOST' | 'REUNITED'>('ALL');
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'LOST' | 'SAFE'>('ALL');
 
   useEffect(() => {
     const all = storageService.getAllReports();
@@ -17,6 +17,7 @@ export const HomePage: React.FC = () => {
 
   const filteredReports = reports.filter((r) => {
     if (activeFilter === 'ALL') return true;
+    if (activeFilter === 'SAFE') return r.status === 'SAFE' || (r.status as any) === 'REUNITED';
     return r.status === activeFilter;
   });
 
@@ -200,10 +201,10 @@ export const HomePage: React.FC = () => {
                 🚨 Missing ({reports.filter((r) => r.status === 'LOST').length})
               </button>
               <button
-                className={`filter-pill ${activeFilter === 'REUNITED' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('REUNITED')}
+                className={`filter-pill ${activeFilter === 'SAFE' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('SAFE')}
               >
-                🎉 Reunited ❤️ ({reports.filter((r) => r.status === 'REUNITED').length})
+                🏡 Safe at Home ({reports.filter((r) => r.status === 'SAFE' || (r.status as any) === 'REUNITED').length})
               </button>
             </div>
           </div>

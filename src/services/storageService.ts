@@ -124,8 +124,8 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     lastKnownLocation: 'Palangi Village, West Godavari',
     dateLost: '2026-09-05',
     timeLost: '04:30 PM',
-    additionalNotes: 'Safely reunited with family through neighborhood vigilance and community care!',
-    status: 'REUNITED',
+    additionalNotes: 'Safe with loving family through neighborhood vigilance and community care!',
+    status: 'SAFE',
     contactMechanism: {
       showPhone: true,
       showEmail: true,
@@ -296,6 +296,10 @@ class StorageService {
       }
       for (const rep of userReports) {
         const canonicalId = normalizeReportId(rep.id);
+        // Normalize any legacy REUNITED status to SAFE
+        if ((rep.status as any) === 'REUNITED') {
+          rep.status = 'SAFE';
+        }
         // Ensure Abullu report uses abulluImg if photo is missing or empty
         if (canonicalId === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
           rep.dog.primaryPhoto = abulluImg;
@@ -303,6 +307,11 @@ class StorageService {
         mergedMap.set(canonicalId, rep);
       }
       this.reports = Array.from(mergedMap.values());
+      for (const rep of this.reports) {
+        if ((rep.status as any) === 'REUNITED') {
+          rep.status = 'SAFE';
+        }
+      }
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
@@ -563,8 +572,8 @@ class StorageService {
       );
       if (report) {
         report.sightingCount = (report.sightingCount || 0) + 1;
-        // Keep status as strictly LOST if not REUNITED
-        if (report.status !== 'REUNITED') {
+        // Keep status as strictly LOST if not SAFE
+        if (report.status !== 'SAFE' && (report.status as any) !== 'REUNITED') {
           report.status = 'LOST';
         }
         report.updatedAt = new Date().toISOString();
@@ -731,7 +740,7 @@ class StorageService {
           (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
           r.status === 'LOST'
         ) {
-          r.status = 'REUNITED';
+          r.status = 'SAFE';
           r.updatedAt = new Date().toISOString();
         }
       }

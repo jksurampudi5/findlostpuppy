@@ -286,7 +286,7 @@ export const GuestSightingPage: React.FC = () => {
         <div className="app-container onboarding-container">
           <div className="card text-center py-12 px-6">
             <Heart size={48} className="text-emerald-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Report Not Found or Already Reunited! ❤️</h2>
+            <h2 className="text-2xl font-bold mb-2">Report Not Found or Already Safe at Home! 🏡</h2>
             <p className="text-secondary max-w-md mx-auto mb-6">
               This alert may have been resolved, or the puppy has already safely returned home with family.
             </p>

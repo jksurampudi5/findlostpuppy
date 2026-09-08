@@ -171,18 +171,18 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     }
   };
 
-  // ACTION 4: Mark safely reunited from flyer
-  const handleMarkReunited = () => {
+  // ACTION 4: Mark safe at home from flyer
+  const handleMarkSafeFromFlyer = () => {
     if (!existingReport || !user) return;
-    storageService.updateReportStatus(existingReport.id, 'REUNITED');
+    storageService.updateReportStatus(existingReport.id, 'SAFE');
     markPetSafe();
     setUserSelectedChoice('safe');
     setIsMissingModalOpen(false);
 
-    // Star celebration animation on reunification!
+    // Star celebration animation on safe home!
     triggerStarCelebration();
 
-    showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+    showToast('🏡 Wonderful news! Pup marked as Safe at Home! ❤️', 'success');
   };
 
   // ACTION 5: Delete / Remove Alert permanently
@@ -440,11 +440,11 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
                       <button
                         type="button"
-                        onClick={handleMarkReunited}
+                        onClick={handleMarkSafeFromFlyer}
                         className="btn btn-secondary btn-md reunite-action-btn"
                       >
                         <Heart size={15} />
-                        <span>Mark Pup Reunited & Safe ❤️</span>
+                        <span>Mark Safe at Home 🏡</span>
                       </button>
 
                       <button

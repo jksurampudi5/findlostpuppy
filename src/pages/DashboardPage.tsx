@@ -34,7 +34,7 @@ export const DashboardPage: React.FC = () => {
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const initialTab = searchParams.get('tab') === 'browse' ? 'browse' : 'missing';
-  const [activeTab, setActiveTab] = useState<'missing' | 'reunited' | 'browse' | 'my_pups'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'missing' | 'safe' | 'browse' | 'my_pups'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Browse All Dogs tab filters
@@ -75,11 +75,14 @@ export const DashboardPage: React.FC = () => {
     };
   }, []);
 
-  // Filter reports strictly by 3 mutually-exclusive dog states:
+  // Filter reports strictly by 2 mutually-exclusive dog states:
   // 1. Missing Dogs (status === 'LOST')
-  // 2. Reunited Dogs (status === 'REUNITED')
+  // 2. Safe at Home Dogs (status === 'SAFE' or legacy 'REUNITED')
   const missingDogs = useMemo(() => reports.filter((r) => r.status === 'LOST'), [reports]);
-  const reunitedDogs = useMemo(() => reports.filter((r) => r.status === 'REUNITED'), [reports]);
+  const safeDogs = useMemo(
+    () => reports.filter((r) => r.status === 'SAFE' || r.status === 'REUNITED'),
+    [reports]
+  );
 
   // Unique breeds and locations for Browse filters
   const availableBreeds = useMemo(() => {
@@ -130,13 +133,19 @@ export const DashboardPage: React.FC = () => {
   );
 
   const displayedMissing = useMemo(() => applySearch(missingDogs), [missingDogs, applySearch]);
-  const displayedReunited = useMemo(() => applySearch(reunitedDogs), [reunitedDogs, applySearch]);
+  const displayedSafe = useMemo(() => applySearch(safeDogs), [safeDogs, applySearch]);
 
   // Filter for Browse All Dogs tab
   const displayedBrowse = useMemo(() => {
     return reports
       .filter((r) => {
-        if (browseStatus !== 'ALL' && r.status !== browseStatus) return false;
+        if (browseStatus !== 'ALL') {
+          if (browseStatus === 'SAFE') {
+            if (r.status !== 'SAFE' && r.status !== 'REUNITED') return false;
+          } else if (r.status !== browseStatus) {
+            return false;
+          }
+        }
         if (browseBreed !== 'ALL' && r.dog?.breed !== browseBreed) return false;
         if (
           browseLocation !== 'ALL' &&
@@ -169,9 +178,9 @@ export const DashboardPage: React.FC = () => {
   // Action: Atomically change report status with mutual exclusivity
   const handleStatusChange = (reportId: string, newStatus: ReportStatus) => {
     storageService.updateReportStatus(reportId, newStatus);
-    if (newStatus === 'REUNITED') {
+    if (newStatus === 'SAFE' || newStatus === 'REUNITED') {
       triggerStarCelebration();
-      showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+      showToast('🏡 Wonderful! Pup marked as Safe at Home! ❤️', 'success');
     } else if (newStatus === 'LOST') {
       showToast('🚨 Alert marked as actively MISSING.', 'info');
     } else {
@@ -182,12 +191,12 @@ export const DashboardPage: React.FC = () => {
 
   // Action: Delete / Remove Report permanently
   const handleDeleteReport = (reportId: string, dogName?: string) => {
-    const confirmed = window.confirm(`Are you sure you want to remove the alert for "${dogName || 'this dog'}"?`);
+    const confirmed = window.confirm(`Are you sure you want to remove the listing for "${dogName || 'this dog'}"?`);
     if (!confirmed) return;
 
     const success = storageService.deleteReport(reportId);
     if (success) {
-      showToast(`🗑️ Alert for ${dogName || 'dog'} removed successfully.`, 'info');
+      showToast(`🗑️ Listing for ${dogName || 'dog'} removed successfully.`, 'info');
       reloadData();
     }
   };
@@ -205,7 +214,7 @@ export const DashboardPage: React.FC = () => {
               <div>
                 <h1 className="dashboard-title">Community Pet Recovery Dashboard</h1>
                 <p className="dashboard-subtitle">
-                  Real-time network for missing dogs, confirmed sightings, browse directory, and heartwarming reunions.
+                  Real-time network for missing dogs, confirmed sightings, browse directory, and pets safe at home.
                 </p>
               </div>
             </div>
@@ -237,13 +246,13 @@ export const DashboardPage: React.FC = () => {
               <span className="metric-label">🚨 Missing Dogs</span>
             </div>
             <div
-              className={`metric-box ${activeTab === 'reunited' ? 'active-metric' : ''}`}
-              onClick={() => setActiveTab('reunited')}
+              className={`metric-box ${activeTab === 'safe' ? 'active-metric' : ''}`}
+              onClick={() => setActiveTab('safe')}
               role="button"
               tabIndex={0}
             >
-              <span className="metric-number text-emerald-600">{reunitedDogs.length}</span>
-              <span className="metric-label">🎉 Returned Home ❤️</span>
+              <span className="metric-number text-emerald-600">{safeDogs.length}</span>
+              <span className="metric-label">🏡 Safe at Home</span>
             </div>
             <div
               className={`metric-box ${activeTab === 'browse' ? 'active-metric' : ''}`}
@@ -285,16 +294,16 @@ export const DashboardPage: React.FC = () => {
               <span className="tab-counter-pill red-pill">{missingDogs.length}</span>
             </button>
 
-            {/* TAB 2: RETURNED / REUNITED */}
+            {/* TAB 2: SAFE AT HOME */}
             <button
-              className={`dashboard-tab-btn ${activeTab === 'reunited' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reunited')}
+              className={`dashboard-tab-btn ${activeTab === 'safe' ? 'active' : ''}`}
+              onClick={() => setActiveTab('safe')}
               role="tab"
-              aria-selected={activeTab === 'reunited'}
+              aria-selected={activeTab === 'safe'}
             >
               <Heart size={18} className="text-emerald-500" />
-              <span>Returned & Reunited</span>
-              <span className="tab-counter-pill green-pill">{reunitedDogs.length}</span>
+              <span>Safe at Home</span>
+              <span className="tab-counter-pill green-pill">{safeDogs.length}</span>
             </button>
 
             {/* TAB 3: BROWSE ALL COMMUNITY DOGS */}
@@ -462,7 +471,7 @@ export const DashboardPage: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(report.id, 'REUNITED')}
+                          onClick={() => handleStatusChange(report.id, 'SAFE')}
                           className="btn btn-sm"
                           style={{
                             backgroundColor: '#ECFDF5',
@@ -470,10 +479,10 @@ export const DashboardPage: React.FC = () => {
                             borderColor: '#A7F3D0',
                             fontWeight: 700,
                           }}
-                          title="Mark Pup Reunited & Safe"
+                          title="Mark Pup Safe at Home"
                         >
                           <Check size={14} />
-                          <span>Reunited ❤️</span>
+                          <span>Safe at Home 🏡</span>
                         </button>
 
                         <button
@@ -521,35 +530,35 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2 CONTENT: RETURNED & REUNITED DOG PROFILES */}
+        {/* TAB 2 CONTENT: SAFE AT HOME DOG PROFILES */}
         {/* ========================================================================= */}
-        {activeTab === 'reunited' && (
+        {activeTab === 'safe' && (
           <div className="dashboard-tab-pane">
             <div className="tab-header-strip">
               <div>
-                <h2 className="tab-section-title text-emerald-700">🎉 Safely Returned Pups</h2>
+                <h2 className="tab-section-title text-emerald-700">🏡 Pups Safe at Home</h2>
                 <p className="tab-section-desc">
-                  Heartwarming reunions! These dogs have been successfully recovered and are back home safe with their families.
+                  These dogs are safe and sound with their loving families.
                 </p>
               </div>
               <span className="results-count-badge green-badge">
-                {displayedReunited.length} Happy Reunions ❤️
+                {displayedSafe.length} Pups Safe at Home 🏡
               </span>
             </div>
 
-            {displayedReunited.length === 0 ? (
+            {displayedSafe.length === 0 ? (
               <div className="empty-state-card card">
                 <Heart size={44} className="empty-icon text-emerald-500" />
-                <h3>No Reunited Dogs Found</h3>
+                <h3>No Dogs Found in Safe List</h3>
                 <p>
                   {searchQuery
-                    ? `No reunited dogs match "${searchQuery}".`
-                    : 'Reunited dogs will appear here as neighbors help bring lost pups home.'}
+                    ? `No dogs match "${searchQuery}".`
+                    : 'Dogs marked safe at home will appear here.'}
                 </p>
               </div>
             ) : (
               <div className="dog-profiles-grid">
-                {displayedReunited.map((report) => (
+                {displayedSafe.map((report) => (
                   <div key={report.id} className="dog-profile-dashboard-card card reunited-card">
                     <div className="dog-profile-photo-container">
                       <img
@@ -561,7 +570,7 @@ export const DashboardPage: React.FC = () => {
                       <div className="dog-profile-floating-badge">
                         <span className="reunited-celebration-pill">
                           <Heart size={12} />
-                          <span>SAFE AT HOME ❤️</span>
+                          <span>SAFE AT HOME 🏡</span>
                         </span>
                       </div>
                     </div>
@@ -569,7 +578,7 @@ export const DashboardPage: React.FC = () => {
                     <div className="dog-profile-content">
                       <div className="dog-name-row">
                         <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
-                        <span className="reunion-badge">Reunited</span>
+                        <span className="reunion-badge">Safe at Home</span>
                       </div>
 
                       <div className="dog-meta-tags">
@@ -580,29 +589,29 @@ export const DashboardPage: React.FC = () => {
                       <div className="reunion-story-box">
                         <Heart size={14} className="text-emerald-600 flex-shrink-0 mt-1" />
                         <p className="reunion-story-text">
-                          {report.additionalNotes || 'Safely reunited with loving family through neighborhood community support!'}
+                          {report.additionalNotes || 'Safe with loving family at home!'}
                         </p>
                       </div>
 
                       <div className="dog-card-actions">
                         <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                          <span>View Reunion Details ❤️</span>
+                          <span>View Pup Details 🐾</span>
                         </Link>
 
                         <button
                           type="button"
                           onClick={() => handleStatusChange(report.id, 'LOST')}
                           className="btn btn-ghost btn-sm text-amber-600"
-                          title="Re-open missing search if needed"
+                          title="Report missing if needed"
                         >
-                          <span>Re-open Search 🚨</span>
+                          <span>Report Missing 🚨</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
                           className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                          title="Remove this report"
+                          title="Remove this listing"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -646,7 +655,7 @@ export const DashboardPage: React.FC = () => {
                   >
                     <option value="ALL">All Statuses</option>
                     <option value="LOST">🚨 Missing (Lost)</option>
-                    <option value="REUNITED">🎉 Reunited ❤️</option>
+                    <option value="SAFE">🏡 Safe at Home (In Home)</option>
                   </select>
                 </div>
 
@@ -736,7 +745,7 @@ export const DashboardPage: React.FC = () => {
                       <div className="dog-profile-floating-badge">
                         <StatusBadge status={report.status} size="sm" />
                       </div>
-                      {report.sightingCount > 0 && report.status !== 'REUNITED' && (
+                      {report.sightingCount > 0 && report.status !== 'SAFE' && report.status !== 'REUNITED' && (
                         <div className="sighting-count-tag">
                           <Eye size={12} />
                           <span>{report.sightingCount} sighting{report.sightingCount > 1 ? 's' : ''}</span>
@@ -762,7 +771,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
 
                       <div className="dog-card-actions">
-                        {report.status !== 'REUNITED' && (
+                        {report.status !== 'SAFE' && report.status !== 'REUNITED' && (
                           <button
                             type="button"
                             onClick={() => setSightingReport(report)}
@@ -773,10 +782,10 @@ export const DashboardPage: React.FC = () => {
                           </button>
                         )}
 
-                        {report.status === 'LOST' && (
+                        {report.status === 'LOST' ? (
                           <button
                             type="button"
-                            onClick={() => handleStatusChange(report.id, 'REUNITED')}
+                            onClick={() => handleStatusChange(report.id, 'SAFE')}
                             className="btn btn-sm"
                             style={{
                               backgroundColor: '#ECFDF5',
@@ -784,10 +793,19 @@ export const DashboardPage: React.FC = () => {
                               borderColor: '#A7F3D0',
                               fontWeight: 700,
                             }}
-                            title="Mark Reunited ❤️"
+                            title="Mark Safe at Home 🏡"
                           >
                             <Check size={14} />
-                            <span>Reunited ❤️</span>
+                            <span>Safe at Home 🏡</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(report.id, 'LOST')}
+                            className="btn btn-sm btn-ghost text-amber-600"
+                            title="Report missing if needed"
+                          >
+                            <span>Report Missing 🚨</span>
                           </button>
                         )}
 
@@ -984,7 +1002,7 @@ export const DashboardPage: React.FC = () => {
                               }
                             >
                               <option value="LOST">🔴 MISSING (Active Alert)</option>
-                              <option value="REUNITED">🟢 REUNITED (Home Safe!)</option>
+                              <option value="SAFE">🏡 SAFE AT HOME (In Home)</option>
                               <option value="CLOSED">⚪ CLOSED</option>
                             </select>
                           </div>
@@ -995,14 +1013,22 @@ export const DashboardPage: React.FC = () => {
                               <span>View Public Page</span>
                             </Link>
 
-                            {report.status !== 'REUNITED' && (
+                            {report.status === 'LOST' ? (
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm reunite-btn"
-                                onClick={() => handleStatusChange(report.id, 'REUNITED')}
+                                onClick={() => handleStatusChange(report.id, 'SAFE')}
                               >
                                 <Heart size={15} />
-                                <span>Mark Reunited ❤️</span>
+                                <span>Mark Safe at Home 🏡</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm text-amber-600"
+                                onClick={() => handleStatusChange(report.id, 'LOST')}
+                              >
+                                <span>Report Missing 🚨</span>
                               </button>
                             )}
 
