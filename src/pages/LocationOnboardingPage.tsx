@@ -37,6 +37,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const { showToast } = useToast();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
+  const dogPhoto = existingPet?.primaryPhoto || existingReport?.dog?.primaryPhoto || safePuppyImg;
+  const dogName = existingPet?.name || existingReport?.dog?.name || 'Safe Puppy';
   const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
   // Initial values from saved profile
@@ -497,7 +501,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   <div className="radar-pulse-ring ring-outer"></div>
                   <div className="radar-pulse-ring ring-inner"></div>
                   <div className="pet-avatar-circle">
-                    <img src={safePuppyImg} alt="Safe Puppy" className="pet-radar-avatar-img" />
+                    <img src={dogPhoto} alt={dogName} className="pet-radar-avatar-img" />
                   </div>
                 </div>
                 <div className="pet-radar-status-pill">
