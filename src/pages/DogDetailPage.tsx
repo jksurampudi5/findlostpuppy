@@ -24,6 +24,7 @@ import { ReportModal } from '../components/ReportModal';
 import { useToast } from '../context/ToastContext';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 
 export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -194,9 +195,41 @@ export const DogDetailPage: React.FC = () => {
               </button>
             )}
 
+            <button
+              type="button"
+              onClick={() => {
+                const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                  report,
+                  report.dog,
+                  report.contactMechanism?.safeContactPhone
+                );
+                try {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(dashboardUrl);
+                  }
+                } catch {}
+                showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                window.open(whatsappUrl, '_blank');
+              }}
+              className="btn btn-whatsapp btn-sm"
+              style={{
+                backgroundColor: '#25D366',
+                color: '#FFFFFF',
+                borderColor: '#25D366',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontWeight: 700,
+              }}
+              title="Share Alert on WhatsApp"
+            >
+              <Share2 size={14} />
+              <span>WhatsApp</span>
+            </button>
+
             <button onClick={handleShare} className="btn btn-outline btn-sm share-btn">
               <Share2 size={15} />
-              <span>Share Alert</span>
+              <span>Share Link</span>
             </button>
 
             <button

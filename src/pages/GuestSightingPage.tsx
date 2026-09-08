@@ -31,6 +31,7 @@ import {
   getDogDisplayName,
   handleDogImageError,
 } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
@@ -252,23 +253,23 @@ export const GuestSightingPage: React.FC = () => {
   // Share Alert to WhatsApp
   const handleShareWhatsApp = () => {
     if (!report || !report.dog) return;
-    const sightingUrl = `${window.location.origin}/report-sighting/${report.id}`;
     const ownerPhone =
       report.contactMechanism?.safeContactPhone ||
       (report as any)?.ownerPhone ||
       (report as any)?.contactPhone ||
       report.contactMechanism?.safeContactEmail ||
       '';
-    const msg =
-      `🚨 *EMERGENCY LOST DOG ALERT* 🐾\n\n` +
-      `Please help us find *"${report.dog.name || 'our lost dog'}"* (${report.dog.breed || 'Dog'})!\n` +
-      `📍 *Last Seen:* ${report.lastKnownLocation || report.ownerApproximateLocation || 'Area not specified'}\n` +
-      (ownerPhone ? `📞 *Owner Contact:* ${ownerPhone}\n` : '') +
-      `\n🐾 *Direct Pet Details, Photos & Sighting Report:* (No login needed)\n` +
-      `👉 ${sightingUrl}\n\n` +
-      `FindLostPuppy Community Network 🐕❤️`;
 
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(report, report.dog, ownerPhone);
+
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(dashboardUrl);
+      }
+    } catch {}
+
+    showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+    window.open(whatsappUrl, '_blank');
   };
 
   if (loading) {

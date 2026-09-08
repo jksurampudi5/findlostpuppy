@@ -25,6 +25,7 @@ import { ReportModal } from '../components/ReportModal';
 import type { LostReport, ReportStatus } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 
 export const DashboardPage: React.FC = () => {
   const { user, setActiveOnboardingTab } = useAuth();
@@ -488,9 +489,18 @@ export const DashboardPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const sightingUrl = `${window.location.origin}/report-sighting/${report.id}`;
-                            const msg = `🚨 *EMERGENCY LOST PUPPY ALERT* 🐾\n\nPlease help find *"${report.dog.name}"* (${report.dog.breed})!\n📍 *Last seen:* ${report.lastKnownLocation}.\n\n🐾 *Sighted or found this dog?* Report location & photos (*No login required!*):\n👉 ${sightingUrl}\n\nFindLostPuppy Network 🐕❤️`;
-                            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+                            const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                              report,
+                              report.dog,
+                              report.contactMechanism?.safeContactPhone
+                            );
+                            try {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(dashboardUrl);
+                              }
+                            } catch {}
+                            showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                            window.open(whatsappUrl, '_blank');
                           }}
                           className="btn btn-whatsapp btn-sm"
                           style={{
@@ -806,6 +816,40 @@ export const DashboardPage: React.FC = () => {
                             title="Report missing if needed"
                           >
                             <span>Report Missing 🚨</span>
+                          </button>
+                        )}
+
+                        {report.status === 'LOST' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                                report,
+                                report.dog,
+                                report.contactMechanism?.safeContactPhone
+                              );
+                              try {
+                                if (navigator.clipboard) {
+                                  navigator.clipboard.writeText(dashboardUrl);
+                                }
+                              } catch {}
+                              showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                              window.open(whatsappUrl, '_blank');
+                            }}
+                            className="btn btn-whatsapp btn-sm"
+                            style={{
+                              backgroundColor: '#25D366',
+                              color: '#FFFFFF',
+                              borderColor: '#25D366',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontWeight: 700,
+                            }}
+                            title="Share Alert on WhatsApp"
+                          >
+                            <Share2 size={13} />
+                            <span>WhatsApp</span>
                           </button>
                         )}
 
