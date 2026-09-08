@@ -10,6 +10,7 @@ import {
   Compass,
   CheckCircle2,
   Loader2,
+  Home,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import type { DogProfile, OwnerProfile } from '../types';
@@ -46,9 +47,9 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   const today = new Date().toISOString().split('T')[0];
   const [dateLost, setDateLost] = useState(initialData?.dateLost || today);
   const [timeLost, setTimeLost] = useState(initialData?.timeLost || '06:00 PM');
+  // Initialize ONLY with existing report's location when editing; otherwise leave empty for the lost location
   const [lastKnownLocation, setLastKnownLocation] = useState(
-    initialData?.lastKnownLocation ||
-      (ownerProfile?.approximateArea ? `Near ${ownerProfile.approximateArea}` : '')
+    initialData?.lastKnownLocation || ''
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [detectedSuccess, setDetectedSuccess] = useState(false);
@@ -56,20 +57,12 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   // Sync state whenever modal opens or initialData changes
   useEffect(() => {
     if (isOpen) {
-      const initialLoc =
-        initialData?.lastKnownLocation ||
-        (ownerProfile?.approximateArea ? `Near ${ownerProfile.approximateArea}` : '');
       setDateLost(initialData?.dateLost || today);
       setTimeLost(initialData?.timeLost || '06:00 PM');
-      setLastKnownLocation(initialLoc);
+      setLastKnownLocation(initialData?.lastKnownLocation || '');
       setDetectedSuccess(false);
-
-      // If location is completely empty when opening, attempt automatic gentle detection
-      if (!initialLoc) {
-        autoDetectGPS(false);
-      }
     }
-  }, [isOpen, initialData, ownerProfile]);
+  }, [isOpen, initialData]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -80,13 +73,10 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Automatic / 1-Click GPS Location Detection with Manual Inline Editing
-  const autoDetectGPS = (notify = true) => {
+  // 1-Click GPS Location Detection from the Place Where Pet is Lost
+  const autoDetectGPS = () => {
     if (!('geolocation' in navigator)) {
-      if (ownerProfile?.approximateArea) {
-        setLastKnownLocation(`Near ${ownerProfile.approximateArea}`);
-      }
-      if (notify) showToast('GPS not supported on device. Please enter location manually.', 'info');
+      showToast('GPS is not supported on this browser. Please type the lost landmark manually.', 'info');
       return;
     }
 
@@ -94,33 +84,31 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        let detected = '';
-        if (ownerProfile?.approximateArea) {
-          detected = `Near ${ownerProfile.approximateArea} (GPS: ${latitude.toFixed(3)}, ${longitude.toFixed(3)})`;
-        } else if (ownerProfile?.city) {
-          detected = `Near ${ownerProfile.city} (GPS: ${latitude.toFixed(3)}, ${longitude.toFixed(3)})`;
-        } else {
-          detected = `Current GPS Coordinates (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-        }
+        const detected = `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
 
         setLastKnownLocation(detected);
         setIsDetectingLocation(false);
         setDetectedSuccess(true);
-        if (notify) {
-          showToast('📍 Location automatically detected! You can edit or refine it manually below.', 'success');
-        }
+        showToast('📍 Current lost GPS location detected! You can edit or add landmark details in the box below.', 'success');
       },
       (_error) => {
         setIsDetectingLocation(false);
-        if (ownerProfile?.approximateArea) {
-          setLastKnownLocation(`Near ${ownerProfile.approximateArea}`);
-        }
-        if (notify) {
-          showToast('GPS permission unavailable. Please type your location manually.', 'info');
-        }
+        showToast('Could not access GPS. Please type the lost landmark or area manually.', 'warning');
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
+  };
+
+  // Optional 1-Click Shortcut: Use Saved Home Location
+  const handleUseHomeArea = () => {
+    if (ownerProfile?.approximateArea) {
+      setLastKnownLocation(`Near Home (${ownerProfile.approximateArea})`);
+      setDetectedSuccess(true);
+      showToast('🏠 Filled with your home area. You can edit or modify it below.', 'info');
+    } else if (ownerProfile?.city) {
+      setLastKnownLocation(`Near ${ownerProfile.city}`);
+      setDetectedSuccess(true);
+    }
   };
 
   if (!isOpen) return null;
@@ -128,7 +116,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!lastKnownLocation.trim()) {
-      showToast('Please specify where your dog was last seen.', 'warning');
+      showToast('Please specify the location or landmark where your dog was lost.', 'warning');
       return;
     }
 
@@ -181,105 +169,118 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="missing-modal-form">
           <div className="missing-modal-body">
-            {/* Pre-Populated Pet Badge */}
-            <div className="prepopulated-info-card missing-modal-prep-card">
-              <div className="prepopulated-badge">
-                <Sparkles size={14} />
-                <span>Active Pet Profile</span>
-              </div>
-              <div className="prepopulated-details-row">
-                <span className="prep-item">
-                  <strong>Reporting for:</strong> {dogName} ({dogBreed})
+            {/* Ultra-Slim Pet Profile Strip */}
+            <div className="missing-modal-pet-strip">
+              <div className="pet-strip-left">
+                <Sparkles size={14} className="text-terracotta" />
+                <span className="pet-strip-label">
+                  <strong>Reporting For:</strong> {dogName} ({dogBreed})
                 </span>
-                {ownerProfile?.approximateArea && (
-                  <span className="prep-item">
-                    <strong>Home Area:</strong> {ownerProfile.approximateArea}
-                  </span>
-                )}
+              </div>
+              {ownerProfile?.approximateArea && (
+                <span className="pet-strip-home-tag">
+                  Home: {ownerProfile.approximateArea.split(',')[0]}
+                </span>
+              )}
+            </div>
+
+            {/* Fields 1 & 2: Date and Time (Compact 2-Column Grid) */}
+            <div className="missing-datetime-row">
+              <div className="form-group datetime-field">
+                <label className="form-label cute-label" htmlFor="modal-date-lost">
+                  <span>1. Date When Lost</span>
+                  <span className="required-star">*</span>
+                </label>
+                <div className="input-with-icon">
+                  <Calendar size={15} className="input-icon text-terracotta" />
+                  <input
+                    id="modal-date-lost"
+                    type="date"
+                    className="form-input cute-input"
+                    value={dateLost}
+                    max={today}
+                    onChange={(e) => setDateLost(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group datetime-field">
+                <label className="form-label cute-label" htmlFor="modal-time-lost">
+                  <span>2. Approximate Time</span>
+                  <span className="optional-tag">Optional</span>
+                </label>
+                <div className="input-with-icon">
+                  <Clock size={15} className="input-icon text-terracotta" />
+                  <input
+                    id="modal-time-lost"
+                    type="text"
+                    className="form-input cute-input"
+                    placeholder="e.g. 06:30 PM"
+                    value={timeLost}
+                    onChange={(e) => setTimeLost(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Field 1: Date When Lost */}
-            <div className="form-group">
-              <label className="form-label cute-label" htmlFor="modal-date-lost">
-                <span>1. Date When Lost</span>
-                <span className="required-star">*</span>
-              </label>
-              <div className="input-with-icon">
-                <Calendar size={16} className="input-icon text-terracotta" />
-                <input
-                  id="modal-date-lost"
-                  type="date"
-                  className="form-input cute-input"
-                  value={dateLost}
-                  max={today}
-                  onChange={(e) => setDateLost(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Field 2: Approximate Time */}
-            <div className="form-group">
-              <label className="form-label cute-label" htmlFor="modal-time-lost">
-                <span>2. Approximate Time</span>
-                <span className="optional-tag">Optional</span>
-              </label>
-              <div className="input-with-icon">
-                <Clock size={16} className="input-icon text-terracotta" />
-                <input
-                  id="modal-time-lost"
-                  type="text"
-                  className="form-input cute-input"
-                  placeholder="e.g. 06:30 PM, Morning walk, Afternoon"
-                  value={timeLost}
-                  onChange={(e) => setTimeLost(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Field 3: Last Seen Location / Landmark (Auto-detected & Manually Editable) */}
-            <div className="form-group">
+            {/* Field 3: Last Seen Location / Landmark (Place Where Pet Was Lost) */}
+            <div className="form-group missing-location-group">
               <div className="location-field-label-row">
                 <label className="form-label cute-label" htmlFor="modal-last-location" style={{ marginBottom: 0 }}>
-                  <span>3. Last Seen Location / Landmark</span>
+                  <span>3. Location Where Pet Was Lost</span>
                   <span className="required-star">*</span>
                 </label>
 
-                {/* Inline 1-Click Auto GPS Button */}
-                <button
-                  type="button"
-                  onClick={() => autoDetectGPS(true)}
-                  disabled={isDetectingLocation}
-                  className="btn btn-ghost btn-sm auto-detect-loc-btn"
-                  title="Detect current GPS location automatically"
-                >
-                  {isDetectingLocation ? (
-                    <>
-                      <Loader2 size={13} className="spin-animate" />
-                      <span>Detecting GPS...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Compass size={13} className="text-terracotta" />
-                      <span>📍 Auto-Detect Location</span>
-                    </>
+                {/* Location Action Buttons */}
+                <div className="location-action-btns-wrap">
+                  <button
+                    type="button"
+                    onClick={autoDetectGPS}
+                    disabled={isDetectingLocation}
+                    className="btn btn-sm auto-detect-loc-btn"
+                    title="Detect GPS coordinates of the place where pet was lost"
+                  >
+                    {isDetectingLocation ? (
+                      <>
+                        <Loader2 size={13} className="spin-animate" />
+                        <span>Detecting Lost GPS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Compass size={13} className="text-terracotta" />
+                        <span>📍 Auto-Detect Lost GPS</span>
+                      </>
+                    )}
+                  </button>
+
+                  {ownerProfile?.approximateArea && (
+                    <button
+                      type="button"
+                      onClick={handleUseHomeArea}
+                      className="btn btn-ghost btn-sm use-home-loc-btn"
+                      title="Use registered home area if pet was lost near home"
+                    >
+                      <Home size={12} />
+                      <span>Lost Near Home</span>
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
 
-              <div className="input-with-icon" style={{ marginTop: '0.4rem' }}>
+              <div className="input-with-icon location-main-input-wrap">
                 <MapPin size={16} className="input-icon text-terracotta" />
                 <input
                   id="modal-last-location"
                   type="text"
-                  className="form-input cute-input"
-                  placeholder="e.g. Near City Park Main Gate, Tanuku Road, Benz Circle"
+                  className="form-input cute-input location-text-input"
+                  placeholder="Type landmark or area where pet was lost (e.g. Near City Park Gate, Benz Circle, Highway 16)"
                   value={lastKnownLocation}
                   onChange={(e) => {
                     setLastKnownLocation(e.target.value);
                     setDetectedSuccess(false);
                   }}
+                  autoFocus
                   required
                 />
               </div>
@@ -287,11 +288,11 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
               <div className="location-hint-row">
                 {detectedSuccess ? (
                   <span className="location-auto-success-tag">
-                    <CheckCircle2 size={13} /> Location auto-detected. You can type or edit manually above!
+                    <CheckCircle2 size={13} /> Location captured. You can freely edit or type additional landmark details above!
                   </span>
                 ) : (
                   <span className="input-hint">
-                    Location is automatically suggested and can be freely updated or changed manually above.
+                    Click <strong>Auto-Detect Lost GPS</strong> if you are at the lost location, or type the landmark manually above.
                   </span>
                 )}
               </div>
@@ -300,13 +301,12 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
             {/* Privacy Guarantee Banner */}
             <div className="privacy-guarantee-card modal-privacy-card">
               <div className="privacy-badge-icon">
-                <Shield size={16} />
+                <Shield size={15} />
               </div>
               <div className="privacy-badge-content">
                 <h4 className="privacy-title">Safe Community Broadcasting</h4>
                 <p className="privacy-desc">
-                  Your private home address is never published. Only approximate landmarks and authorized
-                  contact channels will be displayed on the flyer.
+                  Only the approximate lost landmark and authorized contact channels are displayed on the community search flyer.
                 </p>
               </div>
             </div>
