@@ -10951,48 +10951,62 @@
 
   .missing-datetime-row {
     grid-template-columns: 1fr 1fr;
-    gap: 0.45rem;
+    gap: 0.5rem;
+  }
+
+  .missing-datetime-row .cute-label {
+    font-size: 0.8rem;
+    margin-bottom: 0.2rem;
   }
 
   .missing-datetime-row .form-input {
     font-size: 0.82rem;
     padding-left: 2rem;
     padding-right: 0.4rem;
-    min-height: 40px;
+    min-height: 38px;
   }
 
   .missing-datetime-row .input-icon {
-    left: 0.55rem;
-    width: 14px;
-    height: 14px;
+    left: 0.5rem;
+    width: 13px;
+    height: 13px;
+  }
+
+  .location-field-label-row {
+    gap: 0.35rem;
   }
 
   .location-action-btns-wrap {
     width: 100%;
-    margin-top: 0.2rem;
+    margin-top: 0.15rem;
+    display: flex;
+    gap: 0.35rem;
   }
 
   .auto-detect-loc-btn {
-    flex: 1;
-    font-size: 0.75rem;
-    padding: 0.35rem 0.5rem;
+    flex: 1.2;
+    font-size: 0.74rem;
+    padding: 0.35rem 0.45rem;
     justify-content: center;
   }
 
   .use-home-loc-btn {
+    flex: 1;
     font-size: 0.72rem;
-    padding: 0.35rem 0.5rem;
+    padding: 0.35rem 0.45rem;
+    justify-content: center;
   }
 
   .location-text-input {
     font-size: 0.88rem;
-    min-height: 42px;
+    min-height: 40px;
   }
 
   .missing-modal-footer {
     padding: 0.65rem 1rem;
     flex-direction: row;
     gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .missing-modal-footer button {
