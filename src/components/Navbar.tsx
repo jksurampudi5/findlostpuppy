@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
@@ -10,6 +10,7 @@ export const Navbar = () => {
   const {
     user,
     isAuthenticated,
+    isAdmin,
     hasCompletedOwner,
     hasCompletedLocation,
     hasCompletedDog,
@@ -72,6 +73,9 @@ export const Navbar = () => {
     location.pathname === '/find' ||
     (location.pathname === '/' && (activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed'));
 
+  const isAdminActive = location.pathname === '/admin';
+  const isUserAdmin = isAdmin || user?.isAdmin || user?.email?.toLowerCase() === 'jksurampudi5@gmail.com';
+
   return (
     <>
       {/* Top Header for Desktop & Mobile */}
@@ -103,6 +107,17 @@ export const Navbar = () => {
             <div className="onboarding-nav-status">
               {/* Mobile Quick Status Pill (Visible on Mobile Only) */}
               <div className="mobile-header-quick-status">
+                {isUserAdmin && (
+                  <button
+                    type="button"
+                    className={`mobile-quick-alert-btn ${isAdminActive ? 'quick-alert-admin-active' : 'quick-alert-admin'}`}
+                    onClick={() => navigate('/admin')}
+                    title="Open Admin Portal"
+                  >
+                    <span className="quick-alert-icon">🛡️</span>
+                    <span className="quick-alert-text">Admin</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`mobile-quick-alert-btn ${
@@ -315,6 +330,26 @@ export const Navbar = () => {
                     </div>
                   </button>
                 </div>
+
+                {/* 6. ADMIN PANEL TAB (Rendered when user is Admin) */}
+                {isUserAdmin && (
+                  <div className="nav-tab-wrapper">
+                    <button
+                      type="button"
+                      className={`nav-space-pill admin-space-pill ${isAdminActive ? 'active' : ''}`}
+                      onClick={() => navigate('/admin')}
+                      title="Master Admin Portal - Track Members & Pets"
+                    >
+                      <div className="space-pill-icon admin-icon">
+                        <Shield size={16} />
+                      </div>
+                      <div className="space-pill-content">
+                        <span className="space-pill-title">Admin</span>
+                        <span className="space-pill-detail">Roster & Sync</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Sign out action */}
@@ -428,6 +463,20 @@ export const Navbar = () => {
                 {petSafetyStatus === 'LOST' ? 'Missing!' : petSafetyStatus === 'SAFE' ? 'Safe' : 'Alert'}
               </span>
             </button>
+
+            {/* 6. ADMIN (Rendered when user is Admin) */}
+            {isUserAdmin && (
+              <button
+                type="button"
+                className={`mobile-nav-item mobile-admin-item ${isAdminActive ? 'active' : ''}`}
+                onClick={() => navigate('/admin')}
+              >
+                <div className="mobile-nav-icon-wrap">
+                  <span className="mobile-nav-icon">🛡️</span>
+                </div>
+                <span className="mobile-nav-label">Admin</span>
+              </button>
+            )}
           </div>
         </nav>
       )}

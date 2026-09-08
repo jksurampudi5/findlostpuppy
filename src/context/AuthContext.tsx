@@ -9,6 +9,7 @@ export type OnboardingTab = 'owner' | 'location' | 'dog' | 'pet' | 'report' | 'd
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   hasValidConsent: boolean;
   isLoading: boolean;
   hasCompletedOwner: boolean;
@@ -225,6 +226,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
+        isAdmin: !!(user && (user.isAdmin || user.email?.toLowerCase() === 'jksurampudi5@gmail.com')),
         hasValidConsent,
         isLoading,
         hasCompletedOwner,
