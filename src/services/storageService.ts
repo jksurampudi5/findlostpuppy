@@ -1,4 +1,5 @@
 import type {
+  User,
   LostReport,
   OwnerProfile,
   Sighting,
@@ -850,6 +851,337 @@ class StorageService {
 
   isUserBlocked(userId: string): boolean {
     return this.blockedUsers.some((b) => b.blockedUserId === userId);
+  }
+
+  // ==========================================
+  // ADMIN & COMMUNITY DATA MANAGEMENT METHODS
+  // ==========================================
+
+  getAllRegisteredUsers(): User[] {
+    const userMap = new Map<string, User>();
+
+    // 1. From Registered Users Storage
+    try {
+      const storedUsers = localStorage.getItem(USERS_KEY);
+      const users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
+      users.forEach((u) => {
+        if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
+      });
+    } catch {}
+
+    // 2. From Current Session Storage
+    try {
+      const storedSession = localStorage.getItem(SESSION_KEY);
+      if (storedSession) {
+        const sessionUser: User = JSON.parse(storedSession);
+        if (sessionUser && sessionUser.email && !userMap.has(sessionUser.email.toLowerCase().trim())) {
+          userMap.set(sessionUser.email.toLowerCase().trim(), sessionUser);
+        }
+      }
+    } catch {}
+
+    // 3. Inferred from Owner Profiles
+    try {
+      this.profiles.forEach((p) => {
+        if (p.email && p.email.includes('@')) {
+          const emailKey = p.email.toLowerCase().trim();
+          if (!userMap.has(emailKey)) {
+            userMap.set(emailKey, {
+              id: p.userId || p.id || `user-${Date.now()}`,
+              name: p.fullName || emailKey.split('@')[0],
+              email: p.email,
+              phone: p.phone,
+              isAdmin: emailKey === 'jksurampudi5@gmail.com',
+              createdAt: p.updatedAt || new Date().toISOString(),
+            });
+          }
+        }
+      });
+    } catch {}
+
+    // 4. Inferred from Lost Reports
+    try {
+      this.reports.forEach((r) => {
+        const contactEmail = r.contactMechanism?.safeContactEmail;
+        if (contactEmail && contactEmail.includes('@')) {
+          const emailKey = contactEmail.toLowerCase().trim();
+          if (!userMap.has(emailKey)) {
+            const rawOwner = (r.ownerId || '').replace(/^owner-/, '');
+            userMap.set(emailKey, {
+              id: rawOwner || `user-${Date.now()}`,
+              name: rawOwner ? rawOwner.charAt(0).toUpperCase() + rawOwner.slice(1) : 'Pet Parent',
+              email: contactEmail,
+              phone: r.contactMechanism?.safeContactPhone,
+              isAdmin: emailKey === 'jksurampudi5@gmail.com',
+              createdAt: r.createdAt || new Date().toISOString(),
+            });
+          }
+        }
+      });
+    } catch {}
+
+    return Array.from(userMap.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  getAllOwnerProfiles(): OwnerProfile[] {
+    try {
+      const storedProfiles = localStorage.getItem(PROFILES_KEY);
+      if (storedProfiles) {
+        this.profiles = JSON.parse(storedProfiles);
+      }
+    } catch {}
+    return [...this.profiles];
+  }
+
+  getAllSightings(): Sighting[] {
+    try {
+      const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
+      if (storedSightings) {
+        this.sightings = JSON.parse(storedSightings);
+      }
+    } catch {}
+    return [...this.sightings].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  deleteUserAsAdmin(userId: string): boolean {
+    return this.executeTransaction(() => {
+      this.deleteUserAccount(userId);
+      return true;
+    });
+  }
+
+  deletePetAsAdmin(petId: string): boolean {
+    return this.executeTransaction(() => {
+      const initLen = this.pets.length;
+      this.pets = this.pets.filter((p) => p.id !== petId);
+      // Also remove any linked reports
+      this.reports = this.reports.filter((r) => r.dogId !== petId && r.dog?.id !== petId);
+      return this.pets.length < initLen;
+    });
+  }
+
+  deleteSightingAsAdmin(sightingId: string): boolean {
+    return this.executeTransaction(() => {
+      const target = this.sightings.find((s) => s.id === sightingId);
+      if (target) {
+        const canonicalRepId = normalizeReportId(target.reportId);
+        const report = this.reports.find(
+          (r) => normalizeReportId(r.id) === canonicalRepId || r.id === target.reportId
+        );
+        if (report && report.sightingCount > 0) {
+          report.sightingCount -= 1;
+        }
+      }
+      this.sightings = this.sightings.filter((s) => s.id !== sightingId);
+      return true;
+    });
+  }
+
+  exportFullDatabaseJSON(): string {
+    const payload = {
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      users: this.getAllRegisteredUsers(),
+      profiles: this.getAllOwnerProfiles(),
+      pets: this.getAllPets(),
+      reports: this.getAllReports(),
+      sightings: this.getAllSightings(),
+      listingReports: this.getListingReports(),
+      userReports: this.getUserReports(),
+      blockedUsers: this.getBlockedUsers(),
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  importFullDatabaseJSON(jsonStr: string): { success: boolean; importedCounts?: any; error?: string } {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (!parsed || typeof parsed !== 'object') {
+        return { success: false, error: 'Invalid JSON payload structure.' };
+      }
+
+      return this.executeTransaction(() => {
+        let addedUsers = 0;
+        let addedProfiles = 0;
+        let addedPets = 0;
+        let addedReports = 0;
+        let addedSightings = 0;
+
+        // 1. Merge Registered Users
+        if (Array.isArray(parsed.users)) {
+          const currentUsers = this.getAllRegisteredUsers();
+          const userMap = new Map<string, User>();
+          currentUsers.forEach((u) => userMap.set(u.email.toLowerCase(), u));
+          parsed.users.forEach((u: User) => {
+            if (u && u.email && !userMap.has(u.email.toLowerCase())) {
+              userMap.set(u.email.toLowerCase(), u);
+              addedUsers++;
+            }
+          });
+          localStorage.setItem(USERS_KEY, JSON.stringify(Array.from(userMap.values())));
+        }
+
+        // 2. Merge Owner Profiles
+        if (Array.isArray(parsed.profiles)) {
+          const profileMap = new Map<string, OwnerProfile>();
+          this.profiles.forEach((p) => profileMap.set(p.userId || p.id, p));
+          parsed.profiles.forEach((p: OwnerProfile) => {
+            if (p && (p.userId || p.id)) {
+              const key = p.userId || p.id;
+              if (!profileMap.has(key)) {
+                profileMap.set(key, p);
+                addedProfiles++;
+              } else {
+                profileMap.set(key, { ...profileMap.get(key)!, ...p });
+              }
+            }
+          });
+          this.profiles = Array.from(profileMap.values());
+        }
+
+        // 3. Merge Pets
+        if (Array.isArray(parsed.pets)) {
+          const petMap = new Map<string, DogProfile>();
+          this.pets.forEach((p) => petMap.set(p.id, p));
+          parsed.pets.forEach((p: DogProfile) => {
+            if (p && p.id) {
+              if (!petMap.has(p.id)) {
+                petMap.set(p.id, p);
+                addedPets++;
+              } else {
+                petMap.set(p.id, { ...petMap.get(p.id)!, ...p });
+              }
+            }
+          });
+          this.pets = Array.from(petMap.values());
+        }
+
+        // 4. Merge Reports
+        if (Array.isArray(parsed.reports)) {
+          const repMap = new Map<string, LostReport>();
+          this.reports.forEach((r) => repMap.set(normalizeReportId(r.id), r));
+          parsed.reports.forEach((r: LostReport) => {
+            if (r && r.id) {
+              const canon = normalizeReportId(r.id);
+              if (!repMap.has(canon)) {
+                repMap.set(canon, r);
+                addedReports++;
+              } else {
+                repMap.set(canon, { ...repMap.get(canon)!, ...r });
+              }
+            }
+          });
+          this.reports = Array.from(repMap.values());
+        }
+
+        // 5. Merge Sightings
+        if (Array.isArray(parsed.sightings)) {
+          const sightingMap = new Map<string, Sighting>();
+          this.sightings.forEach((s) => sightingMap.set(s.id, s));
+          parsed.sightings.forEach((s: Sighting) => {
+            if (s && s.id && !sightingMap.has(s.id)) {
+              sightingMap.set(s.id, s);
+              addedSightings++;
+            }
+          });
+          this.sightings = Array.from(sightingMap.values());
+        }
+
+        return {
+          success: true,
+          importedCounts: {
+            users: addedUsers,
+            profiles: addedProfiles,
+            pets: addedPets,
+            reports: addedReports,
+            sightings: addedSightings,
+          },
+        };
+      });
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to parse backup JSON.' };
+    }
+  }
+
+  mergeCommunityData(remoteData: any): void {
+    if (!remoteData || typeof remoteData !== 'object') return;
+    try {
+      this.executeTransaction(() => {
+        if (Array.isArray(remoteData.reports)) {
+          const repMap = new Map<string, LostReport>();
+          this.reports.forEach((r) => repMap.set(normalizeReportId(r.id), r));
+          for (const r of remoteData.reports) {
+            if (r && r.id) {
+              const canon = normalizeReportId(r.id);
+              if (!repMap.has(canon)) {
+                repMap.set(canon, r);
+              } else {
+                // Update with latest timestamp
+                const existing = repMap.get(canon)!;
+                if (new Date(r.updatedAt || 0) > new Date(existing.updatedAt || 0)) {
+                  repMap.set(canon, { ...existing, ...r });
+                }
+              }
+            }
+          }
+          this.reports = Array.from(repMap.values());
+        }
+
+        if (Array.isArray(remoteData.sightings)) {
+          const sMap = new Map<string, Sighting>();
+          this.sightings.forEach((s) => sMap.set(s.id, s));
+          for (const s of remoteData.sightings) {
+            if (s && s.id && !sMap.has(s.id)) {
+              sMap.set(s.id, s);
+            }
+          }
+          this.sightings = Array.from(sMap.values());
+        }
+
+        if (Array.isArray(remoteData.pets)) {
+          const pMap = new Map<string, DogProfile>();
+          this.pets.forEach((p) => pMap.set(p.id, p));
+          for (const p of remoteData.pets) {
+            if (p && p.id && !pMap.has(p.id)) {
+              pMap.set(p.id, p);
+            }
+          }
+          this.pets = Array.from(pMap.values());
+        }
+
+        if (Array.isArray(remoteData.profiles)) {
+          const prMap = new Map<string, OwnerProfile>();
+          this.profiles.forEach((pr) => prMap.set(pr.userId || pr.id, pr));
+          for (const pr of remoteData.profiles) {
+            if (pr && (pr.userId || pr.id)) {
+              const key = pr.userId || pr.id;
+              if (!prMap.has(key)) {
+                prMap.set(key, pr);
+              }
+            }
+          }
+          this.profiles = Array.from(prMap.values());
+        }
+
+        if (Array.isArray(remoteData.users)) {
+          const currentUsers = this.getAllRegisteredUsers();
+          const userMap = new Map<string, User>();
+          currentUsers.forEach((u) => userMap.set(u.email.toLowerCase(), u));
+          for (const u of remoteData.users) {
+            if (u && u.email && !userMap.has(u.email.toLowerCase())) {
+              userMap.set(u.email.toLowerCase(), u);
+            }
+          }
+          localStorage.setItem(USERS_KEY, JSON.stringify(Array.from(userMap.values())));
+        }
+      });
+    } catch (e) {
+      console.warn('Community sync merge failed:', e);
+    }
   }
 
   // ACCOUNT DELETION

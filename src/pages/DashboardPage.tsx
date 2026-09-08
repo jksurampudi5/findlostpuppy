@@ -15,6 +15,8 @@ import {
   Share2,
   Trash2,
   Check,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -401,139 +403,180 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="dog-profiles-grid">
-                {displayedMissing.map((report) => (
-                  <div key={report.id} className="dog-profile-dashboard-card card">
-                    <div className="dog-profile-photo-container">
-                      <img
-                        src={getDogPhotoUrl(report.dog, report)}
-                        alt={getDogDisplayName(report.dog, report)}
-                        className="dog-profile-photo"
-                        onError={handleDogImageError}
-                      />
-                      <div className="dog-profile-floating-badge">
-                        <StatusBadge status="LOST" size="sm" />
-                      </div>
-                      {report.sightingCount > 0 && (
-                        <div className="sighting-count-tag">
-                          <Eye size={12} />
-                          <span>{report.sightingCount} Sightings Reported</span>
+                {displayedMissing.map((report) => {
+                  const ownerPhone = report.contactMechanism?.safeContactPhone;
+                  const ownerEmail = report.contactMechanism?.safeContactEmail;
+                  const displayName = getDogDisplayName(report.dog, report);
+                  const photoUrl = getDogPhotoUrl(report.dog, report);
+
+                  return (
+                    <div key={report.id} className="dog-profile-dashboard-card card lost-sos-card">
+                      <div className="dog-profile-photo-container">
+                        <img
+                          src={photoUrl}
+                          alt={displayName}
+                          className="dog-profile-photo"
+                          onError={handleDogImageError}
+                        />
+                        <div className="dog-profile-floating-badge">
+                          <StatusBadge status="LOST" size="sm" />
                         </div>
-                      )}
-                    </div>
-
-                    <div className="dog-profile-content">
-                      <div className="dog-name-row">
-                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
-                        <span className="dog-id-code">#{report.id.split('-').pop()}</span>
-                      </div>
-
-                      <div className="dog-meta-tags">
-                        <span className="meta-tag">🐕 {report.dog.breed}</span>
-                        <span className="meta-tag">
-                          {report.dog.gender === 'Male' ? '♂ Male' : '♀ Female'}
-                        </span>
-                        <span className="meta-tag">🎂 {report.dog.age}</span>
-                      </div>
-
-                      <div className="dog-incident-details">
-                        <div className="incident-line">
-                          <MapPin size={14} className="incident-icon text-terracotta" />
-                          <span>
-                            <strong>Last Seen:</strong> {report.lastKnownLocation} ({report.ownerApproximateLocation})
-                          </span>
-                        </div>
-
-                        <div className="incident-line">
-                          <Clock size={14} className="incident-icon text-terracotta" />
-                          <span>
-                            <strong>Lost On:</strong> {report.dateLost} • {report.timeLost}
-                          </span>
-                        </div>
-
-                        {report.dog.distinguishingMarks && (
-                          <div className="incident-line">
-                            <Sparkles size={14} className="incident-icon text-amber-500" />
-                            <span>
-                              <strong>Traits:</strong> {report.dog.distinguishingMarks}
-                            </span>
+                        {report.sightingCount > 0 && (
+                          <div className="sighting-count-tag">
+                            <Eye size={12} />
+                            <span>{report.sightingCount} Sightings Reported</span>
                           </div>
                         )}
                       </div>
 
-                      <div className="dog-card-actions">
-                        <button
-                          type="button"
-                          onClick={() => setSightingReport(report)}
-                          className="btn btn-secondary btn-sm sighting-trigger-btn"
-                        >
-                          <Eye size={15} />
-                          <span>Report Sighting</span>
-                        </button>
+                      <div className="dog-profile-content">
+                        <div className="dog-name-row">
+                          <h3 className="dog-card-name">{displayName}</h3>
+                          <span className="dog-id-code">#{report.id.split('-').pop()}</span>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleStatusChange(report.id, 'SAFE')}
-                          className="btn btn-sm"
-                          style={{
-                            backgroundColor: '#ECFDF5',
-                            color: '#059669',
-                            borderColor: '#A7F3D0',
-                            fontWeight: 700,
-                          }}
-                          title="Mark Pup Safe at Home"
-                        >
-                          <Check size={14} />
-                          <span>Safe at Home 🏡</span>
-                        </button>
+                        <div className="dog-meta-tags">
+                          <span className="meta-tag">🐕 {report.dog.breed}</span>
+                          <span className="meta-tag">
+                            {report.dog.gender === 'Male' ? '♂ Male' : '♀ Female'}
+                          </span>
+                          <span className="meta-tag">🎂 {report.dog.age}</span>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
-                              report,
-                              report.dog,
-                              report.contactMechanism?.safeContactPhone
-                            );
-                            try {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(dashboardUrl);
-                              }
-                            } catch {}
-                            showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
-                            window.open(whatsappUrl, '_blank');
-                          }}
-                          className="btn btn-whatsapp btn-sm"
-                          style={{
-                            backgroundColor: '#25D366',
-                            color: '#FFFFFF',
-                            borderColor: '#25D366',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontWeight: 700,
-                          }}
-                          title="Share Alert on WhatsApp"
-                        >
-                          <Share2 size={13} />
-                          <span>WhatsApp</span>
-                        </button>
+                        <div className="dog-incident-details">
+                          <div className="incident-line">
+                            <MapPin size={14} className="incident-icon text-terracotta" />
+                            <span>
+                              <strong>Last Seen:</strong> {report.lastKnownLocation} ({report.ownerApproximateLocation})
+                            </span>
+                          </div>
 
-                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                          <span>Flyer →</span>
-                        </Link>
+                          <div className="incident-line">
+                            <Clock size={14} className="incident-icon text-terracotta" />
+                            <span>
+                              <strong>Lost On:</strong> {report.dateLost} • {report.timeLost}
+                            </span>
+                          </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
-                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                          title="Remove this alert"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                          {report.dog.distinguishingMarks && (
+                            <div className="incident-line">
+                              <Sparkles size={14} className="incident-icon text-amber-500" />
+                              <span>
+                                <strong>Traits:</strong> {report.dog.distinguishingMarks}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* HIGH VISIBILITY EMERGENCY OWNER CONTACT BOX */}
+                        <div className="emergency-owner-contact-box">
+                          <div className="emergency-contact-header">
+                            <Phone size={13} className="text-red-600 animate-pulse" />
+                            <span className="emergency-contact-label">Emergency Owner Contact:</span>
+                          </div>
+
+                          <div className="emergency-contact-buttons">
+                            {ownerPhone ? (
+                              <a
+                                href={`tel:${ownerPhone}`}
+                                className="btn-emergency-contact btn-emergency-phone"
+                                title={`Call Owner directly: ${ownerPhone}`}
+                              >
+                                <Phone size={13} />
+                                <span>Call: {ownerPhone}</span>
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-500">Phone not shared</span>
+                            )}
+
+                            {ownerEmail && (
+                              <a
+                                href={`mailto:${ownerEmail}`}
+                                className="btn-emergency-contact btn-emergency-email"
+                                title={`Email Owner: ${ownerEmail}`}
+                              >
+                                <Mail size={13} />
+                                <span>{ownerEmail}</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="dog-card-actions">
+                          <button
+                            type="button"
+                            onClick={() => setSightingReport(report)}
+                            className="btn btn-secondary btn-sm sighting-trigger-btn"
+                          >
+                            <Eye size={15} />
+                            <span>Report Sighting</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(report.id, 'SAFE')}
+                            className="btn btn-sm"
+                            style={{
+                              backgroundColor: '#ECFDF5',
+                              color: '#059669',
+                              borderColor: '#A7F3D0',
+                              fontWeight: 700,
+                            }}
+                            title="Mark Pup Safe at Home"
+                          >
+                            <Check size={14} />
+                            <span>Safe at Home 🏡</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                                report,
+                                report.dog,
+                                report.contactMechanism?.safeContactPhone
+                              );
+                              try {
+                                if (navigator.clipboard) {
+                                  navigator.clipboard.writeText(dashboardUrl);
+                                }
+                              } catch {}
+                              showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                              window.open(whatsappUrl, '_blank');
+                            }}
+                            className="btn btn-whatsapp btn-sm"
+                            style={{
+                              backgroundColor: '#25D366',
+                              color: '#FFFFFF',
+                              borderColor: '#25D366',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontWeight: 700,
+                            }}
+                            title="Share Alert on WhatsApp"
+                          >
+                            <Share2 size={13} />
+                            <span>WhatsApp</span>
+                          </button>
+
+                          <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
+                            <span>Flyer →</span>
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
+                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                            title="Remove this alert"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -68,6 +68,11 @@ export const DogCard: React.FC<DogCardProps> = ({ report }) => {
           <div className="dog-card-tags">
             <span className="attribute-pill">{dog.gender}</span>
             <span className="attribute-pill">{dog.age}</span>
+            {report.contactMechanism?.safeContactPhone && status === 'LOST' && (
+              <span className="attribute-pill" style={{ backgroundColor: '#FEE2E2', color: '#DC2626', fontWeight: 600 }}>
+                📞 {report.contactMechanism.safeContactPhone}
+              </span>
+            )}
           </div>
 
           <Link to={`/dog/${id}`} className="btn btn-outline btn-sm dog-view-btn">

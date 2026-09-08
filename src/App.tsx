@@ -18,6 +18,7 @@ import { GuestSightingPage } from './pages/GuestSightingPage';
 import { DiscoveryPage } from './pages/DiscoveryPage';
 import { DogDetailPage } from './pages/DogDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 import './App.css';
 
@@ -40,8 +41,9 @@ function MainAppFlow() {
       <Route path="/dog/:id" element={<DogDetailPage />} />
       <Route path="/find" element={<DiscoveryPage />} />
 
-      {/* 2. COMMUNITY RECOVERY DASHBOARD */}
+      {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/admin" element={<AdminDashboardPage />} />
 
       {/* 3. DEDICATED DIRECT ROUTES FOR ALL TABS (Fast, lag-free navigation) */}
       <Route

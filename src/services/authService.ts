@@ -3,6 +3,13 @@ import type { User } from '../types';
 const CURRENT_USER_KEY = 'findlostpuppy_session_v1';
 const USERS_KEY = 'findlostpuppy_registered_users_v1';
 
+export const ADMIN_EMAILS = ['jksurampudi5@gmail.com'];
+
+export function isEmailAdmin(email?: string): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
 class AuthService {
   private users: User[] = [];
   private currentUser: User | null = null;
@@ -14,6 +21,9 @@ class AuthService {
         if (e.key === CURRENT_USER_KEY) {
           try {
             this.currentUser = e.newValue ? JSON.parse(e.newValue) : null;
+            if (this.currentUser && isEmailAdmin(this.currentUser.email)) {
+              this.currentUser.isAdmin = true;
+            }
           } catch {
             this.currentUser = null;
           }
@@ -30,6 +40,9 @@ class AuthService {
 
       const storedSession = localStorage.getItem(CURRENT_USER_KEY);
       this.currentUser = storedSession ? JSON.parse(storedSession) : null;
+      if (this.currentUser && isEmailAdmin(this.currentUser.email)) {
+        this.currentUser.isAdmin = true;
+      }
     } catch {
       this.users = [];
       this.currentUser = null;
@@ -45,6 +58,9 @@ class AuthService {
   }
 
   private saveSession(user: User | null) {
+    if (user && isEmailAdmin(user.email)) {
+      user.isAdmin = true;
+    }
     this.currentUser = user;
     try {
       if (user) {
@@ -65,6 +81,9 @@ class AuthService {
       const storedSession = typeof localStorage !== 'undefined' ? localStorage.getItem(CURRENT_USER_KEY) : null;
       if (storedSession) {
         this.currentUser = JSON.parse(storedSession);
+        if (this.currentUser && isEmailAdmin(this.currentUser.email)) {
+          this.currentUser.isAdmin = true;
+        }
       } else {
         this.currentUser = null;
       }
@@ -72,6 +91,11 @@ class AuthService {
       // Fall back to memory state
     }
     return this.currentUser;
+  }
+
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return !!(user && (user.isAdmin || isEmailAdmin(user.email)));
   }
 
   isAuthenticated(): boolean {
@@ -87,6 +111,7 @@ class AuthService {
       return { success: false, error: 'Please enter a valid email address.' };
     }
 
+    const isAdm = isEmailAdmin(cleanEmail);
     let user = this.users.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (!user) {
@@ -97,14 +122,25 @@ class AuthService {
         id: `user-${Date.now()}`,
         name: formattedName,
         email: cleanEmail,
+        isAdmin: isAdm,
         createdAt: new Date().toISOString(),
       };
 
       this.users.push(user);
       this.saveUsers();
-    } else if (name && name.trim()) {
-      user.name = name.trim();
-      this.saveUsers();
+    } else {
+      let changed = false;
+      if (name && name.trim()) {
+        user.name = name.trim();
+        changed = true;
+      }
+      if (isAdm && !user.isAdmin) {
+        user.isAdmin = true;
+        changed = true;
+      }
+      if (changed) {
+        this.saveUsers();
+      }
     }
 
     // Persist session to remember user across refreshes and visits
