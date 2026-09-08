@@ -31,6 +31,7 @@ import {
   getDogDisplayName,
   handleDogImageError,
 } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
@@ -252,23 +253,23 @@ export const GuestSightingPage: React.FC = () => {
   // Share Alert to WhatsApp
   const handleShareWhatsApp = () => {
     if (!report || !report.dog) return;
-    const sightingUrl = `${window.location.origin}/report-sighting/${report.id}`;
     const ownerPhone =
       report.contactMechanism?.safeContactPhone ||
       (report as any)?.ownerPhone ||
       (report as any)?.contactPhone ||
       report.contactMechanism?.safeContactEmail ||
       '';
-    const msg =
-      `🚨 *EMERGENCY LOST DOG ALERT* 🐾\n\n` +
-      `Please help us find *"${report.dog.name || 'our lost dog'}"* (${report.dog.breed || 'Dog'})!\n` +
-      `📍 *Last Seen:* ${report.lastKnownLocation || report.ownerApproximateLocation || 'Area not specified'}\n` +
-      (ownerPhone ? `📞 *Owner Contact:* ${ownerPhone}\n` : '') +
-      `\n🐾 *Direct Pet Details, Photos & Sighting Report:* (No login needed)\n` +
-      `👉 ${sightingUrl}\n\n` +
-      `FindLostPuppy Community Network 🐕❤️`;
 
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(report, report.dog, ownerPhone);
+
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(dashboardUrl);
+      }
+    } catch {}
+
+    showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+    window.open(whatsappUrl, '_blank');
   };
 
   if (loading) {
@@ -286,7 +287,7 @@ export const GuestSightingPage: React.FC = () => {
         <div className="app-container onboarding-container">
           <div className="card text-center py-12 px-6">
             <Heart size={48} className="text-emerald-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Report Not Found or Already Reunited! ❤️</h2>
+            <h2 className="text-2xl font-bold mb-2">Report Not Found or Already Safe at Home! 🏡</h2>
             <p className="text-secondary max-w-md mx-auto mb-6">
               This alert may have been resolved, or the puppy has already safely returned home with family.
             </p>

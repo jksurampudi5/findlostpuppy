@@ -23,11 +23,12 @@ export const StatusBadge = ({ status, size = 'md' }: StatusBadgeProps) => {
           text: 'SIGHTED',
           hasPulse: false,
         };
+      case 'SAFE':
       case 'REUNITED':
         return {
           className: 'badge-reunited',
           icon: <HeartHandshake size={size === 'sm' ? 12 : 14} />,
-          text: 'REUNITED ❤️',
+          text: 'SAFE AT HOME 🏡',
           hasPulse: false,
         };
       case 'CLOSED':

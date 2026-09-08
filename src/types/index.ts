@@ -1,4 +1,4 @@
-export type ReportStatus = 'LOST' | 'SIGHTED' | 'REUNITED' | 'CLOSED';
+export type ReportStatus = 'LOST' | 'SAFE' | 'SIGHTED' | 'REUNITED' | 'CLOSED';
 
 export type DogGender = 'Male' | 'Female' | 'Unknown';
 

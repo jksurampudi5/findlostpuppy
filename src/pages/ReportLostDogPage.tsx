@@ -23,6 +23,7 @@ import { DogAwayFromHomeAnimation } from '../components/DogAwayFromHomeAnimation
 import { MissingPetReportModal } from '../components/MissingPetReportModal';
 import abulluImg from '../assets/abullu.jpg';
 import { getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 
 interface ReportLostDogPageProps {
   onBackToPet?: () => void;
@@ -171,18 +172,18 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     }
   };
 
-  // ACTION 4: Mark safely reunited from flyer
-  const handleMarkReunited = () => {
+  // ACTION 4: Mark safe at home from flyer
+  const handleMarkSafeFromFlyer = () => {
     if (!existingReport || !user) return;
-    storageService.updateReportStatus(existingReport.id, 'REUNITED');
+    storageService.updateReportStatus(existingReport.id, 'SAFE');
     markPetSafe();
     setUserSelectedChoice('safe');
     setIsMissingModalOpen(false);
 
-    // Star celebration animation on reunification!
+    // Star celebration animation on safe home!
     triggerStarCelebration();
 
-    showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+    showToast('🏡 Wonderful news! Pup marked as Safe at Home! ❤️', 'success');
   };
 
   // ACTION 5: Delete / Remove Alert permanently
@@ -204,29 +205,45 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   // ACTION 6: 1-Click WhatsApp SOS Alert Share
   const handleWhatsAppShare = () => {
     const activeReport = existingReport || (user ? storageService.getLatestReportByUserId(user.id) : null);
-    const activeReportId = activeReport?.id || '';
-    const activeName = activeReport?.dog?.name || dogName || existingPet?.name || 'Our puppy';
-    const activeBreed = activeReport?.dog?.breed || breed || existingPet?.breed || 'Companion Pet';
-    const loc = activeReport?.lastKnownLocation || ownerProfile?.approximateArea || 'our local neighborhood';
     const contactPhone =
       activeReport?.contactMechanism?.safeContactPhone ||
       ownerProfile?.phone ||
       user?.phone ||
       '';
 
-    // Direct Guest Sighting Link (No login required!)
-    const sightingUrl = `${window.location.origin}/report-sighting/${activeReportId}`;
+    const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+      activeReport || {
+        dog: existingPet || {
+          id: 'temp',
+          ownerId: user?.id || '',
+          name: dogName || 'Our Puppy',
+          breed: breed || 'Companion Pet',
+          gender: 'Male',
+          age: '2 years',
+          size: 'Medium (10-25kg)',
+          color: '',
+          distinguishingMarks: '',
+          primaryPhoto: '',
+          photos: [],
+          createdAt: new Date().toISOString(),
+        },
+        ownerApproximateLocation: ownerProfile?.approximateArea || 'Local Neighborhood',
+        lastKnownLocation: ownerProfile?.approximateArea || 'Local Neighborhood',
+      },
+      existingPet,
+      contactPhone
+    );
 
-    const msg =
-      `🚨 *EMERGENCY LOST DOG ALERT* 🐾\n\n` +
-      `Please help us find *"${activeName}"* (${activeBreed})!\n` +
-      `📍 *Last Seen:* ${loc}\n` +
-      (contactPhone ? `📞 *Contact Owner:* ${contactPhone}\n` : '') +
-      `\n🐾 *Direct Pet Details, Photos & Sighting Report:* (No login needed)\n` +
-      `👉 ${sightingUrl}\n\n` +
-      `FindLostPuppy Community Network 🐕❤️`;
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(dashboardUrl);
+      }
+    } catch {
+      // Ignore clipboard write failures
+    }
 
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    showToast('📲 WhatsApp SOS alert prepared! Live Public Dashboard link copied.', 'success');
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -440,11 +457,11 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
                       <button
                         type="button"
-                        onClick={handleMarkReunited}
+                        onClick={handleMarkSafeFromFlyer}
                         className="btn btn-secondary btn-md reunite-action-btn"
                       >
                         <Heart size={15} />
-                        <span>Mark Pup Reunited & Safe ❤️</span>
+                        <span>Mark Safe at Home 🏡</span>
                       </button>
 
                       <button

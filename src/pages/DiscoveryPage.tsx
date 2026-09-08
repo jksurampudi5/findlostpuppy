@@ -47,7 +47,13 @@ export const DiscoveryPage: React.FC = () => {
     return reports
       .filter((r) => {
         // Status filter
-        if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
+        if (statusFilter !== 'ALL') {
+          if (statusFilter === 'SAFE') {
+            if (r.status !== 'SAFE' && (r.status as any) !== 'REUNITED') return false;
+          } else if (r.status !== statusFilter) {
+            return false;
+          }
+        }
 
         // Breed filter
         if (breedFilter !== 'ALL' && r.dog?.breed !== breedFilter) return false;
@@ -154,7 +160,7 @@ export const DiscoveryPage: React.FC = () => {
               >
                 <option value="ALL">All Statuses</option>
                 <option value="LOST">🚨 Missing Dogs (Lost)</option>
-                <option value="REUNITED">🎉 Reunited Dogs ❤️</option>
+                <option value="SAFE">🏡 Safe at Home (In Home)</option>
               </select>
             </div>
 

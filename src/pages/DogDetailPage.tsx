@@ -24,6 +24,7 @@ import { ReportModal } from '../components/ReportModal';
 import { useToast } from '../context/ToastContext';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
+import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 
 export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,9 +64,9 @@ export const DogDetailPage: React.FC = () => {
   const handleStatusChange = (newStatus: ReportStatus) => {
     if (!report) return;
     storageService.updateReportStatus(report.id, newStatus);
-    if (newStatus === 'REUNITED') {
+    if (newStatus === 'SAFE' || newStatus === 'REUNITED') {
       triggerStarCelebration();
-      showToast('🎉 Wonderful news! Pup marked as safely REUNITED! ❤️', 'success');
+      showToast('🏡 Wonderful news! Pup marked as Safe at Home! ❤️', 'success');
     } else if (newStatus === 'LOST') {
       showToast('🚨 Alert marked as actively MISSING.', 'info');
     }
@@ -126,7 +127,7 @@ export const DogDetailPage: React.FC = () => {
             🐾 Lost Dog Alert Resolved or Not Found
           </h2>
           <p className="text-secondary max-w-md mx-auto mb-6">
-            This pet alert may have safely concluded with a happy family reunion, or the report ID has been updated.
+            This pet alert may have safely concluded with the puppy home, or the report ID has been updated.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
             <Link to="/dashboard" className="btn btn-primary">
@@ -167,10 +168,10 @@ export const DogDetailPage: React.FC = () => {
             <code>{report.id}</code>
           </div>
           <div className="breadcrumb-actions-right">
-            {status === 'LOST' && (
+            {status === 'LOST' ? (
               <button
                 type="button"
-                onClick={() => handleStatusChange('REUNITED')}
+                onClick={() => handleStatusChange('SAFE')}
                 className="btn btn-sm"
                 style={{
                   backgroundColor: '#ECFDF5',
@@ -178,27 +179,57 @@ export const DogDetailPage: React.FC = () => {
                   borderColor: '#A7F3D0',
                   fontWeight: 700,
                 }}
-                title="Mark Pup Reunited & Safe"
+                title="Mark Pup Safe at Home 🏡"
               >
                 <Check size={14} />
-                <span>Mark Reunited ❤️</span>
+                <span>Safe at Home 🏡</span>
               </button>
-            )}
-
-            {status === 'REUNITED' && (
+            ) : (
               <button
                 type="button"
                 onClick={() => handleStatusChange('LOST')}
                 className="btn btn-sm btn-ghost text-amber-600"
-                title="Re-open Missing Search"
+                title="Report missing if needed"
               >
-                <span>Re-open Missing 🚨</span>
+                <span>Report Missing 🚨</span>
               </button>
             )}
 
+            <button
+              type="button"
+              onClick={() => {
+                const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                  report,
+                  report.dog,
+                  report.contactMechanism?.safeContactPhone
+                );
+                try {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(dashboardUrl);
+                  }
+                } catch {}
+                showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                window.open(whatsappUrl, '_blank');
+              }}
+              className="btn btn-whatsapp btn-sm"
+              style={{
+                backgroundColor: '#25D366',
+                color: '#FFFFFF',
+                borderColor: '#25D366',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontWeight: 700,
+              }}
+              title="Share Alert on WhatsApp"
+            >
+              <Share2 size={14} />
+              <span>WhatsApp</span>
+            </button>
+
             <button onClick={handleShare} className="btn btn-outline btn-sm share-btn">
               <Share2 size={15} />
-              <span>Share Alert</span>
+              <span>Share Link</span>
             </button>
 
             <button
@@ -241,16 +272,16 @@ export const DogDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Reunited Celebration Banner if applicable */}
-        {status === 'REUNITED' && (
+        {/* Safe at Home Celebration Banner if applicable */}
+        {(status === 'SAFE' || status === 'REUNITED') && (
           <div className="reunited-celebration-banner card">
             <div className="reunited-icon-circle">
               <Sparkles size={28} />
             </div>
             <div>
-              <h3>❤️ Joyful News: {dog.name} has been safely reunited!</h3>
+              <h3>🏡 Safe at Home: {displayName} is safe with family!</h3>
               <p>
-                Thanks to vigilant community sightings and neighbors, {dog.name} is back home safe and sound.
+                Thanks to vigilant community sightings and neighbors, {displayName} is at home safe and sound.
               </p>
             </div>
           </div>

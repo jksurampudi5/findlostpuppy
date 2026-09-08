@@ -28,7 +28,7 @@ export const DogCard: React.FC<DogCardProps> = ({ report }) => {
             <StatusBadge status={status} size="sm" />
           </div>
 
-          {sightingCount > 0 && status !== 'REUNITED' && (
+          {sightingCount > 0 && status !== 'SAFE' && status !== 'REUNITED' && (
             <div className="dog-card-sighting-pill" title={`${sightingCount} sighting(s) reported`}>
               <Eye size={12} />
               <span>{sightingCount} sighting{sightingCount > 1 ? 's' : ''}</span>
