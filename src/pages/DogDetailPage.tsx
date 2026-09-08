@@ -80,7 +80,7 @@ export const DogDetailPage: React.FC = () => {
         'Are you sure you want to block this user? Listings and sightings from this user will be hidden from your feed.'
       );
       if (confirmed) {
-        storageService.blockUser(report.ownerId, contactMechanism.safeContactEmail);
+        storageService.blockUser(report.ownerId, report.contactMechanism?.safeContactEmail);
         setIsBlocked(true);
         showToast('User blocked. Their listings are now hidden.', 'info');
       }
@@ -397,7 +397,7 @@ export const DogDetailPage: React.FC = () => {
 
               {contactRevealed ? (
                 <div className="revealed-contact-box">
-                  {contactMechanism.safeContactPhone && (
+                  {contactMechanism?.safeContactPhone && (
                     <div className="contact-line">
                       <Phone size={18} className="contact-icon" />
                       <div>
@@ -408,7 +408,23 @@ export const DogDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  {contactMechanism.safeContactEmail && (
+                  {contactMechanism?.safeContactPhone && (
+                    <div className="contact-line">
+                      <Share2 size={18} className="contact-icon text-emerald-600" />
+                      <div>
+                        <span className="contact-label">WhatsApp:</span>
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${contactMechanism.safeContactPhone.replace(/\D/g, '')}&text=${encodeURIComponent(`Hi, I have information regarding ${dog.name} from FindLostPuppy!`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="contact-action-link text-emerald-600 font-bold"
+                        >
+                          💬 Chat on WhatsApp with Owner
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {contactMechanism?.safeContactEmail && (
                     <div className="contact-line">
                       <Mail size={18} className="contact-icon" />
                       <div>

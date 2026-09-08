@@ -285,7 +285,16 @@ export const Navbar = () => {
               </button>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="onboarding-nav-status" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link to="/dashboard" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span>📊 Community Dashboard</span>
+            </Link>
+            <Link to="/" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span>🐾 Sign In</span>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
