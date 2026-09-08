@@ -14,6 +14,44 @@ export interface User {
   createdAt: string;
 }
 
+export type LocalityType = 'VILLAGE' | 'TOWN' | 'CITY' | 'URBAN_LOCALITY' | 'OTHER';
+
+export interface LocationState {
+  code: number;
+  name: string;
+  shortCode: string;
+}
+
+export interface LocationDistrict {
+  districtCode: number;
+  districtName: string;
+  stateCode: number;
+  stateName: string;
+}
+
+export interface LocationSubDistrict {
+  subDistrictCode: number;
+  subDistrictName: string;
+  subDistrictType: 'Mandal' | 'Taluk' | 'Sub-District';
+  districtCode: number;
+  districtName: string;
+  stateCode: number;
+  stateName: string;
+}
+
+export interface LocationLocality {
+  stateCode: number;
+  stateName: string;
+  districtCode: number;
+  districtName: string;
+  subDistrictCode: number;
+  subDistrictName: string;
+  subDistrictType: 'Mandal' | 'Taluk' | 'Sub-District';
+  localityCode: number;
+  localityName: string;
+  localityType: LocalityType;
+}
+
 export interface OwnerProfile {
   id: string;
   userId: string;
@@ -28,6 +66,12 @@ export interface OwnerProfile {
   mandalOrMunicipality?: string;
   streetOrLocality?: string;
   pinCode?: string;
+  // Normalized LGD fields for authoritative September 2026 hierarchy
+  stateCode?: number;
+  districtCode?: number;
+  subDistrictCode?: number;
+  localityCode?: number;
+  localityType?: LocalityType;
   preferredContact: ContactMethod;
   hasLocationConsent: boolean;
   latitude?: number;

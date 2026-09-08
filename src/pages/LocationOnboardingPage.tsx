@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Navigation,
   RefreshCw,
@@ -17,14 +17,9 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
-import type { OwnerProfile } from '../types';
-import {
-  SUPPORTED_STATES,
-  getDistrictsForState,
-  getMandalsForDistrict,
-  getVillagesForMandal,
-  normalizeSupportedState,
-} from '../utils/geoData';
+import { locationService } from '../services/locationService';
+import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
+import type { OwnerProfile, LocationLocality } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
 interface LocationOnboardingPageProps {
@@ -32,200 +27,33 @@ interface LocationOnboardingPageProps {
   onBack?: () => void;
 }
 
-// Clean Mandal / Taluk string from postal block (e.g. "Vundrajavaram (mdl)" -> "Undrajavaram")
-const cleanMandal = (rawBlock?: string): string => {
-  if (!rawBlock || rawBlock.toUpperCase() === 'NA') return '';
-  return rawBlock.replace(/\s*\(mdl\)/i, '').replace(/\s*mandal/i, '').replace(/\s*taluk/i, '').trim();
-};
-
-// Auto-derive primary town/city name from mandal selection
-const getCleanCityFromMandal = (mandalName: string): string => {
-  if (!mandalName || mandalName === 'CUSTOM') return '';
-  const parenMatch = mandalName.match(/\(([^)]+)\)/);
-  if (
-    parenMatch &&
-    !parenMatch[1].toLowerCase().includes('urban') &&
-    !parenMatch[1].toLowerCase().includes('rural')
-  ) {
-    const firstPart = parenMatch[1].split('/')[0].trim();
-    if (firstPart) return firstPart;
-  }
-  return mandalName.replace(/\s*\([^)]*\)/g, '').trim();
-};
-
-// Normalize district based on recent reorganizations in AP (2022 26 districts), Telangana (33), Karnataka (31)
-const normalizeRecentDistrict = (stateName: string, distName: string, areaHint: string): string => {
-  const normState = stateName.trim().toLowerCase();
-  const hint = `${distName} ${areaHint}`.toLowerCase();
-
-  // Check direct match with official state districts first
-  const stateDistricts = getDistrictsForState(stateName);
-  const directMatch = stateDistricts.find(
-    (d) => d.toLowerCase() === distName.trim().toLowerCase()
-  );
-  if (directMatch) return directMatch;
-
-  // 1. Andhra Pradesh (2022 Reorganization - 26 Districts)
-  if (normState.includes('andhra')) {
-    if (hint.includes('vijayawada') || hint.includes('ibrahimpatnam') || hint.includes('mylavaram') || hint.includes('jaggaiahpet') || hint.includes('tiruvuru') || hint.includes('nandigama')) {
-      return 'NTR (Vijayawada)';
-    }
-    if (hint.includes('machilipatnam') || hint.includes('gudivada') || hint.includes('vuyyuru') || hint.includes('avanimagadda') || hint.includes('kaikaluru')) {
-      return 'Krishna';
-    }
-    if (hint.includes('eluru') || hint.includes('jangareddigudem') || hint.includes('nuzvid') || hint.includes('chintalapudi') || hint.includes('denduluru')) {
-      return 'Eluru';
-    }
-    if (hint.includes('bhimavaram') || hint.includes('tanuku') || hint.includes('palangi') || hint.includes('undrajavaram') || hint.includes('narasapuram') || hint.includes('tadepalligudem') || hint.includes('akividu') || hint.includes('achanta')) {
-      return 'West Godavari';
-    }
-    if (hint.includes('rajamahendravaram') || hint.includes('rajahmundry') || hint.includes('anaparthi') || hint.includes('kovvur') || hint.includes('nidadavole')) {
-      return 'East Godavari';
-    }
-    if (hint.includes('kakinada') || hint.includes('pithapuram') || hint.includes('peddapuram') || hint.includes('samalkota') || hint.includes('tuni')) {
-      return 'Kakinada';
-    }
-    if (hint.includes('amalapuram') || hint.includes('ravulapalem') || hint.includes('ramachandrapuram') || hint.includes('mandapeta') || hint.includes('kothapeta') || hint.includes('razole')) {
-      return 'Dr. B.R. Ambedkar Konaseema';
-    }
-    if (hint.includes('narasaraopet') || hint.includes('sattenapalle') || hint.includes('vinukonda') || hint.includes('gurazala') || hint.includes('machaerla') || hint.includes('chilakaluripet')) {
-      return 'Palnadu';
-    }
-    if (hint.includes('bapatla') || hint.includes('chirala') || hint.includes('repalle') || hint.includes('parchur') || hint.includes('addanki')) {
-      return 'Bapatla';
-    }
-    if (hint.includes('tirupati') || hint.includes('srikalahasti') || hint.includes('chandragiri') || hint.includes('gudur') || hint.includes('sullurpeta') || hint.includes('venkatagiri')) {
-      return 'Tirupati';
-    }
-    if (hint.includes('rayachoti') || hint.includes('madanapalle') || hint.includes('rajampet') || hint.includes('pileru')) {
-      return 'Annamayya';
-    }
-    if (hint.includes('nandyal') || hint.includes('allagadda') || hint.includes('banaganapalle') || hint.includes('dhone') || hint.includes('nandikotkur')) {
-      return 'Nandyal';
-    }
-    if (hint.includes('puttaparthi') || hint.includes('dharmavaram') || hint.includes('kadiri') || hint.includes('hindupur') || hint.includes('penukonda')) {
-      return 'Sri Sathya Sai';
-    }
-    if (hint.includes('anakapalle') || hint.includes('anakapalli') || hint.includes('yelamanchili') || hint.includes('payakaraopeta') || hint.includes('chintapalli')) {
-      return 'Anakapalli';
-    }
-    if (hint.includes('parvathipuram') || hint.includes('salur') || hint.includes('kurupam') || hint.includes('palakonda')) {
-      return 'Parvathipuram Manyam';
-    }
-    if (hint.includes('alluri') || hint.includes('paderu') || hint.includes('aruku') || hint.includes('rampadachodavaram')) {
-      return 'Alluri Sitharama Raju';
-    }
-    if (hint.includes('nellore') || hint.includes('kavali')) {
-      return 'SPSR Nellore';
-    }
-    if (hint.includes('anantapur') || hint.includes('guntakal')) {
-      return 'Ananthapuramu (Anantapur)';
-    }
-    if (hint.includes('kadapa') || hint.includes('proddatur')) {
-      return 'YSR Kadapa';
-    }
-  }
-
-  // 2. Telangana (33 Districts)
-  if (normState.includes('telangana')) {
-    if (hint.includes('vikarabad') || hint.includes('tandur') || hint.includes('parigi') || hint.includes('kodangal')) {
-      return 'Vikarabad';
-    }
-    if (hint.includes('gachibowli') || hint.includes('kondapur') || hint.includes('madhapur') || hint.includes('serilingampally') || hint.includes('rajendranagar') || hint.includes('shamshabad') || hint.includes('maheshwaram') || hint.includes('ibrahimpatnam')) {
-      return 'Rangareddy';
-    }
-    if (hint.includes('kukatpally') || hint.includes('balanagar') || hint.includes('medchal') || hint.includes('malkajgiri') || hint.includes('alwal') || hint.includes('quthbullapur') || hint.includes('uppal') || hint.includes('ghatkesar') || hint.includes('kapra')) {
-      return 'Medchal-Malkajgiri';
-    }
-    if (hint.includes('ameerpet') || hint.includes('banjara') || hint.includes('jubilee') || hint.includes('khairatabad') || hint.includes('secunderabad') || hint.includes('begumpet') || hint.includes('musheerabad') || hint.includes('charminar') || hint.includes('shaikpet') || hint.includes('nampally')) {
-      return 'Hyderabad';
-    }
-    if (hint.includes('patancheru') || hint.includes('sangareddy') || hint.includes('zaheerabad') || hint.includes('ameenpur') || hint.includes('tellapur')) {
-      return 'Sangareddy';
-    }
-    if (hint.includes('hanumakonda') || hint.includes('kazipet') || hint.includes('hanamkonda')) {
-      return 'Hanamkonda';
-    }
-    if (hint.includes('gadwal') || hint.includes('alampur')) {
-      return 'Jogulamba Gadwal';
-    }
-    if (hint.includes('bhupalpally')) {
-      return 'Jayashankar Bhupalpally';
-    }
-    if (hint.includes('asifabad') || hint.includes('kagaznagar')) {
-      return 'Kumuram Bheem Asifabad';
-    }
-    if (hint.includes('sircilla')) {
-      return 'Rajanna Sircilla';
-    }
-    if (hint.includes('bhuvanagiri') || hint.includes('yadadri')) {
-      return 'Yadadri Bhuvanagiri';
-    }
-  }
-
-  // 3. Karnataka (31 Districts)
-  if (normState.includes('karnataka')) {
-    if (hint.includes('koramangala') || hint.includes('indiranagar') || hint.includes('jayanagar') || hint.includes('whitefield') || hint.includes('bellandur') || hint.includes('marathahalli') || hint.includes('hebbal') || hint.includes('malleshwaram') || hint.includes('rajajinagar') || hint.includes('electronic city')) {
-      return 'Bengaluru Urban';
-    }
-    if (hint.includes('devanahalli') || hint.includes('doddaballapura') || hint.includes('hosakote') || hint.includes('nelamangala')) {
-      return 'Bengaluru Rural';
-    }
-    if (hint.includes('hosapete') || hint.includes('hampi') || hint.includes('kudligi') || hint.includes('harapanahalli')) {
-      return 'Vijayanagara';
-    }
-  }
-
-  // Fallback: check if distName matches any district in state
-  const partial = stateDistricts.find((d) => d.toLowerCase().includes(distName.toLowerCase()));
-  return partial || distName;
-};
-
-export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ onSuccess, onBack }) => {
+export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
+  onSuccess,
+  onBack,
+}) => {
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const { showToast } = useToast();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
   const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
-  // Initialized supported state
-  const initialValidState = normalizeSupportedState(existingProfile?.state || 'Andhra Pradesh');
-  const initialDistricts = getDistrictsForState(initialValidState);
-  const initialValidDistrict =
-    existingProfile?.district && initialDistricts.includes(existingProfile.district)
-      ? existingProfile.district
-      : (initialDistricts[0] || '');
-  const initialMandals = getMandalsForDistrict(initialValidState, initialValidDistrict);
-  const initialMandal = existingProfile?.mandalOrMunicipality || initialMandals[0] || '';
-  const initialIsCustom = !!(initialMandal && !initialMandals.includes(initialMandal));
+  // Initial values from saved profile
+  const initialValidState =
+    locationService.getState(existingProfile?.state || 'Andhra Pradesh')?.name || 'Andhra Pradesh';
 
-  const initialVillages = getVillagesForMandal(initialValidState, initialValidDistrict, initialMandal);
-  const initialValidCity =
-    existingProfile?.city || initialVillages[0] || getCleanCityFromMandal(initialMandal) || '';
-  const initialIsCustomCity = !!(initialValidCity && !initialVillages.includes(initialValidCity));
-
-  // Form Field States
   const [state, setState] = useState<string>(initialValidState);
-  const [district, setDistrict] = useState<string>(initialValidDistrict);
-  const [mandalOrMunicipality, setMandalOrMunicipality] = useState<string>(initialMandal);
-  const [isCustomMandal, setIsCustomMandal] = useState<boolean>(initialIsCustom);
-  const [customMandalText, setCustomMandalText] = useState<string>(initialIsCustom ? initialMandal : '');
-
-  const [city, setCity] = useState<string>(initialValidCity);
-  const [isCustomCity, setIsCustomCity] = useState<boolean>(initialIsCustomCity);
-  const [customCityText, setCustomCityText] = useState<string>(initialIsCustomCity ? initialValidCity : '');
-
+  const [district, setDistrict] = useState<string>(existingProfile?.district || '');
+  const [mandalOrMunicipality, setMandalOrMunicipality] = useState<string>(
+    existingProfile?.mandalOrMunicipality || ''
+  );
+  const [city, setCity] = useState<string>(existingProfile?.city || '');
   const [pinCode, setPinCode] = useState(existingProfile?.pinCode || '');
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
 
-  // Dynamic available districts, mandals, and villages based on cascading selection
-  const availableDistricts = useMemo(() => getDistrictsForState(state), [state]);
-  const availableMandals = useMemo(() => getMandalsForDistrict(state, district), [state, district]);
-  const availableVillages = useMemo(
-    () => getVillagesForMandal(state, district, mandalOrMunicipality),
-    [state, district, mandalOrMunicipality]
-  );
+  // Dynamic localities loaded for currently selected district and mandal
+  const [localities, setLocalities] = useState<LocationLocality[]>([]);
+  const [loadingVillages, setLoadingVillages] = useState(false);
 
   // UI Flow States
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData);
@@ -236,92 +64,115 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
 
-  // Cascading Selection Handlers with Full State -> District -> Mandal -> City/Village Hierarchy
+  // 1. State Options
+  const stateOptions: SelectOption[] = useMemo(() => {
+    return locationService.getStates().map((s) => ({
+      value: s.name,
+      label: s.name,
+      subLabel: `${locationService.getDistricts(s.code).length} Districts`,
+    }));
+  }, []);
+
+  // 2. District Options (Cascades under State)
+  const districtOptions: SelectOption[] = useMemo(() => {
+    if (!state) return [];
+    return locationService.getDistricts(state).map((d) => ({
+      value: d.districtName,
+      label: d.districtName,
+      subLabel: `${locationService.getSubDistricts(d.districtCode).length} Mandals/Taluks`,
+      meta: d,
+    }));
+  }, [state]);
+
+  // 3. Mandal Options (Cascades under District)
+  const mandalOptions: SelectOption[] = useMemo(() => {
+    if (!district) return [];
+    return locationService.getSubDistricts(district, state).map((m) => ({
+      value: m.subDistrictName,
+      label: m.subDistrictName,
+      subLabel: m.subDistrictType || 'Mandal',
+      meta: m,
+    }));
+  }, [state, district]);
+
+  // Load localities whenever state, district, or mandal changes
+  useEffect(() => {
+    let isMounted = true;
+    if (state && district && mandalOrMunicipality) {
+      const distObj = locationService.getDistrict(state, district);
+      if (distObj) {
+        const subObj = locationService.getSubDistrict(distObj.districtCode, mandalOrMunicipality);
+        if (subObj) {
+          setLoadingVillages(true);
+          locationService
+            .getLocalities(distObj.districtCode, subObj.subDistrictCode)
+            .then((list) => {
+              if (isMounted) {
+                setLocalities(list);
+                setLoadingVillages(false);
+              }
+            })
+            .catch(() => {
+              if (isMounted) setLoadingVillages(false);
+            });
+          return () => {
+            isMounted = false;
+          };
+        }
+      }
+    }
+    setLocalities([]);
+    setLoadingVillages(false);
+    return () => {
+      isMounted = false;
+    };
+  }, [state, district, mandalOrMunicipality]);
+
+  // 4. City / Village Options (Cascades under Mandal)
+  const villageOptions: SelectOption[] = useMemo(() => {
+    return localities.map((l) => ({
+      value: l.localityName,
+      label: l.localityName,
+      subLabel: l.localityType ? `${l.localityType}` : undefined,
+      meta: l,
+    }));
+  }, [localities]);
+
+  // Cascading Selection Handlers with Strict Reset
   const handleStateChange = (newState: string) => {
     setState(newState);
-    const newDistricts = getDistrictsForState(newState);
-    const defaultDistrict = newDistricts[0] || '';
-    setDistrict(defaultDistrict);
-    const newMandals = getMandalsForDistrict(newState, defaultDistrict);
-    const defaultMandal = newMandals[0] || '';
-    setMandalOrMunicipality(defaultMandal);
-    setIsCustomMandal(false);
-    setCustomMandalText('');
-
-    const villages = getVillagesForMandal(newState, defaultDistrict, defaultMandal);
-    const defaultCity = villages[0] || getCleanCityFromMandal(defaultMandal) || '';
-    setCity(defaultCity);
-    setIsCustomCity(false);
-    setCustomCityText('');
+    setDistrict('');
+    setMandalOrMunicipality('');
+    setCity('');
+    setLocalities([]);
   };
 
   const handleDistrictChange = (newDistrict: string) => {
     setDistrict(newDistrict);
-    const newMandals = getMandalsForDistrict(state, newDistrict);
-    const defaultMandal = newMandals[0] || '';
-    setMandalOrMunicipality(defaultMandal);
-    setIsCustomMandal(false);
-    setCustomMandalText('');
-
-    const villages = getVillagesForMandal(state, newDistrict, defaultMandal);
-    const defaultCity = villages[0] || getCleanCityFromMandal(defaultMandal) || '';
-    setCity(defaultCity);
-    setIsCustomCity(false);
-    setCustomCityText('');
+    setMandalOrMunicipality('');
+    setCity('');
+    setLocalities([]);
   };
 
-  const handleMandalSelect = (selectedVal: string) => {
-    if (selectedVal === 'CUSTOM') {
-      setIsCustomMandal(true);
-      setMandalOrMunicipality(customMandalText.trim());
-      const villages = getVillagesForMandal(state, district, customMandalText.trim());
-      const defaultCity = villages[0] || customMandalText.trim() || '';
-      setCity(defaultCity);
-      setIsCustomCity(false);
-      setCustomCityText('');
-    } else {
-      setIsCustomMandal(false);
-      setMandalOrMunicipality(selectedVal);
-      // Automatically populate villages under this selected Mandal!
-      const villages = getVillagesForMandal(state, district, selectedVal);
-      const defaultCity = villages[0] || getCleanCityFromMandal(selectedVal) || '';
-      setCity(defaultCity);
-      setIsCustomCity(false);
-      setCustomCityText('');
-    }
+  const handleMandalSelect = (newMandal: string) => {
+    setMandalOrMunicipality(newMandal);
+    setCity('');
+    setLocalities([]);
   };
 
-  const handleCustomMandalChange = (val: string) => {
-    setCustomMandalText(val);
-    setMandalOrMunicipality(val);
-    const villages = getVillagesForMandal(state, district, val);
-    const defaultCity = villages[0] || val.trim() || '';
-    setCity(defaultCity);
-    setIsCustomCity(false);
-    setCustomCityText('');
-  };
-
-  const handleCitySelect = (selectedVal: string) => {
-    if (selectedVal === 'CUSTOM') {
-      setIsCustomCity(true);
-      setCity(customCityText.trim());
-    } else {
-      setIsCustomCity(false);
-      setCity(selectedVal);
-    }
-  };
-
-  const handleCustomCityChange = (val: string) => {
-    setCustomCityText(val);
-    setCity(val);
+  const handleCitySelect = (newCity: string) => {
+    setCity(newCity);
   };
 
   // Compute safe public preview string
   const calculatePublicArea = () => {
-    const finalCity = isCustomCity ? customCityText.trim() : city.trim();
-    const finalMandal = isCustomMandal ? customMandalText.trim() : mandalOrMunicipality.trim();
-    const parts = [finalCity, finalMandal ? `${finalMandal} (Mandal)` : '', district, state].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : 'Your City / District Area';
+    const parts = [
+      city.trim(),
+      mandalOrMunicipality.trim() ? `${mandalOrMunicipality.trim()} (Mandal)` : '',
+      district.trim(),
+      state.trim(),
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   };
 
   // 6-digit PIN code auto lookup
@@ -336,35 +187,38 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
           if (Array.isArray(data) && data[0]?.Status === 'Success') {
             const po = data[0].PostOffice?.[0];
             if (po) {
-              const detectedState = normalizeSupportedState(po.State || state);
+              const detectedState = po.State || state;
               const rawDistrict = po.District || district;
-              const detectedMandal = cleanMandal(po.Block) || mandalOrMunicipality;
-              const detectedCity = city || po.Name;
-              const normalizedDist = normalizeRecentDistrict(detectedState, rawDistrict, `${detectedCity} ${detectedMandal}`);
+              const detectedMandal = po.Block || mandalOrMunicipality;
+              const detectedLocality = po.Name;
 
-              setState(detectedState);
-              setDistrict(normalizedDist);
-              setCity(detectedCity);
+              const match = await locationService.matchLocation({
+                state: detectedState,
+                district: rawDistrict,
+                mandal: detectedMandal,
+                locality: detectedLocality,
+                pinCode: pinValue.trim(),
+              });
 
-              const mandals = getMandalsForDistrict(detectedState, normalizedDist);
-              if (mandals.includes(detectedMandal)) {
-                setMandalOrMunicipality(detectedMandal);
-                setIsCustomMandal(false);
-              } else if (detectedMandal) {
-                setMandalOrMunicipality(detectedMandal);
-                setIsCustomMandal(true);
-                setCustomMandalText(detectedMandal);
+              if (match) {
+                setState(match.state.name);
+                setDistrict(match.district.districtName);
+                setMandalOrMunicipality(match.subDistrict.subDistrictName);
+                if (match.locality) {
+                  setCity(match.locality.localityName);
+                } else {
+                  setCity(match.subDistrict.subDistrictName);
+                }
+                showToast(
+                  `✨ Auto-detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+                  'success'
+                );
+              } else {
+                showToast(
+                  'PIN code found, but could not match official sub-district. Please select below.',
+                  'info'
+                );
               }
-
-              const villages = getVillagesForMandal(detectedState, normalizedDist, detectedMandal);
-              if (villages.includes(detectedCity)) {
-                setIsCustomCity(false);
-              } else if (detectedCity) {
-                setIsCustomCity(true);
-                setCustomCityText(detectedCity);
-              }
-
-              showToast(`✨ Auto-detected: ${detectedMandal || detectedCity}, ${normalizedDist}`, 'success');
             }
           }
         }
@@ -406,38 +260,42 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
-            const detectedState = normalizeSupportedState(addr.state || state);
+            const detectedState = addr.state || state;
             const rawDistrict = addr.state_district || addr.county || addr.district || district;
-            const detectedMandal = cleanMandal(addr.subdistrict || addr.county) || mandalOrMunicipality;
+            const detectedMandal = addr.subdistrict || addr.county || mandalOrMunicipality;
             const detectedCity = addr.city || addr.town || addr.village || addr.suburb || city;
             const detectedPin = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : pinCode;
-            const normalizedDist = normalizeRecentDistrict(detectedState, rawDistrict, `${detectedCity} ${detectedMandal}`);
 
-            setState(detectedState);
-            setDistrict(normalizedDist);
-            setCity(detectedCity);
-            if (detectedPin) setPinCode(detectedPin);
+            const match = await locationService.matchLocation({
+              state: detectedState,
+              district: rawDistrict,
+              mandal: detectedMandal,
+              locality: detectedCity,
+              pinCode: detectedPin,
+            });
 
-            const mandals = getMandalsForDistrict(detectedState, normalizedDist);
-            if (mandals.includes(detectedMandal)) {
-              setMandalOrMunicipality(detectedMandal);
-              setIsCustomMandal(false);
-            } else if (detectedMandal) {
-              setMandalOrMunicipality(detectedMandal);
-              setIsCustomMandal(true);
-              setCustomMandalText(detectedMandal);
+            if (match) {
+              setState(match.state.name);
+              setDistrict(match.district.districtName);
+              setMandalOrMunicipality(match.subDistrict.subDistrictName);
+              if (match.locality) {
+                setCity(match.locality.localityName);
+              } else {
+                setCity(match.subDistrict.subDistrictName);
+              }
+              if (detectedPin) setPinCode(detectedPin);
+              setHasDetected(true);
+              showToast(
+                `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+                'success'
+              );
+            } else {
+              setHasDetected(true);
+              showToast(
+                'Could not automatically match this location against official records. Please select below.',
+                'warning'
+              );
             }
-
-            const villages = getVillagesForMandal(detectedState, normalizedDist, detectedMandal);
-            if (villages.includes(detectedCity)) {
-              setIsCustomCity(false);
-            } else if (detectedCity) {
-              setIsCustomCity(true);
-              setCustomCityText(detectedCity);
-            }
-
-            setHasDetected(true);
-            showToast('🎯 Location detected! Details populated below.', 'success');
           }
         } catch {
           setHasDetected(true);
@@ -463,15 +321,28 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
   const handleSaveLocation = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!district.trim() && !city.trim()) {
-      showToast('Please enter your District or City / Village.', 'warning');
+    if (!district.trim()) {
+      showToast('Please select your District.', 'warning');
+      return;
+    }
+    if (!mandalOrMunicipality.trim()) {
+      showToast('Please select your Mandal / Taluk.', 'warning');
+      return;
+    }
+    if (!city.trim()) {
+      showToast('Please select your City / Village.', 'warning');
       return;
     }
 
     if (!user) return;
 
-    const finalMandal = isCustomMandal ? customMandalText.trim() : mandalOrMunicipality.trim();
-    const finalCity = isCustomCity ? customCityText.trim() : city.trim();
+    const distObj = locationService.getDistrict(state, district);
+    const subObj = distObj
+      ? locationService.getSubDistrict(distObj.districtCode, mandalOrMunicipality)
+      : undefined;
+    const locObj = localities.find(
+      (l) => l.localityName.toLowerCase() === city.trim().toLowerCase()
+    );
 
     const profile: OwnerProfile = {
       ...(existingProfile || {}),
@@ -482,9 +353,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
       email: user.email,
       state: state.trim(),
       district: district.trim(),
-      mandalOrMunicipality: finalMandal,
-      city: finalCity,
+      mandalOrMunicipality: mandalOrMunicipality.trim(),
+      city: city.trim(),
       pinCode: pinCode.trim(),
+      stateCode: distObj?.stateCode,
+      districtCode: distObj?.districtCode,
+      subDistrictCode: subObj?.subDistrictCode,
+      localityCode: locObj?.localityCode,
+      localityType: locObj?.localityType || 'VILLAGE',
       latitude,
       longitude,
       approximateArea: calculatePublicArea(),
@@ -519,22 +395,36 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
     } else {
       setActiveOnboardingTab('owner');
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="onboarding-page">
-      <div className="app-container onboarding-container">
-        <div className="onboarding-card card owner-theme-card">
-          {/* Header Greeting */}
-          <div className="onboarding-header">
-            <div className="cute-welcome-banner">
-              <div className="cute-welcome-icon">📍</div>
-              <div className="cute-welcome-text">
-                <h1 className="cute-page-title">Location Details 🐾</h1>
-                <p className="cute-page-sub">
-                  One-click auto detection for your State, District, Mandal, and City.
-                </p>
-              </div>
+    <div className="onboarding-page-container">
+      <div className="onboarding-card-wrapper">
+        <div className="card onboarding-card location-onboarding-card">
+          <div className="onboarding-header text-center">
+            <div className="badge badge-accent mb-2">
+              <Sparkles size={14} className="mr-1" />
+              <span>Step 2 of 4 • Community Search Radius</span>
+            </div>
+            <h1 className="onboarding-title">Where is Your Pet's Neighborhood?</h1>
+            <p className="onboarding-subtitle">
+              Set your official State, District, Mandal/Taluk, and Village so verified local pet lovers
+              nearby can instantly receive search alerts if your dog ever goes missing.
+            </p>
+          </div>
+
+          {/* PRIVACY SHIELD CALLOUT */}
+          <div className="privacy-callout-banner">
+            <div className="privacy-callout-icon-wrap">
+              <ShieldCheck size={20} className="text-terracotta" />
+            </div>
+            <div className="privacy-callout-content">
+              <h4 className="privacy-callout-heading">100% Pet-Safe Community Radius</h4>
+              <p className="privacy-callout-text">
+                Your private home address is never shown publicly. Only your safe public area (
+                <em>e.g. "{calculatePublicArea()}"</em>) will be visible on community search alerts.
+              </p>
             </div>
           </div>
 
@@ -557,7 +447,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
 
                 <h3 className="permission-modal-title">Allow Location Access?</h3>
                 <p className="permission-modal-desc">
-                  FindLostPuppy uses device GPS to automatically fill your State, District, Mandal, and City so neighbors nearby can help search for your puppy.
+                  FindLostPuppy uses device GPS to automatically match your official State, District,
+                  Mandal, and City from the September 2026 directory so neighbors nearby can help search
+                  for your puppy.
                 </p>
 
                 <div className="permission-modal-privacy-box">
@@ -607,23 +499,37 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
                   <Check size={14} />
                   <span>Verified Public Area</span>
                 </div>
-                <div className="preview-highlight-text">
-                  {calculatePublicArea()}
-                </div>
+                <div className="preview-highlight-text">{calculatePublicArea()}</div>
                 <div className="preview-highlight-meta">
-                  <span>State: <strong>{state}</strong></span>
+                  <span>
+                    State: <strong>{state}</strong>
+                  </span>
                   <span>•</span>
-                  <span>District: <strong>{district}</strong></span>
+                  <span>
+                    District: <strong>{district}</strong>
+                  </span>
                   {mandalOrMunicipality && (
                     <>
                       <span>•</span>
-                      <span>Mandal: <strong>{mandalOrMunicipality}</strong></span>
+                      <span>
+                        Mandal: <strong>{mandalOrMunicipality}</strong>
+                      </span>
+                    </>
+                  )}
+                  {city && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        Locality: <strong>{city}</strong>
+                      </span>
                     </>
                   )}
                   {pinCode && (
                     <>
                       <span>•</span>
-                      <span>PIN: <strong>{pinCode}</strong></span>
+                      <span>
+                        PIN: <strong>{pinCode}</strong>
+                      </span>
                     </>
                   )}
                 </div>
@@ -696,7 +602,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
 
               {/* FORM ONLY COMES DOWN ONCE DETECT LOCATION IS CLICKED (hasDetected is true) */}
               {hasDetected && (
-                <form onSubmit={handleSaveLocation} className="onboarding-form" style={{ marginTop: '1.5rem' }}>
+                <form
+                  onSubmit={handleSaveLocation}
+                  className="onboarding-form"
+                  style={{ marginTop: '1.5rem' }}
+                >
                   <div className="form-section-card cute-section-card">
                     <h3 className="section-title-sm cute-section-title">
                       <span className="cute-title-icon">📝</span>
@@ -704,27 +614,21 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
                     </h3>
 
                     <div className="form-vertical-stack">
-                      {/* 1. State / Region Dropdown */}
+                      {/* 1. State Dropdown */}
                       <div className="form-group">
                         <label className="form-label cute-label" htmlFor="loc-state">
-                          <span>1. State / Region</span> <span className="required-tag">*</span>
+                          <span>1. State</span> <span className="required-tag">*</span>
                         </label>
-                        <div className="input-with-icon">
-                          <Building size={16} className="input-icon text-terracotta" />
-                          <select
-                            id="loc-state"
-                            className="form-input cute-input cute-select"
-                            value={state}
-                            onChange={(e) => handleStateChange(e.target.value)}
-                            required
-                          >
-                            {SUPPORTED_STATES.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <SearchableSelect
+                          id="loc-state"
+                          value={state}
+                          onChange={handleStateChange}
+                          options={stateOptions}
+                          placeholder="Select State..."
+                          searchPlaceholder="Search state..."
+                          icon={<Building size={16} className="text-terracotta" />}
+                          required
+                        />
                       </div>
 
                       {/* 2. District Dropdown (Cascading based on State) */}
@@ -732,137 +636,102 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
                         <label className="form-label cute-label" htmlFor="loc-district">
                           <span>2. District ({state})</span> <span className="required-tag">*</span>
                         </label>
-                        <div className="input-with-icon">
-                          <MapPin size={16} className="input-icon text-terracotta" />
-                          <select
-                            id="loc-district"
-                            className="form-input cute-input cute-select"
-                            value={district}
-                            onChange={(e) => handleDistrictChange(e.target.value)}
-                            required
-                          >
-                            <option value="" disabled>-- Select District under {state} --</option>
-                            {availableDistricts.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <SearchableSelect
+                          id="loc-district"
+                          value={district}
+                          onChange={handleDistrictChange}
+                          options={districtOptions}
+                          placeholder={`-- Select District under ${state} --`}
+                          searchPlaceholder="Search district..."
+                          disabled={!state}
+                          icon={<MapPin size={16} className="text-terracotta" />}
+                          required
+                        />
                       </div>
 
-                      {/* 3. Mandal / Taluk Dropdown (Cascading based on State & District) */}
+                      {/* 3. Mandal / Taluk Single Searchable Dropdown */}
                       <div className="form-group">
                         <label className="form-label cute-label" htmlFor="loc-mandal">
-                          <span>3. Mandal / Taluk {district ? `(${district})` : ''}</span> <span className="required-tag">*</span>
+                          <span>3. Mandal / Taluk {district ? `(${district})` : ''}</span>{' '}
+                          <span className="required-tag">*</span>
                         </label>
-                        <div className="input-with-icon">
-                          <Landmark size={16} className="input-icon text-terracotta" />
-                          <select
-                            id="loc-mandal"
-                            className="form-input cute-input cute-select"
-                            value={
-                              isCustomMandal
-                                ? 'CUSTOM'
-                                : availableMandals.includes(mandalOrMunicipality)
-                                ? mandalOrMunicipality
-                                : (mandalOrMunicipality ? 'CUSTOM' : '')
-                            }
-                            onChange={(e) => handleMandalSelect(e.target.value)}
-                            required={!isCustomMandal}
-                          >
-                            <option value="" disabled>-- Select Mandal / Taluk --</option>
-                            {availableMandals.map((m) => (
-                              <option key={m} value={m}>
-                                {m}
-                              </option>
-                            ))}
-                            <option value="CUSTOM">✏️ Other / Custom Mandal</option>
-                          </select>
-                        </div>
-
-                        {/* Custom Mandal Input if chosen or auto-detected rural block */}
-                        {isCustomMandal && (
-                          <div className="custom-mandal-input-wrap" style={{ marginTop: '0.65rem' }}>
-                            <input
-                              type="text"
-                              className="form-input cute-input"
-                              placeholder="Enter custom Mandal / Municipality name"
-                              value={customMandalText}
-                              onChange={(e) => handleCustomMandalChange(e.target.value)}
-                              required
-                            />
-                            <span className="form-hint">Enter your specific Mandal, Taluk, or Municipal block.</span>
-                          </div>
-                        )}
+                        <SearchableSelect
+                          id="loc-mandal"
+                          value={mandalOrMunicipality}
+                          onChange={handleMandalSelect}
+                          options={mandalOptions}
+                          placeholder={
+                            district
+                              ? `-- Select Mandal / Taluk under ${district} --`
+                              : '-- Select District first --'
+                          }
+                          searchPlaceholder="Search mandal / taluk..."
+                          disabled={!district}
+                          icon={<Landmark size={16} className="text-terracotta" />}
+                          allowCustom={true}
+                          onCustomLocation={(customName) => {
+                            setMandalOrMunicipality(customName);
+                            setCity('');
+                          }}
+                          required
+                        />
                       </div>
 
-                      {/* 4. City or Village Dropdown (Cascades under Mandal) */}
+                      {/* 4. City / Village Single Searchable Dropdown */}
                       <div className="form-group">
                         <label className="form-label cute-label" htmlFor="loc-city">
-                          <span>4. City or Village {mandalOrMunicipality ? `(${mandalOrMunicipality})` : ''}</span> <span className="required-tag">*</span>
-                          <span
-                            className="auto-populated-badge"
-                            style={{
-                              marginLeft: '0.5rem',
-                              fontSize: '0.75rem',
-                              color: '#E06D44',
-                              fontWeight: 600,
-                              background: '#FFF7ED',
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '9999px',
-                              border: '1px solid #FFEDD5',
-                            }}
-                          >
-                            ✨ Cascading from {mandalOrMunicipality || 'Mandal'}
-                          </span>
+                          <span>
+                            4. City / Village{' '}
+                            {mandalOrMunicipality ? `(${mandalOrMunicipality})` : ''}
+                          </span>{' '}
+                          <span className="required-tag">*</span>
+                          {mandalOrMunicipality && (
+                            <span
+                              className="auto-populated-badge"
+                              style={{
+                                marginLeft: '0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#E06D44',
+                                fontWeight: 600,
+                                background: '#FFF7ED',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '9999px',
+                                border: '1px solid #FFEDD5',
+                              }}
+                            >
+                              ✨ Official Localities ({villageOptions.length})
+                            </span>
+                          )}
                         </label>
-                        <div className="input-with-icon">
-                          <Navigation size={16} className="input-icon text-terracotta" />
-                          <select
-                            id="loc-city"
-                            className="form-input cute-input cute-select"
-                            value={
-                              isCustomCity
-                                ? 'CUSTOM'
-                                : availableVillages.includes(city)
-                                ? city
-                                : (city ? 'CUSTOM' : '')
-                            }
-                            onChange={(e) => handleCitySelect(e.target.value)}
-                            required={!isCustomCity}
-                          >
-                            <option value="" disabled>-- Select City / Village under {mandalOrMunicipality || 'Mandal'} --</option>
-                            {availableVillages.map((v) => (
-                              <option key={v} value={v}>
-                                {v}
-                              </option>
-                            ))}
-                            <option value="CUSTOM">✏️ Other / Custom Village or Locality</option>
-                          </select>
-                        </div>
-
-                        {/* Custom Village Input if chosen or rural hamlet */}
-                        {isCustomCity && (
-                          <div className="custom-city-input-wrap" style={{ marginTop: '0.65rem' }}>
-                            <input
-                              type="text"
-                              className="form-input cute-input"
-                              placeholder="Enter custom Village, Colony or Locality name"
-                              value={customCityText}
-                              onChange={(e) => handleCustomCityChange(e.target.value)}
-                              required
-                            />
-                            <span className="form-hint">Enter your specific village, colony, or street locality.</span>
-                          </div>
-                        )}
+                        <SearchableSelect
+                          id="loc-city"
+                          value={city}
+                          onChange={handleCitySelect}
+                          options={villageOptions}
+                          placeholder={
+                            mandalOrMunicipality
+                              ? `-- Select City / Village under ${mandalOrMunicipality} --`
+                              : '-- Select Mandal first --'
+                          }
+                          searchPlaceholder="Search city / village / locality..."
+                          disabled={!mandalOrMunicipality}
+                          loading={loadingVillages}
+                          icon={<Navigation size={16} className="text-terracotta" />}
+                          allowCustom={true}
+                          onCustomLocation={(customName) => setCity(customName)}
+                          required
+                        />
                       </div>
 
                       {/* 5. PIN / ZIP Code */}
                       <div className="form-group">
                         <label className="form-label cute-label" htmlFor="loc-pin">
                           <span>5. PIN / ZIP Code</span>
-                          {lookingUpPin && <span className="pin-lookup-indicator">Detecting District & Mandal...</span>}
+                          {lookingUpPin && (
+                            <span className="pin-lookup-indicator">
+                              Matching official sub-district...
+                            </span>
+                          )}
                         </label>
                         <div className="input-with-icon">
                           <Sparkles size={16} className="input-icon text-amber" />
@@ -876,7 +745,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({ 
                             onChange={(e) => handlePinChange(e.target.value)}
                           />
                         </div>
-                        <span className="form-hint">Type 6 digits to automatically detect State, District & Mandal.</span>
+                        <span className="form-hint">
+                          Type 6 digits to automatically select State, District, Mandal, and Locality.
+                        </span>
                       </div>
                     </div>
                   </div>
