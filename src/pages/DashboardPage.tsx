@@ -19,6 +19,7 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { SightingModal } from '../components/SightingModal';
 import { StatusBadge } from '../components/StatusBadge';
+import { ReportModal } from '../components/ReportModal';
 import type { LostReport, ReportStatus } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
@@ -41,9 +42,17 @@ export const DashboardPage: React.FC = () => {
   // Sighting Modal State
   const [sightingReport, setSightingReport] = useState<LostReport | null>(null);
 
+  // Report Modal State
+  const [reportingTarget, setReportingTarget] = useState<LostReport | null>(null);
+
   const reloadData = () => {
     const all = storageService.getAllReports();
-    setReports(all);
+    const blockedIds = storageService.getBlockedUserIds();
+    const filtered = all.filter((r) => {
+      const cleanOwnerId = r.ownerId ? r.ownerId.replace('owner-', '') : '';
+      return !blockedIds.includes(r.ownerId) && !blockedIds.includes(cleanOwnerId);
+    });
+    setReports(filtered);
   };
 
   useEffect(() => {
@@ -1021,6 +1030,21 @@ export const DashboardPage: React.FC = () => {
             setSightingReport(null);
             reloadData();
             showToast('🐾 Community sighting submitted! Thank you for helping!', 'success');
+          }}
+        />
+      )}
+
+      {/* Report Modal */}
+      {reportingTarget && (
+        <ReportModal
+          isOpen={!!reportingTarget}
+          onClose={() => setReportingTarget(null)}
+          type="listing"
+          targetId={reportingTarget.id}
+          targetTitle={reportingTarget.dog.name}
+          targetUserId={reportingTarget.ownerId}
+          onSuccess={() => {
+            showToast('Report submitted for moderation review.', 'success');
           }}
         />
       )}

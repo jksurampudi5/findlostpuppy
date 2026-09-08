@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PawPrint, Shield, Heart, MapPin, Compass } from 'lucide-react';
+import { PawPrint, Shield, Heart, MapPin, Compass, FileText } from 'lucide-react';
+import { SettingsLegalModal } from './SettingsLegalModal';
 
 export const Footer: React.FC = () => {
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<'legal' | 'consent' | 'blocked' | 'delete'>('legal');
+
+  const openLegal = (tab: 'legal' | 'consent' | 'blocked' | 'delete' = 'legal') => {
+    setLegalModalTab(tab);
+    setLegalModalOpen(true);
+  };
+
   return (
     <footer className="app-footer">
       <div className="app-container footer-content">
@@ -50,6 +59,53 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
+          {/* Legal & Safety Policies */}
+          <div className="footer-col">
+            <h4 className="footer-heading">Safety & Legal</h4>
+            <ul className="footer-links">
+              <li>
+                <button
+                  type="button"
+                  className="footer-link-btn"
+                  onClick={() => openLegal('legal')}
+                >
+                  <FileText size={15} />
+                  <span>Terms & Conditions</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="footer-link-btn"
+                  onClick={() => openLegal('legal')}
+                >
+                  <Shield size={15} />
+                  <span>Privacy Policy</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="footer-link-btn"
+                  onClick={() => openLegal('legal')}
+                >
+                  <FileText size={15} />
+                  <span>Platform Disclaimer</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="footer-link-btn"
+                  onClick={() => openLegal('consent')}
+                >
+                  <FileText size={15} />
+                  <span>Consent Record (v1.0)</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
           {/* Immediate Steps Guidance */}
           <div className="footer-col guidance-col">
             <h4 className="footer-heading">
@@ -68,11 +124,24 @@ export const Footer: React.FC = () => {
         <div className="footer-bottom">
           <p>© 2026 FindLostPuppy 🐾 Community Initiative. Designed with love for pups everywhere.</p>
           <div className="footer-bottom-links">
-            <span className="privacy-pill">Privacy First Platform</span>
+            <button
+              type="button"
+              className="footer-link-inline"
+              onClick={() => openLegal('legal')}
+            >
+              Legal & Disclaimers
+            </button>
+            <span className="privacy-pill">Zero Liability Platform</span>
             <span>Mobile-First Experience</span>
           </div>
         </div>
       </div>
+
+      <SettingsLegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
     </footer>
   );
 };

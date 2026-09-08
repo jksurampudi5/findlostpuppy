@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PawPrint, LogOut, Check } from 'lucide-react';
+import { PawPrint, LogOut, Check, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
+import { SettingsLegalModal } from './SettingsLegalModal';
 
 export const Navbar = () => {
   const {
@@ -19,11 +21,12 @@ export const Navbar = () => {
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
   const hasSkippedPet = user ? storageService.hasSkippedPetProfile(user.id) : false;
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <header className="navbar-header">
       <div className="app-container navbar-container">
-        {/* Brand Logo & Mobile Quick Logout */}
+        {/* Brand Logo & Mobile Quick Controls */}
         <div className="navbar-brand-row">
           <Link
             to="/"
@@ -42,15 +45,26 @@ export const Navbar = () => {
           </Link>
 
           {isAuthenticated && (
-            <button
-              type="button"
-              onClick={logout}
-              className="btn btn-ghost btn-sm logout-nav-btn mobile-logout-btn"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-              <span className="logout-text">Sign Out</span>
-            </button>
+            <div className="nav-user-actions-mobile">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="btn btn-ghost btn-sm settings-nav-btn mobile-settings-btn"
+                title="Settings & Legal"
+                aria-label="Settings and Legal Center"
+              >
+                <Settings size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="btn btn-ghost btn-sm logout-nav-btn mobile-logout-btn"
+                title="Sign out"
+              >
+                <LogOut size={15} />
+                <span className="logout-text">Sign Out</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -199,18 +213,34 @@ export const Navbar = () => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={logout}
-              className="btn btn-ghost btn-sm logout-nav-btn desktop-logout-btn"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-              <span className="logout-text">Sign Out</span>
-            </button>
+            <div className="nav-desktop-actions">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="btn btn-ghost btn-sm settings-nav-btn desktop-settings-btn"
+                title="Settings & Legal Center"
+              >
+                <Settings size={15} />
+                <span className="settings-text">Settings</span>
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="btn btn-ghost btn-sm logout-nav-btn desktop-logout-btn"
+                title="Sign out"
+              >
+                <LogOut size={15} />
+                <span className="logout-text">Sign Out</span>
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
+
+      <SettingsLegalModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </header>
   );
 };

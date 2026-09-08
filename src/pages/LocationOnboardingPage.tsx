@@ -22,6 +22,7 @@ import { locationService } from '../services/locationService';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import safePuppyImg from '../assets/safe_puppy.jpg';
 
 interface LocationOnboardingPageProps {
   onSuccess?: () => void;
@@ -468,9 +469,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
             </div>
           )}
 
-          {/* CASE 1: SUBMITTED STATE -> VISUAL LOCATION JOURNEY SHOWCASE */}
+          {/* CASE 1: SUBMITTED STATE -> ULTRA PET-FRIENDLY SHOWCASE */}
           {isSubmitted && !isEditing ? (
-            <div className="location-preview-showcase">
+            <div className="location-preview-showcase pet-friendly-showcase">
               {/* TOP ACTION BAR: Verified Badge & Re-Detect GPS */}
               <div className="showcase-top-bar">
                 <div className="showcase-verified-badge">
@@ -490,11 +491,26 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 </button>
               </div>
 
+              {/* PET SAFE-ZONE RADAR HUB */}
+              <div className="pet-safe-radar-hub">
+                <div className="radar-avatar-wrapper">
+                  <div className="radar-pulse-ring ring-outer"></div>
+                  <div className="radar-pulse-ring ring-inner"></div>
+                  <div className="pet-avatar-circle">
+                    <img src={safePuppyImg} alt="Safe Puppy" className="pet-radar-avatar-img" />
+                  </div>
+                </div>
+                <div className="pet-radar-status-pill">
+                  <span className="radar-live-dot"></span>
+                  <span>Safe Zone Active • 100% Pet-Safe</span>
+                </div>
+              </div>
+
               {/* VISUAL 4-STEP LOCATION JOURNEY FLOW */}
               <div className="showcase-journey-flow">
                 {/* 1. State */}
                 <div className="journey-card">
-                  <div className="journey-card-icon-wrap">
+                  <div className="journey-card-icon-wrap journey-icon-state">
                     <span className="journey-emoji">🏛️</span>
                   </div>
                   <div className="journey-card-content">
@@ -509,7 +525,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
                 {/* 2. District */}
                 <div className="journey-card">
-                  <div className="journey-card-icon-wrap">
+                  <div className="journey-card-icon-wrap journey-icon-district">
                     <span className="journey-emoji">🏙️</span>
                   </div>
                   <div className="journey-card-content">
@@ -524,7 +540,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
                 {/* 3. Mandal */}
                 <div className="journey-card">
-                  <div className="journey-card-icon-wrap">
+                  <div className="journey-card-icon-wrap journey-icon-mandal">
                     <span className="journey-emoji">📍</span>
                   </div>
                   <div className="journey-card-content">
@@ -537,16 +553,16 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   <ChevronRight size={18} />
                 </div>
 
-                {/* 4. Locality (Highlighted Active) */}
-                <div className="journey-card journey-card-active">
-                  <div className="journey-card-icon-wrap active-icon">
+                {/* 4. Home Base (Locality) */}
+                <div className="journey-card journey-card-home-base">
+                  <div className="journey-card-icon-wrap journey-icon-locality">
                     <span className="journey-emoji">🏡</span>
                   </div>
                   <div className="journey-card-content">
-                    <span className="journey-step-label">Locality</span>
-                    <strong className="journey-step-value">{city || 'Not set'}</strong>
+                    <span className="journey-step-label home-base-label">Home Base</span>
+                    <strong className="journey-step-value home-base-value">{city || 'Not set'}</strong>
                     {pinCode && (
-                      <span className="journey-pin-badge">
+                      <span className="journey-pin-badge home-base-pin">
                         📮 PIN {pinCode}
                       </span>
                     )}
@@ -554,31 +570,32 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 </div>
               </div>
 
-              {/* Subtle Privacy Assurance Note */}
-              <div className="showcase-privacy-note">
-                <ShieldCheck size={14} className="privacy-note-icon" />
-                <span>Private home address is 100% hidden</span>
-              </div>
+              {/* BOTTOM ACTIONS BAR */}
+              <div className="showcase-bottom-bar">
+                <div className="showcase-privacy-note">
+                  <ShieldCheck size={15} className="privacy-note-icon" />
+                  <span>Exact home address is never public</span>
+                </div>
 
-              {/* BOTTOM ACTIONS: Update Location (Centered) & Continue */}
-              <div className="showcase-bottom-actions">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="btn btn-outline btn-md edit-details-btn showcase-center-edit-btn"
-                >
-                  <Edit3 size={16} />
-                  <span>Update Location</span>
-                </button>
+                <div className="showcase-action-buttons">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="btn btn-outline btn-md edit-details-btn showcase-center-edit-btn"
+                  >
+                    <Edit3 size={16} />
+                    <span>Update Location</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleProceedToPup}
-                  className="btn btn-primary btn-lg continue-to-pup-btn"
-                >
-                  <span>Continue to Pup Profile 🐕</span>
-                  <ArrowRight size={18} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleProceedToPup}
+                    className="btn btn-primary btn-lg continue-to-pup-btn"
+                  >
+                    <span>Continue to Pup Profile 🐕</span>
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

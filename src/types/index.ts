@@ -143,3 +143,51 @@ export interface Sighting {
   isGuest?: boolean;
   createdAt: string;
 }
+
+export type ListingReportCategory =
+  | 'Fake or misleading listing'
+  | 'Incorrect information'
+  | 'Incorrect location'
+  | 'Inappropriate photograph'
+  | 'Privacy concern'
+  | 'Harassment or abuse'
+  | 'Suspicious activity'
+  | 'Other';
+
+export type UserReportCategory =
+  | 'Harassment'
+  | 'Fraud'
+  | 'Impersonation'
+  | 'Abuse'
+  | 'Spam'
+  | 'Suspicious behavior'
+  | 'Other';
+
+export interface ListingReport {
+  id: string;
+  reportId: string;
+  dogName: string;
+  category: ListingReportCategory;
+  details?: string;
+  reporterUserId?: string;
+  createdAt: string;
+  status: 'PENDING' | 'REVIEWED' | 'DISMISSED' | 'ACTIONED';
+}
+
+export interface UserReport {
+  id: string;
+  targetUserId: string;
+  targetUserName?: string;
+  category: UserReportCategory;
+  details?: string;
+  reporterUserId?: string;
+  createdAt: string;
+  status: 'PENDING' | 'REVIEWED' | 'DISMISSED' | 'ACTIONED';
+}
+
+export interface BlockedUserRecord {
+  blockedUserId: string;
+  blockedUserName?: string;
+  blockedAt: string;
+}
+

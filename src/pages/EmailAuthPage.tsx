@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PawPrint, Mail, ArrowRight, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { PawPrint, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -8,7 +8,6 @@ export const EmailAuthPage = () => {
   const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,7 +19,7 @@ export const EmailAuthPage = () => {
       return;
     }
 
-    const res = await loginWithEmail(email, name);
+    const res = await loginWithEmail(email);
     if (res.success) {
       showToast('Welcome to FindLostPuppy! 🐾', 'success');
     } else {
@@ -72,23 +71,6 @@ export const EmailAuthPage = () => {
                 />
               </div>
               <span className="form-hint">Used for verification and sighting alerts.</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="user-name">
-                Your Name <span className="optional-tag">(Optional)</span>
-              </label>
-              <div className="input-with-icon">
-                <UserIcon size={18} className="input-icon" />
-                <input
-                  id="user-name"
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Suresh Varma"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
             </div>
 
             <button
