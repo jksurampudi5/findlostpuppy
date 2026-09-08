@@ -14,6 +14,7 @@ import {
   Compass,
   Edit3,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -23,6 +24,7 @@ import { SearchableSelect, type SelectOption } from '../components/SearchableSel
 import type { OwnerProfile, LocationLocality } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import safePuppyImg from '../assets/safe_puppy.jpg';
+import missingPuppyImg from '../assets/missing_puppy.jpg';
 
 interface LocationOnboardingPageProps {
   onSuccess?: () => void;
@@ -33,14 +35,20 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onSuccess,
   onBack,
 }) => {
-  const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
+  const { user, refreshProgress, setActiveOnboardingTab, petSafetyStatus } = useAuth();
   const { showToast } = useToast();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
-  const dogPhoto = existingPet?.primaryPhoto || existingReport?.dog?.primaryPhoto || safePuppyImg;
-  const dogName = existingPet?.name || existingReport?.dog?.name || 'Safe Puppy';
+  const isLost =
+    petSafetyStatus === 'LOST' ||
+    (petSafetyStatus !== 'SAFE' && existingReport?.status === 'LOST');
+  const dogPhoto =
+    existingPet?.primaryPhoto ||
+    existingReport?.dog?.primaryPhoto ||
+    (isLost ? missingPuppyImg : safePuppyImg);
+  const dogName = existingPet?.name || existingReport?.dog?.name || (isLost ? 'Missing Pup' : 'Safe Puppy');
   const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
   // Initial values from saved profile
@@ -475,13 +483,20 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
           {/* CASE 1: SUBMITTED STATE -> ULTRA PET-FRIENDLY SHOWCASE */}
           {isSubmitted && !isEditing ? (
-            <div className="location-preview-showcase pet-friendly-showcase">
-              {/* TOP ACTION BAR: Verified Badge & Re-Detect GPS */}
+            <div className={`location-preview-showcase pet-friendly-showcase ${isLost ? 'showcase-lost-active' : ''}`}>
+              {/* TOP ACTION BAR: Verified Badge / Emergency Alert Badge & Re-Detect GPS */}
               <div className="showcase-top-bar">
-                <div className="showcase-verified-badge">
-                  <Check size={14} className="badge-check-icon" />
-                  <span>Verified Safe Area</span>
-                </div>
+                {isLost ? (
+                  <div className="showcase-verified-badge lost-area-badge">
+                    <AlertTriangle size={14} className="badge-alert-icon text-red-600" />
+                    <span>🚨 Missing Pet Alert Active • Search Radar Broadcast</span>
+                  </div>
+                ) : (
+                  <div className="showcase-verified-badge">
+                    <Check size={14} className="badge-check-icon" />
+                    <span>Verified Safe Area</span>
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -495,18 +510,22 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 </button>
               </div>
 
-              {/* PET SAFE-ZONE RADAR HUB */}
-              <div className="pet-safe-radar-hub">
-                <div className="radar-avatar-wrapper">
-                  <div className="radar-pulse-ring ring-outer"></div>
-                  <div className="radar-pulse-ring ring-inner"></div>
-                  <div className="pet-avatar-circle">
+              {/* PET SAFE-ZONE / LOST SEARCH RADAR HUB */}
+              <div className={`pet-safe-radar-hub ${isLost ? 'pet-lost-radar-hub' : ''}`}>
+                <div className={`radar-avatar-wrapper ${isLost ? 'radar-lost-wrapper' : ''}`}>
+                  <div className={`radar-pulse-ring ring-outer ${isLost ? 'pulse-lost-outer' : ''}`}></div>
+                  <div className={`radar-pulse-ring ring-inner ${isLost ? 'pulse-lost-inner' : ''}`}></div>
+                  <div className={`pet-avatar-circle ${isLost ? 'pet-avatar-lost' : ''}`}>
                     <img src={dogPhoto} alt={dogName} className="pet-radar-avatar-img" />
                   </div>
                 </div>
-                <div className="pet-radar-status-pill">
-                  <span className="radar-live-dot"></span>
-                  <span>Safe Zone Active • 100% Pet-Safe</span>
+                <div className={`pet-radar-status-pill ${isLost ? 'lost-status-pill' : ''}`}>
+                  <span className={`radar-live-dot ${isLost ? 'dot-lost' : ''}`}></span>
+                  <span>
+                    {isLost
+                      ? `🚨 Search Radar Active • ${dogName} Away From Home`
+                      : 'Safe Zone Active • 100% Pet-Safe'}
+                  </span>
                 </div>
               </div>
 

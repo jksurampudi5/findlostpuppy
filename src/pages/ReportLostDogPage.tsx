@@ -3,7 +3,6 @@ import {
   Calendar,
   MapPin,
   Edit3,
-  PawPrint,
   AlertTriangle,
   Heart,
   Check,
@@ -20,6 +19,7 @@ import { triggerStarCelebration } from '../utils/confettiHelper';
 import { DogGoingHomeAnimation } from '../components/DogGoingHomeAnimation';
 import { DogAwayFromHomeAnimation } from '../components/DogAwayFromHomeAnimation';
 import { MissingPetReportModal } from '../components/MissingPetReportModal';
+import abulluImg from '../assets/abullu.jpg';
 
 interface ReportLostDogPageProps {
   onBackToPet?: () => void;
@@ -172,12 +172,13 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
   // ACTION 5: 1-Click WhatsApp SOS Alert Share
   const handleWhatsAppShare = () => {
-    const activeReportId = existingReport?.id || '';
-    const activeName = existingReport?.dog?.name || dogName || 'Our puppy';
-    const activeBreed = existingReport?.dog?.breed || breed || 'Dog';
-    const loc = existingReport?.lastKnownLocation || 'our neighborhood';
+    const activeReport = existingReport || (user ? storageService.getLatestReportByUserId(user.id) : null);
+    const activeReportId = activeReport?.id || '';
+    const activeName = activeReport?.dog?.name || dogName || existingPet?.name || 'Our puppy';
+    const activeBreed = activeReport?.dog?.breed || breed || existingPet?.breed || 'Companion Pet';
+    const loc = activeReport?.lastKnownLocation || ownerProfile?.approximateArea || 'our local neighborhood';
     const contactPhone =
-      existingReport?.contactMechanism.safeContactPhone ||
+      activeReport?.contactMechanism?.safeContactPhone ||
       ownerProfile?.phone ||
       user?.phone ||
       '';
@@ -190,8 +191,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
       `Please help us find *"${activeName}"* (${activeBreed})!\n` +
       `📍 *Last Seen:* ${loc}\n` +
       (contactPhone ? `📞 *Contact Owner:* ${contactPhone}\n` : '') +
-      `\n🐾 *Did you spot or find this dog?*\n` +
-      `Click here to report location & photos (*No login required!*):\n` +
+      `\n🐾 *Direct Pet Details, Photos & Sighting Report:* (No login needed)\n` +
       `👉 ${sightingUrl}\n\n` +
       `FindLostPuppy Community Network 🐕❤️`;
 
@@ -342,17 +342,15 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
                   <div className="alert-flyer-content">
                     <div className="alert-flyer-photo-wrap">
-                      {existingReport?.dog?.primaryPhoto || existingPet?.primaryPhoto ? (
-                        <img
-                          src={existingReport?.dog?.primaryPhoto || existingPet?.primaryPhoto}
-                          alt={dogName}
-                          className="alert-flyer-photo"
-                        />
-                      ) : (
-                        <div className="alert-flyer-avatar-placeholder">
-                          <PawPrint size={40} />
-                        </div>
-                      )}
+                      <img
+                        src={
+                          existingReport?.dog?.primaryPhoto ||
+                          existingPet?.primaryPhoto ||
+                          abulluImg
+                        }
+                        alt={dogName}
+                        className="alert-flyer-photo"
+                      />
                     </div>
 
                     <div className="alert-flyer-details">
