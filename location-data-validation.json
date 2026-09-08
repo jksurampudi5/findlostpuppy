@@ -1,7 +1,7 @@
 {
   "dataAsOf": "2026-09",
   "source": "Government of India Local Government Directory (LGD)",
-  "retrievedAt": "2026-09-08T06:12:43.027Z",
+  "retrievedAt": "2026-09-08T06:51:33.657Z",
   "validatedAgainst": [
     "Official Andhra Pradesh State Portal (ap.gov.in)",
     "Official Telangana State Portal (telangana.gov.in)",
@@ -12,7 +12,7 @@
   "states": 3,
   "districts": 92,
   "subDistricts": 1549,
-  "localities": 59819,
+  "localities": 59820,
   "duplicates": [],
   "orphanDistricts": [],
   "orphanSubDistricts": [],
@@ -366,7 +366,7 @@
       "districtCode": 698,
       "districtName": "Vikarabad",
       "stateName": "Telangana",
-      "localityCount": 522
+      "localityCount": 523
     },
     {
       "districtCode": 693,

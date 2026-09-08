@@ -5839,6 +5839,18 @@
     "subDistrictCode": 4530,
     "subDistrictName": "Vikarabad",
     "subDistrictType": "Mandal",
+    "localityCode": 90453001,
+    "localityName": "Yennepally",
+    "localityType": "VILLAGE"
+  },
+  {
+    "stateCode": 36,
+    "stateName": "Telangana",
+    "districtCode": 698,
+    "districtName": "Vikarabad",
+    "subDistrictCode": 4530,
+    "subDistrictName": "Vikarabad",
+    "subDistrictType": "Mandal",
     "localityCode": 574317,
     "localityName": "Yerravally",
     "localityType": "VILLAGE"
