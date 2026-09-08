@@ -135,6 +135,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     refreshProgress();
+
+    const handleGlobalSync = () => {
+      refreshProgress();
+    };
+
+    window.addEventListener('findlostpuppy_reports_updated', handleGlobalSync);
+    window.addEventListener('findlostpuppy_session_updated', handleGlobalSync);
+    window.addEventListener('findlostpuppy_consent_updated', handleGlobalSync);
+    window.addEventListener('storage', handleGlobalSync);
+
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleGlobalSync);
+      window.removeEventListener('findlostpuppy_session_updated', handleGlobalSync);
+      window.removeEventListener('findlostpuppy_consent_updated', handleGlobalSync);
+      window.removeEventListener('storage', handleGlobalSync);
+    };
   }, []);
 
   const agreeToConsent = (

@@ -160,6 +160,14 @@ class StorageService {
 
   constructor() {
     this.init();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key && e.key.startsWith('findlostpuppy_')) {
+          this.init();
+          this.notifyUpdate();
+        }
+      });
+    }
   }
 
   /**
@@ -365,42 +373,9 @@ class StorageService {
     }
   }
 
-  private savePets() {
-    try {
-      localStorage.setItem(PETS_KEY, JSON.stringify(this.pets));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
   private notifyUpdate() {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
-    }
-  }
-
-  private saveReports() {
-    try {
-      localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
-      this.notifyUpdate();
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
-  private saveSightings() {
-    try {
-      localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(this.sightings));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
-  private saveProfiles() {
-    try {
-      localStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
     }
   }
 
@@ -769,14 +744,15 @@ class StorageService {
   }
 
   saveOwnerProfile(profile: OwnerProfile): OwnerProfile {
-    const index = this.profiles.findIndex((p) => p.id === profile.id || p.userId === profile.userId);
-    if (index >= 0) {
-      this.profiles[index] = { ...profile, updatedAt: new Date().toISOString() };
-    } else {
-      this.profiles.push(profile);
-    }
-    this.saveProfiles();
-    return profile;
+    return this.executeTransaction(() => {
+      const index = this.profiles.findIndex((p) => p.id === profile.id || p.userId === profile.userId);
+      if (index >= 0) {
+        this.profiles[index] = { ...profile, updatedAt: new Date().toISOString() };
+      } else {
+        this.profiles.push(profile);
+      }
+      return profile;
+    });
   }
 
   // PRIVACY HELPER: Computes safe public approximate location
@@ -787,29 +763,7 @@ class StorageService {
     }
     return `${district}, ${state}`;
   }
-  private saveListingReports() {
-    try {
-      localStorage.setItem(LISTING_REPORTS_KEY, JSON.stringify(this.listingReports));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
 
-  private saveUserReports() {
-    try {
-      localStorage.setItem(USER_REPORTS_KEY, JSON.stringify(this.userReports));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
-  private saveBlockedUsers() {
-    try {
-      localStorage.setItem(BLOCKED_USERS_KEY, JSON.stringify(this.blockedUsers));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
 
   // LISTING REPORTING
   submitListingReport(
@@ -819,19 +773,20 @@ class StorageService {
     details?: string,
     reporterUserId?: string
   ): ListingReport {
-    const report: ListingReport = {
-      id: `rep-listing-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      reportId,
-      dogName,
-      category,
-      details: details?.trim() || undefined,
-      reporterUserId: reporterUserId || undefined,
-      createdAt: new Date().toISOString(),
-      status: 'PENDING',
-    };
-    this.listingReports.unshift(report);
-    this.saveListingReports();
-    return report;
+    return this.executeTransaction(() => {
+      const report: ListingReport = {
+        id: `rep-listing-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        reportId,
+        dogName,
+        category,
+        details: details?.trim() || undefined,
+        reporterUserId: reporterUserId || undefined,
+        createdAt: new Date().toISOString(),
+        status: 'PENDING',
+      };
+      this.listingReports.unshift(report);
+      return report;
+    });
   }
 
   getListingReports(): ListingReport[] {
@@ -846,19 +801,20 @@ class StorageService {
     details?: string,
     reporterUserId?: string
   ): UserReport {
-    const report: UserReport = {
-      id: `rep-user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      targetUserId,
-      targetUserName,
-      category,
-      details: details?.trim() || undefined,
-      reporterUserId: reporterUserId || undefined,
-      createdAt: new Date().toISOString(),
-      status: 'PENDING',
-    };
-    this.userReports.unshift(report);
-    this.saveUserReports();
-    return report;
+    return this.executeTransaction(() => {
+      const report: UserReport = {
+        id: `rep-user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        targetUserId,
+        targetUserName,
+        category,
+        details: details?.trim() || undefined,
+        reporterUserId: reporterUserId || undefined,
+        createdAt: new Date().toISOString(),
+        status: 'PENDING',
+      };
+      this.userReports.unshift(report);
+      return report;
+    });
   }
 
   getUserReports(): UserReport[] {
@@ -867,19 +823,21 @@ class StorageService {
 
   // USER BLOCKING
   blockUser(userId: string, userName?: string): void {
-    if (!this.isUserBlocked(userId)) {
-      this.blockedUsers.push({
-        blockedUserId: userId,
-        blockedUserName: userName,
-        blockedAt: new Date().toISOString(),
-      });
-      this.saveBlockedUsers();
-    }
+    this.executeTransaction(() => {
+      if (!this.isUserBlocked(userId)) {
+        this.blockedUsers.push({
+          blockedUserId: userId,
+          blockedUserName: userName,
+          blockedAt: new Date().toISOString(),
+        });
+      }
+    });
   }
 
   unblockUser(userId: string): void {
-    this.blockedUsers = this.blockedUsers.filter((b) => b.blockedUserId !== userId);
-    this.saveBlockedUsers();
+    this.executeTransaction(() => {
+      this.blockedUsers = this.blockedUsers.filter((b) => b.blockedUserId !== userId);
+    });
   }
 
   getBlockedUsers(): BlockedUserRecord[] {
@@ -896,53 +854,55 @@ class StorageService {
 
   // ACCOUNT DELETION
   deleteUserAccount(userId: string): { success: boolean } {
-    const rawUserId = userId.replace('owner-', '');
+    return this.executeTransaction(() => {
+      const rawUserId = userId.replace('owner-', '');
 
-    // 1. Remove owner profile
-    this.profiles = this.profiles.filter(
-      (p) => p.userId !== userId && p.userId !== rawUserId && p.id !== userId && p.id !== rawUserId
-    );
-    this.saveProfiles();
+      // 1. Remove owner profile
+      this.profiles = this.profiles.filter(
+        (p) => p.userId !== userId && p.userId !== rawUserId && p.id !== userId && p.id !== rawUserId
+      );
 
-    // 2. Remove pet profile
-    this.pets = this.pets.filter(
-      (p) => p.ownerId !== userId && p.ownerId !== rawUserId
-    );
-    this.savePets();
+      // 2. Remove pet profile
+      this.pets = this.pets.filter(
+        (p) => p.ownerId !== userId && p.ownerId !== rawUserId
+      );
 
-    // 3. Remove user reports
-    this.reports = this.reports.filter(
-      (r) => r.ownerId !== userId && r.ownerId !== `owner-${userId}` && r.ownerId !== rawUserId
-    );
-    this.saveReports();
+      // 3. Remove user reports
+      this.reports = this.reports.filter(
+        (r) => r.ownerId !== userId && r.ownerId !== `owner-${userId}` && r.ownerId !== rawUserId
+      );
 
-    // 4. Remove user sightings
-    this.sightings = this.sightings.filter(
-      (s) => s.reporterEmail !== userId
-    );
-    this.saveSightings();
+      // 4. Remove user sightings
+      this.sightings = this.sightings.filter(
+        (s) => s.reporterEmail !== userId
+      );
 
-    // 5. Remove registered user entry
-    try {
-      const storedUsers = localStorage.getItem(USERS_KEY);
-      if (storedUsers) {
-        const users = JSON.parse(storedUsers);
-        const filtered = users.filter((u: any) => u.id !== userId && u.id !== rawUserId);
-        localStorage.setItem(USERS_KEY, JSON.stringify(filtered));
+      // 5. Remove registered user entry
+      try {
+        const storedUsers = localStorage.getItem(USERS_KEY);
+        if (storedUsers) {
+          const users = JSON.parse(storedUsers);
+          const filtered = users.filter((u: any) => u.id !== userId && u.id !== rawUserId);
+          localStorage.setItem(USERS_KEY, JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.warn('Failed to delete from registered users:', e);
       }
-    } catch (e) {
-      console.warn('Failed to delete from registered users:', e);
-    }
 
-    // 6. Remove session
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch {}
+      // 6. Remove session
+      try {
+        localStorage.removeItem(SESSION_KEY);
+      } catch {}
 
-    // 7. Revoke consent for clean state
-    consentService.revokeConsent();
+      // 7. Revoke consent for clean state
+      consentService.revokeConsent();
 
-    return { success: true };
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+      }
+
+      return { success: true };
+    });
   }
 }
 

@@ -644,11 +644,31 @@ input, select, textarea {
 }
 
 /* ==========================================================================
-   GLOBAL MOBILE RESPONSIVENESS (PHONES & TABLETS)
+   GLOBAL MOBILE RESPONSIVENESS & ACCESSIBILITY (PHONES & TABLETS)
    ========================================================================== */
+h1 {
+  font-size: clamp(1.65rem, 3.2vw + 1rem, 2.5rem);
+}
+
+h2 {
+  font-size: clamp(1.35rem, 2.2vw + 0.8rem, 1.95rem);
+}
+
+h3 {
+  font-size: clamp(1.15rem, 1.6vw + 0.65rem, 1.5rem);
+}
+
 @media (max-width: 768px) {
   input, select, textarea {
     font-size: 16px !important; /* Prevents unwanted iOS Safari auto-zooming on focus */
+    min-height: 44px;
+  }
+
+  button, .btn, a.btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .app-container {
@@ -679,5 +699,15 @@ input, select, textarea {
 
   .modal-footer .btn {
     width: 100%;
+  }
+}
+
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
