@@ -34,8 +34,9 @@ export const DiscoveryPage: React.FC = () => {
     const locs = new Set(
       reports.map((r) => {
         // Extract city from approximate location
-        const parts = r.ownerApproximateLocation.split(',');
-        return parts[parts.length - 1]?.trim() || r.ownerApproximateLocation;
+        const locStr = r.ownerApproximateLocation || r.lastKnownLocation || '';
+        const parts = locStr.split(',');
+        return parts[parts.length - 1]?.trim() || locStr;
       })
     );
     return Array.from(locs).filter(Boolean).sort();
@@ -49,21 +50,22 @@ export const DiscoveryPage: React.FC = () => {
         if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
 
         // Breed filter
-        if (breedFilter !== 'ALL' && r.dog.breed !== breedFilter) return false;
+        if (breedFilter !== 'ALL' && r.dog?.breed !== breedFilter) return false;
 
         // Location filter
-        if (locationFilter !== 'ALL' && !r.ownerApproximateLocation.toLowerCase().includes(locationFilter.toLowerCase())) {
+        const locStr = (r.ownerApproximateLocation || r.lastKnownLocation || '').toLowerCase();
+        if (locationFilter !== 'ALL' && !locStr.includes(locationFilter.toLowerCase())) {
           return false;
         }
 
         // Search Query (matches dog name, breed, color, description, marks, approximate location)
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchName = r.dog.name.toLowerCase().includes(q);
-          const matchBreed = r.dog.breed.toLowerCase().includes(q);
-          const matchColor = r.dog.color.toLowerCase().includes(q);
-          const matchLoc = r.ownerApproximateLocation.toLowerCase().includes(q);
-          const matchMarks = r.dog.distinguishingMarks?.toLowerCase().includes(q) || false;
+          const matchName = (r.dog?.name || '').toLowerCase().includes(q);
+          const matchBreed = (r.dog?.breed || '').toLowerCase().includes(q);
+          const matchColor = (r.dog?.color || '').toLowerCase().includes(q);
+          const matchLoc = locStr.includes(q);
+          const matchMarks = r.dog?.distinguishingMarks?.toLowerCase().includes(q) || false;
           const matchNotes = r.additionalNotes?.toLowerCase().includes(q) || false;
 
           if (!matchName && !matchBreed && !matchColor && !matchLoc && !matchMarks && !matchNotes) {

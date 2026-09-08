@@ -12,6 +12,8 @@ import type {
 } from '../types';
 import { consentService } from './consentService';
 
+import abulluImg from '../assets/abullu.jpg';
+
 const REPORTS_KEY = 'findlostpuppy_reports_v1';
 const SIGHTINGS_KEY = 'findlostpuppy_sightings_v1';
 const PROFILES_KEY = 'findlostpuppy_profiles_v1';
@@ -23,6 +25,119 @@ const USER_REPORTS_KEY = 'findlostpuppy_user_reports_v1';
 const BLOCKED_USERS_KEY = 'findlostpuppy_blocked_users_v1';
 const USERS_KEY = 'findlostpuppy_registered_users_v1';
 const SESSION_KEY = 'findlostpuppy_session_v1';
+
+export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
+  {
+    id: 'LOST-1788807276098',
+    dogId: 'dog-abullu-01',
+    ownerId: 'owner-krishna-abullu',
+    dog: {
+      id: 'dog-abullu-01',
+      ownerId: 'owner-krishna-abullu',
+      name: 'abullu',
+      breed: 'street dog • Companion Pet',
+      gender: 'Male',
+      age: '2 years',
+      size: 'Medium (10-25kg)',
+      color: 'Brown & White with tan spots',
+      distinguishingMarks: 'Friendly village companion dog, responsive to whistling, tan spots on back',
+      collarInfo: 'None',
+      primaryPhoto: abulluImg,
+      photos: [abulluImg],
+      createdAt: '2026-09-07T18:00:00.000Z',
+    },
+    ownerApproximateLocation: 'Palangi, Undrajavaram, West Godavari',
+    lastKnownLocation: 'Near Palangi, Undrajavaram (Mandal), West Godavari, Andhra Pradesh',
+    lastKnownLatitude: 16.8123,
+    lastKnownLongitude: 81.6543,
+    dateLost: '2026-09-07',
+    timeLost: '06:00 PM',
+    additionalNotes: 'Very friendly and calm companion dog. Please inform Krishna immediately if spotted anywhere nearby!',
+    status: 'LOST',
+    contactMechanism: {
+      showPhone: true,
+      showEmail: true,
+      safeContactPhone: '8639452948',
+      safeContactEmail: 'krishna.owner@findlostpuppy.org',
+      contactNote: 'Please reach out immediately if spotted!',
+    },
+    sightingCount: 1,
+    createdAt: '2026-09-07T18:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'LOST-BRUNO-WESTGODAVARI',
+    dogId: 'dog-bruno-01',
+    ownerId: 'owner-bruno-family',
+    dog: {
+      id: 'dog-bruno-01',
+      ownerId: 'owner-bruno-family',
+      name: 'brunoo',
+      breed: 'Golden Labrador • Companion Pet',
+      gender: 'Male',
+      age: '3 years',
+      size: 'Large (25-45kg)',
+      color: 'Golden Cream',
+      distinguishingMarks: 'Friendly, playful, golden coat with white chest patch',
+      collarInfo: 'Green reflective collar',
+      primaryPhoto: abulluImg,
+      photos: [abulluImg],
+      createdAt: '2026-09-05T12:00:00.000Z',
+    },
+    ownerApproximateLocation: 'Undrajavaram, West Godavari, Andhra Pradesh',
+    lastKnownLocation: 'Palangi Village, West Godavari',
+    dateLost: '2026-09-05',
+    timeLost: '04:30 PM',
+    additionalNotes: 'Safely reunited with family through neighborhood vigilance and community care!',
+    status: 'REUNITED',
+    contactMechanism: {
+      showPhone: true,
+      showEmail: true,
+      safeContactPhone: '8639452948',
+      safeContactEmail: 'bruno.family@findlostpuppy.org',
+      contactNote: 'Safe at home with family in West Godavari.',
+    },
+    sightingCount: 2,
+    createdAt: '2026-09-05T16:30:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'LOST-CHARLIE-SIGHTED',
+    dogId: 'dog-charlie-01',
+    ownerId: 'owner-charlie-rescuers',
+    dog: {
+      id: 'dog-charlie-01',
+      ownerId: 'owner-charlie-rescuers',
+      name: 'charlie',
+      breed: 'Indian Pariah Dog • Rescued Pup',
+      gender: 'Male',
+      age: '1.5 years',
+      size: 'Medium (10-25kg)',
+      color: 'Light Tan & White',
+      distinguishingMarks: 'Dark patch over left ear, active and energetic',
+      collarInfo: 'Red collar',
+      primaryPhoto: abulluImg,
+      photos: [abulluImg],
+      createdAt: '2026-09-07T14:00:00.000Z',
+    },
+    ownerApproximateLocation: 'Tanuku Road, Undrajavaram, West Godavari',
+    lastKnownLocation: 'Near Undrajavaram Main Junction, West Godavari',
+    dateLost: '2026-09-07',
+    timeLost: '02:00 PM',
+    additionalNotes: 'Neighbors reported sighting Charlie near the junction. Volunteers actively monitoring area.',
+    status: 'SIGHTED',
+    contactMechanism: {
+      showPhone: true,
+      showEmail: true,
+      safeContactPhone: '8639452948',
+      safeContactEmail: 'community.care@findlostpuppy.org',
+      contactNote: 'Volunteer search team on site.',
+    },
+    sightingCount: 3,
+    createdAt: '2026-09-07T14:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 class StorageService {
   private reports: LostReport[] = [];
@@ -44,45 +159,59 @@ class StorageService {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
       
-      // Keep only genuine user-uploaded reports (filter out any mock/seed dummy data)
-      this.reports = rawReports.filter(
+      // Filter out old legacy random seed IDs but preserve genuine reports
+      const userReports = rawReports.filter(
         (r) =>
           !r.id.startsWith('LOST-849201') &&
           !r.id.startsWith('LOST-732910') &&
           !r.id.startsWith('LOST-621804') &&
           !r.id.startsWith('LOST-510492') &&
-          !r.id.startsWith('LOST-BRUNO-') &&
           !r.id.startsWith('LOST-BELLA-') &&
           !r.id.startsWith('LOST-MILO-') &&
           !r.id.startsWith('LOST-LUNA-') &&
           !r.id.startsWith('LOST-ROCKY-') &&
           !r.id.startsWith('LOST-SIMBA-') &&
-          !r.id.startsWith('LOST-LEO-') &&
-          !r.ownerId.startsWith('owner-00') &&
-          !r.ownerId.startsWith('owner-community-')
+          !r.id.startsWith('LOST-LEO-')
       );
+
+      // Merge with verified community baseline reports
+      const mergedMap = new Map<string, LostReport>();
+      for (const rep of COMMUNITY_BASELINE_REPORTS) {
+        mergedMap.set(rep.id.toLowerCase(), rep);
+      }
+      for (const rep of userReports) {
+        // Ensure Abullu report uses abulluImg if photo is missing or empty
+        if (rep.id.toLowerCase() === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
+          rep.dog.primaryPhoto = abulluImg;
+        }
+        mergedMap.set(rep.id.toLowerCase(), rep);
+      }
+      this.reports = Array.from(mergedMap.values());
       this.saveReports();
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      this.sightings = rawSightings.filter(
-        (s) =>
-          !s.id.startsWith('sight-comm-') &&
-          !s.id.startsWith('sight-00')
-      );
+      this.sightings = rawSightings;
       this.saveSightings();
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles.filter(
-        (p) =>
-          !p.id.startsWith('owner-community-') &&
-          !p.id.startsWith('owner-00')
-      );
+      this.profiles = rawProfiles;
       this.saveProfiles();
 
       const storedPets = localStorage.getItem(PETS_KEY);
-      this.pets = storedPets ? JSON.parse(storedPets) : [];
+      const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
+      
+      // Merge registered pets with baseline community pets
+      const petsMap = new Map<string, DogProfile>();
+      for (const r of COMMUNITY_BASELINE_REPORTS) {
+        petsMap.set(r.dog.id, r.dog);
+      }
+      for (const p of rawPets) {
+        petsMap.set(p.id, p);
+      }
+      this.pets = Array.from(petsMap.values());
+      this.savePets();
 
       const storedSkipped = localStorage.getItem(SKIPPED_PET_KEY);
       this.skippedPetUserIds = storedSkipped ? JSON.parse(storedSkipped) : [];
@@ -99,10 +228,10 @@ class StorageService {
       const storedBlocked = localStorage.getItem(BLOCKED_USERS_KEY);
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : [];
     } catch {
-      this.reports = [];
+      this.reports = [...COMMUNITY_BASELINE_REPORTS];
       this.sightings = [];
       this.profiles = [];
-      this.pets = [];
+      this.pets = COMMUNITY_BASELINE_REPORTS.map((r) => r.dog);
       this.skippedPetUserIds = [];
       this.skippedReportUserIds = [];
       this.listingReports = [];
@@ -172,10 +301,24 @@ class StorageService {
     try {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       if (storedReports) {
-        this.reports = JSON.parse(storedReports);
+        const parsed: LostReport[] = JSON.parse(storedReports);
+        const map = new Map<string, LostReport>();
+        for (const r of COMMUNITY_BASELINE_REPORTS) {
+          map.set(r.id.toLowerCase(), r);
+        }
+        for (const r of parsed) {
+          if (r.id.toLowerCase() === 'lost-1788807276098' && (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5)) {
+            r.dog.primaryPhoto = abulluImg;
+          }
+          map.set(r.id.toLowerCase(), r);
+        }
+        this.reports = Array.from(map.values());
+      } else {
+        this.reports = [...COMMUNITY_BASELINE_REPORTS];
       }
     } catch (e) {
       console.warn('Failed to load reports:', e);
+      this.reports = [...COMMUNITY_BASELINE_REPORTS];
     }
   }
 
@@ -184,6 +327,16 @@ class StorageService {
     return [...this.reports].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+  }
+
+  getAllPets(): DogProfile[] {
+    try {
+      const storedPets = localStorage.getItem(PETS_KEY);
+      if (storedPets) {
+        this.pets = JSON.parse(storedPets);
+      }
+    } catch {}
+    return [...this.pets];
   }
 
   getReportById(id: string): LostReport | undefined {

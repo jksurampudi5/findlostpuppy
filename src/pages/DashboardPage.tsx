@@ -909,6 +909,20 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            ) : !user ? (
+              <div className="empty-state-card card">
+                <PawPrint size={40} className="empty-icon text-indigo-500" />
+                <h3>Welcome, Neighbor! 🐾</h3>
+                <p>
+                  You are viewing real-time community recovery alerts across your area. Sign in or create a profile to register your own puppy and broadcast instant alerts.
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
+                  <Link to="/" className="btn btn-primary btn-md">
+                    <PlusCircle size={16} />
+                    <span>Sign In / Register Pet</span>
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div className="empty-state-card card">
                 <PawPrint size={40} className="empty-icon text-indigo-500" />
