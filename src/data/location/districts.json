@@ -1,0 +1,554 @@
+[
+  {
+    "districtCode": 745,
+    "districtName": "Alluri Sitharama Raju",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 744,
+    "districtName": "Anakapalli",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 502,
+    "districtName": "Ananthapuramu",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 753,
+    "districtName": "Annamayya",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 750,
+    "districtName": "Bapatla",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 503,
+    "districtName": "Chittoor",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 747,
+    "districtName": "Dr. B.R. Ambedkar Konaseema",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 505,
+    "districtName": "East Godavari",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 748,
+    "districtName": "Eluru",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 506,
+    "districtName": "Guntur",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 746,
+    "districtName": "Kakinada",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 510,
+    "districtName": "Krishna",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 511,
+    "districtName": "Kurnool",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 790,
+    "districtName": "Markapuram",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 755,
+    "districtName": "Nandyal",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 749,
+    "districtName": "Ntr",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 751,
+    "districtName": "Palnadu",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 743,
+    "districtName": "Parvathipuram Manyam",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 791,
+    "districtName": "Polavaram",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 517,
+    "districtName": "Prakasam",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 519,
+    "districtName": "Srikakulam",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 515,
+    "districtName": "Sri Potti Sriramulu Nellore",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 754,
+    "districtName": "Sri Sathya Sai",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 752,
+    "districtName": "Tirupati",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 520,
+    "districtName": "Visakhapatnam",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 521,
+    "districtName": "Vizianagaram",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 523,
+    "districtName": "West Godavari",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 504,
+    "districtName": "Y.S.R. Kadapa",
+    "stateCode": 28,
+    "stateName": "Andhra Pradesh"
+  },
+  {
+    "districtCode": 501,
+    "districtName": "Adilabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 690,
+    "districtName": "Bhadradri Kothagudem",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 686,
+    "districtName": "Hanumakonda",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 507,
+    "districtName": "Hyderabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 681,
+    "districtName": "Jagitial",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 689,
+    "districtName": "Jangoan",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 687,
+    "districtName": "Jayashankar Bhupalapally",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 695,
+    "districtName": "Jogulamba Gadwal",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 685,
+    "districtName": "Kamareddy",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 508,
+    "districtName": "Karimnagar",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 509,
+    "districtName": "Khammam",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 699,
+    "districtName": "Kumuram Bheem Asifabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 688,
+    "districtName": "Mahabubabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 512,
+    "districtName": "Mahabubnagar",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 684,
+    "districtName": "Mancherial",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 513,
+    "districtName": "Medak",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 700,
+    "districtName": "Medchal Malkajgiri",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 720,
+    "districtName": "Mulugu",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 694,
+    "districtName": "Nagarkurnool",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 514,
+    "districtName": "Nalgonda",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 721,
+    "districtName": "Narayanpet",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 680,
+    "districtName": "Nirmal",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 516,
+    "districtName": "Nizamabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 682,
+    "districtName": "Peddapalli",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 683,
+    "districtName": "Rajanna Sircilla",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 518,
+    "districtName": "Ranga Reddy",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 691,
+    "districtName": "Sangareddy",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 692,
+    "districtName": "Siddipet",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 696,
+    "districtName": "Suryapet",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 698,
+    "districtName": "Vikarabad",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 693,
+    "districtName": "Wanaparthy",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 522,
+    "districtName": "Warangal",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 697,
+    "districtName": "Yadadri Bhuvanagiri",
+    "stateCode": 36,
+    "stateName": "Telangana"
+  },
+  {
+    "districtCode": 524,
+    "districtName": "Bagalkote",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 528,
+    "districtName": "Ballari",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 527,
+    "districtName": "Belagavi",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 526,
+    "districtName": "Bengaluru Rural",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 631,
+    "districtName": "Bengaluru South",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 525,
+    "districtName": "Bengaluru Urban",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 529,
+    "districtName": "Bidar",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 531,
+    "districtName": "Chamarajanagar",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 630,
+    "districtName": "Chikkaballapura",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 532,
+    "districtName": "Chikkamagaluru",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 533,
+    "districtName": "Chitradurga",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 534,
+    "districtName": "Dakshina Kannada",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 535,
+    "districtName": "Davanagere",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 536,
+    "districtName": "Dharwad",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 537,
+    "districtName": "Gadag",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 539,
+    "districtName": "Hassan",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 540,
+    "districtName": "Haveri",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 538,
+    "districtName": "Kalaburagi",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 541,
+    "districtName": "Kodagu",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 542,
+    "districtName": "Kolar",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 543,
+    "districtName": "Koppal",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 544,
+    "districtName": "Mandya",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 545,
+    "districtName": "Mysuru",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 546,
+    "districtName": "Raichur",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 547,
+    "districtName": "Shivamogga",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 548,
+    "districtName": "Tumakuru",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 549,
+    "districtName": "Udupi",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 550,
+    "districtName": "Uttara Kannada",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 738,
+    "districtName": "Vijayanagara",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 530,
+    "districtName": "Vijayapura",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  },
+  {
+    "districtCode": 635,
+    "districtName": "Yadgir",
+    "stateCode": 29,
+    "stateName": "Karnataka"
+  }
+]
