@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   MapPin,
@@ -37,6 +38,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     markPetSafe,
     markPetLost,
   } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
@@ -304,7 +306,10 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
                   type="button"
                   onClick={() => {
                     if (onSuccess) onSuccess();
-                    else setActiveOnboardingTab('dashboard');
+                    else {
+                      setActiveOnboardingTab('dashboard');
+                      navigate('/dashboard');
+                    }
                   }}
                   className="btn btn-primary btn-lg explore-dash-btn"
                 >
@@ -447,7 +452,10 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setActiveOnboardingTab('dashboard')}
+                        onClick={() => {
+                          setActiveOnboardingTab('dashboard');
+                          navigate('/dashboard');
+                        }}
                         className="btn btn-primary btn-md"
                       >
                         <LayoutDashboard size={15} />

@@ -139,6 +139,13 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   },
 ];
 
+// Helper to normalize and canonicalize report IDs (e.g. '1788807276098' -> 'lost-1788807276098')
+export function normalizeReportId(id: string): string {
+  if (!id) return '';
+  const clean = id.trim().toLowerCase();
+  return clean.startsWith('lost-') ? clean : `lost-${clean}`;
+}
+
 class StorageService {
   private reports: LostReport[] = [];
   private sightings: Sighting[] = [];
@@ -149,9 +156,115 @@ class StorageService {
   private listingReports: ListingReport[] = [];
   private userReports: UserReport[] = [];
   private blockedUsers: BlockedUserRecord[] = [];
+  private isTransactionActive: boolean = false;
 
   constructor() {
     this.init();
+  }
+
+  /**
+   * ACID TRANSACTION ENGINE:
+   * Executes multi-table mutations atomically. If any assertion or step fails,
+   * it automatically rolls back all memory and localStorage snapshots.
+   */
+  executeTransaction<T>(action: () => T): T {
+    if (this.isTransactionActive) {
+      // Re-entrant transaction within same execution context
+      return action();
+    }
+
+    this.isTransactionActive = true;
+    const snapshot = {
+      reports: JSON.stringify(this.reports),
+      sightings: JSON.stringify(this.sightings),
+      profiles: JSON.stringify(this.profiles),
+      pets: JSON.stringify(this.pets),
+      skippedPetUserIds: JSON.stringify(this.skippedPetUserIds),
+      skippedReportUserIds: JSON.stringify(this.skippedReportUserIds),
+      listingReports: JSON.stringify(this.listingReports),
+      userReports: JSON.stringify(this.userReports),
+      blockedUsers: JSON.stringify(this.blockedUsers),
+    };
+
+    try {
+      const result = action();
+      // ACID Invariant checks:
+      this.enforceIntegrityInvariants();
+      // Atomic flush to durable localStorage:
+      this.commitAllStorage();
+      this.notifyUpdate();
+      return result;
+    } catch (err) {
+      console.error('ACID Transaction Rolled Back due to error:', err);
+      // Rollback memory state:
+      this.reports = JSON.parse(snapshot.reports);
+      this.sightings = JSON.parse(snapshot.sightings);
+      this.profiles = JSON.parse(snapshot.profiles);
+      this.pets = JSON.parse(snapshot.pets);
+      this.skippedPetUserIds = JSON.parse(snapshot.skippedPetUserIds);
+      this.skippedReportUserIds = JSON.parse(snapshot.skippedReportUserIds);
+      this.listingReports = JSON.parse(snapshot.listingReports);
+      this.userReports = JSON.parse(snapshot.userReports);
+      this.blockedUsers = JSON.parse(snapshot.blockedUsers);
+      throw err;
+    } finally {
+      this.isTransactionActive = false;
+    }
+  }
+
+  private enforceIntegrityInvariants(): void {
+    // Invariant 1: Deduplicate reports so no 2 active reports exist for the same dog / normalized ID
+    const seenMap = new Map<string, LostReport>();
+    const seenPetActiveKey = new Set<string>();
+
+    for (const r of this.reports) {
+      const canonicalId = normalizeReportId(r.id);
+      const ownerClean = (r.ownerId || '').replace(/^owner-/, '').toLowerCase();
+      const dogNameClean = (r.dog?.name || '').trim().toLowerCase();
+      const petActiveKey = `${ownerClean}::${dogNameClean}`;
+
+      // If active LOST report for same pet is encountered, keep only the latest one
+      if (r.status === 'LOST' || r.status === 'SIGHTED') {
+        if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
+          continue; // Skip duplicate active report for same dog
+        }
+        if (dogNameClean && dogNameClean !== 'my dog') {
+          seenPetActiveKey.add(petActiveKey);
+        }
+      }
+
+      if (!seenMap.has(canonicalId)) {
+        seenMap.set(canonicalId, r);
+      }
+    }
+    this.reports = Array.from(seenMap.values());
+
+    // Invariant 2: Ensure all reports have valid photo fallbacks
+    for (const r of this.reports) {
+      if (!r.dog.primaryPhoto || r.dog.primaryPhoto.trim().length < 5) {
+        const ownerClean = (r.ownerId || '').replace(/^owner-/, '');
+        const registered = this.pets.find(
+          (p) => p.ownerId === r.ownerId || p.ownerId === `owner-${ownerClean}` || p.ownerId === ownerClean
+        );
+        r.dog.primaryPhoto = registered?.primaryPhoto || abulluImg;
+      }
+    }
+  }
+
+  private commitAllStorage(): void {
+    try {
+      localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
+      localStorage.setItem(PETS_KEY, JSON.stringify(this.pets));
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
+      localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(this.sightings));
+      localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify(this.skippedPetUserIds));
+      localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify(this.skippedReportUserIds));
+      localStorage.setItem(LISTING_REPORTS_KEY, JSON.stringify(this.listingReports));
+      localStorage.setItem(USER_REPORTS_KEY, JSON.stringify(this.userReports));
+      localStorage.setItem(BLOCKED_USERS_KEY, JSON.stringify(this.blockedUsers));
+    } catch (e) {
+      console.warn('LocalStorage commit error:', e);
+    }
   }
 
   private init() {
@@ -177,27 +290,25 @@ class StorageService {
       // Merge with verified community baseline reports
       const mergedMap = new Map<string, LostReport>();
       for (const rep of COMMUNITY_BASELINE_REPORTS) {
-        mergedMap.set(rep.id.toLowerCase(), rep);
+        mergedMap.set(normalizeReportId(rep.id), rep);
       }
       for (const rep of userReports) {
+        const canonicalId = normalizeReportId(rep.id);
         // Ensure Abullu report uses abulluImg if photo is missing or empty
-        if (rep.id.toLowerCase() === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
+        if (canonicalId === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
           rep.dog.primaryPhoto = abulluImg;
         }
-        mergedMap.set(rep.id.toLowerCase(), rep);
+        mergedMap.set(canonicalId, rep);
       }
       this.reports = Array.from(mergedMap.values());
-      this.saveReports();
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
       this.sightings = rawSightings;
-      this.saveSightings();
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
       this.profiles = rawProfiles;
-      this.saveProfiles();
 
       const storedPets = localStorage.getItem(PETS_KEY);
       const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
@@ -211,7 +322,6 @@ class StorageService {
         petsMap.set(p.id, p);
       }
       this.pets = Array.from(petsMap.values());
-      this.savePets();
 
       const storedSkipped = localStorage.getItem(SKIPPED_PET_KEY);
       this.skippedPetUserIds = storedSkipped ? JSON.parse(storedSkipped) : [];
@@ -227,6 +337,9 @@ class StorageService {
 
       const storedBlocked = localStorage.getItem(BLOCKED_USERS_KEY);
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : [];
+
+      this.enforceIntegrityInvariants();
+      this.commitAllStorage();
     } catch {
       this.reports = [...COMMUNITY_BASELINE_REPORTS];
       this.sightings = [];
@@ -237,28 +350,13 @@ class StorageService {
       this.listingReports = [];
       this.userReports = [];
       this.blockedUsers = [];
+      this.commitAllStorage();
     }
   }
 
   private savePets() {
     try {
       localStorage.setItem(PETS_KEY, JSON.stringify(this.pets));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
-  private saveSkippedPets() {
-    try {
-      localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify(this.skippedPetUserIds));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }
-
-  private saveSkippedReports() {
-    try {
-      localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify(this.skippedReportUserIds));
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
     }
@@ -296,18 +394,20 @@ class StorageService {
   }
 
   // PUBLIC SAFE RETRIEVAL:
-  // Returns reports with private owner addresses strictly stripped
   private loadReports() {
     try {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       if (storedReports) {
         const parsed: LostReport[] = JSON.parse(storedReports);
         const map = new Map<string, LostReport>();
+        const seenPetActiveKey = new Set<string>();
+
         for (const r of COMMUNITY_BASELINE_REPORTS) {
-          map.set(r.id.toLowerCase(), r);
+          map.set(normalizeReportId(r.id), r);
         }
+
         for (const r of parsed) {
-          const rawId = r.ownerId ? r.ownerId.replace('owner-', '') : '';
+          const rawId = r.ownerId ? r.ownerId.replace(/^owner-/, '') : '';
           const registeredPet = this.pets.find(
             (p) => p.ownerId === r.ownerId || p.ownerId === `owner-${rawId}` || p.ownerId === rawId
           );
@@ -322,7 +422,23 @@ class StorageService {
           if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5) {
             r.dog.primaryPhoto = abulluImg;
           }
-          map.set(r.id.toLowerCase(), r);
+
+          const canonicalId = normalizeReportId(r.id);
+          const ownerClean = (r.ownerId || '').replace(/^owner-/, '').toLowerCase();
+          const dogNameClean = (r.dog?.name || '').trim().toLowerCase();
+          const petActiveKey = `${ownerClean}::${dogNameClean}`;
+
+          // Deduplicate active reports for same pet
+          if (r.status === 'LOST' || r.status === 'SIGHTED') {
+            if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
+              continue;
+            }
+            if (dogNameClean && dogNameClean !== 'my dog') {
+              seenPetActiveKey.add(petActiveKey);
+            }
+          }
+
+          map.set(canonicalId, r);
         }
         this.reports = Array.from(map.values());
       } else {
@@ -353,56 +469,74 @@ class StorageService {
 
   getReportById(id: string): LostReport | undefined {
     this.loadReports();
-    return this.reports.find((r) => r.id.toLowerCase() === id.toLowerCase());
+    if (!id) return undefined;
+    const cleanId = id.trim().toLowerCase();
+    const canonicalId = normalizeReportId(cleanId);
+    const withoutPrefix = cleanId.replace(/^lost-/, '');
+
+    return (
+      this.reports.find((r) => normalizeReportId(r.id) === canonicalId) ||
+      this.reports.find((r) => r.id.toLowerCase() === cleanId) ||
+      this.reports.find((r) => normalizeReportId(r.id).replace(/^lost-/, '') === withoutPrefix) ||
+      this.reports.find((r) => (r.dog?.name || '').toLowerCase() === withoutPrefix) ||
+      this.reports.find((r) => r.id.toLowerCase().includes(withoutPrefix))
+    );
   }
 
   getReportsByOwner(ownerId: string): LostReport[] {
     this.loadReports();
-    return this.reports.filter((r) => r.ownerId === ownerId);
+    const cleanOwner = (ownerId || '').replace(/^owner-/, '');
+    return this.reports.filter(
+      (r) => r.ownerId === ownerId || r.ownerId === `owner-${cleanOwner}` || r.ownerId === cleanOwner
+    );
   }
 
   createReport(report: LostReport): LostReport {
-    this.reports.unshift(report);
-    this.saveReports();
-    return report;
+    return this.saveReport(report);
   }
 
   updateReportStatus(reportId: string, status: ReportStatus): boolean {
-    const report = this.reports.find((r) => r.id === reportId);
-    if (!report) return false;
-    report.status = status;
-    report.updatedAt = new Date().toISOString();
-    this.saveReports();
-    return true;
+    return this.executeTransaction(() => {
+      const canonicalId = normalizeReportId(reportId);
+      const report = this.reports.find((r) => normalizeReportId(r.id) === canonicalId || r.id === reportId);
+      if (!report) return false;
+      report.status = status;
+      report.updatedAt = new Date().toISOString();
+      return true;
+    });
   }
 
   // SIGHTINGS:
   getSightingsForReport(reportId: string): Sighting[] {
+    const canonicalId = normalizeReportId(reportId);
     return this.sightings
-      .filter((s) => s.reportId.toLowerCase() === reportId.toLowerCase())
+      .filter((s) => normalizeReportId(s.reportId) === canonicalId || s.reportId.toLowerCase() === reportId.toLowerCase())
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   addSighting(sighting: Sighting): Sighting {
-    this.sightings.unshift(sighting);
-    this.saveSightings();
+    return this.executeTransaction(() => {
+      this.sightings.unshift(sighting);
 
-    // Increment sighting count on report
-    const report = this.reports.find((r) => r.id === sighting.reportId);
-    if (report) {
-      report.sightingCount = (report.sightingCount || 0) + 1;
-      if (report.status === 'LOST') {
-        report.status = 'SIGHTED';
+      // Increment sighting count on report
+      const canonicalId = normalizeReportId(sighting.reportId);
+      const report = this.reports.find(
+        (r) => normalizeReportId(r.id) === canonicalId || r.id === sighting.reportId
+      );
+      if (report) {
+        report.sightingCount = (report.sightingCount || 0) + 1;
+        if (report.status === 'LOST') {
+          report.status = 'SIGHTED';
+        }
+        report.updatedAt = new Date().toISOString();
       }
-      report.updatedAt = new Date().toISOString();
-      this.saveReports();
-    }
 
-    return sighting;
+      return sighting;
+    });
   }
 
   getOwnerProfileByUserId(userId: string): OwnerProfile | undefined {
-    const rawUserId = userId.replace('owner-', '');
+    const rawUserId = userId.replace(/^owner-/, '');
     return this.profiles.find(
       (p) =>
         p.userId === userId ||
@@ -425,59 +559,64 @@ class StorageService {
 
   // PET PROFILES:
   getPetProfileByUserId(userId: string): DogProfile | undefined {
-    return this.pets.find((p) => p.ownerId === `owner-${userId}` || p.ownerId === userId);
+    const rawUserId = userId.replace(/^owner-/, '');
+    return this.pets.find(
+      (p) => p.ownerId === `owner-${userId}` || p.ownerId === userId || p.ownerId === `owner-${rawUserId}` || p.ownerId === rawUserId
+    );
   }
 
   savePetProfile(pet: DogProfile): DogProfile {
-    const rawUserId = pet.ownerId.replace('owner-', '');
-    this.skippedPetUserIds = this.skippedPetUserIds.filter((id) => id !== pet.ownerId && id !== rawUserId);
-    this.saveSkippedPets();
+    return this.executeTransaction(() => {
+      const rawUserId = pet.ownerId.replace(/^owner-/, '');
+      this.skippedPetUserIds = this.skippedPetUserIds.filter(
+        (id) => id !== pet.ownerId && id !== `owner-${rawUserId}` && id !== rawUserId
+      );
 
-    const index = this.pets.findIndex((p) => p.id === pet.id || p.ownerId === pet.ownerId || p.ownerId === `owner-${rawUserId}`);
-    if (index >= 0) {
-      this.pets[index] = pet;
-    } else {
-      this.pets.push(pet);
-    }
-    this.savePets();
-
-    // Dynamically sync any existing reports for this owner
-    let reportChanged = false;
-    for (const r of this.reports) {
-      if (r.ownerId === pet.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) {
-        r.dog = {
-          ...r.dog,
-          name: pet.name,
-          breed: pet.breed,
-          gender: pet.gender,
-          age: pet.age,
-          size: pet.size,
-          color: pet.color,
-          distinguishingMarks: pet.distinguishingMarks,
-          collarInfo: pet.collarInfo,
-          primaryPhoto: pet.primaryPhoto || r.dog.primaryPhoto || abulluImg,
-          photos: pet.photos && pet.photos.length > 0 ? pet.photos : r.dog.photos,
-        };
-        r.updatedAt = new Date().toISOString();
-        reportChanged = true;
+      const index = this.pets.findIndex(
+        (p) => p.id === pet.id || p.ownerId === pet.ownerId || p.ownerId === `owner-${rawUserId}` || p.ownerId === rawUserId
+      );
+      if (index >= 0) {
+        this.pets[index] = { ...pet };
+      } else {
+        this.pets.push(pet);
       }
-    }
-    if (reportChanged) {
-      this.saveReports();
-    }
 
-    return pet;
+      // Dynamically sync any existing reports for this owner
+      for (const r of this.reports) {
+        if (r.ownerId === pet.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) {
+          r.dog = {
+            ...r.dog,
+            name: pet.name,
+            breed: pet.breed,
+            gender: pet.gender,
+            age: pet.age,
+            size: pet.size,
+            color: pet.color,
+            distinguishingMarks: pet.distinguishingMarks,
+            collarInfo: pet.collarInfo,
+            primaryPhoto: pet.primaryPhoto || r.dog.primaryPhoto || abulluImg,
+            photos: pet.photos && pet.photos.length > 0 ? pet.photos : r.dog.photos,
+          };
+          r.updatedAt = new Date().toISOString();
+        }
+      }
+
+      return pet;
+    });
   }
 
   skipPetProfile(userId: string): void {
-    if (!this.skippedPetUserIds.includes(userId)) {
-      this.skippedPetUserIds.push(userId);
-      this.saveSkippedPets();
-    }
+    this.executeTransaction(() => {
+      const rawUserId = userId.replace(/^owner-/, '');
+      if (!this.skippedPetUserIds.includes(userId) && !this.skippedPetUserIds.includes(rawUserId)) {
+        this.skippedPetUserIds.push(userId);
+      }
+    });
   }
 
   hasSkippedPetProfile(userId: string): boolean {
-    return this.skippedPetUserIds.includes(userId);
+    const rawUserId = userId.replace(/^owner-/, '');
+    return this.skippedPetUserIds.includes(userId) || this.skippedPetUserIds.includes(rawUserId);
   }
 
   hasCompletedPetProfile(userId: string): boolean {
@@ -490,54 +629,83 @@ class StorageService {
 
   // LOST DOG REPORT MANAGEMENT:
   getLatestReportByUserId(userId: string): LostReport | undefined {
+    const rawUserId = userId.replace(/^owner-/, '');
     return this.reports.find(
-      (r) => r.ownerId === `owner-${userId}` || r.ownerId === userId
+      (r) => r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId
     );
   }
 
   saveReport(report: LostReport): LostReport {
-    const rawUserId = report.ownerId.replace('owner-', '');
-    this.skippedReportUserIds = this.skippedReportUserIds.filter(
-      (id) => id !== report.ownerId && id !== rawUserId
-    );
-    this.saveSkippedReports();
+    return this.executeTransaction(() => {
+      const rawUserId = (report.ownerId || '').replace(/^owner-/, '');
+      this.skippedReportUserIds = this.skippedReportUserIds.filter(
+        (id) => id !== report.ownerId && id !== `owner-${rawUserId}` && id !== rawUserId
+      );
 
-    const index = this.reports.findIndex((r) => r.id === report.id);
-    if (index >= 0) {
-      this.reports[index] = { ...report, updatedAt: new Date().toISOString() };
-    } else {
-      this.reports.unshift(report);
-    }
-    this.saveReports();
-    return report;
+      const canonicalId = normalizeReportId(report.id);
+      const reportDogName = (report.dog?.name || '').trim().toLowerCase();
+
+      // Find existing report by canonical ID OR by owner + dog name
+      const existingIdx = this.reports.findIndex(
+        (r) =>
+          normalizeReportId(r.id) === canonicalId ||
+          ((r.ownerId === report.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
+            reportDogName &&
+            (r.dog?.name || '').trim().toLowerCase() === reportDogName)
+      );
+
+      if (existingIdx >= 0) {
+        // Atomic in-place update (prevents duplicate rows)
+        this.reports[existingIdx] = {
+          ...this.reports[existingIdx],
+          ...report,
+          id: this.reports[existingIdx].id, // Preserve established ID
+          updatedAt: new Date().toISOString(),
+        };
+      } else {
+        this.reports.unshift(report);
+      }
+
+      return report;
+    });
   }
 
   skipReport(userId: string): void {
-    if (!this.skippedReportUserIds.includes(userId)) {
-      this.skippedReportUserIds.push(userId);
-      this.saveSkippedReports();
-    }
+    this.executeTransaction(() => {
+      const rawUserId = userId.replace(/^owner-/, '');
+      if (!this.skippedReportUserIds.includes(userId) && !this.skippedReportUserIds.includes(rawUserId)) {
+        this.skippedReportUserIds.push(userId);
+      }
+    });
   }
 
   markPetSafe(userId: string): void {
-    this.skipReport(userId);
-    // When pet is safe at home, resolve any active LOST reports
-    let changed = false;
-    for (const r of this.reports) {
-      if ((r.ownerId === `owner-${userId}` || r.ownerId === userId) && r.status === 'LOST') {
-        r.status = 'REUNITED';
-        r.updatedAt = new Date().toISOString();
-        changed = true;
+    this.executeTransaction(() => {
+      const rawUserId = userId.replace(/^owner-/, '');
+      if (!this.skippedReportUserIds.includes(userId) && !this.skippedReportUserIds.includes(rawUserId)) {
+        this.skippedReportUserIds.push(userId);
       }
-    }
-    if (changed) {
-      this.saveReports();
-    }
+
+      // Atomically resolve active LOST reports for this owner
+      for (const r of this.reports) {
+        if (
+          (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
+          r.status === 'LOST'
+        ) {
+          r.status = 'REUNITED';
+          r.updatedAt = new Date().toISOString();
+        }
+      }
+    });
   }
 
   clearPetSafe(userId: string): void {
-    this.skippedReportUserIds = this.skippedReportUserIds.filter((id) => id !== userId);
-    this.saveSkippedReports();
+    this.executeTransaction(() => {
+      const rawUserId = userId.replace(/^owner-/, '');
+      this.skippedReportUserIds = this.skippedReportUserIds.filter(
+        (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
+      );
+    });
   }
 
   isPetSafe(userId: string): boolean {

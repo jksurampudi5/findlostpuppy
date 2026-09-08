@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PawPrint,
   ArrowLeft,
@@ -34,9 +35,10 @@ const DOG_SIZES: { label: DogSize; icon: string; desc: string }[] = [
 export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   onBackToLocation,
   onBackToOwner,
-  onSuccess: _onSuccess,
+  onSuccess,
 }) => {
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
@@ -124,6 +126,16 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       onBackToOwner();
     } else {
       setActiveOnboardingTab('location');
+      navigate('/location');
+    }
+  };
+
+  const handleProceedToAlert = () => {
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      setActiveOnboardingTab('report');
+      navigate('/alert');
     }
   };
 
@@ -295,6 +307,14 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   >
                     <Edit3 size={15} />
                     <span>{existingPet ? '✏️ Update Pet Details' : '+ Add Pet Profile Now'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleProceedToAlert}
+                    className="btn btn-primary btn-md"
+                  >
+                    <span>Proceed to Pet Safety Check 🐾 →</span>
                   </button>
                 </div>
               </div>

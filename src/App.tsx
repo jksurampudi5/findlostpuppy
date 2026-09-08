@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/Navbar';
@@ -6,7 +6,7 @@ import { Footer } from './components/Footer';
 
 import { ConsentPage } from './pages/ConsentPage';
 
-// Guided Sequential Flow Pages
+// Guided Sequential Flow & Dedicated Tab Pages
 import { EmailAuthPage } from './pages/EmailAuthPage';
 import { PetParentContactPage } from './pages/PetParentContactPage';
 import { LocationOnboardingPage } from './pages/LocationOnboardingPage';
@@ -29,114 +29,172 @@ function MainAppFlow() {
     hasValidConsent,
     agreeToConsent,
   } = useAuth();
-  const location = useLocation();
+  const navigate = useNavigate();
 
-  // STEP 0: PUBLIC EMERGENCY GUEST ROUTES (Instant 0-roadblock access via WhatsApp links)
-  // Neighbors, finders, and WhatsApp recipients can directly see the pet details, photos,
-  // owner contact info, submit sightings, and explore the community dashboard without login or legal consent roadblocks!
-  if (
-    location.pathname.startsWith('/report-sighting/') ||
-    location.pathname.startsWith('/found/') ||
-    location.pathname.startsWith('/alert/')
-  ) {
-    return (
-      <Routes>
-        <Route path="/report-sighting/:id" element={<GuestSightingPage />} />
-        <Route path="/found/:id" element={<GuestSightingPage />} />
-        <Route path="/alert/:id" element={<GuestSightingPage />} />
-      </Routes>
-    );
-  }
-
-  if (location.pathname.startsWith('/dog/')) {
-    return (
-      <Routes>
-        <Route path="/dog/:id" element={<DogDetailPage />} />
-      </Routes>
-    );
-  }
-
-  if (location.pathname === '/dashboard' || location.pathname === '/find') {
-    return (
-      <Routes>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/find" element={<DiscoveryPage />} />
-      </Routes>
-    );
-  }
-
-  // STEP 1: MANDATORY PRE-AUTHENTICATION CONSENT GATE FOR REGISTERING PETS & AUTH
-  if (!hasValidConsent) {
-    return <ConsentPage onConsentAgreed={agreeToConsent} />;
-  }
-
-  // STEP 2: Not authenticated -> Clean Email Sign In (Zero dog images shown)
-  if (!isAuthenticated) {
-    return <EmailAuthPage />;
-  }
-
-  // STEP 2: Dedicated Component Views (Active Tab Routing)
-  if (activeOnboardingTab === 'owner') {
-    return (
-      <PetParentContactPage
-        onSuccess={() => setActiveOnboardingTab('location')}
-      />
-    );
-  }
-
-  if (activeOnboardingTab === 'location') {
-    return (
-      <LocationOnboardingPage
-        onSuccess={() => setActiveOnboardingTab('dog')}
-        onBack={() => setActiveOnboardingTab('owner')}
-      />
-    );
-  }
-
-  if (activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet') {
-    return (
-      <DogOnboardingPage
-        onBackToLocation={() => setActiveOnboardingTab('location')}
-        onSuccess={() => setActiveOnboardingTab('report')}
-      />
-    );
-  }
-
-  if (activeOnboardingTab === 'report') {
-    return (
-      <ReportLostDogPage
-        onBackToPet={() => setActiveOnboardingTab('dog')}
-        onSuccess={() => setActiveOnboardingTab('dashboard')}
-      />
-    );
-  }
-
-  if (activeOnboardingTab === 'dashboard') {
-    return <DashboardPage />;
-  }
-
-  // STEP 3: Completed all forms -> Rendered community feed unlocked!
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/find" element={<DiscoveryPage />} />
-      <Route path="/dog/:id" element={<DogDetailPage />} />
+      {/* 1. PUBLIC EMERGENCY & DIRECT DETAIL ROUTES (Instant 0-roadblock access anywhere) */}
       <Route path="/report-sighting/:id" element={<GuestSightingPage />} />
       <Route path="/found/:id" element={<GuestSightingPage />} />
+      <Route path="/alert/:id" element={<GuestSightingPage />} />
+      <Route path="/dog/:id" element={<DogDetailPage />} />
+      <Route path="/find" element={<DiscoveryPage />} />
+
+      {/* 2. COMMUNITY RECOVERY DASHBOARD */}
+      <Route path="/dashboard" element={<DashboardPage />} />
+
+      {/* 3. DEDICATED DIRECT ROUTES FOR ALL TABS (Fast, lag-free navigation) */}
       <Route
-        path="/edit-parent"
-        element={<PetParentContactPage onSuccess={() => window.history.back()} />}
+        path="/owner"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : (
+            <PetParentContactPage
+              onSuccess={() => {
+                setActiveOnboardingTab('location');
+                navigate('/location');
+              }}
+            />
+          )
+        }
       />
+      <Route path="/edit-parent" element={<Navigate to="/owner" replace />} />
+      <Route path="/profile" element={<Navigate to="/owner" replace />} />
+
       <Route
-        path="/edit-location"
-        element={<LocationOnboardingPage onSuccess={() => window.history.back()} onBack={() => window.history.back()} />}
+        path="/location"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : (
+            <LocationOnboardingPage
+              onSuccess={() => {
+                setActiveOnboardingTab('dog');
+                navigate('/pet');
+              }}
+              onBack={() => {
+                setActiveOnboardingTab('owner');
+                navigate('/owner');
+              }}
+            />
+          )
+        }
       />
+      <Route path="/edit-location" element={<Navigate to="/location" replace />} />
+
       <Route
-        path="/report-another"
-        element={<DogOnboardingPage onBackToOwner={() => window.history.back()} />}
+        path="/pet"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : (
+            <DogOnboardingPage
+              onBackToLocation={() => {
+                setActiveOnboardingTab('location');
+                navigate('/location');
+              }}
+              onSuccess={() => {
+                setActiveOnboardingTab('report');
+                navigate('/alert');
+              }}
+            />
+          )
+        }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/dog" element={<Navigate to="/pet" replace />} />
+      <Route path="/dog-profile" element={<Navigate to="/pet" replace />} />
+      <Route path="/report-another" element={<Navigate to="/pet" replace />} />
+
+      <Route
+        path="/alert"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : (
+            <ReportLostDogPage
+              onBackToPet={() => {
+                setActiveOnboardingTab('dog');
+                navigate('/pet');
+              }}
+              onSuccess={() => {
+                setActiveOnboardingTab('dashboard');
+                navigate('/dashboard');
+              }}
+            />
+          )
+        }
+      />
+      <Route path="/report" element={<Navigate to="/alert" replace />} />
+      <Route path="/report-lost" element={<Navigate to="/alert" replace />} />
+
+      <Route path="/consent" element={<ConsentPage onConsentAgreed={agreeToConsent} />} />
+      <Route path="/login" element={<EmailAuthPage />} />
+
+      {/* 4. ROOT ROUTE (Smart dynamic resolution based on onboarding progress) */}
+      <Route
+        path="/"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : activeOnboardingTab === 'owner' ? (
+            <PetParentContactPage
+              onSuccess={() => {
+                setActiveOnboardingTab('location');
+                navigate('/location');
+              }}
+            />
+          ) : activeOnboardingTab === 'location' ? (
+            <LocationOnboardingPage
+              onSuccess={() => {
+                setActiveOnboardingTab('dog');
+                navigate('/pet');
+              }}
+              onBack={() => {
+                setActiveOnboardingTab('owner');
+                navigate('/owner');
+              }}
+            />
+          ) : activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? (
+            <DogOnboardingPage
+              onBackToLocation={() => {
+                setActiveOnboardingTab('location');
+                navigate('/location');
+              }}
+              onSuccess={() => {
+                setActiveOnboardingTab('report');
+                navigate('/alert');
+              }}
+            />
+          ) : activeOnboardingTab === 'report' ? (
+            <ReportLostDogPage
+              onBackToPet={() => {
+                setActiveOnboardingTab('dog');
+                navigate('/pet');
+              }}
+              onSuccess={() => {
+                setActiveOnboardingTab('dashboard');
+                navigate('/dashboard');
+              }}
+            />
+          ) : (
+            <DashboardPage />
+          )
+        }
+      />
+
+      {/* 5. CATCH-ALL FALLBACK */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

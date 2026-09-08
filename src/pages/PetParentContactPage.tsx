@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Phone, Check, ArrowRight, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +13,7 @@ interface PetParentContactPageProps {
 
 export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSuccess }) => {
   const { user, hasCompletedOwner, refreshProgress, setActiveOnboardingTab } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
@@ -84,6 +86,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       onSuccess();
     } else {
       setActiveOnboardingTab('location');
+      navigate('/location');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -108,7 +111,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                 <span>✓ Pet Parent details saved on file.</span>
                 <button
                   type="button"
-                  onClick={() => setActiveOnboardingTab('location')}
+                  onClick={() => {
+                    setActiveOnboardingTab('location');
+                    navigate('/location');
+                  }}
                   className="btn btn-outline btn-xs skip-to-dog-btn"
                 >
                   <span>Go to Location Form 📍</span>
