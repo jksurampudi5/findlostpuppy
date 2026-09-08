@@ -6,7 +6,6 @@ import {
   Clock,
   MapPin,
   Sparkles,
-  Shield,
   Compass,
   CheckCircle2,
   Loader2,
@@ -184,51 +183,50 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
               )}
             </div>
 
-            {/* Fields 1 & 2: Date and Time (Compact 2-Column Grid) */}
-            <div className="missing-datetime-row">
-              <div className="form-group datetime-field">
-                <label className="form-label cute-label" htmlFor="modal-date-lost">
-                  <span>1. Date When Lost</span>
-                  <span className="required-star">*</span>
-                </label>
-                <div className="input-with-icon">
-                  <Calendar size={15} className="input-icon text-terracotta" />
-                  <input
-                    id="modal-date-lost"
-                    type="date"
-                    className="form-input cute-input"
-                    value={dateLost}
-                    max={today}
-                    onChange={(e) => setDateLost(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group datetime-field">
-                <label className="form-label cute-label" htmlFor="modal-time-lost">
-                  <span>2. Approximate Time</span>
-                  <span className="optional-tag">Optional</span>
-                </label>
-                <div className="input-with-icon">
-                  <Clock size={15} className="input-icon text-terracotta" />
-                  <input
-                    id="modal-time-lost"
-                    type="text"
-                    className="form-input cute-input"
-                    placeholder="e.g. 06:30 PM"
-                    value={timeLost}
-                    onChange={(e) => setTimeLost(e.target.value)}
-                  />
-                </div>
+            {/* Field 1: Date When Lost (Auto-filled with today's date) */}
+            <div className="form-group missing-form-group">
+              <label className="form-label cute-label" htmlFor="modal-date-lost">
+                <span>Date When Lost</span>
+                <span className="required-star">*</span>
+              </label>
+              <div className="input-with-icon">
+                <Calendar size={16} className="input-icon text-terracotta" />
+                <input
+                  id="modal-date-lost"
+                  type="date"
+                  className="form-input cute-input"
+                  value={dateLost}
+                  max={today}
+                  onChange={(e) => setDateLost(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
-            {/* Field 3: Last Seen Location / Landmark (Place Where Pet Was Lost) */}
-            <div className="form-group missing-location-group">
+            {/* Field 2: Approximate Time (Stacked below Date) */}
+            <div className="form-group missing-form-group">
+              <label className="form-label cute-label" htmlFor="modal-time-lost">
+                <span>Approximate Time</span>
+                <span className="optional-tag">Optional</span>
+              </label>
+              <div className="input-with-icon">
+                <Clock size={16} className="input-icon text-terracotta" />
+                <input
+                  id="modal-time-lost"
+                  type="text"
+                  className="form-input cute-input"
+                  placeholder="e.g. 06:00 PM"
+                  value={timeLost}
+                  onChange={(e) => setTimeLost(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Field 3: Location Where Pet Was Lost (With 1-Click Auto-Detect Button) */}
+            <div className="form-group missing-form-group missing-location-group">
               <div className="location-field-label-row">
                 <label className="form-label cute-label" htmlFor="modal-last-location" style={{ marginBottom: 0 }}>
-                  <span>3. Location Where Pet Was Lost</span>
+                  <span>Location Where Pet Was Lost</span>
                   <span className="required-star">*</span>
                 </label>
 
@@ -295,19 +293,6 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                     Click <strong>Auto-Detect Lost GPS</strong> if you are at the lost location, or type the landmark manually above.
                   </span>
                 )}
-              </div>
-            </div>
-
-            {/* Privacy Guarantee Banner */}
-            <div className="privacy-guarantee-card modal-privacy-card">
-              <div className="privacy-badge-icon">
-                <Shield size={15} />
-              </div>
-              <div className="privacy-badge-content">
-                <h4 className="privacy-title">Safe Community Broadcasting</h4>
-                <p className="privacy-desc">
-                  Only the approximate lost landmark and authorized contact channels are displayed on the community search flyer.
-                </p>
               </div>
             </div>
           </div>
