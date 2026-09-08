@@ -26,6 +26,11 @@ import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import abulluImg from '../assets/abullu.jpg';
+import {
+  getDogPhotoUrl,
+  getDogDisplayName,
+  handleDogImageError,
+} from '../utils/dogPhotoHelper';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
@@ -96,12 +101,21 @@ export const GuestSightingPage: React.FC = () => {
   // All photos for gallery
   const allDogPhotos = React.useMemo(() => {
     if (!report?.dog) return [abulluImg];
-    const photosList = [report.dog.primaryPhoto, ...(report.dog.photos || [])].filter(Boolean);
+    const fallbackPhoto = getDogPhotoUrl(report.dog, report);
+    const photosList = [
+      report.dog.primaryPhoto,
+      ...(report.dog.photos || []),
+      fallbackPhoto,
+    ].filter(Boolean) as string[];
     if (photosList.length === 0) return [abulluImg];
     return Array.from(new Set(photosList));
   }, [report]);
 
-  const currentDogPhoto = allDogPhotos[activePhotoIndex] || report?.dog?.primaryPhoto || abulluImg;
+  const currentDogPhoto =
+    allDogPhotos[activePhotoIndex] ||
+    getDogPhotoUrl(report?.dog, report) ||
+    abulluImg;
+  const dogDisplayName = getDogDisplayName(report?.dog, report);
 
   // 1-Click GPS Location Detector for Good Samaritan
   const handleDetectGPS = () => {
@@ -426,12 +440,13 @@ export const GuestSightingPage: React.FC = () => {
                     <div className="guest-main-photo-wrap">
                       <img
                         src={currentDogPhoto}
-                        alt={`${dog.name} - ${dog.breed}`}
+                        alt={`${dogDisplayName} - ${dog.breed}`}
                         className="guest-main-photo-img"
+                        onError={handleDogImageError}
                       />
                       <div className="guest-photo-overlay-tag">
                         <PawPrint size={13} />
-                        <span>{dog.name}</span>
+                        <span>{dogDisplayName}</span>
                       </div>
                     </div>
                   ) : (
@@ -452,7 +467,12 @@ export const GuestSightingPage: React.FC = () => {
                           onClick={() => setActivePhotoIndex(idx)}
                           aria-label={`View photo ${idx + 1}`}
                         >
-                          <img src={photo} alt={`Photo ${idx + 1}`} className="thumb-img" />
+                          <img
+                            src={photo}
+                            alt={`Photo ${idx + 1}`}
+                            className="thumb-img"
+                            onError={handleDogImageError}
+                          />
                         </button>
                       ))}
                     </div>
@@ -1045,6 +1065,7 @@ export const GuestSightingPage: React.FC = () => {
                                 src={p as string}
                                 alt={`Sighting photo ${pIdx + 1}`}
                                 className="sighting-evidence-thumb"
+                                onError={handleDogImageError}
                               />
                             ))}
                           </div>

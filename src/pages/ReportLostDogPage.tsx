@@ -20,6 +20,7 @@ import { DogGoingHomeAnimation } from '../components/DogGoingHomeAnimation';
 import { DogAwayFromHomeAnimation } from '../components/DogAwayFromHomeAnimation';
 import { MissingPetReportModal } from '../components/MissingPetReportModal';
 import abulluImg from '../assets/abullu.jpg';
+import { getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
 
 interface ReportLostDogPageProps {
   onBackToPet?: () => void;
@@ -100,20 +101,31 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     const ownerId = `owner-${user.id}`;
     const dogId = existingPet?.id || existingReport?.dogId || `dog-${Date.now()}`;
 
-    const dogData: DogProfile = existingPet || {
-      id: dogId,
-      ownerId,
-      name: dogName.trim() || 'My Dog',
-      breed: breed.trim() || 'Companion Pet',
-      gender: 'Male',
-      age: '2 years',
-      size: 'Medium (10-25kg)',
-      color: 'Not specified',
-      distinguishingMarks: '',
-      primaryPhoto: existingReport?.dog?.primaryPhoto || '',
-      photos: [],
-      createdAt: new Date().toISOString(),
-    };
+    const dogPhoto =
+      existingPet?.primaryPhoto ||
+      existingReport?.dog?.primaryPhoto ||
+      abulluImg;
+
+    const dogData: DogProfile = existingPet
+      ? {
+          ...existingPet,
+          primaryPhoto: existingPet.primaryPhoto || dogPhoto,
+          photos: existingPet.photos && existingPet.photos.length > 0 ? existingPet.photos : [dogPhoto],
+        }
+      : {
+          id: dogId,
+          ownerId,
+          name: dogName.trim() || 'My Dog',
+          breed: breed.trim() || 'Companion Pet',
+          gender: 'Male',
+          age: '2 years',
+          size: 'Medium (10-25kg)',
+          color: 'Not specified',
+          distinguishingMarks: '',
+          primaryPhoto: dogPhoto,
+          photos: [dogPhoto],
+          createdAt: new Date().toISOString(),
+        };
 
     const finalReport: LostReport = {
       id: reportId,
@@ -343,13 +355,10 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
                   <div className="alert-flyer-content">
                     <div className="alert-flyer-photo-wrap">
                       <img
-                        src={
-                          existingReport?.dog?.primaryPhoto ||
-                          existingPet?.primaryPhoto ||
-                          abulluImg
-                        }
+                        src={getDogPhotoUrl(existingPet || existingReport?.dog, existingReport)}
                         alt={dogName}
                         className="alert-flyer-photo"
+                        onError={handleDogImageError}
                       />
                     </div>
 

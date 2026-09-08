@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Eye } from 'lucide-react';
 import type { LostReport } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 
 interface DogCardProps {
   report: LostReport;
@@ -9,16 +10,19 @@ interface DogCardProps {
 
 export const DogCard: React.FC<DogCardProps> = ({ report }) => {
   const { id, dog, status, dateLost, ownerApproximateLocation, sightingCount } = report;
+  const displayName = getDogDisplayName(dog, report);
+  const photoUrl = getDogPhotoUrl(dog, report);
 
   return (
     <article className="dog-card card card-hoverable" id={`card-${id}`}>
-      <Link to={`/dog/${id}`} className="dog-card-image-link" aria-label={`View details for ${dog.name}`}>
+      <Link to={`/dog/${id}`} className="dog-card-image-link" aria-label={`View details for ${displayName}`}>
         <div className="dog-card-image-wrapper">
           <img
-            src={dog.primaryPhoto}
-            alt={`${dog.name} - ${dog.breed}`}
+            src={photoUrl}
+            alt={`${displayName} - ${dog?.breed || 'Companion Pet'}`}
             className="dog-card-img"
             loading="lazy"
+            onError={handleDogImageError}
           />
           <div className="dog-card-badge-overlay">
             <StatusBadge status={status} size="sm" />
@@ -36,9 +40,9 @@ export const DogCard: React.FC<DogCardProps> = ({ report }) => {
       <div className="dog-card-body">
         <div className="dog-card-header">
           <h3 className="dog-card-title">
-            <Link to={`/dog/${id}`}>{dog.name}</Link>
+            <Link to={`/dog/${id}`}>{displayName}</Link>
           </h3>
-          <span className="dog-card-breed">{dog.breed}</span>
+          <span className="dog-card-breed">{dog?.breed || 'Companion Pet'}</span>
         </div>
 
         <div className="dog-card-meta-list">

@@ -516,7 +516,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   <div className={`radar-pulse-ring ring-outer ${isLost ? 'pulse-lost-outer' : ''}`}></div>
                   <div className={`radar-pulse-ring ring-inner ${isLost ? 'pulse-lost-inner' : ''}`}></div>
                   <div className={`pet-avatar-circle ${isLost ? 'pet-avatar-lost' : ''}`}>
-                    <img src={dogPhoto} alt={dogName} className="pet-radar-avatar-img" />
+                    <img
+                      src={dogPhoto}
+                      alt={dogName}
+                      className="pet-radar-avatar-img"
+                      onError={(e) => {
+                        e.currentTarget.src = isLost ? missingPuppyImg : safePuppyImg;
+                      }}
+                    />
                   </div>
                 </div>
                 <div className={`pet-radar-status-pill ${isLost ? 'lost-status-pill' : ''}`}>
