@@ -43,9 +43,14 @@ class StorageService {
     try {
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
-      // Clean out legacy dummy seed reports while preserving user reports
+      
+      // Keep only genuine user-uploaded reports (filter out any mock/seed dummy data)
       this.reports = rawReports.filter(
         (r) =>
+          !r.id.startsWith('LOST-849201') &&
+          !r.id.startsWith('LOST-732910') &&
+          !r.id.startsWith('LOST-621804') &&
+          !r.id.startsWith('LOST-510492') &&
           !r.id.startsWith('LOST-BRUNO-') &&
           !r.id.startsWith('LOST-BELLA-') &&
           !r.id.startsWith('LOST-MILO-') &&
@@ -53,18 +58,27 @@ class StorageService {
           !r.id.startsWith('LOST-ROCKY-') &&
           !r.id.startsWith('LOST-SIMBA-') &&
           !r.id.startsWith('LOST-LEO-') &&
-          !r.ownerId.startsWith('owner-00')
+          !r.ownerId.startsWith('owner-00') &&
+          !r.ownerId.startsWith('owner-community-')
       );
       this.saveReports();
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      this.sightings = rawSightings.filter((s) => !s.id.startsWith('sight-00'));
+      this.sightings = rawSightings.filter(
+        (s) =>
+          !s.id.startsWith('sight-comm-') &&
+          !s.id.startsWith('sight-00')
+      );
       this.saveSightings();
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles.filter((p) => !p.id.startsWith('owner-00'));
+      this.profiles = rawProfiles.filter(
+        (p) =>
+          !p.id.startsWith('owner-community-') &&
+          !p.id.startsWith('owner-00')
+      );
       this.saveProfiles();
 
       const storedPets = localStorage.getItem(PETS_KEY);
@@ -121,9 +135,16 @@ class StorageService {
     }
   }
 
+  private notifyUpdate() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    }
+  }
+
   private saveReports() {
     try {
       localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
+      this.notifyUpdate();
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
     }
@@ -215,9 +236,16 @@ class StorageService {
     return sighting;
   }
 
-  // OWNER PROFILES:
   getOwnerProfileByUserId(userId: string): OwnerProfile | undefined {
-    return this.profiles.find((p) => p.userId === userId);
+    const rawUserId = userId.replace('owner-', '');
+    return this.profiles.find(
+      (p) =>
+        p.userId === userId ||
+        p.userId === rawUserId ||
+        p.id === userId ||
+        p.id === `owner-${userId}` ||
+        p.id === `owner-${rawUserId}`
+    );
   }
 
   hasCompletedOwnerProfile(userId: string): boolean {

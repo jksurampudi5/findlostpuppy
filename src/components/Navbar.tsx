@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PawPrint, LogOut, Check, Settings } from 'lucide-react';
+import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
-import { SettingsLegalModal } from './SettingsLegalModal';
+import safePuppyImg from '../assets/safe_puppy.jpg';
+import missingPuppyImg from '../assets/missing_puppy.jpg';
 
 export const Navbar = () => {
   const {
@@ -20,8 +21,22 @@ export const Navbar = () => {
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
   const hasSkippedPet = user ? storageService.hasSkippedPetProfile(user.id) : false;
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPetAlertHovered, setIsPetAlertHovered] = useState(false);
+
+  const previewPhoto =
+    existingPet?.primaryPhoto ||
+    existingReport?.dog?.primaryPhoto ||
+    (petSafetyStatus === 'LOST' ? missingPuppyImg : safePuppyImg);
+
+  const previewDogName = existingPet?.name || existingReport?.dog?.name || 'Your Dog';
+  const previewBreed = existingPet?.breed || existingReport?.dog?.breed || 'Companion Pet';
+  const previewArea =
+    existingReport?.lastKnownLocation ||
+    existingProfile?.approximateArea ||
+    existingProfile?.city ||
+    'Local Area';
 
   return (
     <header className="navbar-header">
@@ -46,15 +61,6 @@ export const Navbar = () => {
 
           {isAuthenticated && (
             <div className="nav-user-actions-mobile">
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(true)}
-                className="btn btn-ghost btn-sm settings-nav-btn mobile-settings-btn"
-                title="Settings & Legal"
-                aria-label="Settings and Legal Center"
-              >
-                <Settings size={16} />
-              </button>
               <button
                 type="button"
                 onClick={logout}
@@ -82,16 +88,14 @@ export const Navbar = () => {
                 >
                   <div className="space-pill-icon owner-icon">
                     {existingProfile?.photo ? (
-                      <img src={existingProfile.photo} alt={existingProfile.fullName} className="pill-avatar-img" />
+                      <img src={existingProfile.photo} alt="Owner" className="pill-avatar-img" />
                     ) : (
                       <span className="pill-avatar-emoji">🧑‍🦱</span>
                     )}
                   </div>
                   <div className="space-pill-content">
                     <span className="space-pill-title">Owner</span>
-                    <span className="space-pill-detail">
-                      {existingProfile?.fullName ? existingProfile.fullName.split(' ')[0] : 'Profile'}
-                    </span>
+                    <span className="space-pill-detail">Profile</span>
                   </div>
                   {hasCompletedOwner && <Check size={13} className="space-pill-check" />}
                 </button>
@@ -143,10 +147,15 @@ export const Navbar = () => {
                 </button>
               </div>
 
-              {/* 4. SEPARATE PET SAFETY ALERT TAB (Green if at Home, Red Alert if Missing) */}
-              <div className="nav-tab-wrapper">
+              {/* 4. SEPARATE PET SAFETY ALERT TAB (With Interactive Hover & Click Preview Card) */}
+              <div
+                className="nav-tab-wrapper pet-alert-tab-wrapper"
+                onMouseEnter={() => setIsPetAlertHovered(true)}
+                onMouseLeave={() => setIsPetAlertHovered(false)}
+              >
                 <button
                   type="button"
+                  id="navbar-pet-alert-btn"
                   className={`nav-space-pill ${
                     petSafetyStatus === 'LOST'
                       ? 'pet-missing-alert-pill'
@@ -154,7 +163,10 @@ export const Navbar = () => {
                       ? 'pet-safe-home-pill'
                       : ''
                   } ${activeOnboardingTab === 'report' ? 'active' : ''}`}
-                  onClick={() => setActiveOnboardingTab('report')}
+                  onClick={() => {
+                    setActiveOnboardingTab('report');
+                    setIsPetAlertHovered(false);
+                  }}
                   title={
                     petSafetyStatus === 'LOST'
                       ? 'Urgent Missing Dog Alert'
@@ -192,9 +204,57 @@ export const Navbar = () => {
                     <Check size={13} className="space-pill-check" style={{ color: '#16A34A' }} />
                   )}
                 </button>
+
+                {/* Floating Visual Pet Alert Preview Popover on Hover / Focus */}
+                {isPetAlertHovered && (
+                  <div className="pet-alert-hover-popover" role="tooltip">
+                    <div className="popover-badge-row">
+                      {petSafetyStatus === 'LOST' ? (
+                        <span className="popover-status-badge badge-lost">
+                          <AlertTriangle size={12} />
+                          <span>MISSING DOG ALERT</span>
+                        </span>
+                      ) : (
+                        <span className="popover-status-badge badge-safe">
+                          <ShieldCheck size={12} />
+                          <span>SAFE AT HOME</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="popover-media-wrap">
+                      <img
+                        src={previewPhoto}
+                        alt={previewDogName}
+                        className="popover-preview-img"
+                      />
+                    </div>
+
+                    <div className="popover-info-body">
+                      <h4 className="popover-dog-name">{previewDogName}</h4>
+                      <p className="popover-dog-breed">{previewBreed}</p>
+                      <p className="popover-location-text">
+                        📍 <strong>Location:</strong> {previewArea}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm btn-block popover-cta-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveOnboardingTab('report');
+                        setIsPetAlertHovered(false);
+                      }}
+                    >
+                      <span>Manage Pet Alert</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* 5. SEPARATE DASHBOARD SPACE (Now houses Browse Dogs directory as well) */}
+              {/* 5. SEPARATE DASHBOARD SPACE */}
               <div className="nav-tab-wrapper">
                 <button
                   type="button"
@@ -216,31 +276,17 @@ export const Navbar = () => {
             <div className="nav-desktop-actions">
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(true)}
-                className="btn btn-ghost btn-sm settings-nav-btn desktop-settings-btn"
-                title="Settings & Legal Center"
-              >
-                <Settings size={15} />
-                <span className="settings-text">Settings</span>
-              </button>
-              <button
-                type="button"
                 onClick={logout}
                 className="btn btn-ghost btn-sm logout-nav-btn desktop-logout-btn"
-                title="Sign out"
+                title="Sign out of account"
               >
-                <LogOut size={15} />
+                <LogOut size={16} />
                 <span className="logout-text">Sign Out</span>
               </button>
             </div>
           </div>
         ) : null}
       </div>
-
-      <SettingsLegalModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
     </header>
   );
 };

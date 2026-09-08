@@ -57,6 +57,18 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     reloadData();
+
+    const handleReportsUpdate = () => {
+      reloadData();
+    };
+
+    window.addEventListener('findlostpuppy_reports_updated', handleReportsUpdate);
+    window.addEventListener('storage', handleReportsUpdate);
+
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleReportsUpdate);
+      window.removeEventListener('storage', handleReportsUpdate);
+    };
   }, []);
 
   // Filter reports by status
