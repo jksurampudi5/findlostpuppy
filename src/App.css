@@ -5769,6 +5769,42 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2), 0 8px 20px rgba(239, 68, 68, 0.12);
 }
 
+.decision-card-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.25rem 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.decision-emoji {
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.decision-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+}
+
+.decision-status-pill.safe-pill {
+  background-color: #10B981;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.decision-status-pill.alert-pill {
+  background-color: #EF4444;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
 .card-visual-header {
   position: relative;
   width: 100%;
@@ -10461,5 +10497,400 @@
   .modal-footer-btns button {
     flex: 1;
     min-height: 44px;
+  }
+}
+
+/* ==========================================================================
+   PET ALERT NAVBAR HOVER & CLICK PREVIEW POPOVER
+   ========================================================================== */
+
+.pet-alert-tab-wrapper {
+  position: relative;
+}
+
+.pet-alert-hover-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(0, 0, 0, 0.04);
+  border: 1px solid #E2E8F0;
+  padding: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.pet-alert-hover-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: #FFFFFF;
+  border-left: 1px solid #E2E8F0;
+  border-top: 1px solid #E2E8F0;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.popover-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.popover-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.popover-status-badge.badge-safe {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+
+.popover-status-badge.badge-lost {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+.popover-media-wrap {
+  width: 100%;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+}
+
+.popover-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.popover-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.popover-dog-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+}
+
+.popover-dog-breed {
+  font-size: 0.8rem;
+  color: #64748B;
+  margin: 0;
+}
+
+.popover-location-text {
+  font-size: 0.78rem;
+  color: #334155;
+  margin: 0.25rem 0 0;
+  line-height: 1.35;
+}
+
+.popover-cta-btn {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   MISSING PET REPORT POPUP MODAL (STREAMLINED & LOCATION AUTO-DETECT)
+   ========================================================================== */
+
+.missing-report-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  animation: modalBackdropFadeIn 0.2s ease-out forwards;
+}
+
+.missing-report-modal-card {
+  width: 100%;
+  max-width: 580px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
+  border: 1px solid #E2E8F0;
+  overflow: hidden;
+  animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.missing-modal-header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #E2E8F0;
+  background: #FFF7ED;
+  flex-shrink: 0;
+}
+
+.missing-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.missing-icon-wrap {
+  width: 44px;
+  height: 44px;
+  background: #FEE2E2;
+  border: 1px solid #FECACA;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.missing-beacon-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.missing-modal-title-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.missing-modal-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #DC2626;
+}
+
+.missing-modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.missing-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.missing-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.missing-modal-prep-card {
+  margin: 0;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.missing-modal-prep-card .prepopulated-details-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.missing-modal-prep-card .prep-item {
+  font-size: 0.88rem;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.location-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.auto-detect-loc-btn {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #EA580C;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auto-detect-loc-btn:hover:not(:disabled) {
+  background: #FFEDD5;
+  border-color: #FB923C;
+  transform: translateY(-1px);
+}
+
+.location-hint-row {
+  margin-top: 0.35rem;
+}
+
+.location-auto-success-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #16A34A;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.modal-privacy-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin: 0;
+}
+
+.missing-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.missing-modal-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+/* Animation toggle header */
+.animation-toggle-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.animation-toggle-btn {
+  font-size: 0.82rem;
+  color: #64748B;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+}
+
+.animation-toggle-btn:hover {
+  background: #E2E8F0;
+  color: #1E293B;
+}
+
+@media (max-width: 640px) {
+  .missing-report-modal-card {
+    max-height: 94vh;
+    border-radius: 16px;
+  }
+
+  .missing-modal-header {
+    padding: 1.1rem 1rem;
+  }
+
+  .missing-modal-title {
+    font-size: 1.15rem;
+  }
+
+  .missing-modal-body {
+    padding: 1.15rem 1rem;
+    gap: 1rem;
+  }
+
+  .missing-modal-footer {
+    padding: 1rem;
+    flex-direction: column-reverse;
+  }
+
+  .missing-modal-footer button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .pet-alert-hover-popover {
+    left: 0;
+    transform: none;
+    width: 240px;
+  }
+
+  .pet-alert-hover-popover::before {
+    left: 20%;
   }
 }
