@@ -19,7 +19,6 @@ import {
   Eye,
   PawPrint,
   LayoutDashboard,
-  MessageCircle,
   Info,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
@@ -32,6 +31,7 @@ import {
   handleDogImageError,
 } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
+import { maskPhoneNumber, maskEmail } from '../utils/privacyUtils';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
@@ -505,70 +505,75 @@ export const GuestSightingPage: React.FC = () => {
 
               {/* RIGHT COLUMN: PET INFORMATION & OWNER CONTACT */}
               <div className="guest-details-column">
-                {/* 1. OWNER CONTACT INFORMATION CARD (HERO PLACEMENT) */}
+                {/* 1. OWNER CONTACT INFORMATION CARD (PRIVACY PROTECTED) */}
                 <div className="guest-owner-contact-card card">
                   <div className="owner-contact-header">
                     <ShieldCheck size={20} className="text-emerald-500" />
                     <div>
                       <h2 className="owner-contact-title">Verified Pet Parent Contact</h2>
                       <p className="owner-contact-sub">
-                        Direct contact information shared by the owner to report sightings immediately.
+                        Direct contact numbers are protected against spam. Submit sightings below to notify the family instantly.
                       </p>
                     </div>
                   </div>
 
-                  <div className="owner-action-buttons-grid">
-                    {cleanPhone && (
-                      <a
-                        href={`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
-                          `Hi! I am reaching out regarding your missing dog *"${dog.name}"* on FindLostPuppy. I have information to share!`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-whatsapp btn-lg contact-action-btn"
-                        style={{
-                          backgroundColor: '#25D366',
-                          color: '#FFFFFF',
-                          borderColor: '#25D366',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        <MessageCircle size={18} />
-                        <span>💬 Chat with Owner on WhatsApp</span>
-                      </a>
-                    )}
+                  <div className="owner-action-buttons-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {ownerPhone && (
+                        <div
+                          className="btn-emergency-contact"
+                          style={{
+                            padding: '6px 12px',
+                            background: '#F1F5F9',
+                            borderRadius: '8px',
+                            border: '1px solid #CBD5E1',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontWeight: 600,
+                            color: '#334155',
+                          }}
+                        >
+                          <Phone size={14} className="text-emerald-600" />
+                          <span>Phone: {maskPhoneNumber(ownerPhone)} (Protected)</span>
+                        </div>
+                      )}
 
-                    {ownerPhone && (
-                      <a
-                        href={`tel:${ownerPhone}`}
-                        className="btn btn-secondary btn-lg contact-action-btn"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        <Phone size={18} />
-                        <span>📞 Call Owner: {ownerPhone}</span>
-                      </a>
-                    )}
+                      {ownerEmail && (
+                        <div
+                          className="btn-emergency-contact"
+                          style={{
+                            padding: '6px 12px',
+                            background: '#F1F5F9',
+                            borderRadius: '8px',
+                            border: '1px solid #CBD5E1',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontWeight: 600,
+                            color: '#334155',
+                          }}
+                        >
+                          <span>✉️ {maskEmail(ownerEmail)}</span>
+                        </div>
+                      )}
+                    </div>
 
-                    {ownerEmail && !ownerPhone && (
-                      <a
-                        href={`mailto:${ownerEmail}?subject=${encodeURIComponent(
-                          `Information regarding lost dog ${dog.name}`
-                        )}`}
-                        className="btn btn-outline btn-md"
-                      >
-                        <span>✉️ Email Owner: {ownerEmail}</span>
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('report')}
+                      className="btn btn-primary btn-lg w-full"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Camera size={18} />
+                      <span>📸 Submit Sighting Directly to Owner</span>
+                    </button>
                   </div>
 
                   <div className="contact-safe-note">

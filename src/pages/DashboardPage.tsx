@@ -16,7 +16,8 @@ import {
   Trash2,
   Check,
   Phone,
-  Mail
+  Mail,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -30,6 +31,7 @@ import type { LostReport, ReportStatus } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
+import { maskPhoneNumber, maskEmail, isOwnerOfReport } from '../utils/privacyUtils';
 
 export const DashboardPage: React.FC = () => {
   const { user, setActiveOnboardingTab } = useAuth();
@@ -42,8 +44,8 @@ export const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'missing' | 'safe' | 'browse' | 'my_pups'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Browse All Dogs tab filters
-  const [browseStatus, setBrowseStatus] = useState<ReportStatus | 'ALL'>('ALL');
+  // Browse All Dogs tab filters (defaulting to Active Missing Dogs)
+  const [browseStatus, setBrowseStatus] = useState<ReportStatus | 'ALL'>('LOST');
   const [browseBreed, setBrowseBreed] = useState<string>('ALL');
   const [browseLocation, setBrowseLocation] = useState<string>('ALL');
   const [browseSort, setBrowseSort] = useState<'newest' | 'sightings'>('newest');
@@ -194,14 +196,27 @@ export const DashboardPage: React.FC = () => {
     reloadData();
   };
 
-  // Action: Delete / Remove Report permanently
+  // Action: Delete / Remove Report permanently with instantaneous UI reactivity
   const handleDeleteReport = (reportId: string, dogName?: string) => {
-    const confirmed = window.confirm(`Are you sure you want to remove the listing for "${dogName || 'this dog'}"?`);
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete the listing for "${dogName || 'this dog'}"? This will remove all pet data forever from the dashboard and database.`
+    );
     if (!confirmed) return;
+
+    // Instant optimistic state update across all tabs
+    const targetClean = reportId.replace(/^LOST-/, '').toLowerCase();
+    setReports((prev) =>
+      prev.filter(
+        (r) =>
+          r.id !== reportId &&
+          r.id.toLowerCase() !== reportId.toLowerCase() &&
+          r.id.replace(/^LOST-/, '').toLowerCase() !== targetClean
+      )
+    );
 
     const success = storageService.deleteReport(reportId);
     if (success) {
-      showToast(`🗑️ Listing for ${dogName || 'dog'} removed successfully.`, 'info');
+      showToast(`🗑️ Listing for ${dogName || 'dog'} permanently deleted forever.`, 'info');
       reloadData();
     }
   };
@@ -486,38 +501,81 @@ export const DashboardPage: React.FC = () => {
                           )}
                         </div>
 
-                        {/* HIGH VISIBILITY EMERGENCY OWNER CONTACT BOX */}
-                        <div className="emergency-owner-contact-box">
-                          <div className="emergency-contact-header">
-                            <Phone size={13} className="text-red-600 animate-pulse" />
-                            <span className="emergency-contact-label">Emergency Owner Contact:</span>
+                        {/* PRIVACY PROTECTED OWNER CONTACT & SIGHTING ROUTER */}
+                        <div className="emergency-owner-contact-box" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.75rem' }}>
+                          <div className="emergency-contact-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <ShieldCheck size={14} className="text-emerald-600" />
+                              <span className="emergency-contact-label font-bold text-gray-800" style={{ fontSize: '0.78rem' }}>
+                                {isOwnerOfReport(report, user) ? '👤 Your Pet Listing (Verified Owner)' : '🛡️ Verified Owner Contact (Protected)'}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', backgroundColor: isOwnerOfReport(report, user) ? '#DCFCE7' : '#EFF6FF', color: isOwnerOfReport(report, user) ? '#15803D' : '#1D4ED8', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                              {isOwnerOfReport(report, user) ? 'Owner View' : 'Privacy Shield'}
+                            </span>
                           </div>
 
-                          <div className="emergency-contact-buttons">
+                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {ownerPhone ? (
-                              <a
-                                href={`tel:${ownerPhone}`}
+                              <div
                                 className="btn-emergency-contact btn-emergency-phone"
-                                title={`Call Owner directly: ${ownerPhone}`}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                  cursor: isOwnerOfReport(report, user) ? 'pointer' : 'default',
+                                }}
+                                title={isOwnerOfReport(report, user) ? `Your phone: ${ownerPhone}` : 'Direct phone is masked for family security'}
                               >
-                                <Phone size={13} />
-                                <span>Call: {ownerPhone}</span>
-                              </a>
+                                <Phone size={12} className="text-emerald-600" />
+                                <span>
+                                  {isOwnerOfReport(report, user)
+                                    ? `Call: ${ownerPhone}`
+                                    : `Phone: ${maskPhoneNumber(ownerPhone)}`}
+                                </span>
+                              </div>
                             ) : (
                               <span className="text-xs text-gray-500">Phone not shared</span>
                             )}
 
                             {ownerEmail && (
-                              <a
-                                href={`mailto:${ownerEmail}`}
+                              <div
                                 className="btn-emergency-contact btn-emergency-email"
-                                title={`Email Owner: ${ownerEmail}`}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                  cursor: isOwnerOfReport(report, user) ? 'pointer' : 'default',
+                                }}
+                                title={isOwnerOfReport(report, user) ? `Your email: ${ownerEmail}` : 'Email is masked for privacy'}
                               >
-                                <Mail size={13} />
-                                <span>{ownerEmail}</span>
-                              </a>
+                                <Mail size={12} className="text-sky-600" />
+                                <span>
+                                  {isOwnerOfReport(report, user)
+                                    ? ownerEmail
+                                    : maskEmail(ownerEmail)}
+                                </span>
+                              </div>
                             )}
                           </div>
+
+                          {!isOwnerOfReport(report, user) && (
+                            <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
+                              🔒 Contact info is masked against spam. Click <strong>"Report Sighting"</strong> below to send verified tips & locations directly to the owner.
+                            </p>
+                          )}
                         </div>
 
                         <div className="dog-card-actions">
@@ -840,6 +898,18 @@ export const DashboardPage: React.FC = () => {
                         <MapPin size={14} className="text-terracotta flex-shrink-0" />
                         <span>{report.ownerApproximateLocation || report.lastKnownLocation}</span>
                       </div>
+
+                      {/* Browse Card Masked Contact Relay */}
+                      {report.contactMechanism?.safeContactPhone && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.74rem', color: '#64748B', marginTop: '0.35rem' }}>
+                          <ShieldCheck size={12} className="text-emerald-600 flex-shrink-0" />
+                          <span>
+                            {isOwnerOfReport(report, user)
+                              ? `Owner Phone: ${report.contactMechanism.safeContactPhone}`
+                              : `Verified Parent: ${maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)`}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="dog-card-actions">
                         {report.status !== 'SAFE' && report.status !== 'REUNITED' && (

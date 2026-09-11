@@ -3,6 +3,7 @@ import { MapPin, Calendar, Eye } from 'lucide-react';
 import type { LostReport } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
+import { maskPhoneNumber } from '../utils/privacyUtils';
 
 interface DogCardProps {
   report: LostReport;
@@ -69,8 +70,8 @@ export const DogCard: React.FC<DogCardProps> = ({ report }) => {
             <span className="attribute-pill">{dog.gender}</span>
             <span className="attribute-pill">{dog.age}</span>
             {report.contactMechanism?.safeContactPhone && status === 'LOST' && (
-              <span className="attribute-pill" style={{ backgroundColor: '#FEE2E2', color: '#DC2626', fontWeight: 600 }}>
-                📞 {report.contactMechanism.safeContactPhone}
+              <span className="attribute-pill" style={{ backgroundColor: '#F1F5F9', color: '#475569', fontWeight: 600 }}>
+                🛡️ {maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)
               </span>
             )}
           </div>

@@ -25,17 +25,19 @@ import { useToast } from '../context/ToastContext';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
+import { useAuth } from '../context/AuthContext';
+import { maskPhoneNumber, maskEmail, maskOwnerName, isOwnerOfReport } from '../utils/privacyUtils';
 
 export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   const [report, setReport] = useState<LostReport | null>(null);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [isSightingModalOpen, setIsSightingModalOpen] = useState(false);
-  const [contactRevealed, setContactRevealed] = useState(false);
 
   // Safety, reporting and blocking
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -84,12 +86,14 @@ export const DogDetailPage: React.FC = () => {
   const handleDeleteReport = () => {
     if (!report) return;
     const dogName = getDogDisplayName(report.dog, report);
-    const confirmed = window.confirm(`Are you sure you want to remove the alert for "${dogName}"?`);
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete the alert for "${dogName}"? This will delete all pet data forever from the dashboard and database.`
+    );
     if (!confirmed) return;
 
     const success = storageService.deleteReport(report.id);
     if (success) {
-      showToast(`🗑️ Alert for ${dogName} removed successfully.`, 'info');
+      showToast(`🗑️ Alert for ${dogName} permanently deleted forever.`, 'info');
       navigate('/dashboard');
     }
   };
@@ -451,24 +455,29 @@ export const DogDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Pet Parent Info Card */}
+            {/* Pet Parent Info Card with Privacy Masking */}
             {(() => {
               const rawOwnerId = report.ownerId.replace('owner-', '');
               const ownerProfile = storageService.getOwnerProfileByUserId(rawOwnerId);
               if (!ownerProfile) return null;
+              const isOwner = isOwnerOfReport(report, user);
+              const displayName = isOwner ? ownerProfile.fullName : maskOwnerName(ownerProfile.fullName);
+
               return (
                 <div className="owner-info-detail-card card">
                   <h3 className="section-subheading">🧑‍🦱 Pet Parent Information</h3>
                   <div className="owner-detail-flex">
                     <div className="owner-detail-avatar-wrap">
-                      {ownerProfile.photo ? (
-                        <img src={ownerProfile.photo} alt={ownerProfile.fullName} className="owner-detail-avatar-img" />
+                      {ownerProfile.photo && isOwner ? (
+                        <img src={ownerProfile.photo} alt={displayName} className="owner-detail-avatar-img" />
                       ) : (
                         <div className="owner-detail-avatar-placeholder">🧑‍🦱</div>
                       )}
                     </div>
                     <div className="owner-detail-info">
-                      <h4 className="owner-detail-name">{ownerProfile.fullName}</h4>
+                      <h4 className="owner-detail-name">
+                        {displayName} {isOwner ? '(You - Owner)' : '(Verified Pet Parent)'}
+                      </h4>
                       {ownerProfile.approximateArea && (
                         <div className="owner-detail-meta">
                           <MapPin size={14} className="text-terracotta" />
@@ -477,7 +486,7 @@ export const DogDetailPage: React.FC = () => {
                       )}
                       <div className="owner-detail-privacy-note">
                         <Shield size={12} />
-                        <span>Exact address protected for family safety</span>
+                        <span>{isOwner ? 'Your full profile details' : 'Contact details protected for family privacy & safety'}</span>
                       </div>
                     </div>
                   </div>
@@ -485,8 +494,8 @@ export const DogDetailPage: React.FC = () => {
                   {/* Owner & Pet Together */}
                   <div className="owner-pet-together-strip">
                     <div className="together-avatar owner-together">
-                      {ownerProfile.photo ? (
-                        <img src={ownerProfile.photo} alt={ownerProfile.fullName} />
+                      {ownerProfile.photo && isOwner ? (
+                        <img src={ownerProfile.photo} alt={displayName} />
                       ) : (
                         <span>🧑‍🦱</span>
                       )}
@@ -499,45 +508,30 @@ export const DogDetailPage: React.FC = () => {
                         <span>🐶</span>
                       )}
                     </div>
-                    <span className="together-label">{ownerProfile.fullName.split(' ')[0]} & {dog.name}</span>
+                    <span className="together-label">{displayName.split(' ')[0]} & {dog.name}</span>
                   </div>
                 </div>
               );
             })()}
 
-            {/* Safe Contact Owner Mechanism */}
+            {/* Safe Contact Owner Mechanism with Privacy Shield */}
             <div className="safe-contact-card card">
-              <h3 className="section-subheading">❤️ Contact Owner Directly</h3>
+              <h3 className="section-subheading">❤️ Verified Owner Contact</h3>
               <p className="contact-helper-text">
-                {contactMechanism.contactNote ||
-                  `Have direct information or holding ${dog.name}? Reach out to the verified family below.`}
+                {isOwnerOfReport(report, user)
+                  ? 'Your verified emergency contact details on file:'
+                  : `Have you seen ${dog.name}? Use the Sighting Report tool to securely send details directly to the family.`}
               </p>
 
-              {contactRevealed ? (
+              {isOwnerOfReport(report, user) ? (
                 <div className="revealed-contact-box">
                   {contactMechanism?.safeContactPhone && (
                     <div className="contact-line">
                       <Phone size={18} className="contact-icon" />
                       <div>
-                        <span className="contact-label">Owner Phone:</span>
+                        <span className="contact-label">Your Phone:</span>
                         <a href={`tel:${contactMechanism.safeContactPhone}`} className="contact-action-link">
                           {contactMechanism.safeContactPhone}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                  {contactMechanism?.safeContactPhone && (
-                    <div className="contact-line">
-                      <Share2 size={18} className="contact-icon text-emerald-600" />
-                      <div>
-                        <span className="contact-label">WhatsApp:</span>
-                        <a
-                          href={`https://api.whatsapp.com/send?phone=${contactMechanism.safeContactPhone.replace(/\D/g, '')}&text=${encodeURIComponent(`Hi, I have information regarding ${dog.name} from FindLostPuppy!`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="contact-action-link text-emerald-600 font-bold"
-                        >
-                          💬 Chat on WhatsApp with Owner
                         </a>
                       </div>
                     </div>
@@ -546,27 +540,55 @@ export const DogDetailPage: React.FC = () => {
                     <div className="contact-line">
                       <Mail size={18} className="contact-icon" />
                       <div>
-                        <span className="contact-label">Owner Email:</span>
+                        <span className="contact-label">Your Email:</span>
                         <a href={`mailto:${contactMechanism.safeContactEmail}`} className="contact-action-link">
                           {contactMechanism.safeContactEmail}
                         </a>
                       </div>
                     </div>
                   )}
-                  <div className="contact-safety-note">
+                  <div className="contact-safety-note" style={{ color: '#15803D', backgroundColor: '#DCFCE7' }}>
                     <Shield size={14} />
-                    <span>Please only contact if you have legitimate information regarding {dog.name}.</span>
+                    <span>You are viewing your own contact info. Public viewers see masked numbers for security.</span>
                   </div>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-block"
-                  onClick={() => setContactRevealed(true)}
-                >
-                  <Phone size={18} />
-                  <span>Show Verified Owner Contact Information</span>
-                </button>
+                <div className="privacy-relay-contact-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {contactMechanism?.safeContactPhone && (
+                      <div className="contact-line" style={{ padding: '6px 12px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                        <Phone size={14} className="text-emerald-600" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                          Phone: {maskPhoneNumber(contactMechanism.safeContactPhone)} (Protected)
+                        </span>
+                      </div>
+                    )}
+                    {contactMechanism?.safeContactEmail && (
+                      <div className="contact-line" style={{ padding: '6px 12px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                        <Mail size={14} className="text-sky-600" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                          Email: {maskEmail(contactMechanism.safeContactEmail)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="contact-safety-note" style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', color: '#475569', borderRadius: '8px', padding: '8px 12px' }}>
+                    <Shield size={14} className="text-emerald-600" />
+                    <span>
+                      🛡️ <strong>Privacy Shield Active:</strong> Direct phone numbers are masked to prevent spam. Report sightings below to instantly forward your location and notes to the owner.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-block btn-lg"
+                    onClick={() => setIsSightingModalOpen(true)}
+                  >
+                    <PawPrint size={18} />
+                    <span>🐾 Report Sighting of {dog.name}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
