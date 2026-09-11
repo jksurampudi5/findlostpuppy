@@ -16,7 +16,7 @@ import {
   Trash2,
   Check,
   Phone,
-  Mail,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -24,6 +24,8 @@ import { storageService } from '../services/storageService';
 import { SightingModal } from '../components/SightingModal';
 import { StatusBadge } from '../components/StatusBadge';
 import { ReportModal } from '../components/ReportModal';
+import { DogAwayFromHomeAnimation } from '../components/DogAwayFromHomeAnimation';
+import { DogGoingHomeAnimation } from '../components/DogGoingHomeAnimation';
 import type { LostReport, ReportStatus } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
@@ -235,6 +237,22 @@ export const DashboardPage: React.FC = () => {
                 <span>Pet Safety Alert Check</span>
               </button>
             </div>
+          </div>
+
+          {/* Real Dynamic Pet Status Animation or Featured Reunion Story */}
+          <div className="dashboard-hero-animation-wrap" style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
+            {myPet ? (
+              isMyPetSafe ? (
+                <DogGoingHomeAnimation dogName={myPet.name} />
+              ) : (
+                <DogAwayFromHomeAnimation
+                  dogName={myPet.name}
+                  lastSeenArea={myProfile?.city || myProfile?.district || 'Local Area'}
+                />
+              )
+            ) : (
+              <DogGoingHomeAnimation dogName="Bruno" />
+            )}
           </div>
 
           {/* Metrics Overview Bar */}
