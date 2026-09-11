@@ -142,8 +142,15 @@ export interface Sighting {
   reporterName?: string;
   reporterPhone?: string;
   reporterEmail?: string;
+  reporterUserId?: string;
   isGuest?: boolean;
   createdAt: string;
+  // SCD Type 2 Historical Sighting Tracking:
+  isCurrent?: boolean; // true if active current sighting; false if superseded by a newer sighting
+  validFrom?: string; // ISO timestamp when this sighting became current
+  validTo?: string | null; // ISO timestamp when superseded (null if still current)
+  version?: number; // Revision counter: 1, 2, 3...
+  supersededBy?: string; // ID of the newer sighting record that replaced this one
 }
 
 export type ListingReportCategory =

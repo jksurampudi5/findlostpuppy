@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Camera, MapPin, Calendar, Clock, Heart, Shield } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Sighting } from '../types';
 import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 interface SightingModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
   dogName,
   onSightingAdded,
 }) => {
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const today = new Date().toISOString().split('T')[0];
@@ -28,10 +30,17 @@ export const SightingModal: React.FC<SightingModalProps> = ({
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<string>('');
-  const [reporterName, setReporterName] = useState('');
-  const [reporterContact, setReporterContact] = useState('');
+  const [reporterName, setReporterName] = useState(user?.name || '');
+  const [reporterContact, setReporterContact] = useState(user?.email || user?.phone || '');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (!reporterName) setReporterName(user.name || '');
+      if (!reporterContact) setReporterContact(user.email || user.phone || '');
+    }
+  }, [user]);
 
   if (!isOpen) return null;
 
@@ -60,6 +69,9 @@ export const SightingModal: React.FC<SightingModalProps> = ({
 
     setLoading(true);
 
+    const emailCandidate = reporterContact.includes('@') ? reporterContact.trim() : (user?.email || undefined);
+    const phoneCandidate = !reporterContact.includes('@') && reporterContact.trim() ? reporterContact.trim() : (user?.phone || undefined);
+
     const newSighting: Sighting = {
       id: `sight-${Date.now()}`,
       reportId,
@@ -69,9 +81,10 @@ export const SightingModal: React.FC<SightingModalProps> = ({
       location: location.trim(),
       photo: photo || undefined,
       description: description.trim(),
-      reporterName: reporterName.trim() || 'Caring Neighbor',
-      reporterPhone: reporterContact.includes('@') ? undefined : reporterContact.trim(),
-      reporterEmail: reporterContact.includes('@') ? reporterContact.trim() : undefined,
+      reporterName: reporterName.trim() || user?.name || 'Caring Neighbor',
+      reporterPhone: phoneCandidate,
+      reporterEmail: emailCandidate,
+      reporterUserId: user?.id,
       createdAt: new Date().toISOString(),
     };
 
