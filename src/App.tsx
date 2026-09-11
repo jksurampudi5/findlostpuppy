@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import { Navbar } from './components/Navbar';
+import { SidebarNav } from './components/SidebarNav';
 import { Footer } from './components/Footer';
 
 import { ConsentPage } from './pages/ConsentPage';
@@ -208,12 +208,14 @@ export function App() {
     <Router basename={basename}>
       <ToastProvider>
         <AuthProvider>
-          <div className="app-layout">
-            <Navbar />
-            <main className="main-content">
-              <MainAppFlow />
-            </main>
-            <Footer />
+          <div className="app-layout-sidebar">
+            <SidebarNav />
+            <div className="app-main-viewport">
+              <main className="main-content">
+                <MainAppFlow />
+              </main>
+              <Footer />
+            </div>
           </div>
         </AuthProvider>
       </ToastProvider>
