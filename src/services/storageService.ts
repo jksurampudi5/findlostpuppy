@@ -27,6 +27,8 @@ const USER_REPORTS_KEY = 'findlostpuppy_user_reports_v1';
 const BLOCKED_USERS_KEY = 'findlostpuppy_blocked_users_v1';
 const USERS_KEY = 'findlostpuppy_registered_users_v1';
 const SESSION_KEY = 'findlostpuppy_session_v1';
+const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
+const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   {
@@ -198,6 +200,8 @@ class StorageService {
   private listingReports: ListingReport[] = [];
   private userReports: UserReport[] = [];
   private blockedUsers: BlockedUserRecord[] = [];
+  private deletedReportIds: string[] = [];
+  private deletedPetIds: string[] = [];
   private isTransactionActive: boolean = false;
 
   constructor() {
@@ -248,6 +252,8 @@ class StorageService {
       listingReports: JSON.stringify(this.listingReports),
       userReports: JSON.stringify(this.userReports),
       blockedUsers: JSON.stringify(this.blockedUsers),
+      deletedReportIds: JSON.stringify(this.deletedReportIds),
+      deletedPetIds: JSON.stringify(this.deletedPetIds),
     };
 
     try {
@@ -270,6 +276,8 @@ class StorageService {
       this.listingReports = JSON.parse(snapshot.listingReports);
       this.userReports = JSON.parse(snapshot.userReports);
       this.blockedUsers = JSON.parse(snapshot.blockedUsers);
+      this.deletedReportIds = JSON.parse(snapshot.deletedReportIds);
+      this.deletedPetIds = JSON.parse(snapshot.deletedPetIds);
       throw err;
     } finally {
       this.isTransactionActive = false;
@@ -379,14 +387,22 @@ class StorageService {
     safeSet(LISTING_REPORTS_KEY, this.listingReports);
     safeSet(USER_REPORTS_KEY, this.userReports);
     safeSet(BLOCKED_USERS_KEY, this.blockedUsers);
+    safeSet(DELETED_REPORTS_KEY, this.deletedReportIds);
+    safeSet(DELETED_PETS_KEY, this.deletedPetIds);
   }
 
   private init() {
     try {
+      const storedDeletedReports = localStorage.getItem(DELETED_REPORTS_KEY);
+      this.deletedReportIds = storedDeletedReports ? JSON.parse(storedDeletedReports) : [];
+
+      const storedDeletedPets = localStorage.getItem(DELETED_PETS_KEY);
+      this.deletedPetIds = storedDeletedPets ? JSON.parse(storedDeletedPets) : [];
+
       const storedReports = localStorage.getItem(REPORTS_KEY);
       const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
       
-      // Filter out old legacy random seed IDs and unwanted test duplicates
+      // Filter out old legacy random seed IDs, unwanted test duplicates, and deleted tombstones
       const userReports = rawReports.filter(
         (r) =>
           !r.id.startsWith('LOST-849201') &&
@@ -401,16 +417,35 @@ class StorageService {
           !r.id.startsWith('LOST-LEO-') &&
           !r.id.includes('1788863155592') &&
           r.id !== 'LOST-CHARLIE-SIGHTED' &&
-          r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
+          r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
+          !this.deletedReportIds.includes(r.id) &&
+          !this.deletedReportIds.includes(normalizeReportId(r.id)) &&
+          (!r.dogId || !this.deletedPetIds.includes(r.dogId)) &&
+          (!r.dog?.id || !this.deletedPetIds.includes(r.dog.id))
       );
 
-      // Merge with verified community baseline reports
+      // Merge with verified community baseline reports (respecting tombstones)
       const mergedMap = new Map<string, LostReport>();
       for (const rep of COMMUNITY_BASELINE_REPORTS) {
-        mergedMap.set(normalizeReportId(rep.id), rep);
+        const canon = normalizeReportId(rep.id);
+        if (
+          !this.deletedReportIds.includes(canon) &&
+          !this.deletedReportIds.includes(rep.id) &&
+          !this.deletedPetIds.includes(rep.dog.id)
+        ) {
+          mergedMap.set(canon, rep);
+        }
       }
       for (const rep of userReports) {
         const canonicalId = normalizeReportId(rep.id);
+        if (
+          this.deletedReportIds.includes(canonicalId) ||
+          this.deletedReportIds.includes(rep.id) ||
+          (rep.dogId && this.deletedPetIds.includes(rep.dogId)) ||
+          (rep.dog?.id && this.deletedPetIds.includes(rep.dog.id))
+        ) {
+          continue;
+        }
         // Normalize any legacy REUNITED status to SAFE
         if ((rep.status as any) === 'REUNITED') {
           rep.status = 'SAFE';
@@ -430,7 +465,11 @@ class StorageService {
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      this.sightings = rawSightings;
+      this.sightings = rawSightings.filter(
+        (s) =>
+          !this.deletedReportIds.includes(s.reportId) &&
+          !this.deletedReportIds.includes(normalizeReportId(s.reportId))
+      );
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
@@ -439,13 +478,21 @@ class StorageService {
       const storedPets = localStorage.getItem(PETS_KEY);
       const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
       
-      // Merge registered pets with baseline community pets
+      // Merge registered pets with baseline community pets (respecting tombstones)
       const petsMap = new Map<string, DogProfile>();
       for (const r of COMMUNITY_BASELINE_REPORTS) {
-        petsMap.set(r.dog.id, r.dog);
+        if (
+          !this.deletedPetIds.includes(r.dog.id) &&
+          !this.deletedReportIds.includes(r.id) &&
+          !this.deletedReportIds.includes(normalizeReportId(r.id))
+        ) {
+          petsMap.set(r.dog.id, r.dog);
+        }
       }
       for (const p of rawPets) {
-        petsMap.set(p.id, p);
+        if (!this.deletedPetIds.includes(p.id)) {
+          petsMap.set(p.id, p);
+        }
       }
       this.pets = Array.from(petsMap.values());
 
@@ -467,16 +514,17 @@ class StorageService {
       this.enforceIntegrityInvariants();
       this.commitAllStorage();
     } catch {
-      this.reports = [...COMMUNITY_BASELINE_REPORTS];
+      this.reports = COMMUNITY_BASELINE_REPORTS.filter(
+        (r) => !this.deletedReportIds.includes(r.id) && !this.deletedReportIds.includes(normalizeReportId(r.id))
+      );
       this.sightings = [];
       this.profiles = [];
-      this.pets = COMMUNITY_BASELINE_REPORTS.map((r) => r.dog);
+      this.pets = this.reports.map((r) => r.dog);
       this.skippedPetUserIds = [];
       this.skippedReportUserIds = [];
       this.listingReports = [];
       this.userReports = [];
       this.blockedUsers = [];
-      this.commitAllStorage();
     }
   }
 
@@ -495,7 +543,14 @@ class StorageService {
         const map = new Map<string, LostReport>();
 
         for (const r of COMMUNITY_BASELINE_REPORTS) {
-          map.set(normalizeReportId(r.id), r);
+          const canon = normalizeReportId(r.id);
+          if (
+            !this.deletedReportIds.includes(canon) &&
+            !this.deletedReportIds.includes(r.id) &&
+            !this.deletedPetIds.includes(r.dog.id)
+          ) {
+            map.set(canon, r);
+          }
         }
 
         const filteredParsed = parsed.filter(
@@ -512,7 +567,11 @@ class StorageService {
             !r.id.startsWith('LOST-LEO-') &&
             !r.id.includes('1788863155592') &&
             r.id !== 'LOST-CHARLIE-SIGHTED' &&
-            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
+            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
+            !this.deletedReportIds.includes(r.id) &&
+            !this.deletedReportIds.includes(normalizeReportId(r.id)) &&
+            (!r.dogId || !this.deletedPetIds.includes(r.dogId)) &&
+            (!r.dog?.id || !this.deletedPetIds.includes(r.dog.id))
         );
 
         for (const r of filteredParsed) {
@@ -598,7 +657,6 @@ class StorageService {
   deleteReport(reportId: string): boolean {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
-      const initialCount = this.reports.length;
 
       // Find the target report before removing
       const targetReport = this.reports.find(
@@ -612,12 +670,39 @@ class StorageService {
       const targetOwnerId = targetReport?.ownerId;
       const rawOwnerId = targetOwnerId ? targetOwnerId.replace(/^owner-/, '') : '';
 
+      // Record tombstone IDs so reloads/sync NEVER resurrect this report or pet
+      const idsToTombstone = [
+        reportId,
+        canonicalId,
+        reportId.toLowerCase(),
+        canonicalId.toLowerCase(),
+        targetReport?.id,
+        targetPetId,
+      ].filter(Boolean) as string[];
+
+      for (const id of idsToTombstone) {
+        if (!this.deletedReportIds.includes(id)) {
+          this.deletedReportIds.push(id);
+        }
+      }
+
+      if (targetPetId) {
+        if (!this.deletedPetIds.includes(targetPetId)) {
+          this.deletedPetIds.push(targetPetId);
+        }
+        if (!this.deletedPetIds.includes(targetPetId.toLowerCase())) {
+          this.deletedPetIds.push(targetPetId.toLowerCase());
+        }
+      }
+
       // 1. Remove from reports list
       this.reports = this.reports.filter(
         (r) =>
           normalizeReportId(r.id) !== canonicalId &&
           r.id !== reportId &&
-          r.id.toLowerCase() !== reportId.toLowerCase()
+          r.id.toLowerCase() !== reportId.toLowerCase() &&
+          !this.deletedReportIds.includes(r.id) &&
+          !this.deletedReportIds.includes(normalizeReportId(r.id))
       );
 
       // 2. Remove all associated sightings
@@ -625,17 +710,18 @@ class StorageService {
         (s) =>
           normalizeReportId(s.reportId) !== canonicalId &&
           s.reportId !== reportId &&
-          s.reportId.toLowerCase() !== reportId.toLowerCase()
+          s.reportId.toLowerCase() !== reportId.toLowerCase() &&
+          !this.deletedReportIds.includes(s.reportId)
       );
 
-      // 3. Remove associated pet profile if not a baseline community seed dog
-      if (
-        targetPetId &&
-        targetPetId !== 'dog-abullu-01' &&
-        targetPetId !== 'dog-charlie-01' &&
-        targetPetId !== 'dog-bruno-01'
-      ) {
-        this.pets = this.pets.filter((p) => p.id !== targetPetId && p.id !== targetReport?.id);
+      // 3. Remove associated pet profile unconditionally
+      if (targetPetId) {
+        this.pets = this.pets.filter(
+          (p) =>
+            p.id !== targetPetId &&
+            p.id.toLowerCase() !== targetPetId.toLowerCase() &&
+            p.id !== targetReport?.id
+        );
       }
 
       // 4. Remove from skipped list
@@ -650,7 +736,7 @@ class StorageService {
         .deleteLostReport(reportId, targetPetId)
         .catch((e) => console.warn('[Supabase Sync Delete Report Notice]:', e));
 
-      return this.reports.length < initialCount;
+      return true;
     });
   }
 
@@ -1289,6 +1375,9 @@ class StorageService {
   deletePetAsAdmin(petId: string): boolean {
     return this.executeTransaction(() => {
       const initLen = this.pets.length;
+      if (!this.deletedPetIds.includes(petId)) {
+        this.deletedPetIds.push(petId);
+      }
       this.pets = this.pets.filter((p) => p.id !== petId);
       // Also remove any linked reports
       this.reports = this.reports.filter((r) => r.dogId !== petId && r.dog?.id !== petId);
@@ -1451,6 +1540,14 @@ class StorageService {
           for (const r of remoteData.reports) {
             if (r && r.id) {
               const canon = normalizeReportId(r.id);
+              if (
+                this.deletedReportIds.includes(canon) ||
+                this.deletedReportIds.includes(r.id) ||
+                (r.dogId && this.deletedPetIds.includes(r.dogId)) ||
+                (r.dog?.id && this.deletedPetIds.includes(r.dog.id))
+              ) {
+                continue;
+              }
               if (!repMap.has(canon)) {
                 repMap.set(canon, r);
               } else {
@@ -1469,7 +1566,13 @@ class StorageService {
           const sMap = new Map<string, Sighting>();
           this.sightings.forEach((s) => sMap.set(s.id, s));
           for (const s of remoteData.sightings) {
-            if (s && s.id && !sMap.has(s.id)) {
+            if (
+              s &&
+              s.id &&
+              !sMap.has(s.id) &&
+              !this.deletedReportIds.includes(s.reportId) &&
+              !this.deletedReportIds.includes(normalizeReportId(s.reportId))
+            ) {
               sMap.set(s.id, s);
             }
           }
@@ -1480,7 +1583,7 @@ class StorageService {
           const pMap = new Map<string, DogProfile>();
           this.pets.forEach((p) => pMap.set(p.id, p));
           for (const p of remoteData.pets) {
-            if (p && p.id && !pMap.has(p.id)) {
+            if (p && p.id && !pMap.has(p.id) && !this.deletedPetIds.includes(p.id)) {
               pMap.set(p.id, p);
             }
           }
