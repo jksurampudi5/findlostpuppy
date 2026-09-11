@@ -400,7 +400,8 @@ class StorageService {
           !r.id.startsWith('LOST-SIMBA-') &&
           !r.id.startsWith('LOST-LEO-') &&
           !r.id.includes('1788863155592') &&
-          r.id !== 'LOST-CHARLIE-SIGHTED'
+          r.id !== 'LOST-CHARLIE-SIGHTED' &&
+          r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
       );
 
       // Merge with verified community baseline reports
@@ -433,7 +434,7 @@ class StorageService {
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles;
+      this.profiles = rawProfiles.filter((p) => p.email?.toLowerCase().trim() !== 'jksurampudi5@gmail.com');
 
       const storedPets = localStorage.getItem(PETS_KEY);
       const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
@@ -510,7 +511,8 @@ class StorageService {
             !r.id.startsWith('LOST-SIMBA-') &&
             !r.id.startsWith('LOST-LEO-') &&
             !r.id.includes('1788863155592') &&
-            r.id !== 'LOST-CHARLIE-SIGHTED'
+            r.id !== 'LOST-CHARLIE-SIGHTED' &&
+            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
         );
 
         for (const r of filteredParsed) {
@@ -597,19 +599,130 @@ class StorageService {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
       const initialCount = this.reports.length;
+
+      // Find the target report before removing
+      const targetReport = this.reports.find(
+        (r) =>
+          normalizeReportId(r.id) === canonicalId ||
+          r.id === reportId ||
+          r.id.toLowerCase() === reportId.toLowerCase()
+      );
+
+      const targetPetId = targetReport?.dogId || targetReport?.dog?.id;
+      const targetOwnerId = targetReport?.ownerId;
+      const rawOwnerId = targetOwnerId ? targetOwnerId.replace(/^owner-/, '') : '';
+
+      // 1. Remove from reports list
       this.reports = this.reports.filter(
         (r) =>
           normalizeReportId(r.id) !== canonicalId &&
           r.id !== reportId &&
           r.id.toLowerCase() !== reportId.toLowerCase()
       );
+
+      // 2. Remove all associated sightings
       this.sightings = this.sightings.filter(
         (s) =>
           normalizeReportId(s.reportId) !== canonicalId &&
           s.reportId !== reportId &&
           s.reportId.toLowerCase() !== reportId.toLowerCase()
       );
+
+      // 3. Remove associated pet profile if not a baseline community seed dog
+      if (
+        targetPetId &&
+        targetPetId !== 'dog-abullu-01' &&
+        targetPetId !== 'dog-charlie-01' &&
+        targetPetId !== 'dog-bruno-01'
+      ) {
+        this.pets = this.pets.filter((p) => p.id !== targetPetId && p.id !== targetReport?.id);
+      }
+
+      // 4. Remove from skipped list
+      if (targetOwnerId) {
+        this.skippedReportUserIds = this.skippedReportUserIds.filter(
+          (id) => id !== targetOwnerId && id !== `owner-${rawOwnerId}` && id !== rawOwnerId
+        );
+      }
+
+      // 5. Cloud synchronization to Supabase database
+      supabaseSyncService
+        .deleteLostReport(reportId, targetPetId)
+        .catch((e) => console.warn('[Supabase Sync Delete Report Notice]:', e));
+
       return this.reports.length < initialCount;
+    });
+  }
+
+  deleteUserDataByEmail(email: string): boolean {
+    return this.executeTransaction(() => {
+      const targetEmail = email.toLowerCase().trim();
+
+      // Find all report IDs and pet IDs belonging to this email
+      const matchedReports = this.reports.filter((r) => {
+        const ownerEmail = extractReportOwnerEmail(r, this.profiles);
+        return ownerEmail === targetEmail;
+      });
+
+      const matchedOwnerIds = new Set<string>();
+      matchedReports.forEach((r) => {
+        if (r.ownerId) {
+          matchedOwnerIds.add(r.ownerId);
+          matchedOwnerIds.add(r.ownerId.replace(/^owner-/, ''));
+        }
+      });
+
+      // Find profiles matching this email
+      const matchedProfiles = this.profiles.filter(
+        (p) => p.email && p.email.toLowerCase().trim() === targetEmail
+      );
+      matchedProfiles.forEach((p) => {
+        if (p.userId) matchedOwnerIds.add(p.userId);
+        if (p.id) matchedOwnerIds.add(p.id);
+      });
+
+      // 1. Remove reports
+      this.reports = this.reports.filter((r) => {
+        const ownerEmail = extractReportOwnerEmail(r, this.profiles);
+        return ownerEmail !== targetEmail;
+      });
+
+      // 2. Remove sightings for those reports or reported by this email
+      this.sightings = this.sightings.filter((s) => {
+        const isTargetReporter = s.reporterEmail && s.reporterEmail.toLowerCase().trim() === targetEmail;
+        const isTargetReport = matchedReports.some(
+          (r) => normalizeReportId(r.id) === normalizeReportId(s.reportId) || r.id === s.reportId
+        );
+        return !isTargetReporter && !isTargetReport;
+      });
+
+      // 3. Remove pets
+      this.pets = this.pets.filter((p) => {
+        const rawOwner = p.ownerId ? p.ownerId.replace(/^owner-/, '') : '';
+        return (
+          !matchedOwnerIds.has(p.ownerId) &&
+          !matchedOwnerIds.has(rawOwner) &&
+          p.id !== 'dog-abullu-01' // preserve community baseline
+        );
+      });
+
+      // 4. Remove profiles
+      this.profiles = this.profiles.filter(
+        (p) => !p.email || p.email.toLowerCase().trim() !== targetEmail
+      );
+
+      // 5. Clear skipped lists
+      matchedOwnerIds.forEach((id) => {
+        this.skippedPetUserIds = this.skippedPetUserIds.filter((x) => x !== id);
+        this.skippedReportUserIds = this.skippedReportUserIds.filter((x) => x !== id);
+      });
+
+      // 6. Cloud synchronization to Supabase
+      supabaseSyncService
+        .deleteUserDataByEmail(targetEmail)
+        .catch((e) => console.warn('[Supabase Sync Delete User Data Notice]:', e));
+
+      return true;
     });
   }
 
