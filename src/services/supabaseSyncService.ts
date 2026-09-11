@@ -310,6 +310,76 @@ export const supabaseSyncService = {
   },
 
   /**
+   * Delete a lost dog emergency report and its sightings from Supabase
+   */
+  async deleteLostReport(reportId: string, petId?: string): Promise<boolean> {
+    if (!supabase || !isSupabaseConfigured()) return false;
+    try {
+      const canonicalId = reportId.startsWith('LOST-') ? reportId : `LOST-${reportId.toUpperCase()}`;
+      const rawId = reportId.replace(/^lost-/i, '');
+
+      await Promise.all([
+        supabase.from('missing_reports').delete().eq('id', reportId),
+        supabase.from('missing_reports').delete().eq('id', canonicalId),
+        supabase.from('missing_reports').delete().eq('id', rawId),
+        supabase.from('sightings').delete().eq('report_id', reportId),
+        supabase.from('sightings').delete().eq('report_id', canonicalId),
+        supabase.from('sightings').delete().eq('report_id', rawId),
+      ]);
+
+      if (petId) {
+        await Promise.all([
+          supabase.from('missing_reports').delete().eq('pet_id', petId),
+          supabase.from('sightings').delete().eq('pet_id', petId),
+        ]);
+        // Only delete pet if not a baseline community seed ID
+        if (!petId.startsWith('dog-abullu-') && !petId.startsWith('dog-charlie-') && !petId.startsWith('dog-bruno-')) {
+          await supabase.from('pets').delete().eq('id', petId);
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('[Supabase] deleteLostReport error:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete all data associated with an email address from Supabase
+   */
+  async deleteUserDataByEmail(email: string): Promise<boolean> {
+    if (!supabase || !isSupabaseConfigured()) return false;
+    try {
+      const targetEmail = email.toLowerCase().trim();
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', targetEmail);
+
+      const userIds = (profiles || []).map((p: any) => p.id);
+
+      await Promise.all([
+        supabase.from('missing_reports').delete().ilike('contact_email', targetEmail),
+        supabase.from('profiles').delete().ilike('email', targetEmail),
+      ]);
+
+      for (const uid of userIds) {
+        await Promise.all([
+          supabase.from('missing_reports').delete().eq('user_id', uid),
+          supabase.from('pets').delete().eq('user_id', uid),
+          supabase.from('profiles').delete().eq('id', uid),
+        ]);
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('[Supabase] deleteUserDataByEmail error:', err);
+      return false;
+    }
+  },
+
+  /**
    * Admin delete sighting from Supabase
    */
   async deleteSightingAsAdmin(sightingId: string): Promise<boolean> {
@@ -323,3 +393,4 @@ export const supabaseSyncService = {
     }
   },
 };
+

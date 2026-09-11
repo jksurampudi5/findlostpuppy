@@ -148,6 +148,46 @@ export function normalizeReportId(id: string): string {
   return clean.startsWith('lost-') ? clean : `lost-${clean}`;
 }
 
+// Helper to extract and canonicalize the unique owner email for single-pet deduplication
+export function extractReportOwnerEmail(report: LostReport, profiles: OwnerProfile[] = []): string {
+  if (!report) return '';
+  if (report.contactMechanism?.safeContactEmail && report.contactMechanism.safeContactEmail.includes('@')) {
+    return report.contactMechanism.safeContactEmail.toLowerCase().trim();
+  }
+  if ((report as any)?.ownerEmail && typeof (report as any).ownerEmail === 'string' && (report as any).ownerEmail.includes('@')) {
+    return (report as any).ownerEmail.toLowerCase().trim();
+  }
+  if ((report as any)?.contactEmail && typeof (report as any).contactEmail === 'string' && (report as any).contactEmail.includes('@')) {
+    return (report as any).contactEmail.toLowerCase().trim();
+  }
+  const cleanOwnerId = (report.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
+  if (cleanOwnerId.includes('@')) {
+    return cleanOwnerId;
+  }
+  const matchedProfile = profiles.find(
+    (p) =>
+      p.userId === report.ownerId ||
+      p.userId === cleanOwnerId ||
+      p.id === report.ownerId ||
+      p.id === `owner-${cleanOwnerId}` ||
+      p.id === cleanOwnerId
+  );
+  if (matchedProfile?.email && matchedProfile.email.includes('@')) {
+    return matchedProfile.email.toLowerCase().trim();
+  }
+  // Baseline known emails
+  if (report.id === 'LOST-1788807276098' || report.ownerId === 'owner-krishna-abullu') {
+    return 'krishna.owner@findlostpuppy.org';
+  }
+  if (report.id === 'LOST-CHARLIE-01' || report.ownerId === 'owner-charlie-rescuers') {
+    return 'community.care@findlostpuppy.org';
+  }
+  if (report.id === 'LOST-BRUNO-WESTGODAVARI' || report.ownerId === 'owner-bruno-family') {
+    return 'bruno.family@findlostpuppy.org';
+  }
+  return cleanOwnerId || 'unknown-owner';
+}
+
 class StorageService {
   private reports: LostReport[] = [];
   private sightings: Sighting[] = [];
@@ -237,31 +277,49 @@ class StorageService {
   }
 
   private enforceIntegrityInvariants(): void {
-    // Invariant 1: Deduplicate reports so no 2 active reports exist for the same dog / normalized ID
-    const seenMap = new Map<string, LostReport>();
-    const seenPetActiveKey = new Set<string>();
+    // Invariant 1: Deduplicate reports so:
+    // a) Each unique owner email has at most 1 active pet report
+    // b) Pet state is strictly mutually exclusive: LOST vs SAFE (normalizing legacy REUNITED to SAFE)
+    // c) The most recently updated/created report is preserved as the single canonical representation
+    const seenOwnerKeyMap = new Map<string, LostReport>();
+    const seenIdMap = new Map<string, LostReport>();
 
-    for (const r of this.reports) {
+    // Sort reports by newest update/creation first
+    const sortedReports = [...this.reports].sort((a, b) => {
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    for (const r of sortedReports) {
+      if ((r.status as any) === 'REUNITED') {
+        r.status = 'SAFE';
+      }
       const canonicalId = normalizeReportId(r.id);
-      const ownerClean = (r.ownerId || '').replace(/^owner-/, '').toLowerCase();
-      const dogNameClean = (r.dog?.name || '').trim().toLowerCase();
-      const petActiveKey = `${ownerClean}::${dogNameClean}`;
+      const ownerEmail = extractReportOwnerEmail(r, this.profiles);
+      const ownerKey = ownerEmail.includes('@') ? `email:${ownerEmail}` : `owner:${ownerEmail}`;
 
-      // If active LOST report for same pet is encountered, keep only the latest one
-      if (r.status === 'LOST') {
-        if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
-          continue; // Skip duplicate active report for same dog
+      if (seenOwnerKeyMap.has(ownerKey)) {
+        // Consolidate richer photo/info into the canonical record
+        const existing = seenOwnerKeyMap.get(ownerKey)!;
+        if ((!existing.dog.primaryPhoto || existing.dog.primaryPhoto.length < 5) && r.dog.primaryPhoto) {
+          existing.dog.primaryPhoto = r.dog.primaryPhoto;
         }
-        if (dogNameClean && dogNameClean !== 'my dog') {
-          seenPetActiveKey.add(petActiveKey);
+        if ((!existing.dog.photos || existing.dog.photos.length === 0) && r.dog.photos?.length) {
+          existing.dog.photos = r.dog.photos;
         }
+        continue;
       }
 
-      if (!seenMap.has(canonicalId)) {
-        seenMap.set(canonicalId, r);
+      if (seenIdMap.has(canonicalId)) {
+        continue;
       }
+
+      seenOwnerKeyMap.set(ownerKey, r);
+      seenIdMap.set(canonicalId, r);
     }
-    this.reports = Array.from(seenMap.values());
+
+    this.reports = Array.from(seenOwnerKeyMap.values());
 
     // Invariant 2: Ensure all reports have valid photo fallbacks
     for (const r of this.reports) {
@@ -272,6 +330,20 @@ class StorageService {
         );
         r.dog.primaryPhoto = registered?.primaryPhoto || abulluImg;
       }
+      if (!r.dog.photos || r.dog.photos.length === 0) {
+        r.dog.photos = [r.dog.primaryPhoto || abulluImg];
+      }
+    }
+
+    // Invariant 3: Ensure report.sightingCount accurately reflects current active sightings (isCurrent !== false)
+    for (const r of this.reports) {
+      const canonicalId = normalizeReportId(r.id);
+      const activeCount = this.sightings.filter(
+        (s) =>
+          (normalizeReportId(s.reportId) === canonicalId || s.reportId.toLowerCase() === r.id.toLowerCase()) &&
+          s.isCurrent !== false
+      ).length;
+      r.sightingCount = activeCount;
     }
   }
 
@@ -328,7 +400,8 @@ class StorageService {
           !r.id.startsWith('LOST-SIMBA-') &&
           !r.id.startsWith('LOST-LEO-') &&
           !r.id.includes('1788863155592') &&
-          r.id !== 'LOST-CHARLIE-SIGHTED'
+          r.id !== 'LOST-CHARLIE-SIGHTED' &&
+          r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
       );
 
       // Merge with verified community baseline reports
@@ -361,7 +434,7 @@ class StorageService {
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles;
+      this.profiles = rawProfiles.filter((p) => p.email?.toLowerCase().trim() !== 'jksurampudi5@gmail.com');
 
       const storedPets = localStorage.getItem(PETS_KEY);
       const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
@@ -420,7 +493,6 @@ class StorageService {
       if (storedReports) {
         const parsed: LostReport[] = JSON.parse(storedReports);
         const map = new Map<string, LostReport>();
-        const seenPetActiveKey = new Set<string>();
 
         for (const r of COMMUNITY_BASELINE_REPORTS) {
           map.set(normalizeReportId(r.id), r);
@@ -439,7 +511,8 @@ class StorageService {
             !r.id.startsWith('LOST-SIMBA-') &&
             !r.id.startsWith('LOST-LEO-') &&
             !r.id.includes('1788863155592') &&
-            r.id !== 'LOST-CHARLIE-SIGHTED'
+            r.id !== 'LOST-CHARLIE-SIGHTED' &&
+            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com'
         );
 
         for (const r of filteredParsed) {
@@ -458,31 +531,22 @@ class StorageService {
           if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5) {
             r.dog.primaryPhoto = abulluImg;
           }
-
-          const canonicalId = normalizeReportId(r.id);
-          const ownerClean = (r.ownerId || '').replace(/^owner-/, '').toLowerCase();
-          const dogNameClean = (r.dog?.name || '').trim().toLowerCase();
-          const petActiveKey = `${ownerClean}::${dogNameClean}`;
-
-          // Deduplicate active reports for same pet
-          if (r.status === 'LOST') {
-            if (dogNameClean && dogNameClean !== 'my dog' && seenPetActiveKey.has(petActiveKey)) {
-              continue;
-            }
-            if (dogNameClean && dogNameClean !== 'my dog') {
-              seenPetActiveKey.add(petActiveKey);
-            }
+          if (!r.dog.photos || r.dog.photos.length === 0) {
+            r.dog.photos = [r.dog.primaryPhoto || abulluImg];
           }
 
-          map.set(canonicalId, r);
+          map.set(normalizeReportId(r.id), r);
         }
         this.reports = Array.from(map.values());
+        this.enforceIntegrityInvariants();
       } else {
         this.reports = [...COMMUNITY_BASELINE_REPORTS];
+        this.enforceIntegrityInvariants();
       }
     } catch (e) {
       console.warn('Failed to load reports:', e);
       this.reports = [...COMMUNITY_BASELINE_REPORTS];
+      this.enforceIntegrityInvariants();
     }
   }
 
@@ -535,63 +599,272 @@ class StorageService {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
       const initialCount = this.reports.length;
+
+      // Find the target report before removing
+      const targetReport = this.reports.find(
+        (r) =>
+          normalizeReportId(r.id) === canonicalId ||
+          r.id === reportId ||
+          r.id.toLowerCase() === reportId.toLowerCase()
+      );
+
+      const targetPetId = targetReport?.dogId || targetReport?.dog?.id;
+      const targetOwnerId = targetReport?.ownerId;
+      const rawOwnerId = targetOwnerId ? targetOwnerId.replace(/^owner-/, '') : '';
+
+      // 1. Remove from reports list
       this.reports = this.reports.filter(
         (r) =>
           normalizeReportId(r.id) !== canonicalId &&
           r.id !== reportId &&
           r.id.toLowerCase() !== reportId.toLowerCase()
       );
+
+      // 2. Remove all associated sightings
       this.sightings = this.sightings.filter(
         (s) =>
           normalizeReportId(s.reportId) !== canonicalId &&
           s.reportId !== reportId &&
           s.reportId.toLowerCase() !== reportId.toLowerCase()
       );
+
+      // 3. Remove associated pet profile if not a baseline community seed dog
+      if (
+        targetPetId &&
+        targetPetId !== 'dog-abullu-01' &&
+        targetPetId !== 'dog-charlie-01' &&
+        targetPetId !== 'dog-bruno-01'
+      ) {
+        this.pets = this.pets.filter((p) => p.id !== targetPetId && p.id !== targetReport?.id);
+      }
+
+      // 4. Remove from skipped list
+      if (targetOwnerId) {
+        this.skippedReportUserIds = this.skippedReportUserIds.filter(
+          (id) => id !== targetOwnerId && id !== `owner-${rawOwnerId}` && id !== rawOwnerId
+        );
+      }
+
+      // 5. Cloud synchronization to Supabase database
+      supabaseSyncService
+        .deleteLostReport(reportId, targetPetId)
+        .catch((e) => console.warn('[Supabase Sync Delete Report Notice]:', e));
+
       return this.reports.length < initialCount;
+    });
+  }
+
+  deleteUserDataByEmail(email: string): boolean {
+    return this.executeTransaction(() => {
+      const targetEmail = email.toLowerCase().trim();
+
+      // Find all report IDs and pet IDs belonging to this email
+      const matchedReports = this.reports.filter((r) => {
+        const ownerEmail = extractReportOwnerEmail(r, this.profiles);
+        return ownerEmail === targetEmail;
+      });
+
+      const matchedOwnerIds = new Set<string>();
+      matchedReports.forEach((r) => {
+        if (r.ownerId) {
+          matchedOwnerIds.add(r.ownerId);
+          matchedOwnerIds.add(r.ownerId.replace(/^owner-/, ''));
+        }
+      });
+
+      // Find profiles matching this email
+      const matchedProfiles = this.profiles.filter(
+        (p) => p.email && p.email.toLowerCase().trim() === targetEmail
+      );
+      matchedProfiles.forEach((p) => {
+        if (p.userId) matchedOwnerIds.add(p.userId);
+        if (p.id) matchedOwnerIds.add(p.id);
+      });
+
+      // 1. Remove reports
+      this.reports = this.reports.filter((r) => {
+        const ownerEmail = extractReportOwnerEmail(r, this.profiles);
+        return ownerEmail !== targetEmail;
+      });
+
+      // 2. Remove sightings for those reports or reported by this email
+      this.sightings = this.sightings.filter((s) => {
+        const isTargetReporter = s.reporterEmail && s.reporterEmail.toLowerCase().trim() === targetEmail;
+        const isTargetReport = matchedReports.some(
+          (r) => normalizeReportId(r.id) === normalizeReportId(s.reportId) || r.id === s.reportId
+        );
+        return !isTargetReporter && !isTargetReport;
+      });
+
+      // 3. Remove pets
+      this.pets = this.pets.filter((p) => {
+        const rawOwner = p.ownerId ? p.ownerId.replace(/^owner-/, '') : '';
+        return (
+          !matchedOwnerIds.has(p.ownerId) &&
+          !matchedOwnerIds.has(rawOwner) &&
+          p.id !== 'dog-abullu-01' // preserve community baseline
+        );
+      });
+
+      // 4. Remove profiles
+      this.profiles = this.profiles.filter(
+        (p) => !p.email || p.email.toLowerCase().trim() !== targetEmail
+      );
+
+      // 5. Clear skipped lists
+      matchedOwnerIds.forEach((id) => {
+        this.skippedPetUserIds = this.skippedPetUserIds.filter((x) => x !== id);
+        this.skippedReportUserIds = this.skippedReportUserIds.filter((x) => x !== id);
+      });
+
+      // 6. Cloud synchronization to Supabase
+      supabaseSyncService
+        .deleteUserDataByEmail(targetEmail)
+        .catch((e) => console.warn('[Supabase Sync Delete User Data Notice]:', e));
+
+      return true;
     });
   }
 
   updateReportStatus(reportId: string, status: ReportStatus): boolean {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
+      const normalizedStatus: ReportStatus = (status as any) === 'REUNITED' ? 'SAFE' : status;
       const report = this.reports.find((r) => normalizeReportId(r.id) === canonicalId || r.id === reportId);
       if (!report) return false;
-      report.status = status;
+
+      report.status = normalizedStatus;
       report.updatedAt = new Date().toISOString();
+
+      const rawOwner = (report.ownerId || '').replace(/^owner-/, '');
+      if (normalizedStatus === 'SAFE') {
+        if (!this.skippedReportUserIds.includes(report.ownerId) && !this.skippedReportUserIds.includes(rawOwner)) {
+          this.skippedReportUserIds.push(report.ownerId);
+        }
+      } else if (normalizedStatus === 'LOST') {
+        this.skippedReportUserIds = this.skippedReportUserIds.filter(
+          (id) => id !== report.ownerId && id !== `owner-${rawOwner}` && id !== rawOwner
+        );
+      }
+
+      // Background sync to Supabase
+      supabaseSyncService.syncLostReport(report).catch(() => {});
+      supabaseSyncService.updatePetSafetyStatus(
+        report.dogId || report.dog?.id || report.id,
+        normalizedStatus === 'LOST'
+      ).catch(() => {});
+
       return true;
     });
   }
 
-  // SIGHTINGS:
-  getSightingsForReport(reportId: string): Sighting[] {
+  // SIGHTINGS (SCD Type 2 Historical Tracking):
+  getSightingsForReport(reportId: string, currentOnly: boolean = false): Sighting[] {
     const canonicalId = normalizeReportId(reportId);
     return this.sightings
-      .filter((s) => normalizeReportId(s.reportId) === canonicalId || s.reportId.toLowerCase() === reportId.toLowerCase())
+      .filter((s) => {
+        const matches =
+          normalizeReportId(s.reportId) === canonicalId || s.reportId.toLowerCase() === reportId.toLowerCase();
+        if (!matches) return false;
+        if (currentOnly) return s.isCurrent !== false;
+        return true;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  getActiveSightingsForReport(reportId: string): Sighting[] {
+    return this.getSightingsForReport(reportId, true);
+  }
+
+  getHistoricalSightingsForReport(reportId: string): Sighting[] {
+    const canonicalId = normalizeReportId(reportId);
+    return this.sightings
+      .filter(
+        (s) =>
+          (normalizeReportId(s.reportId) === canonicalId || s.reportId.toLowerCase() === reportId.toLowerCase()) &&
+          s.isCurrent === false
+      )
+      .sort((a, b) => new Date(b.validTo || b.createdAt).getTime() - new Date(a.validTo || a.createdAt).getTime());
   }
 
   addSighting(sighting: Sighting): Sighting {
     return this.executeTransaction(() => {
-      this.sightings.unshift(sighting);
+      const now = new Date().toISOString();
+      const canonicalReportId = normalizeReportId(sighting.reportId);
 
-      // Increment sighting count on report
-      const canonicalId = normalizeReportId(sighting.reportId);
+      // Unique reporter identity: email > userId > phone > sightingId
+      const reporterEmail = (sighting.reporterEmail || '').toLowerCase().trim();
+      const reporterPhone = (sighting.reporterPhone || '').replace(/\D/g, '');
+      const reporterUserId = (sighting.reporterUserId || '').trim();
+
+      // Find prior active sighting by this reporter on this report
+      let existingActiveSighting: Sighting | undefined;
+      for (const s of this.sightings) {
+        if (
+          normalizeReportId(s.reportId) !== canonicalReportId &&
+          s.reportId.toLowerCase() !== sighting.reportId.toLowerCase()
+        ) {
+          continue;
+        }
+        if (s.isCurrent === false) continue; // Already archived/historical
+
+        const sEmail = (s.reporterEmail || '').toLowerCase().trim();
+        const sPhone = (s.reporterPhone || '').replace(/\D/g, '');
+        const sUserId = (s.reporterUserId || '').trim();
+
+        if (
+          (reporterEmail.includes('@') && sEmail === reporterEmail) ||
+          (reporterUserId && sUserId === reporterUserId) ||
+          (reporterPhone && sPhone.length >= 7 && sPhone === reporterPhone)
+        ) {
+          existingActiveSighting = s;
+          break;
+        }
+      }
+
+      let version = 1;
+      if (existingActiveSighting) {
+        // SCD Type 2: Close out prior active sighting
+        existingActiveSighting.isCurrent = false;
+        existingActiveSighting.validTo = now;
+        existingActiveSighting.supersededBy = sighting.id;
+        version = (existingActiveSighting.version || 1) + 1;
+      }
+
+      // Create new current active sighting
+      const currentSighting: Sighting = {
+        ...sighting,
+        isCurrent: true,
+        validFrom: now,
+        validTo: null,
+        version,
+        createdAt: sighting.createdAt || now,
+      };
+
+      this.sightings.unshift(currentSighting);
+
+      // Increment / update sighting count on report
       const report = this.reports.find(
-        (r) => normalizeReportId(r.id) === canonicalId || r.id === sighting.reportId
+        (r) => normalizeReportId(r.id) === canonicalReportId || r.id === sighting.reportId
       );
       if (report) {
-        report.sightingCount = (report.sightingCount || 0) + 1;
-        // Keep status as strictly LOST if not SAFE
+        const activeCount = this.sightings.filter(
+          (s) =>
+            (normalizeReportId(s.reportId) === canonicalReportId ||
+              s.reportId.toLowerCase() === sighting.reportId.toLowerCase()) &&
+            s.isCurrent !== false
+        ).length;
+        report.sightingCount = activeCount;
         if (report.status !== 'SAFE' && (report.status as any) !== 'REUNITED') {
           report.status = 'LOST';
         }
-        report.updatedAt = new Date().toISOString();
+        report.updatedAt = now;
       }
 
       // Background sync to Supabase
-      supabaseSyncService.syncSighting(sighting).catch((e) => console.warn('[Supabase Sync Sighting Notice]:', e));
+      supabaseSyncService.syncSighting(currentSighting).catch((e) => console.warn('[Supabase Sync Sighting Notice]:', e));
 
-      return sighting;
+      return currentSighting;
     });
   }
 
@@ -706,28 +979,35 @@ class StorageService {
       );
 
       const canonicalId = normalizeReportId(report.id);
-      const reportDogName = (report.dog?.name || '').trim().toLowerCase();
+      const ownerEmail = extractReportOwnerEmail(report, this.profiles);
 
-      // Find existing report by canonical ID OR by owner + dog name
-      const existingIdx = this.reports.findIndex(
-        (r) =>
-          normalizeReportId(r.id) === canonicalId ||
-          ((r.ownerId === report.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
-            reportDogName &&
-            (r.dog?.name || '').trim().toLowerCase() === reportDogName)
-      );
+      if ((report.status as any) === 'REUNITED') {
+        report.status = 'SAFE';
+      }
+
+      // Find existing report by canonical ID OR by owner unique email OR by owner ID
+      const existingIdx = this.reports.findIndex((r) => {
+        if (normalizeReportId(r.id) === canonicalId) return true;
+        const rEmail = extractReportOwnerEmail(r, this.profiles);
+        if (ownerEmail.includes('@') && rEmail === ownerEmail) return true;
+        if (r.ownerId === report.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) return true;
+        return false;
+      });
 
       if (existingIdx >= 0) {
-        // Atomic in-place update (prevents duplicate rows)
+        // Atomic in-place update (prevents duplicate rows for the same unique email)
         this.reports[existingIdx] = {
           ...this.reports[existingIdx],
           ...report,
           id: this.reports[existingIdx].id, // Preserve established ID
+          status: report.status || this.reports[existingIdx].status,
           updatedAt: new Date().toISOString(),
         };
       } else {
         this.reports.unshift(report);
       }
+
+      this.enforceIntegrityInvariants();
 
       // Background sync to Supabase
       supabaseSyncService.syncLostReport(report).catch((e) => console.warn('[Supabase Sync Report Notice]:', e));
