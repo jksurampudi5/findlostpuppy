@@ -41,13 +41,23 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     if (!user) return;
     const cleanName = nameVal.trim();
     const cleanPhone = phoneVal.trim();
-    if (cleanName || cleanPhone || photoVal) {
+    const cleanPhoto = photoVal.trim();
+
+    const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+    const prevName = p?.fullName || user.name || '';
+    const prevPhone = p?.phone || user.phone || '';
+    const prevPhoto = p?.photo || user.avatar || '';
+
+    if (cleanName === prevName && cleanPhone === prevPhone && cleanPhoto === prevPhoto) {
+      return;
+    }
+
+    if (cleanName || cleanPhone || cleanPhoto) {
       authService.updateCurrentUser({
         name: cleanName || user.name,
         phone: cleanPhone || user.phone,
-        avatar: photoVal.trim() || undefined,
+        avatar: cleanPhoto || undefined,
       });
-      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
       const draft: OwnerProfile = {
         ...(p || {}),
         id: p?.id || `owner-${user.id}`,
@@ -55,7 +65,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         fullName: cleanName || p?.fullName || user.name || '',
         phone: cleanPhone || p?.phone || user.phone || '',
         email: user.email,
-        photo: photoVal.trim() || undefined,
+        photo: cleanPhoto || undefined,
         preferredContact,
         address: p?.address || '',
         state: p?.state || '',
@@ -73,26 +83,26 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     if (user) {
       const p = storageService.getOwnerProfileByUserId(user.id, user.email);
       if (p) {
-        if (p.fullName) setFullName(p.fullName);
-        else if (user.name) setFullName(user.name);
+        if (p.fullName && p.fullName !== fullNameRef.current) setFullName(p.fullName);
+        else if (user.name && !fullNameRef.current) setFullName(user.name);
 
-        if (p.phone) setPhone(p.phone);
-        else if (user.phone) setPhone(user.phone);
+        if (p.phone && p.phone !== phoneRef.current) setPhone(p.phone);
+        else if (user.phone && !phoneRef.current) setPhone(user.phone);
 
-        if (p.photo) setPhoto(p.photo);
-        else if (user.avatar) setPhoto(user.avatar);
+        if (p.photo && p.photo !== photoRef.current) setPhoto(p.photo);
+        else if (user.avatar && !photoRef.current) setPhoto(user.avatar);
 
         if (p.preferredContact) setPreferredContact(p.preferredContact);
       } else {
-        if (user.name) setFullName(user.name);
-        if (user.phone) setPhone(user.phone);
-        if (user.avatar) setPhoto(user.avatar);
+        if (user.name && !fullNameRef.current) setFullName(user.name);
+        if (user.phone && !phoneRef.current) setPhone(user.phone);
+        if (user.avatar && !photoRef.current) setPhoto(user.avatar);
       }
     }
     return () => {
       saveDraft(fullNameRef.current, phoneRef.current, photoRef.current);
     };
-  }, [user]);
+  }, [user?.id, user?.email]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

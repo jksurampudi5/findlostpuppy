@@ -155,6 +155,15 @@ class AuthService {
 
   updateCurrentUser(partial: Partial<User>): User | null {
     if (!this.currentUser) return null;
+    let hasDiff = false;
+    for (const [key, val] of Object.entries(partial)) {
+      if ((this.currentUser as any)[key] !== val) {
+        hasDiff = true;
+        break;
+      }
+    }
+    if (!hasDiff) return this.currentUser;
+
     this.currentUser = { ...this.currentUser, ...partial };
     const idx = this.users.findIndex(
       (u) => u.id === this.currentUser?.id || u.email.toLowerCase() === this.currentUser?.email.toLowerCase()

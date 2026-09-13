@@ -1189,12 +1189,12 @@ class StorageService {
     return this.skippedPetUserIds.includes(userId) || this.skippedPetUserIds.includes(rawUserId);
   }
 
-  hasCompletedPetProfile(userId: string): boolean {
-    return !!this.getPetProfileByUserId(userId) || this.hasSkippedPetProfile(userId);
+  hasCompletedPetProfile(userId: string, email?: string): boolean {
+    return !!this.getPetProfileByUserId(userId, email) || this.hasSkippedPetProfile(userId);
   }
 
-  hasCompletedDogProfile(userId: string): boolean {
-    return this.hasCompletedPetProfile(userId);
+  hasCompletedDogProfile(userId: string, email?: string): boolean {
+    return this.hasCompletedPetProfile(userId, email);
   }
 
   // LOST DOG REPORT MANAGEMENT:
