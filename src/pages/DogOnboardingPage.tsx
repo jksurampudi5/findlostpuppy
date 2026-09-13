@@ -41,7 +41,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const hasSkipped = user ? storageService.hasSkippedPetProfile(user.id) : false;
   const isInitiallyComplete = !!existingPet || hasSkipped;
 
@@ -161,7 +161,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
             <div className="pet-profile-showcase">
               {/* Owner & Pet Family Banner */}
               {(() => {
-                const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
+                const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
                 if (!ownerProfile && !existingPet) return null;
                 return (
                   <div className="owner-pet-family-banner">

@@ -15,6 +15,7 @@ import { consentService } from './consentService';
 import { supabaseSyncService } from './supabaseSyncService';
 
 import abulluImg from '../assets/abullu.jpg';
+import sonuImg from '../assets/sonu.jpg';
 
 const REPORTS_KEY = 'findlostpuppy_reports_v1';
 const SIGHTINGS_KEY = 'findlostpuppy_sightings_v1';
@@ -31,6 +32,42 @@ const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
 const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
+  {
+    id: 'LOST-1788885000505',
+    dogId: 'pet-1788871495754',
+    ownerId: 'owner-user-1788871008918',
+    dog: {
+      id: 'pet-1788871495754',
+      ownerId: 'owner-user-1788871008918',
+      name: 'SONU',
+      breed: 'INDIE • Companion Pet',
+      gender: 'Male',
+      age: '2 years',
+      size: 'Medium (10-25kg)',
+      color: 'Golden brown with white streak on head and white fur on chest',
+      distinguishingMarks: 'Thin white vertical streak on forehead between eyes, white chest patch, alert and friendly',
+      collarInfo: 'None',
+      primaryPhoto: sonuImg,
+      photos: [sonuImg],
+      createdAt: '2026-09-08T12:44:55.754Z',
+    },
+    ownerApproximateLocation: 'Yennepally, Vikarabad (Mandal), Vikarabad, Telangana',
+    lastKnownLocation: 'Yennepally, Vikarabad, Telangana',
+    dateLost: '2026-09-08',
+    timeLost: '12:00 PM',
+    additionalNotes: 'Very friendly and gentle Indie dog. Please reach out immediately if you spot Sonu near Yennepally/Vikarabad!',
+    status: 'LOST',
+    contactMechanism: {
+      showPhone: true,
+      showEmail: true,
+      safeContactPhone: '07396868941',
+      safeContactEmail: 'priyankashrama80@gmail.com',
+      contactNote: 'Please reach out immediately if spotted!',
+    },
+    sightingCount: 1,
+    createdAt: '2026-09-08T16:30:00.505Z',
+    updatedAt: new Date().toISOString(),
+  },
   {
     id: 'LOST-1788807276098',
     dogId: 'dog-abullu-01',
@@ -494,6 +531,18 @@ class StorageService {
         if (normalizeReportId(rep.id) === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
           rep.dog.primaryPhoto = abulluImg;
         }
+        const isSonu =
+          (rep.dog?.name || '').trim().toUpperCase() === 'SONU' ||
+          normalizeReportId(rep.id) === 'lost-1788885000505' ||
+          (rep.dogId || '').includes('1788871495754');
+        if (isSonu) {
+          if (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5 || rep.dog.primaryPhoto === abulluImg || rep.dog.primaryPhoto.includes('abullu')) {
+            rep.dog.primaryPhoto = sonuImg;
+          }
+          if (!rep.dog.photos || rep.dog.photos.length === 0 || (rep.dog.photos.length === 1 && (rep.dog.photos[0] === abulluImg || rep.dog.photos[0].includes('abullu')))) {
+            rep.dog.photos = [sonuImg];
+          }
+        }
       }
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
@@ -511,6 +560,17 @@ class StorageService {
         this.pets = this.reports
           .map((r) => r.dog)
           .filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
+      }
+
+      for (const p of this.pets) {
+        if ((p.name || '').trim().toUpperCase() === 'SONU' || (p.id || '').includes('1788871495754')) {
+          if (!p.primaryPhoto || p.primaryPhoto === abulluImg || p.primaryPhoto.includes('abullu')) {
+            p.primaryPhoto = sonuImg;
+          }
+          if (!p.photos || p.photos.length === 0 || (p.photos.length === 1 && (p.photos[0] === abulluImg || p.photos[0].includes('abullu')))) {
+            p.photos = [sonuImg];
+          }
+        }
       }
 
       const storedSkipped = localStorage.getItem(SKIPPED_PET_KEY);
@@ -588,11 +648,24 @@ class StorageService {
               r.dog.primaryPhoto = registeredPet.primaryPhoto;
             }
           }
-          if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5) {
-            r.dog.primaryPhoto = abulluImg;
-          }
-          if (!r.dog.photos || r.dog.photos.length === 0) {
-            r.dog.photos = [r.dog.primaryPhoto || abulluImg];
+          const isSonu =
+            (r.dog?.name || '').trim().toUpperCase() === 'SONU' ||
+            normalizeReportId(r.id) === 'lost-1788885000505' ||
+            (r.dogId || '').includes('1788871495754');
+          if (isSonu) {
+            if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5 || r.dog.primaryPhoto === abulluImg || r.dog.primaryPhoto.includes('abullu')) {
+              r.dog.primaryPhoto = sonuImg;
+            }
+            if (!r.dog.photos || r.dog.photos.length === 0 || (r.dog.photos.length === 1 && (r.dog.photos[0] === abulluImg || r.dog.photos[0].includes('abullu')))) {
+              r.dog.photos = [sonuImg];
+            }
+          } else {
+            if (!r.dog.primaryPhoto || r.dog.primaryPhoto.length < 5) {
+              r.dog.primaryPhoto = abulluImg;
+            }
+            if (!r.dog.photos || r.dog.photos.length === 0) {
+              r.dog.photos = [r.dog.primaryPhoto || abulluImg];
+            }
           }
         }
         this.reports = filteredParsed;
@@ -1275,9 +1348,10 @@ class StorageService {
     });
   }
 
-  markPetSafe(userId: string): void {
+  markPetSafe(userId: string, email?: string): void {
     this.executeTransaction(() => {
       const rawUserId = userId.replace(/^owner-/, '');
+      const cleanEmail = email?.trim().toLowerCase();
       if (!this.skippedReportUserIds.includes(userId) && !this.skippedReportUserIds.includes(rawUserId)) {
         this.skippedReportUserIds.push(userId);
       }
@@ -1289,7 +1363,8 @@ class StorageService {
           r.ownerId === `owner-${userId}` ||
           r.ownerId === userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail)
         ) {
           r.status = 'SAFE';
           r.updatedAt = new Date().toISOString();
@@ -1299,8 +1374,8 @@ class StorageService {
 
       // If no report exists yet but a pet profile is registered, auto-create the Safe at Home report
       if (!matched) {
-        const pet = this.getPetProfileByUserId(userId);
-        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        const pet = this.getPetProfileByUserId(userId, email);
+        const ownerProfile = this.getOwnerProfileByUserId(userId, email);
         if (pet) {
           const approxLoc =
             ownerProfile?.approximateArea ||
@@ -1339,9 +1414,10 @@ class StorageService {
     });
   }
 
-  markPetLost(userId: string): void {
+  markPetLost(userId: string, email?: string): void {
     this.executeTransaction(() => {
       const rawUserId = userId.replace(/^owner-/, '');
+      const cleanEmail = email?.trim().toLowerCase();
       this.skippedReportUserIds = this.skippedReportUserIds.filter(
         (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
       );
@@ -1353,7 +1429,8 @@ class StorageService {
           r.ownerId === `owner-${userId}` ||
           r.ownerId === userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail)
         ) {
           r.status = 'LOST';
           r.updatedAt = new Date().toISOString();
@@ -1363,8 +1440,8 @@ class StorageService {
 
       // If no report exists yet but a pet profile is registered, auto-create the missing alert report
       if (!matched) {
-        const pet = this.getPetProfileByUserId(userId);
-        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        const pet = this.getPetProfileByUserId(userId, email);
+        const ownerProfile = this.getOwnerProfileByUserId(userId, email);
         if (pet) {
           const approxLoc =
             ownerProfile?.approximateArea ||
@@ -1421,8 +1498,8 @@ class StorageService {
     return this.skippedReportUserIds.includes(userId) || this.skippedReportUserIds.includes(rawUserId);
   }
 
-  hasCompletedReport(userId: string): boolean {
-    return !!this.getLatestReportByUserId(userId) || this.hasSkippedReport(userId);
+  hasCompletedReport(userId: string, email?: string): boolean {
+    return !!this.getLatestReportByUserId(userId, email) || this.hasSkippedReport(userId);
   }
 
   saveOwnerProfile(profile: OwnerProfile): OwnerProfile {
@@ -1448,7 +1525,8 @@ class StorageService {
           r.ownerId === profile.id ||
           r.ownerId === profile.userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (profile.email && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === profile.email.trim().toLowerCase())
         ) {
           r.ownerApproximateLocation = approxLoc;
           if (!r.lastKnownLocation || r.lastKnownLocation === 'Local Neighborhood') {
@@ -1465,7 +1543,7 @@ class StorageService {
 
       // If owner has a registered pet profile but no report yet, auto-create the Safe at Home report with the newly saved location
       if (!hasReport) {
-        const pet = this.getPetProfileByUserId(profile.userId || profile.id);
+        const pet = this.getPetProfileByUserId(profile.userId || profile.id, profile.email);
         if (pet) {
           const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
           if (!this.isReportOrPetDeleted(reportId, pet.id)) {
@@ -1979,25 +2057,31 @@ class StorageService {
       }));
 
       // Map Supabase pets to DogProfile
-      const mappedPets: DogProfile[] = (pets || []).map((p: any) => ({
-        id: p.id,
-        ownerId: p.user_id,
-        name: p.name,
-        breed: p.breed || 'Companion Pet',
-        gender: p.gender || 'Unknown',
-        age: '2 years',
-        size: 'Medium (10-25kg)',
-        color: p.color || '',
-        distinguishingMarks: p.markings || '',
-        collarInfo: '',
-        primaryPhoto: p.photo_url || abulluImg,
-        photos: p.photo_url ? [p.photo_url] : [abulluImg],
-        createdAt: p.created_at || new Date().toISOString(),
-      }));
+      const mappedPets: DogProfile[] = (pets || []).map((p: any) => {
+        const isSonu = (p.name || '').trim().toUpperCase() === 'SONU' || (p.id || '').includes('1788871495754');
+        const photo = isSonu && (!p.photo_url || p.photo_url.includes('abullu')) ? sonuImg : (p.photo_url || abulluImg);
+        return {
+          id: p.id,
+          ownerId: p.user_id,
+          name: p.name,
+          breed: p.breed || (isSonu ? 'INDIE' : 'Companion Pet'),
+          gender: p.gender || 'Male',
+          age: '2 years',
+          size: 'Medium (10-25kg)',
+          color: p.color || (isSonu ? 'Golden brown with white streak on head and white fur on chest' : ''),
+          distinguishingMarks: p.markings || (isSonu ? 'Thin white vertical streak on forehead between eyes, white chest patch' : ''),
+          collarInfo: '',
+          primaryPhoto: photo,
+          photos: [photo],
+          createdAt: p.created_at || new Date().toISOString(),
+        };
+      });
 
       // Map Supabase missing_reports to LostReport
       const mappedReports: LostReport[] = (reports || []).map((r: any) => {
         const petInfo = (pets || []).find((p: any) => p.id === r.pet_id);
+        const isSonu = (r.pet_name || petInfo?.name || '').trim().toUpperCase() === 'SONU' || (r.id || '').includes('1788885000505') || (r.pet_id || '').includes('1788871495754');
+        const photo = isSonu && (!r.pet_photo || r.pet_photo.includes('abullu')) ? sonuImg : (r.pet_photo || petInfo?.photo_url || (isSonu ? sonuImg : abulluImg));
         return {
           id: r.id,
           dogId: r.pet_id,
@@ -2005,16 +2089,16 @@ class StorageService {
           dog: {
             id: r.pet_id,
             ownerId: r.user_id,
-            name: r.pet_name || petInfo?.name || 'Pet',
-            breed: petInfo?.breed || 'Companion Dog',
-            gender: petInfo?.gender || 'Unknown',
+            name: r.pet_name || petInfo?.name || (isSonu ? 'SONU' : 'Pet'),
+            breed: petInfo?.breed || (isSonu ? 'INDIE' : 'Companion Dog'),
+            gender: petInfo?.gender || 'Male',
             age: '2 years',
             size: 'Medium (10-25kg)',
-            color: petInfo?.color || '',
-            distinguishingMarks: petInfo?.markings || '',
+            color: petInfo?.color || (isSonu ? 'Golden brown with white streak on head and white fur on chest' : ''),
+            distinguishingMarks: petInfo?.markings || (isSonu ? 'Thin white vertical streak on forehead between eyes, white chest patch' : ''),
             collarInfo: '',
-            primaryPhoto: r.pet_photo || petInfo?.photo_url || abulluImg,
-            photos: [r.pet_photo || petInfo?.photo_url || abulluImg],
+            primaryPhoto: photo,
+            photos: [photo],
             createdAt: r.created_at || new Date().toISOString(),
           },
           ownerApproximateLocation: r.district || 'West Godavari',

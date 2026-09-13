@@ -109,8 +109,8 @@ export const DashboardPage: React.FC = () => {
   }, [reports]);
 
   // User's own registered pet & reports
-  const myPet = user ? storageService.getPetProfileByUserId(user.id) : null;
-  const myProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
+  const myPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const myProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const isMyPetSafe = user ? storageService.isPetSafe(user.id) : false;
   const myReports = useMemo(() => {
     if (!user) return [];
