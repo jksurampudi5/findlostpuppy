@@ -317,10 +317,108 @@
   border-color: #22C55E !important;
 }
 
-.emergency-nav-tab.status-lost.active {
+/* ACID compliance: red styling always active when pet is LOST (not just when tab is selected) */
+.emergency-nav-tab.status-lost {
   background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
   border-color: #FECACA;
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25);
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.18);
+}
+
+.emergency-nav-tab.status-lost.active {
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  border-color: #F87171;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+
+/* Global missing alert banner - shown across all pages when pet is MISSING */
+.global-missing-banner {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: linear-gradient(90deg, #DC2626 0%, #EF4444 50%, #DC2626 100%);
+  background-size: 200% 100%;
+  animation: bannerSlide 3s linear infinite;
+  color: #FFFFFF;
+  padding: 0.5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 3px 12px rgba(220,38,38,0.5);
+}
+
+.global-missing-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.banner-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  animation: beaconPulse 1.2s infinite;
+  flex-shrink: 0;
+}
+
+.banner-sos-text {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.banner-dog-name {
+  background: rgba(255,255,255,0.2);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 700;
+}
+
+.global-missing-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.banner-action-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #FFFFFF;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.2s;
+}
+
+.banner-action-btn:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+.banner-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@keyframes bannerSlide {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
 }
 
 /* Text group */

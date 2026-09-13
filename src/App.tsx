@@ -3,6 +3,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { SidebarNav } from './components/SidebarNav';
 import { Footer } from './components/Footer';
+import { useState } from 'react';
+import { storageService } from './services/storageService';
+import { getDogDisplayName } from './utils/dogPhotoHelper';
 
 import { ConsentPage } from './pages/ConsentPage';
 
@@ -201,6 +204,55 @@ function MainAppFlow() {
   );
 }
 
+/** Global ACID-compliant missing banner shown on every authenticated page */
+function GlobalMissingBanner() {
+  const { user, petSafetyStatus, setActiveOnboardingTab } = useAuth();
+  const navigate = useNavigate();
+  const [dismissed, setDismissed] = useState(false);
+
+  if (petSafetyStatus !== 'LOST' || !user || dismissed) return null;
+
+  const myReport = storageService.getLatestReportByUserId(user.id, user.email);
+  const dogName = myReport ? getDogDisplayName(myReport.dog, myReport) : 'Your Dog';
+
+  return (
+    <div className="global-missing-banner" role="alert" aria-live="polite">
+      <div className="global-missing-banner-left">
+        <span className="banner-pulse-dot" aria-hidden="true" />
+        <span className="banner-sos-text">🚨 SOS ACTIVE</span>
+        <span>
+          <span className="banner-dog-name">{dogName}</span> is MISSING — Community is on alert!
+        </span>
+      </div>
+      <div className="global-missing-banner-actions">
+        <button
+          type="button"
+          className="banner-action-btn"
+          onClick={() => { setActiveOnboardingTab('report'); navigate('/alert'); }}
+        >
+          📋 Manage Alert
+        </button>
+        <button
+          type="button"
+          className="banner-action-btn"
+          onClick={() => navigate('/dashboard')}
+        >
+          📡 Dashboard
+        </button>
+        <button
+          type="button"
+          className="banner-dismiss-btn"
+          onClick={() => setDismissed(true)}
+          title="Dismiss banner (alert remains active)"
+          aria-label="Dismiss banner"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const basename = import.meta.env.BASE_URL;
 
@@ -211,6 +263,7 @@ export function App() {
           <div className="app-layout-sidebar">
             <SidebarNav />
             <div className="app-main-viewport">
+              <GlobalMissingBanner />
               <main className="main-content">
                 <MainAppFlow />
               </main>

@@ -34,10 +34,11 @@ import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { maskPhoneNumber, maskEmail, isOwnerOfReport } from '../utils/privacyUtils';
 
 export const DashboardPage: React.FC = () => {
-  const { user, setActiveOnboardingTab } = useAuth();
+  const { user, setActiveOnboardingTab, petSafetyStatus } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const initialTab = searchParams.get('tab') === 'browse' ? 'browse' : 'missing';
@@ -174,8 +175,47 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  // Compute the logged-in owner's missing dog name for the banner
+  const ownerMissingReport = user ? myReports.find(r => r.status === 'LOST') : null;
+  const missingDogBannerName = ownerMissingReport
+    ? getDogDisplayName(ownerMissingReport.dog, ownerMissingReport)
+    : myPet ? getDogDisplayName(myPet) : 'Your Dog';
+  const showOwnerMissingBanner = petSafetyStatus === 'LOST' && user && !bannerDismissed;
+
   return (
     <div className="dashboard-page">
+
+      {/* ACID COMPLIANCE: Global Missing Pet Alert Banner — persists across entire dashboard when pet is LOST */}
+      {showOwnerMissingBanner && (
+        <div className="global-missing-banner" role="alert" aria-live="assertive">
+          <div className="global-missing-banner-left">
+            <span className="banner-pulse-dot" aria-hidden="true" />
+            <span className="banner-sos-text">🚨 SOS ACTIVE</span>
+            <span>
+              <span className="banner-dog-name">{missingDogBannerName}</span> is MISSING — Community is searching!
+            </span>
+          </div>
+          <div className="global-missing-banner-actions">
+            <button
+              type="button"
+              className="banner-action-btn"
+              onClick={() => { setActiveOnboardingTab('report'); navigate('/alert'); }}
+            >
+              📋 View Alert
+            </button>
+            <button
+              type="button"
+              className="banner-dismiss-btn"
+              onClick={() => setBannerDismissed(true)}
+              title="Dismiss banner (alert remains active)"
+              aria-label="Dismiss missing banner"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Dashboard Top Banner */}
       <div className="dashboard-header-banner">
         <div className="app-container">
@@ -455,7 +495,7 @@ export const DashboardPage: React.FC = () => {
                         </div>
 
                         {/* PRIVACY PROTECTED OWNER CONTACT & SIGHTING ROUTER */}
-                        <div className="emergency-owner-contact-box" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.75rem' }}>
+                        <div className="emergency-owner-contact-box" style={{ background: '#FFF8F8', border: '1.5px solid #FECACA', borderRadius: '10px', padding: '0.75rem' }}>
                           <div className="emergency-contact-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                               <ShieldCheck size={14} className="text-emerald-600" />
@@ -468,58 +508,75 @@ export const DashboardPage: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                             {ownerPhone ? (
-                              <div
-                                className="btn-emergency-contact btn-emergency-phone"
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.78rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.3rem',
-                                  backgroundColor: '#F1F5F9',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '6px',
-                                  color: '#334155',
-                                }}
-                                title="Direct phone is masked to protect owner family privacy from spam and scrapers"
-                              >
-                                <Phone size={12} className="text-emerald-600" />
-                                <span>
-                                  Phone: {maskPhoneNumber(ownerPhone)} (Protected)
-                                </span>
-                              </div>
+                              isOwnerOfReport(report, user) ? (
+                                /* Owner sees their own number unmasked */
+                                <a
+                                  href={`tel:+91${ownerPhone}`}
+                                  className="btn-emergency-contact btn-emergency-phone"
+                                  style={{ padding: '5px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#ECFDF5', border: '1.5px solid #6EE7B7', borderRadius: '7px', color: '#065F46', fontWeight: 700, textDecoration: 'none' }}
+                                  title="Call your own number"
+                                >
+                                  <Phone size={13} />
+                                  <span>📞 {ownerPhone}</span>
+                                </a>
+                              ) : (
+                                /* Guest sees masked, but gets a clickable "Notify Owner" button */
+                                <>
+                                  <div style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', color: '#334155' }} title="Phone is masked for privacy">
+                                    <Phone size={12} className="text-emerald-600" />
+                                    <span>{maskPhoneNumber(ownerPhone)}</span>
+                                  </div>
+                                  <a
+                                    href={`tel:+91${ownerPhone}`}
+                                    className="btn-emergency-contact"
+                                    style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#22C55E', border: 'none', borderRadius: '7px', color: '#FFFFFF', fontWeight: 700, textDecoration: 'none' }}
+                                    title="Tap to call owner now & report sighting"
+                                    onClick={() => showToast('📞 Calling owner to report sighting...', 'success')}
+                                  >
+                                    <Phone size={13} />
+                                    <span>📞 Call Owner</span>
+                                  </a>
+                                </>
+                              )
                             ) : (
-                              <span className="text-xs text-gray-500">Phone not shared</span>
+                              <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>Phone not shared</span>
                             )}
 
                             {ownerEmail && (
-                              <div
-                                className="btn-emergency-contact btn-emergency-email"
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.78rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.3rem',
-                                  backgroundColor: '#F1F5F9',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '6px',
-                                  color: '#334155',
-                                }}
-                                title="Email is masked to protect owner family privacy from spam"
-                              >
-                                <Mail size={12} className="text-sky-600" />
-                                <span>
-                                  Email: {maskEmail(ownerEmail)} (Protected)
-                                </span>
-                              </div>
+                              isOwnerOfReport(report, user) ? (
+                                <a
+                                  href={`mailto:${ownerEmail}`}
+                                  className="btn-emergency-contact"
+                                  style={{ padding: '5px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: '7px', color: '#1D4ED8', fontWeight: 700, textDecoration: 'none' }}
+                                >
+                                  <Mail size={13} />
+                                  <span>📧 {ownerEmail}</span>
+                                </a>
+                              ) : (
+                                <>
+                                  <div style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', color: '#334155' }} title="Email is masked for privacy">
+                                    <Mail size={12} className="text-sky-600" />
+                                    <span>{maskEmail(ownerEmail)}</span>
+                                  </div>
+                                  <a
+                                    href={`mailto:${ownerEmail}?subject=I spotted ${getDogDisplayName(report.dog, report)}! - FindLostPuppy Alert&body=Hi, I spotted ${getDogDisplayName(report.dog, report)} (${report.dog.breed}) near ${report.lastKnownLocation}. Please contact me. I found this alert on FindLostPuppy. Reference: ${report.id}`}
+                                    className="btn-emergency-contact"
+                                    style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#3B82F6', border: 'none', borderRadius: '7px', color: '#FFFFFF', fontWeight: 700, textDecoration: 'none' }}
+                                    title="Send sighting email to owner"
+                                    onClick={() => showToast('📧 Opening email to notify owner...', 'success')}
+                                  >
+                                    <Mail size={13} />
+                                    <span>📧 Email Owner</span>
+                                  </a>
+                                </>
+                              )
                             )}
                           </div>
 
-                          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
-                            🔒 <strong>Privacy Shield Active:</strong> Contact details are protected. Click <strong>"Report Sighting"</strong> below to send verified tips & photos directly to the family.
+                          <p style={{ fontSize: '0.72rem', color: '#991B1B', marginTop: '0.5rem', lineHeight: '1.35', fontWeight: 600 }}>
+                            🚨 <strong>Emergency Contact:</strong> Use the buttons above to directly call or email the owner. Click <strong>"Report Sighting"</strong> below to send a location tip.
                           </p>
                         </div>
 
