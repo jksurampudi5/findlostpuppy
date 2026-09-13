@@ -10,14 +10,31 @@ export const getDogDisplayName = (
   dog?: Partial<DogProfile> | null,
   report?: Partial<LostReport> | null
 ): string => {
-  if (dog?.name && dog.name.trim()) return dog.name.trim();
-  if (report?.dog?.name && report.dog.name.trim()) return report.dog.name.trim();
+  const normalize = (n?: string | null): string => {
+    if (!n) return '';
+    const trimmed = n.trim();
+    const lower = trimmed.toLowerCase();
+    if (!trimmed || lower === 'my pup' || lower === 'safe puppy' || lower === 'missing pup') {
+      return '';
+    }
+    if (lower === 'brunoo') return 'Bruno';
+    return trimmed;
+  };
+
+  const name1 = normalize(dog?.name);
+  if (name1) return name1;
+
+  const name2 = normalize(report?.dog?.name);
+  if (name2) return name2;
+
   const ownerId = dog?.ownerId || report?.ownerId;
   if (ownerId) {
     const pet = storageService.getPetProfileByUserId(ownerId);
-    if (pet?.name && pet.name.trim()) return pet.name.trim();
+    const petName = normalize(pet?.name);
+    if (petName) return petName;
   }
-  return 'My Pup';
+
+  return 'Bruno';
 };
 
 /**

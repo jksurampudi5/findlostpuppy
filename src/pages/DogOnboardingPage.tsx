@@ -79,7 +79,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     const profile: DogProfile = {
       id: petId,
       ownerId,
-      name: dogName.trim() || 'My Pup',
+      name: dogName.trim() || 'Bruno',
       breed: breed.trim() || 'Companion Pet',
       gender,
       age: age.trim() || 'Unknown',

@@ -24,6 +24,7 @@ import { locationService } from '../services/locationService';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import { getDogDisplayName } from '../utils/dogPhotoHelper';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
 
@@ -50,7 +51,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     existingPet?.primaryPhoto ||
     existingReport?.dog?.primaryPhoto ||
     (isLost ? missingPuppyImg : safePuppyImg);
-  const dogName = existingPet?.name || existingReport?.dog?.name || (isLost ? 'Missing Pup' : 'Safe Puppy');
+  const dogName = getDogDisplayName(existingPet, existingReport);
   const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
   // Initial values from saved profile

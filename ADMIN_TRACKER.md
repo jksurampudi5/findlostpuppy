@@ -77,7 +77,13 @@ This tracker serves as the single source of truth for all architectural updates,
   - Smooth Ken Burns pan/zoom crossfade transitions (`duration-1000` crossfade with subtle scale effect).
   - Floating dialogue bubbles (`{dogName}! 🥹💖`, `Bow Bow! 🐾`, `I missed you so much! 🥰`).
   - Automatic looping with hover pause and floating replay button.
-  - Interactive bottom frame progress scrubber.
+### 9. Dog Display Name Canonicalization (Bruno)
+- **Name Resolution Engine (`src/utils/dogPhotoHelper.ts`)**:
+  - `getDogDisplayName` strictly filters out generic placeholder tokens (`My Pup`, `Safe Puppy`, `Missing Pup`, `brunoo`) and returns the canonical name **`Bruno`**.
+- **Storage Invariant 4 (`src/services/storageService.ts`)**:
+  - Automatically cleans and migrates legacy/mock data entries with placeholder names or typos to **`Bruno`**.
+- **Onboarding Alignment (`src/pages/DogOnboardingPage.tsx` & `src/pages/LocationOnboardingPage.tsx`)**:
+  - Fixed pet profile defaults to initialize with **`Bruno`** when the user leaves the name field blank.
 
 ---
 

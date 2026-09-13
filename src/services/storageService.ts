@@ -149,7 +149,7 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     dog: {
       id: 'dog-bruno-01',
       ownerId: 'owner-bruno-family',
-      name: 'brunoo',
+      name: 'Bruno',
       breed: 'Golden Labrador • Companion Pet',
       gender: 'Male',
       age: '3 years',
@@ -389,6 +389,26 @@ class StorageService {
           s.isCurrent !== false
       ).length;
       r.sightingCount = activeCount;
+    }
+
+    // Invariant 4: Normalize dog names (e.g. 'brunoo' -> 'Bruno', 'My Pup' -> 'Bruno')
+    for (const r of this.reports) {
+      if (r.dog?.name) {
+        const cleanName = r.dog.name.trim();
+        const lower = cleanName.toLowerCase();
+        if (lower === 'brunoo' || lower === 'my pup' || lower === 'safe puppy') {
+          r.dog.name = 'Bruno';
+        }
+      }
+    }
+    for (const p of this.pets) {
+      if (p.name) {
+        const cleanName = p.name.trim();
+        const lower = cleanName.toLowerCase();
+        if (lower === 'brunoo' || lower === 'my pup' || lower === 'safe puppy') {
+          p.name = 'Bruno';
+        }
+      }
     }
   }
 
