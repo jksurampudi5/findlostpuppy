@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const hasOwner = storageService.hasCompletedOwnerProfile(u.id);
     const hasLoc = storageService.hasCompletedLocation(u.id);
     const hasPet = storageService.hasCompletedPetProfile(u.id);
-    const hasReport = storageService.hasCompletedReport(u.id);
+    const hasReport = storageService.hasCompletedReport(u.id, u.email);
     if (!hasOwner) return 'owner';
     if (!hasLoc) return 'location';
     if (!hasPet) return 'dog';
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const markPetSafe = () => {
     const u = authService.getCurrentUser();
     if (u) {
-      storageService.markPetSafe(u.id);
+      storageService.markPetSafe(u.id, u.email);
       setPetSafetyStatus('SAFE');
       setHasCompletedReport(true);
       refreshProgress();
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const markPetLost = () => {
     const u = authService.getCurrentUser();
     if (u) {
-      storageService.clearPetSafe(u.id);
+      storageService.markPetLost(u.id, u.email);
       setPetSafetyStatus('LOST');
       refreshProgress();
     }
@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const hasOwner = storageService.hasCompletedOwnerProfile(currentUser.id, currentUser.email);
       const hasLoc = storageService.hasCompletedLocation(currentUser.id, currentUser.email);
       const hasDog = storageService.hasCompletedDogProfile(currentUser.id, currentUser.email);
-      const hasReport = storageService.hasCompletedReport(currentUser.id);
+      const hasReport = storageService.hasCompletedReport(currentUser.id, currentUser.email);
 
       setHasCompletedOwner((prev) => (prev !== hasOwner ? hasOwner : prev));
       setHasCompletedLocation((prev) => (prev !== hasLoc ? hasLoc : prev));

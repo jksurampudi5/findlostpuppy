@@ -83,7 +83,7 @@ export const ReportWizardPage = () => {
       setEmail((prev) => prev || user.email);
       if (user.phone) setPhone((prev) => prev || user.phone || '');
 
-      const existingProfile = storageService.getOwnerProfileByUserId(user.id);
+      const existingProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
       if (existingProfile) {
         setFullName(existingProfile.fullName);
         setPhone(existingProfile.phone);

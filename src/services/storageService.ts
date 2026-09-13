@@ -1348,9 +1348,10 @@ class StorageService {
     });
   }
 
-  markPetSafe(userId: string): void {
+  markPetSafe(userId: string, email?: string): void {
     this.executeTransaction(() => {
       const rawUserId = userId.replace(/^owner-/, '');
+      const cleanEmail = email?.trim().toLowerCase();
       if (!this.skippedReportUserIds.includes(userId) && !this.skippedReportUserIds.includes(rawUserId)) {
         this.skippedReportUserIds.push(userId);
       }
@@ -1362,7 +1363,8 @@ class StorageService {
           r.ownerId === `owner-${userId}` ||
           r.ownerId === userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail)
         ) {
           r.status = 'SAFE';
           r.updatedAt = new Date().toISOString();
@@ -1372,8 +1374,8 @@ class StorageService {
 
       // If no report exists yet but a pet profile is registered, auto-create the Safe at Home report
       if (!matched) {
-        const pet = this.getPetProfileByUserId(userId);
-        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        const pet = this.getPetProfileByUserId(userId, email);
+        const ownerProfile = this.getOwnerProfileByUserId(userId, email);
         if (pet) {
           const approxLoc =
             ownerProfile?.approximateArea ||
@@ -1412,9 +1414,10 @@ class StorageService {
     });
   }
 
-  markPetLost(userId: string): void {
+  markPetLost(userId: string, email?: string): void {
     this.executeTransaction(() => {
       const rawUserId = userId.replace(/^owner-/, '');
+      const cleanEmail = email?.trim().toLowerCase();
       this.skippedReportUserIds = this.skippedReportUserIds.filter(
         (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
       );
@@ -1426,7 +1429,8 @@ class StorageService {
           r.ownerId === `owner-${userId}` ||
           r.ownerId === userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail)
         ) {
           r.status = 'LOST';
           r.updatedAt = new Date().toISOString();
@@ -1436,8 +1440,8 @@ class StorageService {
 
       // If no report exists yet but a pet profile is registered, auto-create the missing alert report
       if (!matched) {
-        const pet = this.getPetProfileByUserId(userId);
-        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        const pet = this.getPetProfileByUserId(userId, email);
+        const ownerProfile = this.getOwnerProfileByUserId(userId, email);
         if (pet) {
           const approxLoc =
             ownerProfile?.approximateArea ||
@@ -1494,8 +1498,8 @@ class StorageService {
     return this.skippedReportUserIds.includes(userId) || this.skippedReportUserIds.includes(rawUserId);
   }
 
-  hasCompletedReport(userId: string): boolean {
-    return !!this.getLatestReportByUserId(userId) || this.hasSkippedReport(userId);
+  hasCompletedReport(userId: string, email?: string): boolean {
+    return !!this.getLatestReportByUserId(userId, email) || this.hasSkippedReport(userId);
   }
 
   saveOwnerProfile(profile: OwnerProfile): OwnerProfile {
@@ -1521,7 +1525,8 @@ class StorageService {
           r.ownerId === profile.id ||
           r.ownerId === profile.userId ||
           r.ownerId === `owner-${rawUserId}` ||
-          r.ownerId === rawUserId
+          r.ownerId === rawUserId ||
+          (profile.email && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === profile.email.trim().toLowerCase())
         ) {
           r.ownerApproximateLocation = approxLoc;
           if (!r.lastKnownLocation || r.lastKnownLocation === 'Local Neighborhood') {
@@ -1538,7 +1543,7 @@ class StorageService {
 
       // If owner has a registered pet profile but no report yet, auto-create the Safe at Home report with the newly saved location
       if (!hasReport) {
-        const pet = this.getPetProfileByUserId(profile.userId || profile.id);
+        const pet = this.getPetProfileByUserId(profile.userId || profile.id, profile.email);
         if (pet) {
           const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
           if (!this.isReportOrPetDeleted(reportId, pet.id)) {

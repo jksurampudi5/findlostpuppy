@@ -43,9 +43,9 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
-  const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
-  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
   // Active status choice: 'safe' | 'missing' | null (undecided)
   const [userSelectedChoice, setUserSelectedChoice] = useState<'safe' | 'missing' | null>(null);
