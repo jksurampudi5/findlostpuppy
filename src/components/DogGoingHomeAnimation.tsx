@@ -244,16 +244,16 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           {/* 5. PET OWNER FIGURE (Slender, stylish, natural human proportions) */}
           {/* ------------------------------------------------------------------ */}
           <g id="ownerFigureGroup" className="anim-owner-reunion-flow">
-            {/* Listening Sound Bubble when hearing dog bark */}
+            {/* Joyful Surprise Bubble when hearing dog bark */}
             <g className="anim-owner-listening-bubble" transform="translate(595, 96)">
-              <ellipse cx="0" cy="0" rx="28" ry="17" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="1.8" />
-              <polygon points="-8,15 0,25 5,15" fill="#FFFFFF" />
-              <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="800" fill="#B45309">
-                {dogName}! 👂💖
+              <ellipse cx="0" cy="0" rx="34" ry="18" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="2" />
+              <polygon points="-8,16 0,26 5,16" fill="#FFFFFF" />
+              <text x="0" y="4" textAnchor="middle" fontSize="11.5" fontWeight="900" fill="#B45309">
+                {dogName}! 🥹💖
               </text>
             </g>
 
-            {/* Owner standing firmly on porch floor (Lean, natural human anatomy) */}
+            {/* Owner standing & kneeling on porch floor (Lean, natural human anatomy) */}
             <g transform="translate(570, 140)">
               {/* Owner Ground Shadow */}
               <ellipse cx="10" cy="74" rx="16" ry="5" fill="#78350F" opacity="0.28" />
@@ -300,15 +300,15 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
               <ellipse cx="5,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
               <ellipse cx="15,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
 
-              {/* Left Welcoming Arm & Hand (Slender, natural open palm) */}
+              {/* Left Welcoming & Hugging Arm */}
               <g className="anim-welcoming-arm-left">
                 <path d="M2,14 Q-9,22 -14,34" fill="none" stroke="#EA580C" strokeWidth="3.8" strokeLinecap="round" />
                 <circle cx="-15" cy="36" r="2.8" fill="#FBD5B5" />
                 <path d="M-17,35 L-20,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
               </g>
 
-              {/* Right Welcoming Arm & Hand (Slender, gentle pet reaching) */}
-              <g className="anim-welcoming-arm-right">
+              {/* Right Arm: Gentle Head Petting & Stroking Arm */}
+              <g className="anim-petting-hand">
                 <path d="M18,14 Q25,22 22,34" fill="none" stroke="#C2410C" strokeWidth="3.8" strokeLinecap="round" />
                 <circle cx="21" cy="36" r="2.8" fill="#FBD5B5" />
                 <path d="M23,35 L26,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
@@ -320,15 +320,15 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           {/* 6. THE DOG: Lean, agile, athletic Golden Retriever pup */}
           {/* ------------------------------------------------------------------ */}
           <g id="groundedDogGroup" className="anim-dog-grounded-flow">
-            {/* Barking Speech Bubble & Sound Notes */}
+            {/* Barking Speech Bubble: "Bow Bow! 🐾" with sound ripples */}
             <g className="anim-dog-bark-bubble" transform="translate(68, -16)">
-              <ellipse cx="0" cy="0" rx="32" ry="17" fill="#FFFFFF" stroke="#EA580C" strokeWidth="2" />
-              <polygon points="-6,15 -15,26 3,16" fill="#FFFFFF" />
-              <text x="0" y="4" textAnchor="middle" fontSize="12" fontWeight="800" fill="#C2410C">
-                Woof! 🐾
+              <ellipse cx="0" cy="0" rx="34" ry="18" fill="#FFFFFF" stroke="#EA580C" strokeWidth="2" />
+              <polygon points="-6,16 -16,28 3,17" fill="#FFFFFF" />
+              <text x="0" y="4" textAnchor="middle" fontSize="11.5" fontWeight="900" fill="#C2410C">
+                Bow Bow! 🐾
               </text>
-              <path d="M36,-9 A13,13 0 0,1 36,9" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" className="anim-wave-1" />
-              <path d="M43,-14 A19,19 0 0,1 43,14" fill="none" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" className="anim-wave-2" />
+              <path d="M38,-9 A13,13 0 0,1 38,9" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" className="anim-wave-1" />
+              <path d="M45,-14 A19,19 0 0,1 45,14" fill="none" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" className="anim-wave-2" />
             </g>
 
             {/* Ground Shadow on Grass (Slender natural shadow) */}
@@ -423,10 +423,10 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
         </div>
 
         <h3 className="animation-hero-title">
-          {dogName} Walked Across the Meadow into Loving Arms and Safely Inside! 🏡🐶❤️
+          {dogName} Barks &quot;Bow Bow!&quot;, Reunited in Loving Arms &amp; Safe at Home! 🏡🐶❤️
         </h3>
         <p className="animation-hero-desc">
-          Barking with excitement across the grass, {dogName} was welcomed with open arms by {dogName}&apos;s owner, received a loving hug on the porch, and both happily walked inside the cozy home!
+          Barking &quot;Bow Bow!&quot; across the meadow, {dogName} was spotted by their overjoyed owner, ran straight into a warm loving hug with joyful pets on the porch, and happily walked inside home as the door safely closed!
         </p>
       </div>
     </div>

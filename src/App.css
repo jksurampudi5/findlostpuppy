@@ -10006,6 +10006,43 @@
   88%, 100% { transform: rotate(0deg); }
 }
 
+/* Owner Gentle Head Petting Motion during Reunion (68% - 84%) */
+.anim-petting-hand {
+  transform-origin: 18px 14px;
+  animation: armPettingMotion 8.5s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+  will-change: transform;
+}
+
+@keyframes armPettingMotion {
+  0%, 35% {
+    transform: rotate(0deg) translate3d(0, 0, 0);
+  }
+  45%, 65% {
+    transform: rotate(14deg) translate3d(0, 0, 0);
+  }
+  68% {
+    transform: rotate(26deg) translate3d(0, 2px, 0);
+  }
+  71% {
+    transform: rotate(16deg) translate3d(0, -2px, 0);
+  }
+  74% {
+    transform: rotate(26deg) translate3d(0, 2px, 0);
+  }
+  77% {
+    transform: rotate(16deg) translate3d(0, -2px, 0);
+  }
+  80% {
+    transform: rotate(26deg) translate3d(0, 2px, 0);
+  }
+  83% {
+    transform: rotate(18deg) translate3d(0, 0, 0);
+  }
+  88%, 100% {
+    transform: rotate(0deg) translate3d(0, 0, 0);
+  }
+}
+
 /* Owner Hearing Bark Bubble (Starts from scale(0.92)) */
 .anim-owner-listening-bubble {
   animation: ownerListeningBubble 8.5s cubic-bezier(0.23, 1, 0.32, 1) infinite;

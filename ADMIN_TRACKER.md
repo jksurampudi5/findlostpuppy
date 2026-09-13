@@ -66,15 +66,22 @@ This tracker serves as the single source of truth for all architectural updates,
   - Real-time cloud persistence with Supabase with immediate local-first reactivity via `localStorage`.
   - Multi-tab and multi-window sync via custom storage events (`findlostpuppy_reports_updated`).
 
-### 8. Character Anatomy & Vector Illustration Refinement
-- **Human Owner Figure (`DogGoingHomeAnimation.tsx`)**:
-  - Replaced the round egg-shaped blob torso with a natural, slender, well-proportioned human model.
-  - Tailored terracotta jacket/sweater (`#EA580C`) with inner collar and slim navy jeans (`#1E3A8A`).
-  - Realistic head with styled dark hair, natural warm skin tone (`#FBD5B5`), gentle smiling eyes, and welcoming arms.
-- **Dog Figure (`DogGoingHomeAnimation.tsx` & `DogAwayFromHomeAnimation.tsx`)**:
-  - Replaced the wide plump blob with a sleek, athletic Golden Retriever pup anatomy.
-  - Defined ribcage, lean flank, articulated slender legs, cute paws, and silky floppy ears.
-  - Fluid motion physics with feathered wagging tail adhering to Emil Kowalski motion design principles.
+### 8. Character Anatomy & Cinematic Reunion Storytelling (`character-animation` Skill)
+- **Character Animation Skill (`.agents/skills/character-animation/SKILL.md`)**:
+  - Authored a dedicated skill codifying 4-beat canine walk cycles, human stride mechanics, inverse kinematics, Emil Kowalski easing, and the 7-phase lost pet reunion story arc.
+- **Human Owner Model (`DogGoingHomeAnimation.tsx`)**:
+  - Slender, well-proportioned human model with tailored terracotta jacket/sweater (`#EA580C`), inner collar, slim navy jeans (`#1E3A8A`), styled dark hair, natural warm skin tone (`#FBD5B5`), gentle smiling eyes, and rosy cheeks.
+  - Active kneeling posture during the reunion with the left arm embracing the dog and the right arm (`.anim-petting-hand`) executing rhythmic, lifelike head-stroking motions.
+- **Canine Model (`DogGoingHomeAnimation.tsx` & `DogAwayFromHomeAnimation.tsx`)**:
+  - Sleek, athletic Golden Retriever pup anatomy (contoured ribcage, lean flank, articulated 4-beat trot legs, and feathered tail).
+- **The Complete 7-Phase Emotional Story Arc**:
+  1. *Meadow Search*: Lost pup wanders across the green grass looking for home.
+  2. *Barking "Bow Bow! 🐾"*: Dog stops and barks with animated ripple soundwaves spreading across the air.
+  3. *Door Opens & Overjoyed Surprise*: Cottage door hinges open (`scaleX(0.12)`), owner steps onto porch in joy calling `"{dogName}! 🥹💖"`.
+  4. *The Sprint*: Dog accelerates into an excited bounding sprint across the meadow.
+  5. *Loving Hug & Head Petting*: Dog arrives on porch, owner kneels with warm hug and gentle petting strokes amidst radiating hearts and stars (`🥰💖💕✨🌟🐾`).
+  6. *Going Inside Together*: Owner guides the happy pup inside through the warm golden doorway.
+  7. *Door Closes Securely*: Front door smoothly hinges closed (`scaleX(1)`) as warm amber window light glows and chimney emits celebration heart smoke.
 
 ---
 
