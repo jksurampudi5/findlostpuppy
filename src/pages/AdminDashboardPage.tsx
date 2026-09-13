@@ -523,7 +523,7 @@ export const AdminDashboardPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((u) => {
+                    {filteredUsers.map((u, idx) => {
                       const profile = storageService.getOwnerProfileByUserId(u.id);
                       const userPet = storageService.getPetProfileByUserId(u.id);
                       const userReports = storageService.getReportsByOwner(u.id);
@@ -531,7 +531,7 @@ export const AdminDashboardPage: React.FC = () => {
                       const location = profile?.approximateArea || profile?.district || profile?.city || '-';
 
                       return (
-                        <tr key={u.id}>
+                        <tr key={`${u.id}-${u.email || idx}`}>
                           <td>
                             <div className="user-identity-cell">
                               <div className="admin-avatar-circle">
