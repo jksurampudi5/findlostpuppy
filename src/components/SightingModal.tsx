@@ -5,6 +5,7 @@ import type { Sighting } from '../types';
 import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { compressImage } from '../utils/imageCompressor';
 
 interface SightingModalProps {
   isOpen: boolean;
@@ -26,7 +27,13 @@ export const SightingModal: React.FC<SightingModalProps> = ({
 
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
-  const [time, setTime] = useState('10:00 AM');
+  const [time, setTime] = useState(
+    new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  );
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<string>('');
@@ -44,20 +51,21 @@ export const SightingModal: React.FC<SightingModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image should be under 5MB', 'warning');
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image should be under 10MB', 'warning');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhoto(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 800, 800, 0.82);
+      setPhoto(compressed);
+    } catch {
+      showToast('Could not process image.', 'error');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

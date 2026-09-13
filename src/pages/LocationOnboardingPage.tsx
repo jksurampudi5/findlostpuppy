@@ -40,9 +40,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
-  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
+  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
   const isLost =
     petSafetyStatus === 'LOST' ||
     (petSafetyStatus !== 'SAFE' && existingReport?.status === 'LOST');
@@ -366,6 +366,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       userId: user.id,
       fullName: existingProfile?.fullName || user.name || 'Pet Parent',
       phone: existingProfile?.phone || user.phone || '',
+      photo: existingProfile?.photo || user.avatar || undefined,
       email: user.email,
       state: state.trim(),
       district: district.trim(),

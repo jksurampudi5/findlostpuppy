@@ -24,6 +24,7 @@ import {
 import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import { compressImage } from '../utils/imageCompressor';
 import abulluImg from '../assets/abullu.jpg';
 import {
   getDogPhotoUrl,
@@ -170,7 +171,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Photo Upload Handler (Supports multiple photos)
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -178,28 +179,24 @@ export const GuestSightingPage: React.FC = () => {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!f.type.startsWith('image/')) continue;
-      if (f.size > 5 * 1024 * 1024) continue;
+      if (f.size > 10 * 1024 * 1024) continue;
       validFiles.push(f);
     }
 
     if (validFiles.length === 0) {
-      showToast('Please upload valid images under 5MB.', 'warning');
+      showToast('Please upload valid images under 10MB.', 'warning');
       return;
     }
 
-    const readers = validFiles.map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result as string);
-          r.readAsDataURL(file);
-        })
-    );
-
-    Promise.all(readers).then((newPhotos) => {
-      setPhotos((prev) => [...prev, ...newPhotos]);
-      showToast(`📸 ${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} added!`, 'success');
-    });
+    try {
+      const readPromises = validFiles.map((file) => compressImage(file, 800, 800, 0.82));
+      const newPhotos = await Promise.all(readPromises);
+      const filtered = newPhotos.filter(Boolean);
+      setPhotos((prev) => [...prev, ...filtered]);
+      showToast(`📸 ${filtered.length} photo(s) attached!`, 'success');
+    } catch {
+      showToast('Could not process photo upload.', 'error');
+    }
   };
 
   const handleRemovePhoto = (indexToRemove: number) => {

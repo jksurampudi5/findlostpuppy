@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Phone, Check, ArrowRight, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
+import { authService } from '../services/authService';
 import type { ContactMethod, OwnerProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import { compressImage } from '../utils/imageCompressor';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -16,34 +18,144 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
+  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
 
   const [fullName, setFullName] = useState(existingProfile?.fullName || user?.name || '');
   const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
-  const [photo, setPhoto] = useState<string>(existingProfile?.photo || '');
+  const [photo, setPhoto] = useState<string>(existingProfile?.photo || user?.avatar || '');
   const [preferredContact, setPreferredContact] = useState<ContactMethod>(
     existingProfile?.preferredContact || 'phone'
   );
 
+  const fullNameRef = useRef(fullName);
+  const phoneRef = useRef(phone);
+  const photoRef = useRef(photo);
+
+  useEffect(() => {
+    fullNameRef.current = fullName;
+    phoneRef.current = phone;
+    photoRef.current = photo;
+  }, [fullName, phone, photo]);
+
+  const saveDraft = (nameVal: string, phoneVal: string, photoVal: string) => {
+    if (!user) return;
+    const cleanName = nameVal.trim();
+    const cleanPhone = phoneVal.trim();
+    if (cleanName || cleanPhone || photoVal) {
+      authService.updateCurrentUser({
+        name: cleanName || user.name,
+        phone: cleanPhone || user.phone,
+        avatar: photoVal.trim() || undefined,
+      });
+      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+      const draft: OwnerProfile = {
+        ...(p || {}),
+        id: p?.id || `owner-${user.id}`,
+        userId: user.id,
+        fullName: cleanName || p?.fullName || user.name || '',
+        phone: cleanPhone || p?.phone || user.phone || '',
+        email: user.email,
+        photo: photoVal.trim() || undefined,
+        preferredContact,
+        address: p?.address || '',
+        state: p?.state || '',
+        district: p?.district || '',
+        city: p?.city || '',
+        hasLocationConsent: p?.hasLocationConsent ?? true,
+        updatedAt: new Date().toISOString(),
+      };
+      storageService.saveOwnerProfile(draft);
+      refreshProgress();
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+      if (p) {
+        if (p.fullName) setFullName(p.fullName);
+        else if (user.name) setFullName(user.name);
+
+        if (p.phone) setPhone(p.phone);
+        else if (user.phone) setPhone(user.phone);
+
+        if (p.photo) setPhoto(p.photo);
+        else if (user.avatar) setPhoto(user.avatar);
+
+        if (p.preferredContact) setPreferredContact(p.preferredContact);
+      } else {
+        if (user.name) setFullName(user.name);
+        if (user.phone) setPhone(user.phone);
+        if (user.avatar) setPhoto(user.avatar);
+      }
+    }
+    return () => {
+      saveDraft(fullNameRef.current, phoneRef.current, photoRef.current);
+    };
+  }, [user]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showToast('Please select an image file (JPG, PNG, WebP).', 'warning');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image size should be under 5MB.', 'warning');
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image size should be under 10MB.', 'warning');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhoto(reader.result as string);
-      showToast('✓ Photo attached! Click Save to apply.', 'success');
-    };
-    reader.readAsDataURL(file);
+    try {
+      showToast('Compressing photo for lightning-fast save...', 'info');
+      const compressed = await compressImage(file, 600, 600, 0.85);
+      setPhoto(compressed);
+
+      authService.updateCurrentUser({ avatar: compressed });
+      if (user) {
+        const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+        const updated: OwnerProfile = {
+          ...(p || {}),
+          id: p?.id || `owner-${user.id}`,
+          userId: user.id,
+          fullName: fullNameRef.current.trim() || user.name || '',
+          phone: phoneRef.current.trim() || user.phone || '',
+          email: user.email,
+          photo: compressed,
+          preferredContact,
+          address: p?.address || '',
+          state: p?.state || '',
+          district: p?.district || '',
+          city: p?.city || '',
+          hasLocationConsent: p?.hasLocationConsent ?? true,
+          updatedAt: new Date().toISOString(),
+        };
+        storageService.saveOwnerProfile(updated);
+        refreshProgress();
+      }
+      showToast('✓ Photo saved & attached to your profile!', 'success');
+    } catch {
+      showToast('Could not process photo. Please try another image.', 'error');
+    }
+  };
+
+  const handlePhotoRemove = () => {
+    setPhoto('');
+    authService.updateCurrentUser({ avatar: undefined });
+    if (user) {
+      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+      if (p) {
+        const updated: OwnerProfile = {
+          ...p,
+          photo: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        storageService.saveOwnerProfile(updated);
+        refreshProgress();
+      }
+    }
+    showToast('Photo removed.', 'info');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -78,6 +190,11 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     };
 
     storageService.saveOwnerProfile(profile);
+    authService.updateCurrentUser({
+      name: fullName.trim(),
+      phone: phone.trim(),
+      avatar: photo.trim() || undefined,
+    });
     refreshProgress();
     triggerStarCelebration();
     showToast('🐾 Pet Parent profile saved!', 'success');
@@ -148,7 +265,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                           <img src={photo} alt={fullName || 'Owner'} className="owner-avatar-img" />
                           <button
                             type="button"
-                            onClick={() => setPhoto('')}
+                            onClick={handlePhotoRemove}
                             className="avatar-remove-btn"
                             title="Remove photo"
                           >
@@ -206,7 +323,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                       className="form-input cute-input"
                       placeholder="e.g. Suresh Varma"
                       value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                      }}
+                      onBlur={() => saveDraft(fullName, phone, photo)}
                       required
                     />
                   </div>
@@ -224,7 +344,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                       className="form-input cute-input"
                       placeholder="+91 98480 •••••"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                      }}
+                      onBlur={() => saveDraft(fullName, phone, photo)}
                       required
                     />
                   </div>

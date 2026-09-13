@@ -23,11 +23,19 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
-  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
+  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
   const hasSkippedPet = user ? storageService.hasSkippedPetProfile(user.id) : false;
   const [isPetAlertHovered, setIsPetAlertHovered] = useState(false);
+
+  const ownerPhoto = existingProfile?.photo || user?.avatar || '';
+  const ownerDisplayName = existingProfile?.fullName || user?.name || 'Owner';
+  const ownerFirstName = existingProfile?.fullName
+    ? existingProfile.fullName.trim().split(' ')[0]
+    : user?.name
+    ? user.name.trim().split(' ')[0]
+    : 'Owner';
 
   const previewPhoto =
     existingPet?.primaryPhoto ||
@@ -150,14 +158,16 @@ export const Navbar = () => {
                     title="View / Edit Pet Parent Profile"
                   >
                     <div className="space-pill-icon owner-icon">
-                      {existingProfile?.photo ? (
-                        <img src={existingProfile.photo} alt="Owner" className="pill-avatar-img" />
+                      {ownerPhoto ? (
+                        <img src={ownerPhoto} alt={ownerDisplayName || 'Owner'} className="pill-avatar-img" />
                       ) : (
                         <span className="pill-avatar-emoji">🧑‍🦱</span>
                       )}
                     </div>
                     <div className="space-pill-content">
-                      <span className="space-pill-title">Owner</span>
+                      <span className="space-pill-title" style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ownerFirstName || 'Owner'}
+                      </span>
                       <span className="space-pill-detail">Profile</span>
                     </div>
                     {hasCompletedOwner && <Check size={13} className="space-pill-check" />}
@@ -401,14 +411,16 @@ export const Navbar = () => {
               onClick={() => handleTabClick('owner', '/owner')}
             >
               <div className="mobile-nav-icon-wrap">
-                {existingProfile?.photo ? (
-                  <img src={existingProfile.photo} alt="Owner" className="mobile-nav-avatar" />
+                {ownerPhoto ? (
+                  <img src={ownerPhoto} alt={ownerDisplayName || 'Owner'} className="mobile-nav-avatar" />
                 ) : (
                   <span className="mobile-nav-icon">🧑‍🦱</span>
                 )}
                 {hasCompletedOwner && <span className="mobile-nav-check-badge">✓</span>}
               </div>
-              <span className="mobile-nav-label">Owner</span>
+              <span className="mobile-nav-label" style={{ maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {ownerFirstName || 'Owner'}
+              </span>
             </button>
 
             {/* 3. LOCATION */}
