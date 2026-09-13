@@ -1031,23 +1031,71 @@ class StorageService {
         this.pets.push(pet);
       }
 
-      // Dynamically sync any existing reports for this owner
-      for (const r of this.reports) {
-        if (r.ownerId === pet.ownerId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) {
-          r.dog = {
-            ...r.dog,
-            name: pet.name,
-            breed: pet.breed,
-            gender: pet.gender,
-            age: pet.age,
-            size: pet.size,
-            color: pet.color,
-            distinguishingMarks: pet.distinguishingMarks,
-            collarInfo: pet.collarInfo,
-            primaryPhoto: pet.primaryPhoto || r.dog.primaryPhoto || abulluImg,
-            photos: pet.photos && pet.photos.length > 0 ? pet.photos : r.dog.photos,
+      // Fetch owner profile for location and contact details
+      const ownerProfile = this.getOwnerProfileByUserId(pet.ownerId);
+      const approxLoc =
+        ownerProfile?.approximateArea ||
+        [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
+        'Local Neighborhood';
+
+      // Find existing report for this owner or pet
+      let existingReport = this.reports.find(
+        (r) =>
+          r.dogId === pet.id ||
+          r.dog?.id === pet.id ||
+          r.ownerId === pet.ownerId ||
+          r.ownerId === `owner-${rawUserId}` ||
+          r.ownerId === rawUserId
+      );
+
+      if (existingReport) {
+        existingReport.dog = {
+          ...existingReport.dog,
+          name: pet.name,
+          breed: pet.breed,
+          gender: pet.gender,
+          age: pet.age,
+          size: pet.size,
+          color: pet.color,
+          distinguishingMarks: pet.distinguishingMarks,
+          collarInfo: pet.collarInfo,
+          primaryPhoto: pet.primaryPhoto || existingReport.dog.primaryPhoto || abulluImg,
+          photos: pet.photos && pet.photos.length > 0 ? pet.photos : existingReport.dog.photos,
+        };
+        if (!existingReport.ownerApproximateLocation || existingReport.ownerApproximateLocation === 'Local Neighborhood') {
+          existingReport.ownerApproximateLocation = approxLoc;
+          existingReport.lastKnownLocation = existingReport.lastKnownLocation || approxLoc;
+        }
+        existingReport.updatedAt = new Date().toISOString();
+      } else {
+        // Auto-create a synchronized Safe at Home report so the newly registered pet immediately appears in the community dashboard
+        const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+        if (!this.isReportOrPetDeleted(reportId, pet.id)) {
+          const newReport: LostReport = {
+            id: reportId,
+            dogId: pet.id,
+            ownerId: pet.ownerId,
+            dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+            ownerApproximateLocation: approxLoc,
+            lastKnownLocation: approxLoc,
+            lastKnownLatitude: ownerProfile?.latitude,
+            lastKnownLongitude: ownerProfile?.longitude,
+            dateLost: new Date().toISOString().split('T')[0],
+            timeLost: '12:00 PM',
+            additionalNotes: '',
+            status: 'SAFE',
+            contactMechanism: {
+              showPhone: true,
+              showEmail: true,
+              safeContactPhone: ownerProfile?.phone || '',
+              safeContactEmail: ownerProfile?.email || '',
+              contactNote: 'Safe at home with loving family.',
+            },
+            sightingCount: 0,
+            createdAt: pet.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
-          r.updatedAt = new Date().toISOString();
+          this.reports.unshift(newReport);
         }
       }
 
@@ -1084,7 +1132,9 @@ class StorageService {
   getLatestReportByUserId(userId: string): LostReport | undefined {
     const rawUserId = userId.replace(/^owner-/, '');
     return this.reports.find(
-      (r) => r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId
+      (r) =>
+        (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
+        !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
     );
   }
 
@@ -1154,14 +1204,122 @@ class StorageService {
         this.skippedReportUserIds.push(userId);
       }
 
-      // Atomically resolve active LOST reports for this owner
+      // Atomically resolve active reports for this owner
+      let matched = false;
       for (const r of this.reports) {
         if (
-          (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
-          r.status === 'LOST'
+          r.ownerId === `owner-${userId}` ||
+          r.ownerId === userId ||
+          r.ownerId === `owner-${rawUserId}` ||
+          r.ownerId === rawUserId
         ) {
           r.status = 'SAFE';
           r.updatedAt = new Date().toISOString();
+          matched = true;
+        }
+      }
+
+      // If no report exists yet but a pet profile is registered, auto-create the Safe at Home report
+      if (!matched) {
+        const pet = this.getPetProfileByUserId(userId);
+        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        if (pet) {
+          const approxLoc =
+            ownerProfile?.approximateArea ||
+            [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
+            'Local Neighborhood';
+          const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+          if (!this.isReportOrPetDeleted(reportId, pet.id)) {
+            const newReport: LostReport = {
+              id: reportId,
+              dogId: pet.id,
+              ownerId: `owner-${rawUserId}`,
+              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+              ownerApproximateLocation: approxLoc,
+              lastKnownLocation: approxLoc,
+              lastKnownLatitude: ownerProfile?.latitude,
+              lastKnownLongitude: ownerProfile?.longitude,
+              dateLost: new Date().toISOString().split('T')[0],
+              timeLost: '12:00 PM',
+              additionalNotes: '',
+              status: 'SAFE',
+              contactMechanism: {
+                showPhone: true,
+                showEmail: true,
+                safeContactPhone: ownerProfile?.phone || '',
+                safeContactEmail: ownerProfile?.email || '',
+                contactNote: 'Safe at home with loving family.',
+              },
+              sightingCount: 0,
+              createdAt: pet.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            this.reports.unshift(newReport);
+          }
+        }
+      }
+    });
+  }
+
+  markPetLost(userId: string): void {
+    this.executeTransaction(() => {
+      const rawUserId = userId.replace(/^owner-/, '');
+      this.skippedReportUserIds = this.skippedReportUserIds.filter(
+        (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
+      );
+
+      // Atomically mark reports as LOST for this owner
+      let matched = false;
+      for (const r of this.reports) {
+        if (
+          r.ownerId === `owner-${userId}` ||
+          r.ownerId === userId ||
+          r.ownerId === `owner-${rawUserId}` ||
+          r.ownerId === rawUserId
+        ) {
+          r.status = 'LOST';
+          r.updatedAt = new Date().toISOString();
+          matched = true;
+        }
+      }
+
+      // If no report exists yet but a pet profile is registered, auto-create the missing alert report
+      if (!matched) {
+        const pet = this.getPetProfileByUserId(userId);
+        const ownerProfile = this.getOwnerProfileByUserId(userId);
+        if (pet) {
+          const approxLoc =
+            ownerProfile?.approximateArea ||
+            [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
+            'Local Neighborhood';
+          const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+          if (!this.isReportOrPetDeleted(reportId, pet.id)) {
+            const newReport: LostReport = {
+              id: reportId,
+              dogId: pet.id,
+              ownerId: `owner-${rawUserId}`,
+              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+              ownerApproximateLocation: approxLoc,
+              lastKnownLocation: approxLoc,
+              lastKnownLatitude: ownerProfile?.latitude,
+              lastKnownLongitude: ownerProfile?.longitude,
+              dateLost: new Date().toISOString().split('T')[0],
+              timeLost: '12:00 PM',
+              additionalNotes: '',
+              status: 'LOST',
+              contactMechanism: {
+                showPhone: true,
+                showEmail: true,
+                safeContactPhone: ownerProfile?.phone || '',
+                safeContactEmail: ownerProfile?.email || '',
+                contactNote: 'Please reach out immediately if spotted!',
+              },
+              sightingCount: 0,
+              createdAt: pet.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            this.reports.unshift(newReport);
+          }
         }
       }
     });
@@ -1181,7 +1339,8 @@ class StorageService {
   }
 
   hasSkippedReport(userId: string): boolean {
-    return this.skippedReportUserIds.includes(userId);
+    const rawUserId = userId.replace(/^owner-/, '');
+    return this.skippedReportUserIds.includes(userId) || this.skippedReportUserIds.includes(rawUserId);
   }
 
   hasCompletedReport(userId: string): boolean {
@@ -1197,8 +1356,74 @@ class StorageService {
         this.profiles.push(profile);
       }
 
+      const approxLoc =
+        profile.approximateArea ||
+        [profile.city, profile.district, profile.state].filter(Boolean).join(', ') ||
+        'Local Neighborhood';
+
+      const rawUserId = (profile.userId || profile.id).replace(/^owner-/, '');
+
+      // Update location and contact details on any existing reports for this owner
+      let hasReport = false;
+      for (const r of this.reports) {
+        if (
+          r.ownerId === profile.id ||
+          r.ownerId === profile.userId ||
+          r.ownerId === `owner-${rawUserId}` ||
+          r.ownerId === rawUserId
+        ) {
+          r.ownerApproximateLocation = approxLoc;
+          if (!r.lastKnownLocation || r.lastKnownLocation === 'Local Neighborhood') {
+            r.lastKnownLocation = approxLoc;
+          }
+          if (profile.latitude) r.lastKnownLatitude = profile.latitude;
+          if (profile.longitude) r.lastKnownLongitude = profile.longitude;
+          if (profile.phone && r.contactMechanism) r.contactMechanism.safeContactPhone = profile.phone;
+          if (profile.email && r.contactMechanism) r.contactMechanism.safeContactEmail = profile.email;
+          r.updatedAt = new Date().toISOString();
+          hasReport = true;
+        }
+      }
+
+      // If owner has a registered pet profile but no report yet, auto-create the Safe at Home report with the newly saved location
+      if (!hasReport) {
+        const pet = this.getPetProfileByUserId(profile.userId || profile.id);
+        if (pet) {
+          const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+          if (!this.isReportOrPetDeleted(reportId, pet.id)) {
+            const newReport: LostReport = {
+              id: reportId,
+              dogId: pet.id,
+              ownerId: `owner-${rawUserId}`,
+              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+              ownerApproximateLocation: approxLoc,
+              lastKnownLocation: approxLoc,
+              lastKnownLatitude: profile.latitude,
+              lastKnownLongitude: profile.longitude,
+              dateLost: new Date().toISOString().split('T')[0],
+              timeLost: '12:00 PM',
+              additionalNotes: '',
+              status: 'SAFE',
+              contactMechanism: {
+                showPhone: true,
+                showEmail: true,
+                safeContactPhone: profile.phone || '',
+                safeContactEmail: profile.email || '',
+                contactNote: 'Safe at home with loving family.',
+              },
+              sightingCount: 0,
+              createdAt: pet.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            this.reports.unshift(newReport);
+          }
+        }
+      }
+
       // Background sync to Supabase
-      supabaseSyncService.syncOwnerProfile(profile, profile.userId || profile.id).catch((e) => console.warn('[Supabase Sync Owner Notice]:', e));
+      supabaseSyncService
+        .syncOwnerProfile(profile, profile.userId || profile.id)
+        .catch((e) => console.warn('[Supabase Sync Owner Notice]:', e));
 
       return profile;
     });
