@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sparkles, ShieldCheck, RotateCcw, Play, Pause, FastForward } from 'lucide-react';
+import { Sparkles, ShieldCheck, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
@@ -7,34 +7,26 @@ interface DogGoingHomeAnimationProps {
   dogName?: string;
 }
 
-const STORY_PHASES = [
-  { id: 'meadow', label: '1. Lost in Meadow', time: 0, icon: '🌿' },
-  { id: 'bark', label: '2. "Bow Bow!" Bark', time: 2.2, icon: '🐶' },
-  { id: 'surprise', label: '3. Joyful Surprise', time: 3.4, icon: '🥹' },
-  { id: 'sprint', label: '4. Excited Sprint', time: 4.8, icon: '⚡' },
-  { id: 'hug', label: '5. Loving Hug & Pet', time: 6.4, icon: '💖' },
-  { id: 'inside', label: '6. Safe at Home 🏡', time: 8.4, icon: '🚪' },
-];
-
 export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ dogName = 'Your Pup' }) => {
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
-  const [speed, setSpeed] = useState<number>(1);
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-
   const containerRef = useRef<HTMLDivElement>(null);
   const masterTimeline = useRef<gsap.core.Timeline | null>(null);
+  const [animationKey, setAnimationKey] = useState<number>(0);
 
   // SVG element references
   const dogGroupRef = useRef<SVGGElement>(null);
-  const dogHeadRef = useRef<SVGCircleElement>(null);
+  const dogHeadRef = useRef<SVGGElement>(null);
   const dogTailRef = useRef<SVGPathElement>(null);
   const dogBarkBubbleRef = useRef<SVGGElement>(null);
   const soundWave1Ref = useRef<SVGPathElement>(null);
   const soundWave2Ref = useRef<SVGPathElement>(null);
 
+  const legFrontNearRef = useRef<SVGPathElement>(null);
+  const legFrontFarRef = useRef<SVGPathElement>(null);
+  const legBackNearRef = useRef<SVGPathElement>(null);
+  const legBackFarRef = useRef<SVGPathElement>(null);
+
   const ownerGroupRef = useRef<SVGGElement>(null);
-  const ownerListeningBubbleRef = useRef<SVGGElement>(null);
+  const ownerSurpriseBubbleRef = useRef<SVGGElement>(null);
   const armLeftRef = useRef<SVGGElement>(null);
   const armRightPettingRef = useRef<SVGGElement>(null);
 
@@ -51,9 +43,29 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
       // Tail Wagging
       if (dogTailRef.current) {
         gsap.to(dogTailRef.current, {
-          rotation: 26,
+          rotation: 30,
           transformOrigin: '8px 24px',
-          duration: 0.16,
+          duration: 0.15,
+          yoyo: true,
+          repeat: -1,
+          ease: 'sine.inOut',
+        });
+      }
+
+      // Continuous 4-beat trot kinematics
+      if (legFrontNearRef.current && legBackNearRef.current && legFrontFarRef.current && legBackFarRef.current) {
+        gsap.to([legFrontNearRef.current, legBackFarRef.current], {
+          rotation: 22,
+          transformOrigin: 'center top',
+          duration: 0.22,
+          yoyo: true,
+          repeat: -1,
+          ease: 'sine.inOut',
+        });
+        gsap.to([legFrontFarRef.current, legBackNearRef.current], {
+          rotation: -22,
+          transformOrigin: 'center top',
+          duration: 0.22,
           yoyo: true,
           repeat: -1,
           ease: 'sine.inOut',
@@ -62,177 +74,136 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
 
       // Chimney Smoke Continuous Rising
       if (chimneySmokeRef.current) {
-        const puffs = chimneySmokeRef.current.querySelectorAll('.anim-smoke');
+        const puffs = chimneySmokeRef.current.querySelectorAll('.anim-smoke-puff');
         puffs.forEach((puff, idx) => {
           gsap.to(puff, {
-            y: -24,
+            y: -30,
+            x: 10,
             opacity: 0,
-            scale: 1.3,
-            duration: 2.4,
+            scale: 1.4,
+            duration: 2.8,
             repeat: -1,
-            delay: idx * 0.75,
+            delay: idx * 0.85,
             ease: 'power1.out',
           });
         });
       }
 
-      // 2. Master Story Timeline (10.6s total loop)
+      // 2. Master Story Timeline (10.0s total cycle)
       const tl = gsap.timeline({
         repeat: -1,
-        repeatDelay: 0.8,
-        onUpdate: () => {
-          const progress = tl.progress();
-          setProgressPercent(Math.round(progress * 100));
-
-          const currentTime = tl.time();
-          if (currentTime < 2.2) setActivePhaseIndex(0);
-          else if (currentTime < 3.4) setActivePhaseIndex(1);
-          else if (currentTime < 4.8) setActivePhaseIndex(2);
-          else if (currentTime < 6.4) setActivePhaseIndex(3);
-          else if (currentTime < 8.4) setActivePhaseIndex(4);
-          else setActivePhaseIndex(5);
-        },
+        repeatDelay: 0.9,
       });
 
       masterTimeline.current = tl;
 
       // Initial State Setters
-      gsap.set(dogGroupRef.current, { x: 30, y: 180, scale: 0.88, opacity: 0 });
-      gsap.set(dogBarkBubbleRef.current, { scale: 0.85, opacity: 0, transformOrigin: 'center center' });
+      gsap.set(dogGroupRef.current, { x: 30, y: 195, scale: 0.9, opacity: 0 });
+      gsap.set(dogBarkBubbleRef.current, { scale: 0.88, opacity: 0, transformOrigin: 'center center' });
       gsap.set([soundWave1Ref.current, soundWave2Ref.current], { opacity: 0, scale: 0.8, transformOrigin: 'center center' });
-      gsap.set(ownerGroupRef.current, { x: 14, y: 0, opacity: 0 });
-      gsap.set(ownerListeningBubbleRef.current, { scale: 0.85, opacity: 0, transformOrigin: 'center center' });
-      gsap.set(frontDoorRef.current, { scaleX: 1, transformOrigin: '94px 74px' });
-      gsap.set(celebrationHaloRef.current, { scale: 0.85, opacity: 0, transformOrigin: 'center center' });
+      gsap.set(ownerGroupRef.current, { x: 20, y: 0, opacity: 0 });
+      gsap.set(ownerSurpriseBubbleRef.current, { scale: 0.88, opacity: 0, transformOrigin: 'center center' });
+      gsap.set(frontDoorRef.current, { scaleX: 1, transformOrigin: '560px 105px' });
+      gsap.set(celebrationHaloRef.current, { scale: 0.88, opacity: 0, transformOrigin: 'center center' });
       gsap.set(armLeftRef.current, { rotation: 0, transformOrigin: '-2px 18px' });
       gsap.set(armRightPettingRef.current, { rotation: 0, transformOrigin: '18px 14px' });
 
       // ===================================================================
-      // PHASE 1: MEADOW SEARCH (0.0s - 2.2s)
+      // 1. MEADOW SEARCH (0.0s - 2.0s): Lost dog trotting looking for home
       // ===================================================================
       tl.addLabel('meadow', 0)
         .to(dogGroupRef.current, { opacity: 1, duration: 0.4, ease: 'power1.out' }, 'meadow')
-        .to(dogGroupRef.current, { x: 170, duration: 2.2, ease: 'sine.inOut' }, 'meadow');
+        .to(dogGroupRef.current, { x: 190, duration: 2.0, ease: 'sine.inOut' }, 'meadow');
 
       // ===================================================================
-      // PHASE 2: BARKING "BOW BOW!" (2.2s - 3.4s)
+      // 2. BARKING "BOW BOW!" (2.0s - 3.2s): Dog stops & barks with soundwaves
       // ===================================================================
-      tl.addLabel('bark', 2.2)
-        .to(dogHeadRef.current, { y: -3, rotation: -8, duration: 0.25, yoyo: true, repeat: 3, transformOrigin: '50px 16px', ease: 'power1.inOut' }, 'bark')
+      tl.addLabel('bark', 2.0)
+        .to(dogHeadRef.current, { y: -4, rotation: -10, duration: 0.22, yoyo: true, repeat: 3, transformOrigin: '50px 16px', ease: 'power1.inOut' }, 'bark')
         .to(dogBarkBubbleRef.current, { opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(1.8)' }, 'bark')
-        .to(soundWave1Ref.current, { opacity: 1, scale: 1.25, duration: 0.6, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'bark+=0.1')
-        .to(soundWave2Ref.current, { opacity: 1, scale: 1.35, duration: 0.6, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'bark+=0.25')
-        .to(dogBarkBubbleRef.current, { opacity: 0, scale: 0.9, duration: 0.3, ease: 'power2.in' }, 'bark+=1.1');
+        .to(soundWave1Ref.current, { opacity: 1, scale: 1.25, duration: 0.5, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'bark+=0.1')
+        .to(soundWave2Ref.current, { opacity: 1, scale: 1.4, duration: 0.5, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'bark+=0.25')
+        .to(dogBarkBubbleRef.current, { opacity: 0, scale: 0.9, duration: 0.3, ease: 'power2.in' }, 'bark+=1.0');
 
       // ===================================================================
-      // PHASE 3: DOOR OPENS & JOYFUL SURPRISE (3.4s - 4.8s)
+      // 3. DOOR OPENS & OVERJOYED SURPRISE (3.2s - 4.6s)
       // ===================================================================
-      tl.addLabel('surprise', 3.4)
-        // Door hinges open smoothly
-        .to(frontDoorRef.current, { scaleX: 0.1, duration: 0.55, ease: 'power2.out' }, 'surprise')
-        // Owner steps onto porch with wide smiling eyes
-        .to(ownerGroupRef.current, { x: 0, opacity: 1, duration: 0.65, ease: 'power2.out' }, 'surprise+=0.15')
-        // Speech Bubble: "{dogName}! 🥹💖"
-        .to(ownerListeningBubbleRef.current, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.8)' }, 'surprise+=0.3')
-        // Arms begin opening wide
-        .to(armLeftRef.current, { rotation: -18, duration: 0.5, ease: 'power1.out' }, 'surprise+=0.4')
-        .to(armRightPettingRef.current, { rotation: 16, duration: 0.5, ease: 'power1.out' }, 'surprise+=0.4')
-        .to(ownerListeningBubbleRef.current, { opacity: 0, scale: 0.9, duration: 0.3, ease: 'power2.in' }, 'surprise+=1.3');
+      tl.addLabel('surprise', 3.2)
+        // Door hinges open with golden light
+        .to(frontDoorRef.current, { scaleX: 0.08, duration: 0.5, ease: 'power2.out' }, 'surprise')
+        // Owner steps out on porch with wide joyful eyes
+        .to(ownerGroupRef.current, { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out' }, 'surprise+=0.1')
+        // Joyful Speech Bubble: "{dogName}! 🥹💖"
+        .to(ownerSurpriseBubbleRef.current, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.8)' }, 'surprise+=0.25')
+        // Arms open wide welcoming the pup
+        .to(armLeftRef.current, { rotation: -20, duration: 0.5, ease: 'power1.out' }, 'surprise+=0.35')
+        .to(armRightPettingRef.current, { rotation: 18, duration: 0.5, ease: 'power1.out' }, 'surprise+=0.35')
+        .to(ownerSurpriseBubbleRef.current, { opacity: 0, scale: 0.9, duration: 0.3, ease: 'power2.in' }, 'surprise+=1.2');
 
       // ===================================================================
-      // PHASE 4: EXCITED SPRINT (4.8s - 6.4s)
+      // 4. THE SPRINT (4.6s - 6.2s): Dog runs fast across grass to porch
       // ===================================================================
-      tl.addLabel('sprint', 4.8)
+      tl.addLabel('sprint', 4.6)
         .to(dogGroupRef.current, {
-          x: 495,
-          y: 180,
-          scale: 0.78,
+          x: 480,
+          y: 195,
+          scale: 0.82,
           duration: 1.6,
           ease: 'power2.inOut',
         }, 'sprint');
 
       // ===================================================================
-      // PHASE 5: LOVING HUG & HEAD PETTING (6.4s - 8.4s)
+      // 5. LOVING HUG & HEAD PETTING (6.2s - 8.2s): Reunion embrace
       // ===================================================================
-      tl.addLabel('hug', 6.4)
-        // Dog settles happily on porch floor
-        .to(dogGroupRef.current, { x: 512, y: 180, scale: 0.75, duration: 0.35, ease: 'power1.out' }, 'hug')
-        // Owner kneels / leans down
-        .to(ownerGroupRef.current, { x: -14, y: 4, duration: 0.45, ease: 'power2.out' }, 'hug')
+      tl.addLabel('hug', 6.2)
+        // Dog reaches owner on porch
+        .to(dogGroupRef.current, { x: 495, y: 195, scale: 0.8, duration: 0.3, ease: 'power1.out' }, 'hug')
+        // Owner kneels/leans down to pup
+        .to(ownerGroupRef.current, { x: -16, y: 5, duration: 0.4, ease: 'power2.out' }, 'hug')
         // Left arm wraps in warm hug
-        .to(armLeftRef.current, { rotation: -26, duration: 0.4, ease: 'power2.out' }, 'hug')
-        // Celebration halo of hearts and stars bursts
-        .to(celebrationHaloRef.current, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.6)' }, 'hug+=0.1')
-        // Right hand gently strokes/pets the dog's head smoothly
+        .to(armLeftRef.current, { rotation: -28, duration: 0.4, ease: 'power2.out' }, 'hug')
+        // Burst of celebration hearts & stars halo
+        .to(celebrationHaloRef.current, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.6)' }, 'hug+=0.1')
+        // Right hand gently strokes/pets the dog's head
         .to(armRightPettingRef.current, {
-          rotation: 28,
+          rotation: 30,
           y: 3,
-          duration: 0.22,
+          duration: 0.2,
           yoyo: true,
           repeat: 7,
           ease: 'sine.inOut',
         }, 'hug+=0.15')
-        // Halo fades after reunion moment
+        // Halo gently fades
         .to(celebrationHaloRef.current, { opacity: 0, scale: 0.92, duration: 0.4, ease: 'power2.in' }, 'hug+=1.7');
 
       // ===================================================================
-      // PHASE 6: GOING INSIDE & DOOR SHUT (8.4s - 10.4s)
+      // 6. GOING INSIDE TOGETHER & DOOR SHUT (8.2s - 9.8s)
       // ===================================================================
-      tl.addLabel('inside', 8.4)
-        // Owner stands upright
+      tl.addLabel('inside', 8.2)
+        // Owner stands up happily
         .to(ownerGroupRef.current, { y: 0, duration: 0.35, ease: 'power2.out' }, 'inside')
         .to(armLeftRef.current, { rotation: 0, duration: 0.3 }, 'inside')
         .to(armRightPettingRef.current, { rotation: 0, y: 0, duration: 0.3 }, 'inside')
-        // Dog trots through the open doorway into the cozy glowing room
-        .to(dogGroupRef.current, { x: 550, y: 178, scale: 0.64, opacity: 0.9, duration: 0.5, ease: 'power1.in' }, 'inside+=0.2')
-        .to(dogGroupRef.current, { x: 575, y: 175, scale: 0.52, opacity: 0, duration: 0.5, ease: 'power1.in' }, 'inside+=0.7')
+        // Dog happily trots into the warm glowing doorway
+        .to(dogGroupRef.current, { x: 545, y: 192, scale: 0.68, opacity: 0.9, duration: 0.5, ease: 'power1.in' }, 'inside+=0.2')
+        .to(dogGroupRef.current, { x: 575, y: 190, scale: 0.54, opacity: 0, duration: 0.5, ease: 'power1.in' }, 'inside+=0.7')
         // Owner steps in right behind
-        .to(ownerGroupRef.current, { x: 12, scale: 0.88, opacity: 0, duration: 0.6, ease: 'power1.in' }, 'inside+=0.6')
-        // Door swings shut securely
+        .to(ownerGroupRef.current, { x: 14, scale: 0.88, opacity: 0, duration: 0.6, ease: 'power1.in' }, 'inside+=0.6')
+        // Front door swings shut with satisfying click
         .to(frontDoorRef.current, { scaleX: 1, duration: 0.45, ease: 'power3.in' }, 'inside+=1.1');
     }, containerRef);
 
     return () => ctx.revert();
-  }, [dogName]);
-
-  // Timeline Control Handlers
-  const handleTogglePlay = () => {
-    if (!masterTimeline.current) return;
-    if (isPlaying) {
-      masterTimeline.current.pause();
-      setIsPlaying(false);
-    } else {
-      masterTimeline.current.play();
-      setIsPlaying(true);
-    }
-  };
+  }, [dogName, animationKey]);
 
   const handleReplay = () => {
-    if (!masterTimeline.current) return;
     triggerStarCelebration();
-    masterTimeline.current.restart();
-    setIsPlaying(true);
-  };
-
-  const handleJumpToPhase = (phaseId: string) => {
-    if (!masterTimeline.current) return;
-    masterTimeline.current.seek(phaseId);
-    if (!isPlaying) {
-      masterTimeline.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const handleSpeedToggle = () => {
-    if (!masterTimeline.current) return;
-    const nextSpeed = speed === 1 ? 1.5 : speed === 1.5 ? 0.75 : 1;
-    masterTimeline.current.timeScale(nextSpeed);
-    setSpeed(nextSpeed);
+    setAnimationKey((prev) => prev + 1);
   };
 
   return (
-    <div className="dog-home-animation-card premium-story-card" ref={containerRef}>
-      {/* Atmosphere Floating Particles */}
+    <div className="dog-home-animation-card premium-story-card relative overflow-hidden" ref={containerRef}>
+      {/* Floating Atmosphere Sparkles */}
       <div className="animation-atmosphere" aria-hidden="true">
         <span className="floating-anim-particle p-heart-1">💖</span>
         <span className="floating-anim-particle p-heart-2">💕</span>
@@ -242,83 +213,28 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
         <span className="floating-anim-particle p-heart-4">🐾</span>
       </div>
 
-      {/* Interactive Story Progression Bar */}
-      <div className="story-timeline-controls-bar flex flex-wrap items-center justify-between gap-2 p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/70 mb-3 shadow-xs">
-        {/* Play / Pause / Replay Buttons */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleTogglePlay}
-            className="btn btn-xs btn-primary gap-1 px-2.5 rounded-lg font-medium shadow-xs"
-            title={isPlaying ? 'Pause Story' : 'Play Story'}
-          >
-            {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-            <span>{isPlaying ? 'Pause' : 'Play'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleReplay}
-            className="btn btn-xs btn-outline gap-1 px-2 rounded-lg"
-            title="Replay from Beginning"
-          >
-            <RotateCcw size={12} />
-            <span>Replay</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSpeedToggle}
-            className="btn btn-xs btn-ghost gap-1 px-2 text-xs font-mono text-amber-800"
-            title="Toggle Playback Speed"
-          >
-            <FastForward size={12} />
-            <span>{speed}x</span>
-          </button>
-        </div>
-
-        {/* Phase Navigation Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-0.5">
-          {STORY_PHASES.map((phase, idx) => (
-            <button
-              key={phase.id}
-              type="button"
-              onClick={() => handleJumpToPhase(phase.id)}
-              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center gap-1 ${
-                activePhaseIndex === idx
-                  ? 'bg-amber-600 text-white shadow-xs scale-105 font-bold'
-                  : 'bg-white text-stone-700 hover:bg-amber-100/70 border border-amber-200/50'
-              }`}
-            >
-              <span>{phase.icon}</span>
-              <span>{phase.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Animated Stage (SVG Canvas) */}
-      <div className="animation-scene-stage storybook-stage relative overflow-hidden rounded-2xl shadow-inner">
+      {/* Main Storybook Canvas */}
+      <div className="animation-scene-stage storybook-stage relative rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-sky-100">
         <svg
-          viewBox="0 0 720 280"
-          className="scene-svg reunion-stage-svg w-full h-auto"
+          viewBox="0 0 760 300"
+          className="scene-svg reunion-stage-svg w-full h-auto block"
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
             {/* Sky Gradient */}
             <linearGradient id="storybookSky" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#7DD3FC" />
-              <stop offset="35%" stopColor="#BAE6FD" />
-              <stop offset="70%" stopColor="#E0F2FE" />
+              <stop offset="0%" stopColor="#60A5FA" />
+              <stop offset="30%" stopColor="#93C5FD" />
+              <stop offset="65%" stopColor="#E0F2FE" />
               <stop offset="100%" stopColor="#FEF3C7" />
             </linearGradient>
 
             {/* Sun Glow */}
-            <radialGradient id="sunBeams" cx="50%" cy="50%" r="50%">
+            <radialGradient id="sunGlowGrad" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#FFFBEB" stopOpacity="1" />
-              <stop offset="30%" stopColor="#FEF08A" stopOpacity="0.85" />
-              <stop offset="65%" stopColor="#FDE047" stopOpacity="0.4" />
+              <stop offset="35%" stopColor="#FEF08A" stopOpacity="0.85" />
+              <stop offset="70%" stopColor="#FDE047" stopOpacity="0.35" />
               <stop offset="100%" stopColor="#FACC15" stopOpacity="0" />
             </radialGradient>
 
@@ -330,15 +246,15 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
 
             <linearGradient id="meadowGrassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#86EFAC" />
-              <stop offset="35%" stopColor="#4ADE80" />
-              <stop offset="75%" stopColor="#22C55E" />
+              <stop offset="30%" stopColor="#4ADE80" />
+              <stop offset="70%" stopColor="#22C55E" />
               <stop offset="100%" stopColor="#15803D" />
             </linearGradient>
 
-            {/* House Wall Wood Gradient */}
+            {/* House Wall Cream Wood */}
             <linearGradient id="cottageWallGrad" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#FFFBEB" />
-              <stop offset="40%" stopColor="#FEF3C7" />
+              <stop offset="45%" stopColor="#FEF3C7" />
               <stop offset="100%" stopColor="#FDE68A" />
             </linearGradient>
 
@@ -346,15 +262,15 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
             <linearGradient id="cedarRoofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#FB923C" />
               <stop offset="50%" stopColor="#EA580C" />
-              <stop offset="100%" stopColor="#C2410C" />
+              <stop offset="100%" stopColor="#9A3412" />
             </linearGradient>
 
             {/* Doorway Cozy Amber Interior Light */}
             <radialGradient id="doorwayWarmth" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#FFFBEB" stopOpacity="1" />
               <stop offset="35%" stopColor="#FEF08A" stopOpacity="0.95" />
-              <stop offset="70%" stopColor="#FDE047" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#D97706" stopOpacity="0.4" />
+              <stop offset="70%" stopColor="#FDE047" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#D97706" stopOpacity="0.5" />
             </radialGradient>
 
             {/* Hug Celebration Glow */}
@@ -367,67 +283,64 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           </defs>
 
           {/* 1. Sky Canvas */}
-          <rect width="720" height="280" rx="20" fill="url(#storybookSky)" />
+          <rect width="760" height="300" rx="16" fill="url(#storybookSky)" />
 
-          {/* Golden Morning Sun */}
-          <g className="anim-sun-group" transform="translate(90, 52)">
-            <circle cx="0" cy="0" r="50" fill="url(#sunBeams)" />
-            <circle cx="0" cy="0" r="28" fill="#FDE047" opacity="0.95" />
-            <circle cx="0" cy="0" r="22" fill="#FACC15" />
+          {/* Golden Sun with Radiant Beams */}
+          <g className="anim-sun-group" transform="translate(100, 56)">
+            <circle cx="0" cy="0" r="54" fill="url(#sunGlowGrad)" />
+            <circle cx="0" cy="0" r="30" fill="#FDE047" opacity="0.95" />
+            <circle cx="0" cy="0" r="23" fill="#FACC15" />
           </g>
 
-          {/* Animated Drifting Soft Clouds */}
-          <g className="anim-cloud-1" opacity="0.9">
-            <path d="M120,38 Q132,24 150,28 Q162,14 184,18 Q206,12 218,28 Q234,26 240,40 Q246,54 230,58 L126,58 Q110,54 120,38 Z" fill="#FFFFFF" />
+          {/* Drifting Clouds */}
+          <g className="anim-cloud-1" opacity="0.92">
+            <path d="M120,40 Q135,24 155,28 Q168,12 192,16 Q216,10 230,28 Q248,26 254,42 Q260,58 242,62 L128,62 Q110,58 120,40 Z" fill="#FFFFFF" />
           </g>
-          <g className="anim-cloud-2" opacity="0.8">
-            <path d="M300,50 Q310,38 324,42 Q336,30 354,34 Q370,28 380,42 Q394,40 398,52 Q402,64 388,68 L306,68 Q294,64 300,50 Z" fill="#FFFFFF" />
+          <g className="anim-cloud-2" opacity="0.85">
+            <path d="M320,52 Q332,38 348,42 Q362,28 382,32 Q400,26 412,42 Q428,40 432,54 Q436,68 420,72 L326,72 Q312,68 320,52 Z" fill="#FFFFFF" />
           </g>
 
           {/* 2. Layered Rolling Green Hills */}
-          <path d="M0,175 Q180,120 360,158 T720,146 L720,280 L0,280 Z" fill="url(#distantHillsGrad)" opacity="0.75" />
-          <path d="M0,185 Q220,145 440,175 T720,165 L720,280 L0,280 Z" fill="#6EE7B7" opacity="0.6" />
+          <path d="M0,185 Q200,125 400,165 T760,152 L760,300 L0,300 Z" fill="url(#distantHillsGrad)" opacity="0.75" />
+          <path d="M0,195 Q240,150 480,185 T760,172 L760,300 L0,300 Z" fill="#6EE7B7" opacity="0.65" />
 
-          {/* 3. Lush Green Meadow Lawn */}
-          <path d="M0,170 Q210,148 420,170 T720,160 L720,280 L0,280 Z" fill="url(#meadowGrassGrad)" />
+          {/* 3. Lush Green Meadow Ground (Dog trotting baseline y: 220) */}
+          <path d="M0,180 Q230,155 460,180 T760,168 L760,300 L0,300 Z" fill="url(#meadowGrassGrad)" />
 
-          {/* Wildflower Meadow Flowers */}
+          {/* Wildflowers */}
           <g opacity="0.95">
-            {/* Daisies */}
-            <circle cx="50" cy="240" r="4.5" fill="#FFFFFF" />
-            <circle cx="50" cy="240" r="2" fill="#FBBF24" />
-            <circle cx="130" cy="225" r="5" fill="#FFFFFF" />
-            <circle cx="130" cy="225" r="2.2" fill="#F59E0B" />
-            <circle cx="230" cy="250" r="5.5" fill="#FFFFFF" />
-            <circle cx="230" cy="250" r="2.5" fill="#FBBF24" />
-            <circle cx="340" cy="220" r="4.5" fill="#FFFFFF" />
-            <circle cx="340" cy="220" r="2" fill="#F59E0B" />
-            <circle cx="430" cy="240" r="5" fill="#FFFFFF" />
-            <circle cx="430" cy="240" r="2.2" fill="#FBBF24" />
+            <circle cx="55" cy="255" r="4.5" fill="#FFFFFF" />
+            <circle cx="55" cy="255" r="2" fill="#FBBF24" />
+            <circle cx="140" cy="240" r="5" fill="#FFFFFF" />
+            <circle cx="140" cy="240" r="2.2" fill="#F59E0B" />
+            <circle cx="245" cy="265" r="5.5" fill="#FFFFFF" />
+            <circle cx="245" cy="265" r="2.5" fill="#FBBF24" />
+            <circle cx="360" cy="235" r="4.5" fill="#FFFFFF" />
+            <circle cx="360" cy="235" r="2" fill="#F59E0B" />
+            <circle cx="455" cy="255" r="5" fill="#FFFFFF" />
+            <circle cx="455" cy="255" r="2.2" fill="#FBBF24" />
 
-            {/* Lavender & Tulips */}
-            <circle cx="90" cy="232" r="4" fill="#C084FC" />
-            <circle cx="180" cy="218" r="4.5" fill="#FB7185" />
-            <circle cx="280" cy="236" r="4.5" fill="#F43F5E" />
-            <circle cx="385" cy="228" r="4" fill="#C084FC" />
-            <circle cx="475" cy="224" r="4.5" fill="#FB7185" />
+            <circle cx="95" cy="245" r="4" fill="#C084FC" />
+            <circle cx="190" cy="232" r="4.5" fill="#FB7185" />
+            <circle cx="295" cy="250" r="4.5" fill="#F43F5E" />
+            <circle cx="405" cy="242" r="4" fill="#C084FC" />
           </g>
 
-          {/* Meadow Grass Tuft Blades */}
-          <g stroke="#166534" strokeWidth="2" strokeLinecap="round" opacity="0.7">
-            <path d="M80,245 L76,233 M80,245 L84,235" />
-            <path d="M165,230 L162,218 M165,230 L169,220" />
-            <path d="M265,242 L261,230 M265,242 L268,232" />
-            <path d="M360,225 L357,214 M360,225 L364,216" />
-            <path d="M445,232 L442,222 M445,232 L448,224" />
+          {/* Grass Blades */}
+          <g stroke="#166534" strokeWidth="2" strokeLinecap="round" opacity="0.75">
+            <path d="M85,260 L81,246 M85,260 L89,248" />
+            <path d="M175,245 L172,231 M175,245 L179,233" />
+            <path d="M280,256 L276,242 M280,256 L283,244" />
+            <path d="M380,238 L377,225 M380,238 L384,227" />
+            <path d="M470,246 L467,234 M470,246 L473,236" />
           </g>
 
-          {/* Fluttering Butterflies */}
-          <g className="anim-butterfly-1" transform="translate(190, 160)">
+          {/* Butterflies */}
+          <g className="anim-butterfly-1" transform="translate(200, 165)">
             <path d="M0,0 Q-4,-8 -8,-6 Q-10,-2 -4,0 Q-10,2 -6,6 Q-2,4 0,0" fill="#F472B6" opacity="0.85" />
             <path d="M0,0 Q4,-8 8,-6 Q10,-2 4,0 Q10,2 6,6 Q2,4 0,0" fill="#FB7185" opacity="0.85" />
           </g>
-          <g className="anim-butterfly-2" transform="translate(370, 150)">
+          <g className="anim-butterfly-2" transform="translate(390, 155)">
             <path d="M0,0 Q-4,-8 -8,-6 Q-10,-2 -4,0 Q-10,2 -6,6 Q-2,4 0,0" fill="#FBBF24" opacity="0.85" />
             <path d="M0,0 Q4,-8 8,-6 Q10,-2 4,0 Q10,2 6,6 Q2,4 0,0" fill="#F59E0B" opacity="0.85" />
           </g>
@@ -435,214 +348,213 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           {/* ------------------------------------------------------------------ */}
           {/* 4. THE CHARMING STORYBOOK COTTAGE */}
           {/* ------------------------------------------------------------------ */}
-          <g id="storybookCottageGroup" transform="translate(480, 48)">
-            {/* Brick Chimney & Rising Smoke Rings */}
+          <g id="storybookCottageGroup" transform="translate(510, 48)">
+            {/* Chimney & Smoke */}
             <g ref={chimneySmokeRef}>
-              <rect x="120" y="6" width="24" height="46" rx="3" fill="#9A3412" stroke="#78350F" strokeWidth="1.5" />
-              <rect x="118" y="4" width="28" height="6" rx="2" fill="#78350F" />
-              <line x1="120" y1="18" x2="144" y2="18" stroke="#78350F" strokeWidth="1" />
-              <line x1="120" y1="30" x2="144" y2="30" stroke="#78350F" strokeWidth="1" />
-              <line x1="120" y1="42" x2="144" y2="42" stroke="#78350F" strokeWidth="1" />
-              {/* Smoke Puffs */}
-              <circle cx="132" cy="-4" r="8" fill="#FFFFFF" opacity="0.75" className="anim-smoke puff-1" />
-              <circle cx="137" cy="-22" r="10" fill="#FFFFFF" opacity="0.55" className="anim-smoke puff-2" />
-              <circle cx="143" cy="-42" r="12" fill="#FFFFFF" opacity="0.35" className="anim-smoke puff-3" />
+              <rect x="130" y="6" width="26" height="48" rx="3" fill="#9A3412" stroke="#78350F" strokeWidth="1.5" />
+              <rect x="127" y="4" width="32" height="6" rx="2" fill="#78350F" />
+              <circle cx="143" cy="-4" r="8" fill="#FFFFFF" opacity="0.75" className="anim-smoke-puff" />
+              <circle cx="148" cy="-24" r="10" fill="#FFFFFF" opacity="0.55" className="anim-smoke-puff" />
+              <circle cx="155" cy="-46" r="12" fill="#FFFFFF" opacity="0.35" className="anim-smoke-puff" />
             </g>
 
             {/* Main Cottage Body */}
-            <rect x="20" y="55" width="170" height="120" rx="8" fill="url(#cottageWallGrad)" stroke="#FDE68A" strokeWidth="2.5" />
+            <rect x="20" y="55" width="190" height="135" rx="8" fill="url(#cottageWallGrad)" stroke="#FDE68A" strokeWidth="2.5" />
 
-            {/* Cedar Shingle Pitched Roof */}
-            <polygon points="10,60 105,4 200,60" fill="url(#cedarRoofGrad)" />
-            <polygon points="14,60 105,8 196,60" fill="#FB923C" opacity="0.4" />
-            <line x1="35" y1="48" x2="175" y2="48" stroke="#78350F" strokeWidth="1.5" opacity="0.4" />
-            <line x1="55" y1="34" x2="155" y2="34" stroke="#78350F" strokeWidth="1.5" opacity="0.4" />
-            <line x1="80" y1="20" x2="130" y2="20" stroke="#78350F" strokeWidth="1.5" opacity="0.4" />
+            {/* Cedar Tile Roof */}
+            <polygon points="10,60 115,2 220,60" fill="url(#cedarRoofGrad)" />
+            <polygon points="14,60 115,6 216,60" fill="#FB923C" opacity="0.35" />
+            <line x1="35" y1="48" x2="195" y2="48" stroke="#78350F" strokeWidth="1.5" opacity="0.4" />
+            <line x1="60" y1="32" x2="170" y2="32" stroke="#78350F" strokeWidth="1.5" opacity="0.4" />
 
-            {/* Attic Heart Rose Window */}
-            <circle cx="105" cy="36" r="13" fill="#FEF3C7" stroke="#EA580C" strokeWidth="2" />
-            <text x="105" y="41" textAnchor="middle" fontSize="14">💖</text>
+            {/* Attic Heart Window */}
+            <circle cx="115" cy="34" r="14" fill="#FEF3C7" stroke="#EA580C" strokeWidth="2" />
+            <text x="115" y="40" textAnchor="middle" fontSize="15">💖</text>
 
-            {/* Side Window with Warm Amber Glow */}
-            <rect x="36" y="80" width="36" height="38" rx="4" fill="#FEF08A" stroke="#F59E0B" strokeWidth="2" />
-            <line x1="54" y1="80" x2="54" y2="118" stroke="#F59E0B" strokeWidth="1.8" />
-            <line x1="36" y1="99" x2="72" y2="99" stroke="#F59E0B" strokeWidth="1.8" />
-            <path d="M36,80 Q45,95 36,110 L36,80 Z" fill="#FB923C" opacity="0.85" />
-            <path d="M72,80 Q63,95 72,110 L72,80 Z" fill="#FB923C" opacity="0.85" />
+            {/* Side Bay Window with Golden Amber Light */}
+            <rect x="36" y="86" width="40" height="44" rx="4" fill="#FEF08A" stroke="#F59E0B" strokeWidth="2" />
+            <line x1="56" y1="86" x2="56" y2="130" stroke="#F59E0B" strokeWidth="1.8" />
+            <line x1="36" y1="108" x2="76" y2="108" stroke="#F59E0B" strokeWidth="1.8" />
+            <path d="M36,86 Q46,102 36,120 L36,86 Z" fill="#FB923C" opacity="0.85" />
+            <path d="M76,86 Q66,102 76,120 L76,86 Z" fill="#FB923C" opacity="0.85" />
 
-            {/* Porch Base Steps */}
-            <rect x="80" y="160" width="80" height="15" rx="3" fill="#D97706" />
-            <rect x="74" y="168" width="92" height="9" rx="2" fill="#B45309" />
+            {/* Porch Steps Level with Ground */}
+            <rect x="80" y="176" width="90" height="15" rx="3" fill="#D97706" />
+            <rect x="74" y="184" width="102" height="9" rx="2" fill="#B45309" />
 
-            {/* Doorway Warm Light */}
-            <rect x="94" y="74" width="52" height="98" rx="4" fill="url(#doorwayWarmth)" stroke="#B45309" strokeWidth="1.5" />
+            {/* Cozy Doorway Amber Light */}
+            <rect x="96" y="80" width="58" height="110" rx="4" fill="url(#doorwayWarmth)" stroke="#B45309" strokeWidth="1.5" />
 
-            {/* The Front Door (Controlled via GSAP ref) */}
-            <g ref={frontDoorRef} className="anim-front-door-rig">
-              <rect x="94" y="74" width="52" height="98" rx="4" fill="#78350F" stroke="#451A03" strokeWidth="2" />
-              <rect x="100" y="82" width="18" height="40" rx="2" fill="#92400E" />
-              <rect x="122" y="82" width="18" height="40" rx="2" fill="#92400E" />
-              <rect x="100" y="128" width="18" height="38" rx="2" fill="#92400E" />
-              <rect x="122" y="128" width="18" height="38" rx="2" fill="#92400E" />
-              <circle cx="101" cy="126" r="3.5" fill="#FDE047" />
+            {/* Front Door (Hinged GSAP element) */}
+            <g ref={frontDoorRef} transform-origin="96px 80px">
+              <rect x="96" y="80" width="58" height="110" rx="4" fill="#78350F" stroke="#451A03" strokeWidth="2" />
+              <rect x="103" y="89" width="20" height="44" rx="2" fill="#92400E" />
+              <rect x="127" y="89" width="20" height="44" rx="2" fill="#92400E" />
+              <rect x="103" y="139" width="20" height="42" rx="2" fill="#92400E" />
+              <rect x="127" y="139" width="20" height="42" rx="2" fill="#92400E" />
+              <circle cx="104" cy="138" r="3.8" fill="#FDE047" />
             </g>
 
-            {/* Porch Welcome Mat */}
-            <ellipse cx="120" cy="168" rx="24" ry="6" fill="#78350F" opacity="0.75" />
+            {/* Welcome Porch Mat */}
+            <ellipse cx="125" cy="184" rx="28" ry="6" fill="#78350F" opacity="0.75" />
 
-            {/* Glowing Porch Lantern */}
-            <circle cx="80" cy="88" r="7" fill="#FDE047" className="anim-lantern-glow" />
-            <rect x="77" y="81" width="6" height="11" rx="1.5" fill="#1F2937" />
+            {/* Porch Lantern */}
+            <circle cx="82" cy="94" r="8" fill="#FDE047" className="anim-lantern-glow" />
+            <rect x="79" y="86" width="6" height="12" rx="1.5" fill="#1F2937" />
 
-            {/* Flower Pots */}
-            <circle cx="26" cy="165" r="14" fill="#22C55E" />
-            <circle cx="22" cy="158" r="4.5" fill="#F43F5E" />
-            <circle cx="30" cy="162" r="4" fill="#FB7185" />
-            <circle cx="180" cy="165" r="15" fill="#22C55E" />
-            <circle cx="176" cy="158" r="5" fill="#F43F5E" />
-            <circle cx="186" cy="160" r="4.5" fill="#FBBF24" />
+            {/* Flower Planter Pots */}
+            <circle cx="26" cy="180" r="15" fill="#22C55E" />
+            <circle cx="22" cy="172" r="5" fill="#F43F5E" />
+            <circle cx="30" cy="176" r="4.5" fill="#FB7185" />
+            <circle cx="200" cy="180" r="16" fill="#22C55E" />
+            <circle cx="196" cy="172" r="5.5" fill="#F43F5E" />
+            <circle cx="206" cy="174" r="5" fill="#FBBF24" />
           </g>
 
           {/* ------------------------------------------------------------------ */}
-          {/* 5. PET OWNER FIGURE (Slender human model controlled by GSAP) */}
+          {/* 5. PET OWNER FIGURE (Slender human model driven by GSAP) */}
           {/* ------------------------------------------------------------------ */}
           <g id="ownerFigureGroup" ref={ownerGroupRef}>
             {/* Joyful Surprise Bubble */}
-            <g ref={ownerListeningBubbleRef} transform="translate(595, 96)">
-              <ellipse cx="0" cy="0" rx="36" ry="18" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="2" />
-              <polygon points="-8,16 0,26 5,16" fill="#FFFFFF" />
-              <text x="0" y="4" textAnchor="middle" fontSize="11.5" fontWeight="900" fill="#B45309">
+            <g ref={ownerSurpriseBubbleRef} transform="translate(635, 102)">
+              <ellipse cx="0" cy="0" rx="38" ry="20" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="2.2" />
+              <polygon points="-8,18 0,28 6,18" fill="#FFFFFF" />
+              <text x="0" y="5" textAnchor="middle" fontSize="12" fontWeight="900" fill="#B45309">
                 {dogName}! 🥹💖
               </text>
             </g>
 
             {/* Owner Standing / Kneeling Figure */}
-            <g transform="translate(570, 140)">
-              <ellipse cx="10" cy="74" rx="16" ry="5" fill="#78350F" opacity="0.28" />
+            <g transform="translate(605, 155)">
+              <ellipse cx="10" cy="74" rx="17" ry="5" fill="#78350F" opacity="0.3" />
 
-              {/* Slim Jeans */}
-              <path d="M6,40 L4,70 L0,72" fill="none" stroke="#1E3A8A" strokeWidth="4.2" strokeLinecap="round" />
-              <path d="M14,40 L16,70 L20,72" fill="none" stroke="#1E40AF" strokeWidth="4.2" strokeLinecap="round" />
-              <ellipse cx="0" cy="72" rx="4" ry="2" fill="#0F172A" />
-              <ellipse cx="20" cy="72" rx="4" ry="2" fill="#0F172A" />
+              {/* Slim Navy Jeans */}
+              <path d="M6,40 L4,70 L0,72" fill="none" stroke="#1E3A8A" strokeWidth="4.5" strokeLinecap="round" />
+              <path d="M14,40 L16,70 L20,72" fill="none" stroke="#1E40AF" strokeWidth="4.5" strokeLinecap="round" />
+              <ellipse cx="0" cy="72" rx="4.5" ry="2.2" fill="#0F172A" />
+              <ellipse cx="20" cy="72" rx="4.5" ry="2.2" fill="#0F172A" />
 
-              {/* Tailored Terracotta Jacket */}
+              {/* Terracotta Jacket */}
               <path d="M2,12 L18,12 Q20,24 16,40 L4,40 Q0,24 2,12 Z" fill="#EA580C" stroke="#C2410C" strokeWidth="1.2" />
               <path d="M6,12 Q10,17 14,12 Z" fill="#F8FAFC" />
               <line x1="10" y1="16" x2="10" y2="40" stroke="#C2410C" strokeWidth="1" strokeDasharray="2 2" />
 
               {/* Neck & Head */}
               <rect x="8" y="7" width="4" height="6" rx="1.5" fill="#FBD5B5" />
-              <ellipse cx="10" cy="1" rx="7.5" ry="9" fill="#FBD5B5" />
-              <path d="M2,-3 Q10,-11 18,-3 Q20,4 17,7 Q15,-6 3, -1 Z" fill="#3B1D0E" />
+              <ellipse cx="10" cy="1" rx="8" ry="9.5" fill="#FBD5B5" />
+              <path d="M2,-3 Q10,-12 18,-3 Q20,4 17,7 Q15,-6 3, -1 Z" fill="#3B1D0E" />
               <path d="M3,0 L2,4 L4,2 Z" fill="#3B1D0E" />
 
-              {/* Smiling Happy Eyes */}
-              <path d="M6,0 Q8,-2.5 10,0" fill="none" stroke="#1F2937" strokeWidth="1.4" strokeLinecap="round" />
-              <path d="M11,0 Q13,-2.5 15,0" fill="none" stroke="#1F2937" strokeWidth="1.4" strokeLinecap="round" />
-              <path d="M8,4 Q10.5,7.5 13,4 Z" fill="#DC2626" />
-              <ellipse cx="5,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
-              <ellipse cx="15,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
+              {/* Smiling Happy Eyes & Smile */}
+              <path d="M6,0 Q8,-2.5 10,0" fill="none" stroke="#1F2937" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M11,0 Q13,-2.5 15,0" fill="none" stroke="#1F2937" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M8,4.5 Q10.5,8 13,4.5 Z" fill="#DC2626" />
+              <ellipse cx="5,3.5" rx="2" ry="1.2" fill="#F87171" opacity="0.8" />
+              <ellipse cx="15,3.5" rx="2" ry="1.2" fill="#F87171" opacity="0.8" />
 
               {/* Left Hugging Arm */}
               <g ref={armLeftRef}>
-                <path d="M2,14 Q-9,22 -14,34" fill="none" stroke="#EA580C" strokeWidth="3.8" strokeLinecap="round" />
-                <circle cx="-15" cy="36" r="2.8" fill="#FBD5B5" />
-                <path d="M-17,35 L-20,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M2,14 Q-10,22 -16,34" fill="none" stroke="#EA580C" strokeWidth="4" strokeLinecap="round" />
+                <circle cx="-17" cy="36" r="3" fill="#FBD5B5" />
+                <path d="M-19,35 L-22,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
               </g>
 
               {/* Right Petting Arm */}
               <g ref={armRightPettingRef}>
-                <path d="M18,14 Q25,22 22,34" fill="none" stroke="#C2410C" strokeWidth="3.8" strokeLinecap="round" />
-                <circle cx="21" cy="36" r="2.8" fill="#FBD5B5" />
-                <path d="M23,35 L26,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M18,14 Q26,22 24,34" fill="none" stroke="#C2410C" strokeWidth="4" strokeLinecap="round" />
+                <circle cx="23" cy="36" r="3" fill="#FBD5B5" />
+                <path d="M25,35 L28,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
               </g>
             </g>
           </g>
 
           {/* ------------------------------------------------------------------ */}
-          {/* 6. THE DOG (Lean Golden Retriever pup rigged with GSAP) */}
+          {/* 6. THE DOG (Lean athletic Golden Retriever pup) */}
           {/* ------------------------------------------------------------------ */}
           <g id="groundedDogGroup" ref={dogGroupRef}>
             {/* Bark Speech Bubble */}
-            <g ref={dogBarkBubbleRef} transform="translate(68, -16)">
-              <ellipse cx="0" cy="0" rx="34" ry="18" fill="#FFFFFF" stroke="#EA580C" strokeWidth="2" />
-              <polygon points="-6,16 -16,28 3,17" fill="#FFFFFF" />
-              <text x="0" y="4" textAnchor="middle" fontSize="11.5" fontWeight="900" fill="#C2410C">
+            <g ref={dogBarkBubbleRef} transform="translate(68, -18)">
+              <ellipse cx="0" cy="0" rx="36" ry="19" fill="#FFFFFF" stroke="#EA580C" strokeWidth="2.2" />
+              <polygon points="-6,17 -16,29 3,18" fill="#FFFFFF" />
+              <text x="0" y="5" textAnchor="middle" fontSize="12" fontWeight="900" fill="#C2410C">
                 Bow Bow! 🐾
               </text>
-              <path ref={soundWave1Ref} d="M38,-9 A13,13 0 0,1 38,9" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" />
-              <path ref={soundWave2Ref} d="M45,-14 A19,19 0 0,1 45,14" fill="none" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" />
+              <path ref={soundWave1Ref} d="M40,-10 A14,14 0 0,1 40,10" fill="none" stroke="#EA580C" strokeWidth="2.4" strokeLinecap="round" />
+              <path ref={soundWave2Ref} d="M48,-15 A21,21 0 0,1 48,15" fill="none" stroke="#F97316" strokeWidth="2.4" strokeLinecap="round" />
             </g>
 
-            {/* Shadow */}
-            <ellipse cx="32" cy="52" rx="18" ry="5" fill="#15803D" opacity="0.35" />
+            {/* Grass Shadow */}
+            <ellipse cx="32" cy="53" rx="19" ry="5.5" fill="#15803D" opacity="0.38" />
 
             {/* Tail */}
             <path
               ref={dogTailRef}
-              d="M16,26 Q2,12 6,-2"
+              d="M16,26 Q2,11 6,-3"
               fill="none"
               stroke="#D97706"
-              strokeWidth="4.5"
+              strokeWidth="4.8"
               strokeLinecap="round"
             />
 
             {/* Back Legs */}
-            <path d="M16,30 L14,42 L10,50 L6,51" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" className="leg-back-far" />
-            <path d="M22,30 L24,42 L28,50 L32,51" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" className="leg-back-near" />
+            <path ref={legBackFarRef} d="M16,30 L14,42 L10,50 L6,51" fill="none" stroke="#B45309" strokeWidth="3.8" strokeLinecap="round" />
+            <path ref={legBackNearRef} d="M22,30 L24,42 L28,50 L32,51" fill="none" stroke="#D97706" strokeWidth="3.8" strokeLinecap="round" />
 
-            {/* Torso */}
-            <path d="M16,28 Q24,20 38,22 Q46,24 48,29 Q46,36 36,35 Q22,36 16,28 Z" fill="#F59E0B" />
-            <ellipse cx="40" cy="30" rx="7" ry="6" fill="#FBBF24" opacity="0.75" />
+            {/* Slender Contoured Torso */}
+            <path d="M16,28 Q24,19 38,21 Q46,23 48,29 Q46,36 36,35 Q22,36 16,28 Z" fill="#F59E0B" />
+            <ellipse cx="40" cy="30" rx="7.5" ry="6.5" fill="#FBBF24" opacity="0.75" />
 
             {/* Front Legs */}
-            <path d="M38,30 L36,42 L33,50 L30,51" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" className="leg-front-far" />
-            <path d="M44,30 L46,42 L49,50 L53,51" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" className="leg-front-near" />
+            <path ref={legFrontFarRef} d="M38,30 L36,42 L33,50 L30,51" fill="none" stroke="#B45309" strokeWidth="3.8" strokeLinecap="round" />
+            <path ref={legFrontNearRef} d="M44,30 L46,42 L49,50 L53,51" fill="none" stroke="#D97706" strokeWidth="3.8" strokeLinecap="round" />
 
             {/* Neck & Collar */}
-            <path d="M38,24 L46,16 L50,22 L42,28 Z" fill="#F59E0B" />
-            <path d="M43,20 Q46,24 45,28" fill="none" stroke="#DC2626" strokeWidth="2.8" strokeLinecap="round" />
-            <circle cx="46" cy="28" r="2.2" fill="#FDE047" stroke="#CA8A04" strokeWidth="0.6" />
+            <path d="M38,24 L46,15 L50,21 L42,28 Z" fill="#F59E0B" />
+            <path d="M43,19 Q46,23 45,28" fill="none" stroke="#DC2626" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="46" cy="28" r="2.4" fill="#FDE047" stroke="#CA8A04" strokeWidth="0.6" />
 
-            {/* Head */}
-            <circle ref={dogHeadRef} cx="50" cy="16" r="10.5" fill="#FBBF24" />
-
-            {/* Snout & Smile */}
-            <ellipse cx="58" cy="18" rx="5.8" ry="4.2" fill="#FDE68A" />
-            <circle cx="63" cy="16.5" r="2" fill="#1F2937" />
-            <path d="M59,20 Q61.5,23 64,20" fill="none" stroke="#1F2937" strokeWidth="1.2" strokeLinecap="round" />
-            <ellipse cx="61.5" cy="21.5" rx="2.2" ry="1.6" fill="#FB7185" />
-            <path d="M51,12 Q53.5,9.5 56,12" fill="none" stroke="#1F2937" strokeWidth="1.6" strokeLinecap="round" />
-            <ellipse cx="43" cy="14" rx="4.2" ry="8" fill="#D97706" transform="rotate(-15 43 14)" className="anim-floppy-ear" />
+            {/* Puppy Head */}
+            <g ref={dogHeadRef}>
+              <circle cx="50" cy="15" r="11" fill="#FBBF24" />
+              {/* Snout & Smiling Mouth */}
+              <ellipse cx="59" cy="17" rx="6.2" ry="4.5" fill="#FDE68A" />
+              <circle cx="64" cy="15.5" r="2.2" fill="#1F2937" />
+              <path d="M60,19 Q62.5,22.5 65,19" fill="none" stroke="#1F2937" strokeWidth="1.3" strokeLinecap="round" />
+              <ellipse cx="62.5" cy="21" rx="2.4" ry="1.8" fill="#FB7185" />
+              {/* Sparkling Eyes */}
+              <path d="M51,11 Q53.5,8.5 56,11" fill="none" stroke="#1F2937" strokeWidth="1.7" strokeLinecap="round" />
+              {/* Silky Floppy Ear */}
+              <ellipse cx="43" cy="13" rx="4.5" ry="8.5" fill="#D97706" transform="rotate(-15 43 13)" className="anim-floppy-ear" />
+            </g>
           </g>
 
           {/* ------------------------------------------------------------------ */}
-          {/* 7. REUNION CELEBRATION HALO */}
+          {/* 7. CELEBRATION HALO */}
           {/* ------------------------------------------------------------------ */}
-          <g ref={celebrationHaloRef} transform="translate(540, 190)">
-            <circle cx="0" cy="0" r="55" fill="url(#reunionHaloGlow)" />
-            <text x="-28" y="-32" fontSize="19" className="hug-heart h1">💖</text>
-            <text x="24" y="-38" fontSize="20" className="hug-heart h2">💕</text>
-            <text x="-36" y="8" fontSize="16" className="hug-heart h3">✨</text>
-            <text x="30" y="4" fontSize="17" className="hug-heart h4">🐾</text>
-            <text x="0" y="-48" fontSize="22" className="hug-heart h5">🥰</text>
-            <text x="-16" y="-60" fontSize="14" className="hug-heart h6">⭐</text>
-            <text x="18" y="-58" fontSize="14" className="hug-heart h7">🌟</text>
+          <g ref={celebrationHaloRef} transform="translate(565, 205)">
+            <circle cx="0" cy="0" r="58" fill="url(#reunionHaloGlow)" />
+            <text x="-28" y="-34" fontSize="20" className="hug-heart h1">💖</text>
+            <text x="26" y="-40" fontSize="22" className="hug-heart h2">💕</text>
+            <text x="-38" y="8" fontSize="17" className="hug-heart h3">✨</text>
+            <text x="32" y="4" fontSize="18" className="hug-heart h4">🐾</text>
+            <text x="0" y="-52" fontSize="24" className="hug-heart h5">🥰</text>
+            <text x="-18" y="-64" fontSize="15" className="hug-heart h6">⭐</text>
+            <text x="20" y="-62" fontSize="15" className="hug-heart h7">🌟</text>
           </g>
         </svg>
 
-        {/* Floating Story Progress Indicator */}
-        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] font-medium text-stone-600 bg-white/70 backdrop-blur-xs px-3 py-1 rounded-full border border-white/60 pointer-events-none">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Phase: {STORY_PHASES[activePhaseIndex]?.label}</span>
-          </span>
-          <span className="font-mono text-stone-500">{progressPercent}%</span>
-        </div>
+        {/* Minimal Floating Replay Button */}
+        <button
+          type="button"
+          onClick={handleReplay}
+          className="absolute top-3 right-3 btn btn-xs btn-circle bg-white/80 hover:bg-white text-stone-700 shadow-md border border-amber-200/60 backdrop-blur-xs transition-transform active:scale-90"
+          title="Replay Story"
+        >
+          <RotateCcw size={13} />
+        </button>
       </div>
 
-      {/* Narrative Footer Banner */}
+      {/* Narrative Summary Banner */}
       <div className="animation-details-banner mt-3">
         <div className="home-badge-row">
           <span className="safe-home-glow-badge">
@@ -651,7 +563,7 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           </span>
           <span className="happiness-stars">
             <Sparkles size={14} className="text-amber-500" />
-            <span>GSAP Timeline Precision &amp; Emotional Storytelling</span>
+            <span>Pure Happiness &amp; Emotional Relief</span>
           </span>
         </div>
 
