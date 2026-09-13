@@ -102,34 +102,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshProgress = () => {
     const currentUser = authService.getCurrentUser();
     if (currentUser) {
-      setUser(currentUser);
-      const hasOwner = storageService.hasCompletedOwnerProfile(currentUser.id);
-      const hasLoc = storageService.hasCompletedLocation(currentUser.id);
-      const hasDog = storageService.hasCompletedDogProfile(currentUser.id);
-      const hasReport = storageService.hasCompletedReport(currentUser.id);
-      setHasCompletedOwner(hasOwner);
-      setHasCompletedLocation(hasLoc);
-      setHasCompletedDog(hasDog);
-      setHasCompletedReport(hasReport);
+      setUser((prevUser) => {
+        if (
+          prevUser &&
+          prevUser.id === currentUser.id &&
+          prevUser.name === currentUser.name &&
+          prevUser.email === currentUser.email &&
+          prevUser.phone === currentUser.phone &&
+          prevUser.avatar === currentUser.avatar &&
+          prevUser.isAdmin === currentUser.isAdmin
+        ) {
+          return prevUser;
+        }
+        return currentUser;
+      });
 
-      if (storageService.isPetSafe(currentUser.id)) {
-        setPetSafetyStatus('SAFE');
+      const hasOwner = storageService.hasCompletedOwnerProfile(currentUser.id, currentUser.email);
+      const hasLoc = storageService.hasCompletedLocation(currentUser.id, currentUser.email);
+      const hasDog = storageService.hasCompletedDogProfile(currentUser.id, currentUser.email);
+      const hasReport = storageService.hasCompletedReport(currentUser.id);
+
+      setHasCompletedOwner((prev) => (prev !== hasOwner ? hasOwner : prev));
+      setHasCompletedLocation((prev) => (prev !== hasLoc ? hasLoc : prev));
+      setHasCompletedDog((prev) => (prev !== hasDog ? hasDog : prev));
+      setHasCompletedReport((prev) => (prev !== hasReport ? hasReport : prev));
+
+      const isSafe = storageService.isPetSafe(currentUser.id);
+      let newSafety: 'SAFE' | 'LOST' | 'UNDECIDED' = 'UNDECIDED';
+      if (isSafe) {
+        newSafety = 'SAFE';
       } else {
-        const rep = storageService.getLatestReportByUserId(currentUser.id);
+        const rep = storageService.getLatestReportByUserId(currentUser.id, currentUser.email);
         if (rep && rep.status === 'LOST') {
-          setPetSafetyStatus('LOST');
-        } else {
-          setPetSafetyStatus('UNDECIDED');
+          newSafety = 'LOST';
         }
       }
+      setPetSafetyStatus((prev) => (prev !== newSafety ? newSafety : prev));
     } else {
-      setUser(null);
-      setHasCompletedOwner(false);
-      setHasCompletedLocation(false);
-      setHasCompletedDog(false);
-      setHasCompletedReport(false);
-      setPetSafetyStatus('UNDECIDED');
-      setActiveOnboardingTab('owner');
+      setUser((prev) => (prev ? null : prev));
+      setHasCompletedOwner((prev) => (prev ? false : prev));
+      setHasCompletedLocation((prev) => (prev ? false : prev));
+      setHasCompletedDog((prev) => (prev ? false : prev));
+      setHasCompletedReport((prev) => (prev ? false : prev));
+      setPetSafetyStatus((prev) => (prev !== 'UNDECIDED' ? 'UNDECIDED' : prev));
+      setActiveOnboardingTab((prev) => (prev !== 'owner' ? 'owner' : prev));
     }
     setHasValidConsent(consentService.hasAcceptedCurrentConsent());
   };
