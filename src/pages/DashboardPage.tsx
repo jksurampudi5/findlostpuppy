@@ -204,14 +204,23 @@ export const DashboardPage: React.FC = () => {
     if (!confirmed) return;
 
     // Instant optimistic state update across all tabs
-    const targetClean = reportId.replace(/^LOST-/, '').toLowerCase();
+    const targetClean = reportId.replace(/^LOST-/i, '').toLowerCase();
+    const targetCanon = reportId.toLowerCase().startsWith('lost-')
+      ? reportId.toLowerCase()
+      : `lost-${reportId.toLowerCase()}`;
+
     setReports((prev) =>
-      prev.filter(
-        (r) =>
+      prev.filter((r) => {
+        const rLower = r.id.toLowerCase();
+        const rClean = rLower.replace(/^lost-/, '');
+        const rCanon = rLower.startsWith('lost-') ? rLower : `lost-${rLower}`;
+        return (
           r.id !== reportId &&
-          r.id.toLowerCase() !== reportId.toLowerCase() &&
-          r.id.replace(/^LOST-/, '').toLowerCase() !== targetClean
-      )
+          rLower !== reportId.toLowerCase() &&
+          rClean !== targetClean &&
+          rCanon !== targetCanon
+        );
+      })
     );
 
     const success = storageService.deleteReport(reportId);

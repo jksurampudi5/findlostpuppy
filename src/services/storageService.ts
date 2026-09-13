@@ -391,6 +391,66 @@ class StorageService {
     safeSet(DELETED_PETS_KEY, this.deletedPetIds);
   }
 
+  private isReportOrPetDeleted(reportId?: string, dogId?: string, petId?: string): boolean {
+    if (typeof localStorage !== 'undefined') {
+      const rawDeletedReports = localStorage.getItem(DELETED_REPORTS_KEY);
+      if (rawDeletedReports) {
+        try {
+          const parsed = JSON.parse(rawDeletedReports);
+          if (Array.isArray(parsed)) {
+            this.deletedReportIds = Array.from(new Set([...this.deletedReportIds, ...parsed]));
+          }
+        } catch {}
+      }
+      const rawDeletedPets = localStorage.getItem(DELETED_PETS_KEY);
+      if (rawDeletedPets) {
+        try {
+          const parsed = JSON.parse(rawDeletedPets);
+          if (Array.isArray(parsed)) {
+            this.deletedPetIds = Array.from(new Set([...this.deletedPetIds, ...parsed]));
+          }
+        } catch {}
+      }
+    }
+
+    const checkId = (idToCheck?: string): boolean => {
+      if (!idToCheck || typeof idToCheck !== 'string') return false;
+      const raw = idToCheck.trim();
+      if (!raw) return false;
+      const lower = raw.toLowerCase();
+      const canon = normalizeReportId(raw);
+      const noLost = lower.replace(/^lost-/, '');
+      const upper = raw.toUpperCase();
+
+      const inReportList = this.deletedReportIds.some((d) => {
+        if (!d) return false;
+        const dLower = d.toLowerCase();
+        return (
+          d === raw ||
+          dLower === lower ||
+          normalizeReportId(d) === canon ||
+          dLower.replace(/^lost-/, '') === noLost ||
+          d.toUpperCase() === upper
+        );
+      });
+
+      if (inReportList) return true;
+
+      const inPetList = this.deletedPetIds.some((p) => {
+        if (!p) return false;
+        const pLower = p.toLowerCase();
+        return p === raw || pLower === lower || p.toUpperCase() === upper;
+      });
+
+      return inPetList;
+    };
+
+    if (reportId && checkId(reportId)) return true;
+    if (dogId && checkId(dogId)) return true;
+    if (petId && checkId(petId)) return true;
+    return false;
+  }
+
   private init() {
     try {
       const storedDeletedReports = localStorage.getItem(DELETED_REPORTS_KEY);
@@ -400,101 +460,60 @@ class StorageService {
       this.deletedPetIds = storedDeletedPets ? JSON.parse(storedDeletedPets) : [];
 
       const storedReports = localStorage.getItem(REPORTS_KEY);
-      const rawReports: LostReport[] = storedReports ? JSON.parse(storedReports) : [];
-      
-      // Filter out old legacy random seed IDs, unwanted test duplicates, and deleted tombstones
-      const userReports = rawReports.filter(
-        (r) =>
-          !r.id.startsWith('LOST-849201') &&
-          !r.id.startsWith('LOST-732910') &&
-          !r.id.startsWith('LOST-621804') &&
-          !r.id.startsWith('LOST-510492') &&
-          !r.id.startsWith('LOST-BELLA-') &&
-          !r.id.startsWith('LOST-MILO-') &&
-          !r.id.startsWith('LOST-LUNA-') &&
-          !r.id.startsWith('LOST-ROCKY-') &&
-          !r.id.startsWith('LOST-SIMBA-') &&
-          !r.id.startsWith('LOST-LEO-') &&
-          !r.id.includes('1788863155592') &&
-          r.id !== 'LOST-CHARLIE-SIGHTED' &&
-          r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
-          !this.deletedReportIds.includes(r.id) &&
-          !this.deletedReportIds.includes(normalizeReportId(r.id)) &&
-          (!r.dogId || !this.deletedPetIds.includes(r.dogId)) &&
-          (!r.dog?.id || !this.deletedPetIds.includes(r.dog.id))
-      );
+      if (storedReports !== null) {
+        const rawReports: LostReport[] = JSON.parse(storedReports);
+        
+        // Filter out old legacy random seed IDs, unwanted test duplicates, and deleted tombstones
+        this.reports = rawReports.filter(
+          (r) =>
+            !r.id.startsWith('LOST-849201') &&
+            !r.id.startsWith('LOST-732910') &&
+            !r.id.startsWith('LOST-621804') &&
+            !r.id.startsWith('LOST-510492') &&
+            !r.id.startsWith('LOST-BELLA-') &&
+            !r.id.startsWith('LOST-MILO-') &&
+            !r.id.startsWith('LOST-LUNA-') &&
+            !r.id.startsWith('LOST-ROCKY-') &&
+            !r.id.startsWith('LOST-SIMBA-') &&
+            !r.id.startsWith('LOST-LEO-') &&
+            !r.id.includes('1788863155592') &&
+            r.id !== 'LOST-CHARLIE-SIGHTED' &&
+            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
+            !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
+        );
+      } else {
+        // First run initialization: seed with baseline community reports
+        this.reports = COMMUNITY_BASELINE_REPORTS.filter(
+          (r) => !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
+        );
+      }
 
-      // Merge with verified community baseline reports (respecting tombstones)
-      const mergedMap = new Map<string, LostReport>();
-      for (const rep of COMMUNITY_BASELINE_REPORTS) {
-        const canon = normalizeReportId(rep.id);
-        if (
-          !this.deletedReportIds.includes(canon) &&
-          !this.deletedReportIds.includes(rep.id) &&
-          !this.deletedPetIds.includes(rep.dog.id)
-        ) {
-          mergedMap.set(canon, rep);
-        }
-      }
-      for (const rep of userReports) {
-        const canonicalId = normalizeReportId(rep.id);
-        if (
-          this.deletedReportIds.includes(canonicalId) ||
-          this.deletedReportIds.includes(rep.id) ||
-          (rep.dogId && this.deletedPetIds.includes(rep.dogId)) ||
-          (rep.dog?.id && this.deletedPetIds.includes(rep.dog.id))
-        ) {
-          continue;
-        }
-        // Normalize any legacy REUNITED status to SAFE
-        if ((rep.status as any) === 'REUNITED') {
-          rep.status = 'SAFE';
-        }
-        // Ensure Abullu report uses abulluImg if photo is missing or empty
-        if (canonicalId === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
-          rep.dog.primaryPhoto = abulluImg;
-        }
-        mergedMap.set(canonicalId, rep);
-      }
-      this.reports = Array.from(mergedMap.values());
       for (const rep of this.reports) {
         if ((rep.status as any) === 'REUNITED') {
           rep.status = 'SAFE';
+        }
+        if (normalizeReportId(rep.id) === 'lost-1788807276098' && (!rep.dog.primaryPhoto || rep.dog.primaryPhoto.length < 5)) {
+          rep.dog.primaryPhoto = abulluImg;
         }
       }
 
       const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
       const rawSightings: Sighting[] = storedSightings ? JSON.parse(storedSightings) : [];
-      this.sightings = rawSightings.filter(
-        (s) =>
-          !this.deletedReportIds.includes(s.reportId) &&
-          !this.deletedReportIds.includes(normalizeReportId(s.reportId))
-      );
+      this.sightings = rawSightings.filter((s) => !this.isReportOrPetDeleted(s.reportId));
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
       this.profiles = rawProfiles.filter((p) => p.email?.toLowerCase().trim() !== 'jksurampudi5@gmail.com');
 
       const storedPets = localStorage.getItem(PETS_KEY);
-      const rawPets: DogProfile[] = storedPets ? JSON.parse(storedPets) : [];
-      
-      // Merge registered pets with baseline community pets (respecting tombstones)
-      const petsMap = new Map<string, DogProfile>();
-      for (const r of COMMUNITY_BASELINE_REPORTS) {
-        if (
-          !this.deletedPetIds.includes(r.dog.id) &&
-          !this.deletedReportIds.includes(r.id) &&
-          !this.deletedReportIds.includes(normalizeReportId(r.id))
-        ) {
-          petsMap.set(r.dog.id, r.dog);
-        }
+      if (storedPets !== null) {
+        const rawPets: DogProfile[] = JSON.parse(storedPets);
+        this.pets = rawPets.filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
+      } else {
+        this.pets = this.reports
+          .map((r) => r.dog)
+          .filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
       }
-      for (const p of rawPets) {
-        if (!this.deletedPetIds.includes(p.id)) {
-          petsMap.set(p.id, p);
-        }
-      }
-      this.pets = Array.from(petsMap.values());
 
       const storedSkipped = localStorage.getItem(SKIPPED_PET_KEY);
       this.skippedPetUserIds = storedSkipped ? JSON.parse(storedSkipped) : [];
@@ -515,7 +534,7 @@ class StorageService {
       this.commitAllStorage();
     } catch {
       this.reports = COMMUNITY_BASELINE_REPORTS.filter(
-        (r) => !this.deletedReportIds.includes(r.id) && !this.deletedReportIds.includes(normalizeReportId(r.id))
+        (r) => !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
       );
       this.sightings = [];
       this.profiles = [];
@@ -538,20 +557,8 @@ class StorageService {
   private loadReports() {
     try {
       const storedReports = localStorage.getItem(REPORTS_KEY);
-      if (storedReports) {
+      if (storedReports !== null) {
         const parsed: LostReport[] = JSON.parse(storedReports);
-        const map = new Map<string, LostReport>();
-
-        for (const r of COMMUNITY_BASELINE_REPORTS) {
-          const canon = normalizeReportId(r.id);
-          if (
-            !this.deletedReportIds.includes(canon) &&
-            !this.deletedReportIds.includes(r.id) &&
-            !this.deletedPetIds.includes(r.dog.id)
-          ) {
-            map.set(canon, r);
-          }
-        }
 
         const filteredParsed = parsed.filter(
           (r) =>
@@ -568,10 +575,7 @@ class StorageService {
             !r.id.includes('1788863155592') &&
             r.id !== 'LOST-CHARLIE-SIGHTED' &&
             r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
-            !this.deletedReportIds.includes(r.id) &&
-            !this.deletedReportIds.includes(normalizeReportId(r.id)) &&
-            (!r.dogId || !this.deletedPetIds.includes(r.dogId)) &&
-            (!r.dog?.id || !this.deletedPetIds.includes(r.dog.id))
+            !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
         );
 
         for (const r of filteredParsed) {
@@ -593,18 +597,20 @@ class StorageService {
           if (!r.dog.photos || r.dog.photos.length === 0) {
             r.dog.photos = [r.dog.primaryPhoto || abulluImg];
           }
-
-          map.set(normalizeReportId(r.id), r);
         }
-        this.reports = Array.from(map.values());
+        this.reports = filteredParsed;
         this.enforceIntegrityInvariants();
       } else {
-        this.reports = [...COMMUNITY_BASELINE_REPORTS];
+        this.reports = COMMUNITY_BASELINE_REPORTS.filter(
+          (r) => !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
+        );
         this.enforceIntegrityInvariants();
       }
     } catch (e) {
       console.warn('Failed to load reports:', e);
-      this.reports = [...COMMUNITY_BASELINE_REPORTS];
+      this.reports = COMMUNITY_BASELINE_REPORTS.filter(
+        (r) => !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
+      );
       this.enforceIntegrityInvariants();
     }
   }
@@ -620,7 +626,8 @@ class StorageService {
     try {
       const storedPets = localStorage.getItem(PETS_KEY);
       if (storedPets) {
-        this.pets = JSON.parse(storedPets);
+        const rawPets: DogProfile[] = JSON.parse(storedPets);
+        this.pets = rawPets.filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
       }
     } catch {}
     return [...this.pets];
@@ -629,6 +636,7 @@ class StorageService {
   getReportById(id: string): LostReport | undefined {
     this.loadReports();
     if (!id) return undefined;
+    if (this.isReportOrPetDeleted(id)) return undefined;
     const cleanId = id.trim().toLowerCase();
     const canonicalId = normalizeReportId(cleanId);
     const withoutPrefix = cleanId.replace(/^lost-/, '');
@@ -646,7 +654,9 @@ class StorageService {
     this.loadReports();
     const cleanOwner = (ownerId || '').replace(/^owner-/, '');
     return this.reports.filter(
-      (r) => r.ownerId === ownerId || r.ownerId === `owner-${cleanOwner}` || r.ownerId === cleanOwner
+      (r) =>
+        (r.ownerId === ownerId || r.ownerId === `owner-${cleanOwner}` || r.ownerId === cleanOwner) &&
+        !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
     );
   }
 
@@ -657,25 +667,31 @@ class StorageService {
   deleteReport(reportId: string): boolean {
     return this.executeTransaction(() => {
       const canonicalId = normalizeReportId(reportId);
+      const cleanLower = reportId.toLowerCase().trim();
+      const rawNoPrefix = cleanLower.replace(/^lost-/, '');
 
       // Find the target report before removing
       const targetReport = this.reports.find(
         (r) =>
           normalizeReportId(r.id) === canonicalId ||
           r.id === reportId ||
-          r.id.toLowerCase() === reportId.toLowerCase()
+          r.id.toLowerCase() === cleanLower ||
+          r.id.toLowerCase().replace(/^lost-/, '') === rawNoPrefix
       );
 
       const targetPetId = targetReport?.dogId || targetReport?.dog?.id;
       const targetOwnerId = targetReport?.ownerId;
       const rawOwnerId = targetOwnerId ? targetOwnerId.replace(/^owner-/, '') : '';
 
-      // Record tombstone IDs so reloads/sync NEVER resurrect this report or pet
+      // Record tombstone IDs in all variations so reloads/sync NEVER resurrect this report or pet
       const idsToTombstone = [
         reportId,
         canonicalId,
-        reportId.toLowerCase(),
+        cleanLower,
         canonicalId.toLowerCase(),
+        reportId.toUpperCase(),
+        canonicalId.toUpperCase(),
+        rawNoPrefix,
         targetReport?.id,
         targetPetId,
       ].filter(Boolean) as string[];
@@ -687,31 +703,36 @@ class StorageService {
       }
 
       if (targetPetId) {
-        if (!this.deletedPetIds.includes(targetPetId)) {
-          this.deletedPetIds.push(targetPetId);
-        }
-        if (!this.deletedPetIds.includes(targetPetId.toLowerCase())) {
-          this.deletedPetIds.push(targetPetId.toLowerCase());
+        const petIdsToTombstone = [
+          targetPetId,
+          targetPetId.toLowerCase(),
+          targetPetId.toUpperCase(),
+        ];
+        for (const pid of petIdsToTombstone) {
+          if (!this.deletedPetIds.includes(pid)) {
+            this.deletedPetIds.push(pid);
+          }
         }
       }
 
       // 1. Remove from reports list
       this.reports = this.reports.filter(
         (r) =>
-          normalizeReportId(r.id) !== canonicalId &&
           r.id !== reportId &&
-          r.id.toLowerCase() !== reportId.toLowerCase() &&
-          !this.deletedReportIds.includes(r.id) &&
-          !this.deletedReportIds.includes(normalizeReportId(r.id))
+          r.id.toLowerCase() !== cleanLower &&
+          normalizeReportId(r.id) !== canonicalId &&
+          r.id.toLowerCase().replace(/^lost-/, '') !== rawNoPrefix &&
+          !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
       );
 
       // 2. Remove all associated sightings
       this.sightings = this.sightings.filter(
         (s) =>
-          normalizeReportId(s.reportId) !== canonicalId &&
           s.reportId !== reportId &&
-          s.reportId.toLowerCase() !== reportId.toLowerCase() &&
-          !this.deletedReportIds.includes(s.reportId)
+          s.reportId.toLowerCase() !== cleanLower &&
+          normalizeReportId(s.reportId) !== canonicalId &&
+          s.reportId.toLowerCase().replace(/^lost-/, '') !== rawNoPrefix &&
+          !this.isReportOrPetDeleted(s.reportId)
       );
 
       // 3. Remove associated pet profile unconditionally
@@ -720,7 +741,8 @@ class StorageService {
           (p) =>
             p.id !== targetPetId &&
             p.id.toLowerCase() !== targetPetId.toLowerCase() &&
-            p.id !== targetReport?.id
+            p.id !== targetReport?.id &&
+            !this.isReportOrPetDeleted(undefined, p.id, p.id)
         );
       }
 
@@ -752,6 +774,14 @@ class StorageService {
 
       const matchedOwnerIds = new Set<string>();
       matchedReports.forEach((r) => {
+        const cId = normalizeReportId(r.id);
+        [r.id, cId, r.id.toLowerCase(), cId.toLowerCase()].forEach((id) => {
+          if (!this.deletedReportIds.includes(id)) this.deletedReportIds.push(id);
+        });
+        const pId = r.dogId || r.dog?.id;
+        if (pId && !this.deletedPetIds.includes(pId)) {
+          this.deletedPetIds.push(pId);
+        }
         if (r.ownerId) {
           matchedOwnerIds.add(r.ownerId);
           matchedOwnerIds.add(r.ownerId.replace(/^owner-/, ''));
@@ -770,7 +800,7 @@ class StorageService {
       // 1. Remove reports
       this.reports = this.reports.filter((r) => {
         const ownerEmail = extractReportOwnerEmail(r, this.profiles);
-        return ownerEmail !== targetEmail;
+        return ownerEmail !== targetEmail && !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id);
       });
 
       // 2. Remove sightings for those reports or reported by this email
@@ -779,7 +809,7 @@ class StorageService {
         const isTargetReport = matchedReports.some(
           (r) => normalizeReportId(r.id) === normalizeReportId(s.reportId) || r.id === s.reportId
         );
-        return !isTargetReporter && !isTargetReport;
+        return !isTargetReporter && !isTargetReport && !this.isReportOrPetDeleted(s.reportId);
       });
 
       // 3. Remove pets
@@ -788,7 +818,8 @@ class StorageService {
         return (
           !matchedOwnerIds.has(p.ownerId) &&
           !matchedOwnerIds.has(rawOwner) &&
-          p.id !== 'dog-abullu-01' // preserve community baseline
+          !this.isReportOrPetDeleted(undefined, p.id, p.id) &&
+          p.id !== 'dog-abullu-01' // preserve community baseline if not explicitly deleted
         );
       });
 
@@ -1378,8 +1409,19 @@ class StorageService {
       if (!this.deletedPetIds.includes(petId)) {
         this.deletedPetIds.push(petId);
       }
-      this.pets = this.pets.filter((p) => p.id !== petId);
-      // Also remove any linked reports
+      if (!this.deletedPetIds.includes(petId.toLowerCase())) {
+        this.deletedPetIds.push(petId.toLowerCase());
+      }
+      this.pets = this.pets.filter((p) => p.id !== petId && p.id.toLowerCase() !== petId.toLowerCase());
+      
+      // Also remove any linked reports & tombstone their IDs
+      const linkedReports = this.reports.filter((r) => r.dogId === petId || r.dog?.id === petId);
+      linkedReports.forEach((r) => {
+        const cId = normalizeReportId(r.id);
+        [r.id, cId, r.id.toLowerCase(), cId.toLowerCase()].forEach((id) => {
+          if (!this.deletedReportIds.includes(id)) this.deletedReportIds.push(id);
+        });
+      });
       this.reports = this.reports.filter((r) => r.dogId !== petId && r.dog?.id !== petId);
       supabaseSyncService.deletePetAsAdmin(petId).catch((e) => console.warn('[Supabase Delete Pet Notice]:', e));
       return this.pets.length < initLen;
@@ -1420,11 +1462,11 @@ class StorageService {
     return JSON.stringify(payload, null, 2);
   }
 
-  importFullDatabaseJSON(jsonStr: string): { success: boolean; importedCounts?: any; error?: string } {
+  importFullDatabaseJSON(jsonStr: string): { success: boolean; error?: string; importedCounts?: any } {
     try {
-      const parsed = JSON.parse(jsonStr);
-      if (!parsed || typeof parsed !== 'object') {
-        return { success: false, error: 'Invalid JSON payload structure.' };
+      const data = JSON.parse(jsonStr);
+      if (!data || typeof data !== 'object') {
+        return { success: false, error: 'Invalid JSON payload format.' };
       }
 
       return this.executeTransaction(() => {
@@ -1434,12 +1476,11 @@ class StorageService {
         let addedReports = 0;
         let addedSightings = 0;
 
-        // 1. Merge Registered Users
-        if (Array.isArray(parsed.users)) {
+        if (Array.isArray(data.users)) {
           const currentUsers = this.getAllRegisteredUsers();
           const userMap = new Map<string, User>();
           currentUsers.forEach((u) => userMap.set(u.email.toLowerCase(), u));
-          parsed.users.forEach((u: User) => {
+          data.users.forEach((u: User) => {
             if (u && u.email && !userMap.has(u.email.toLowerCase())) {
               userMap.set(u.email.toLowerCase(), u);
               addedUsers++;
@@ -1448,70 +1489,58 @@ class StorageService {
           localStorage.setItem(USERS_KEY, JSON.stringify(Array.from(userMap.values())));
         }
 
-        // 2. Merge Owner Profiles
-        if (Array.isArray(parsed.profiles)) {
-          const profileMap = new Map<string, OwnerProfile>();
-          this.profiles.forEach((p) => profileMap.set(p.userId || p.id, p));
-          parsed.profiles.forEach((p: OwnerProfile) => {
-            if (p && (p.userId || p.id)) {
-              const key = p.userId || p.id;
-              if (!profileMap.has(key)) {
-                profileMap.set(key, p);
+        if (Array.isArray(data.profiles)) {
+          const prMap = new Map<string, OwnerProfile>();
+          this.profiles.forEach((pr) => prMap.set(pr.userId || pr.id, pr));
+          data.profiles.forEach((pr: OwnerProfile) => {
+            if (pr && (pr.userId || pr.id)) {
+              const key = pr.userId || pr.id;
+              if (!prMap.has(key)) {
+                prMap.set(key, pr);
                 addedProfiles++;
-              } else {
-                profileMap.set(key, { ...profileMap.get(key)!, ...p });
               }
             }
           });
-          this.profiles = Array.from(profileMap.values());
+          this.profiles = Array.from(prMap.values());
         }
 
-        // 3. Merge Pets
-        if (Array.isArray(parsed.pets)) {
-          const petMap = new Map<string, DogProfile>();
-          this.pets.forEach((p) => petMap.set(p.id, p));
-          parsed.pets.forEach((p: DogProfile) => {
-            if (p && p.id) {
-              if (!petMap.has(p.id)) {
-                petMap.set(p.id, p);
-                addedPets++;
-              } else {
-                petMap.set(p.id, { ...petMap.get(p.id)!, ...p });
-              }
+        if (Array.isArray(data.pets)) {
+          const pMap = new Map<string, DogProfile>();
+          this.pets.forEach((p) => pMap.set(p.id, p));
+          data.pets.forEach((p: DogProfile) => {
+            if (p && p.id && !pMap.has(p.id) && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
+              pMap.set(p.id, p);
+              addedPets++;
             }
           });
-          this.pets = Array.from(petMap.values());
+          this.pets = Array.from(pMap.values());
         }
 
-        // 4. Merge Reports
-        if (Array.isArray(parsed.reports)) {
+        if (Array.isArray(data.reports)) {
           const repMap = new Map<string, LostReport>();
           this.reports.forEach((r) => repMap.set(normalizeReportId(r.id), r));
-          parsed.reports.forEach((r: LostReport) => {
+          data.reports.forEach((r: LostReport) => {
             if (r && r.id) {
               const canon = normalizeReportId(r.id);
-              if (!repMap.has(canon)) {
+              if (!repMap.has(canon) && !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
                 repMap.set(canon, r);
                 addedReports++;
-              } else {
-                repMap.set(canon, { ...repMap.get(canon)!, ...r });
               }
             }
           });
           this.reports = Array.from(repMap.values());
         }
 
-        // 5. Merge Sightings
-        if (Array.isArray(parsed.sightings)) {
-          const sightingMap = new Map<string, Sighting>();
-          this.sightings.forEach((s) => sightingMap.set(s.id, s));
-          parsed.sightings.forEach((s: Sighting) => {
-            if (s && s.id && !sightingMap.has(s.id)) {
-              sightingMap.set(s.id, s);
+        if (Array.isArray(data.sightings)) {
+          const sMap = new Map<string, Sighting>();
+          this.sightings.forEach((s) => sMap.set(s.id, s));
+          data.sightings.forEach((s: Sighting) => {
+            if (s && s.id && !sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId)) {
+              sMap.set(s.id, s);
               addedSightings++;
             }
           });
-          this.sightings = Array.from(sightingMap.values());
+          this.sightings = Array.from(sMap.values());
         }
 
         return {
@@ -1540,12 +1569,7 @@ class StorageService {
           for (const r of remoteData.reports) {
             if (r && r.id) {
               const canon = normalizeReportId(r.id);
-              if (
-                this.deletedReportIds.includes(canon) ||
-                this.deletedReportIds.includes(r.id) ||
-                (r.dogId && this.deletedPetIds.includes(r.dogId)) ||
-                (r.dog?.id && this.deletedPetIds.includes(r.dog.id))
-              ) {
+              if (this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
                 continue;
               }
               if (!repMap.has(canon)) {
@@ -1570,8 +1594,7 @@ class StorageService {
               s &&
               s.id &&
               !sMap.has(s.id) &&
-              !this.deletedReportIds.includes(s.reportId) &&
-              !this.deletedReportIds.includes(normalizeReportId(s.reportId))
+              !this.isReportOrPetDeleted(s.reportId)
             ) {
               sMap.set(s.id, s);
             }
@@ -1583,7 +1606,7 @@ class StorageService {
           const pMap = new Map<string, DogProfile>();
           this.pets.forEach((p) => pMap.set(p.id, p));
           for (const p of remoteData.pets) {
-            if (p && p.id && !pMap.has(p.id) && !this.deletedPetIds.includes(p.id)) {
+            if (p && p.id && !pMap.has(p.id) && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
               pMap.set(p.id, p);
             }
           }
