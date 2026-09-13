@@ -18,6 +18,7 @@ import { LocationPicker } from '../components/LocationPicker';
 import { ImageUploader } from '../components/ImageUploader';
 import { storageService } from '../services/storageService';
 import type { DogGender, DogSize, ContactMethod, OwnerProfile, DogProfile, LostReport } from '../types';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 export const ReportWizardPage = () => {
   const { user, isAuthenticated } = useAuth();
@@ -25,6 +26,7 @@ export const ReportWizardPage = () => {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [createdReportId, setCreatedReportId] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // ----------------------------------------------------
   // CHAPTER 1: OWNER DETAILS
@@ -143,6 +145,15 @@ export const ReportWizardPage = () => {
       showToast('Please provide your name, phone number, and email address.', 'warning');
       return;
     }
+
+    const phoneValidation = validateIndianPhoneNumber(phone);
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
+      showToast(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.', 'warning');
+      return;
+    }
+    setPhoneError(null);
+
     if (!state.trim() || !district.trim() || !streetOrLocality.trim() || !privateAddress.trim()) {
       showToast('Please complete the location details.', 'warning');
       return;
@@ -153,7 +164,7 @@ export const ReportWizardPage = () => {
       id: `owner-${user?.id || Date.now()}`,
       userId: user!.id,
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: phoneValidation.cleanDigits,
       email: email.trim(),
       address: privateAddress.trim(),
       state: state.trim(),
@@ -349,17 +360,43 @@ export const ReportWizardPage = () => {
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="owner-phone">
-                      Contact Phone Number <span className="required-tag">*</span>
+                      Contact Phone Number (10 Digits) <span className="required-tag">*</span>
                     </label>
                     <input
                       id="owner-phone"
                       type="tel"
-                      className="form-input"
-                      placeholder="+91 98480 22334"
+                      maxLength={15}
+                      className={`form-input ${phoneError ? 'input-field-error' : ''}`}
+                      placeholder="+91 98480 22334 (Starts with 6, 7, 8, 9)"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPhone(val);
+                        if (val.trim()) {
+                          const res = validateIndianPhoneNumber(val);
+                          if (res.isValid) setPhoneError(null);
+                        } else {
+                          setPhoneError(null);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (phone.trim()) {
+                          const res = validateIndianPhoneNumber(phone);
+                          if (!res.isValid) setPhoneError(res.error || 'Invalid Indian phone number');
+                          else setPhoneError(null);
+                        }
+                      }}
                       required
                     />
+                    {phoneError ? (
+                      <span style={{ color: '#DC2626', fontSize: '0.78rem', marginTop: '0.25rem', display: 'block' }}>
+                        ⚠️ {phoneError}
+                      </span>
+                    ) : phone.trim() && validateIndianPhoneNumber(phone).isValid ? (
+                      <span style={{ color: '#16A34A', fontSize: '0.78rem', marginTop: '0.25rem', display: 'block' }}>
+                        ✓ Valid 10-digit Indian Mobile
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 

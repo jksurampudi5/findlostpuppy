@@ -8,30 +8,45 @@
 
 import type { LostReport } from '../types';
 
+export {
+  validateIndianPhoneNumber,
+  extractIndianPhoneDigits,
+  formatIndianPhoneDisplay,
+  type PhoneValidationResult,
+} from './phoneValidator';
+
 /**
- * Masks a phone number to hide middle and primary identifying digits.
- * Example: "8639452948" -> "+91 ••••• ••948" or "(•••) •••-2948"
+ * Masks a phone number to hide middle identifying digits while preserving privacy.
+ * Example: "8639452948" -> "+91 86••••••48"
+ * Example: "+91 9848012345" -> "+91 98••••••45"
  */
 export function maskPhoneNumber(phone?: string | null): string {
   if (!phone || typeof phone !== 'string') {
     return '••••• •••••';
   }
 
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 4) {
+  const rawDigits = phone.replace(/\D/g, '');
+  if (rawDigits.length < 4) {
     return '••••• •••••';
   }
 
-  const last4 = digits.slice(-4);
-  if (digits.length === 10) {
-    return `+91 ••••• ••${last4.slice(-3)}`;
+  // Handle standard 10-digit Indian numbers (or with 91 / 0 prefix)
+  let coreDigits = rawDigits;
+  if (rawDigits.length === 12 && rawDigits.startsWith('91')) {
+    coreDigits = rawDigits.slice(2);
+  } else if (rawDigits.length === 11 && rawDigits.startsWith('0')) {
+    coreDigits = rawDigits.slice(1);
   }
 
-  if (digits.length > 10) {
-    return `+•• ••••• ••${last4.slice(-3)}`;
+  if (coreDigits.length === 10) {
+    const first2 = coreDigits.slice(0, 2);
+    const last2 = coreDigits.slice(-2);
+    return `+91 ${first2}••••••${last2}`;
   }
 
-  return `••••• ••${last4}`;
+  const first2 = rawDigits.slice(0, 2);
+  const last2 = rawDigits.slice(-2);
+  return `${first2}••••••${last2}`;
 }
 
 /**
