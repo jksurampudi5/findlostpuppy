@@ -132,68 +132,76 @@ export const DogAwayFromHomeAnimation: React.FC<DogAwayFromHomeAnimationProps> =
           </g>
 
           {/* ---------------------------------------------------- */}
-          {/* THE PUPPY LOOKING AROUND (Away from home) */}
+          {/* THE PUPPY LOOKING AROUND (Slender, agile puppy looking around) */}
           {/* ---------------------------------------------------- */}
           <g id="awayPupGroup" transform="translate(390, 140)" className="anim-away-pup">
             {/* Pup Shadow on the ground */}
-            <ellipse cx="30" cy="56" rx="24" ry="7" fill="#000000" opacity="0.45" />
+            <ellipse cx="32" cy="54" rx="18" ry="5.5" fill="#000000" opacity="0.38" />
 
-            {/* Back Legs */}
-            <path d="M14,42 L13,54 L8,55" fill="none" stroke="#B45309" strokeWidth="5" strokeLinecap="round" />
-            <path d="M22,42 L23,54 L28,55" fill="none" stroke="#D97706" strokeWidth="5" strokeLinecap="round" />
+            {/* Back Legs (Slender, articulated joints) */}
+            <path d="M16,34 L14,46 L10,54 L6,55" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" />
+            <path d="M22,34 L24,46 L28,54 L32,55" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" />
 
             {/* Tail (Low or curled, cautious) */}
             <path
-              d="M10,32 Q-2,36 2,46"
+              d="M14,28 Q0,32 4,42"
               fill="none"
               stroke="#D97706"
-              strokeWidth="5.5"
+              strokeWidth="4"
               strokeLinecap="round"
               className="anim-curious-tail"
             />
 
-            {/* Body */}
-            <ellipse cx="30" cy="35" rx="19" ry="14" fill="#F59E0B" />
+            {/* Slender Contoured Body */}
+            <path
+              d="M16,30 Q24,22 36,24 Q44,26 46,31 Q44,38 34,37 Q22,38 16,30 Z"
+              fill="#F59E0B"
+            />
+            {/* Chest Highlight */}
+            <ellipse cx="38" cy="32" rx="6.5" ry="5.5" fill="#FBBF24" opacity="0.75" />
 
-            {/* Front Legs */}
-            <path d="M38,42 L37,54 L33,55" fill="none" stroke="#B45309" strokeWidth="5" strokeLinecap="round" />
-            <path d="M46,42 L47,54 L52,55" fill="none" stroke="#D97706" strokeWidth="5" strokeLinecap="round" />
+            {/* Front Legs (Slender, alert stance) */}
+            <path d="M36,34 L34,46 L31,54 L28,55" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" />
+            <path d="M42,34 L44,46 L47,54 L51,55" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" />
+
+            {/* Slender Neck */}
+            <path d="M36,26 L44,18 L48,24 L40,30 Z" fill="#F59E0B" />
 
             {/* Collar */}
-            <path d="M44,28 Q47,33 46,38" fill="none" stroke="#DC2626" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="47" cy="38" r="2.5" fill="#FDE047" />
+            <path d="M41,22 Q44,26 43,30" fill="none" stroke="#DC2626" strokeWidth="2.8" strokeLinecap="round" />
+            <circle cx="44" cy="30" r="2.2" fill="#FDE047" />
 
             {/* Pup Head (Animated looking left & right) */}
             <g className="anim-pup-head-curious">
-              <circle cx="50" cy="22" r="14" fill="#FBBF24" />
+              <circle cx="48" cy="18" r="10.5" fill="#FBBF24" />
 
               {/* Muzzle */}
-              <ellipse cx="58" cy="25" rx="7" ry="5.5" fill="#FDE68A" />
-              <circle cx="64" cy="23" r="2.5" fill="#1F2937" />
+              <ellipse cx="56" cy="20" rx="5.5" ry="4.2" fill="#FDE68A" />
+              <circle cx="61" cy="18.5" r="2" fill="#1F2937" />
 
               {/* Questioning mouth */}
-              <path d="M60,27 Q63,28 65,27" fill="none" stroke="#1F2937" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M57,22 Q60,23 62,22" fill="none" stroke="#1F2937" strokeWidth="1.2" strokeLinecap="round" />
 
               {/* Curious Big Eyes looking up / around */}
-              <circle cx="47" cy="18" r="3" fill="#1F2937" />
-              <circle cx="48" cy="17" r="1" fill="#FFFFFF" />
+              <circle cx="45" cy="15" r="2.6" fill="#1F2937" />
+              <circle cx="46" cy="14" r="0.9" fill="#FFFFFF" />
 
-              <circle cx="56" cy="18" r="3" fill="#1F2937" />
-              <circle cx="57" cy="17" r="1" fill="#FFFFFF" />
+              <circle cx="53" cy="15" r="2.6" fill="#1F2937" />
+              <circle cx="54" cy="14" r="0.9" fill="#FFFFFF" />
 
               {/* Floppy Alert Ears */}
               <ellipse
-                cx="42"
-                cy="14"
-                rx="5"
-                ry="10"
+                cx="41"
+                cy="12"
+                rx="4.2"
+                ry="8.5"
                 fill="#D97706"
-                transform="rotate(-28 42 14)"
+                transform="rotate(-24 41 12)"
                 className="anim-alert-ear"
               />
 
               {/* Little wondering question mark / thought */}
-              <text x="48" y="-2" fontSize="13" className="anim-wondering-mark">❓</text>
+              <text x="46" y="-3" fontSize="12" className="anim-wondering-mark">❓</text>
             </g>
           </g>
 

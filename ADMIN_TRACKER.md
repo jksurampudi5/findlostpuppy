@@ -66,6 +66,16 @@ This tracker serves as the single source of truth for all architectural updates,
   - Real-time cloud persistence with Supabase with immediate local-first reactivity via `localStorage`.
   - Multi-tab and multi-window sync via custom storage events (`findlostpuppy_reports_updated`).
 
+### 8. Character Anatomy & Vector Illustration Refinement
+- **Human Owner Figure (`DogGoingHomeAnimation.tsx`)**:
+  - Replaced the round egg-shaped blob torso with a natural, slender, well-proportioned human model.
+  - Tailored terracotta jacket/sweater (`#EA580C`) with inner collar and slim navy jeans (`#1E3A8A`).
+  - Realistic head with styled dark hair, natural warm skin tone (`#FBD5B5`), gentle smiling eyes, and welcoming arms.
+- **Dog Figure (`DogGoingHomeAnimation.tsx` & `DogAwayFromHomeAnimation.tsx`)**:
+  - Replaced the wide plump blob with a sleek, athletic Golden Retriever pup anatomy.
+  - Defined ribcage, lean flank, articulated slender legs, cute paws, and silky floppy ears.
+  - Fluid motion physics with feathered wagging tail adhering to Emil Kowalski motion design principles.
+
 ---
 
 ## 🗂️ Component & File Modification Map

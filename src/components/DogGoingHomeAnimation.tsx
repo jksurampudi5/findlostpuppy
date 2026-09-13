@@ -241,7 +241,7 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
           </g>
 
           {/* ------------------------------------------------------------------ */}
-          {/* 5. PET OWNER FIGURE (Warm Greeting, Welcoming Hands, Ground Hug & Walks Inside) */}
+          {/* 5. PET OWNER FIGURE (Slender, stylish, natural human proportions) */}
           {/* ------------------------------------------------------------------ */}
           <g id="ownerFigureGroup" className="anim-owner-reunion-flow">
             {/* Listening Sound Bubble when hearing dog bark */}
@@ -253,50 +253,71 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
               </text>
             </g>
 
-            {/* Owner standing firmly on porch floor */}
-            <g transform="translate(570, 142)">
+            {/* Owner standing firmly on porch floor (Lean, natural human anatomy) */}
+            <g transform="translate(570, 140)">
               {/* Owner Ground Shadow */}
-              <ellipse cx="10" cy="72" rx="20" ry="6" fill="#78350F" opacity="0.32" />
+              <ellipse cx="10" cy="74" rx="16" ry="5" fill="#78350F" opacity="0.28" />
 
-              {/* Legs / Trousers (Navy) */}
-              <path d="M4,42 L2,70 L-4,72" fill="none" stroke="#1E3A8A" strokeWidth="6" strokeLinecap="round" />
-              <path d="M14,42 L16,70 L22,72" fill="none" stroke="#1E40AF" strokeWidth="6" strokeLinecap="round" />
+              {/* Slim Jeans / Trousers (Navy) */}
+              <path d="M6,40 L4,70 L0,72" fill="none" stroke="#1E3A8A" strokeWidth="4.2" strokeLinecap="round" />
+              <path d="M14,40 L16,70 L20,72" fill="none" stroke="#1E40AF" strokeWidth="4.2" strokeLinecap="round" />
+              {/* Shoes */}
+              <ellipse cx="0" cy="72" rx="4" ry="2" fill="#0F172A" />
+              <ellipse cx="20" cy="72" rx="4" ry="2" fill="#0F172A" />
 
-              {/* Cozy Knitted Sweater (Terracotta Orange) */}
-              <ellipse cx="10" cy="28" rx="15" ry="18" fill="#EA580C" />
-              <ellipse cx="10" cy="12" rx="7" ry="3.5" fill="#C2410C" />
+              {/* Slender Tailored Jacket / Sweater (Terracotta) */}
+              <path
+                d="M2,12 L18,12 Q20,24 16,40 L4,40 Q0,24 2,12 Z"
+                fill="#EA580C"
+                stroke="#C2410C"
+                strokeWidth="1.2"
+              />
+              {/* Inner Crewneck Collar */}
+              <path d="M6,12 Q10,17 14,12 Z" fill="#F8FAFC" />
+              {/* Jacket Center Zipper Line */}
+              <line x1="10" y1="16" x2="10" y2="40" stroke="#C2410C" strokeWidth="1" strokeDasharray="2 2" />
 
-              {/* Head */}
-              <circle cx="10" cy="0" r="11.5" fill="#FCD34D" />
-              {/* Hair */}
-              <path d="M-2,-7 Q10,-15 22,-7 Q23,6 19,10 Q16,-8 2, -2 Z" fill="#78350F" />
+              {/* Neck */}
+              <rect x="8" y="7" width="4" height="6" rx="1.5" fill="#FBD5B5" />
+
+              {/* Realistic Head & Warm Natural Skin Tone */}
+              <ellipse cx="10" cy="1" rx="7.5" ry="9" fill="#FBD5B5" />
+
+              {/* Modern Styled Hair */}
+              <path
+                d="M2,-3 Q10,-11 18,-3 Q20,4 17,7 Q15,-6 3, -1 Z"
+                fill="#3B1D0E"
+              />
+              {/* Sideburns */}
+              <path d="M3,0 L2,4 L4,2 Z" fill="#3B1D0E" />
+
               {/* Smiling Happy Eyes */}
-              <path d="M5,-1 Q7,-4 9,-1" fill="none" stroke="#1F2937" strokeWidth="1.6" strokeLinecap="round" />
-              <path d="M12,-1 Q14,-4 16,-1" fill="none" stroke="#1F2937" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M6,0 Q8,-2.5 10,0" fill="none" stroke="#1F2937" strokeWidth="1.4" strokeLinecap="round" />
+              <path d="M11,0 Q13,-2.5 15,0" fill="none" stroke="#1F2937" strokeWidth="1.4" strokeLinecap="round" />
               {/* Joyful Beaming Smile */}
-              <path d="M7,4 Q10,9 13,4 Z" fill="#DC2626" />
-              {/* Cheerful Blushing Cheeks */}
-              <ellipse cx="3,3" rx="2.8" ry="1.8" fill="#F87171" opacity="0.85" />
-              <ellipse cx="17,3" rx="2.8" ry="1.8" fill="#F87171" opacity="0.85" />
+              <path d="M8,4 Q10.5,7.5 13,4 Z" fill="#DC2626" />
+              {/* Soft Blushing Cheeks */}
+              <ellipse cx="5,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
+              <ellipse cx="15,3" rx="2" ry="1.2" fill="#F87171" opacity="0.75" />
 
-              {/* Left Welcoming Arm & Hand (Open palm welcoming pet inside) */}
+              {/* Left Welcoming Arm & Hand (Slender, natural open palm) */}
               <g className="anim-welcoming-arm-left">
-                <path d="M-2,20 Q-14,28 -18,40" fill="none" stroke="#EA580C" strokeWidth="5.5" strokeLinecap="round" />
-                <circle cx="-19" cy="42" r="3.8" fill="#FCD34D" />
-                <path d="M-21,41 L-25,43" stroke="#FCD34D" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M2,14 Q-9,22 -14,34" fill="none" stroke="#EA580C" strokeWidth="3.8" strokeLinecap="round" />
+                <circle cx="-15" cy="36" r="2.8" fill="#FBD5B5" />
+                <path d="M-17,35 L-20,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
               </g>
 
-              {/* Right Welcoming Arm & Hand (Gently reaching down to pet/hug dog on ground) */}
+              {/* Right Welcoming Arm & Hand (Slender, gentle pet reaching) */}
               <g className="anim-welcoming-arm-right">
-                <path d="M22,20 Q28,28 24,40" fill="none" stroke="#C2410C" strokeWidth="5.5" strokeLinecap="round" />
-                <circle cx="23" cy="42" r="3.8" fill="#FCD34D" />
-                <path d="M25,41 L28,43" stroke="#FCD34D" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M18,14 Q25,22 22,34" fill="none" stroke="#C2410C" strokeWidth="3.8" strokeLinecap="round" />
+                <circle cx="21" cy="36" r="2.8" fill="#FBD5B5" />
+                <path d="M23,35 L26,37" stroke="#FBD5B5" strokeWidth="1.2" strokeLinecap="round" />
               </g>
             </g>
           </g>
 
           {/* ------------------------------------------------------------------ */}
-          {/* 6. THE DOG: Grounded Walking on Grass, Barking, Welcomed & Walks Inside */}
+          {/* 6. THE DOG: Lean, agile, athletic Golden Retriever pup */}
           {/* ------------------------------------------------------------------ */}
           <g id="groundedDogGroup" className="anim-dog-grounded-flow">
             {/* Barking Speech Bubble & Sound Notes */}
@@ -310,49 +331,57 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
               <path d="M43,-14 A19,19 0 0,1 43,14" fill="none" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" className="anim-wave-2" />
             </g>
 
-            {/* Ground Shadow on Grass (Stays firmly on ground at all times!) */}
-            <ellipse cx="30" cy="52" rx="22" ry="6" fill="#15803D" opacity="0.4" className="pup-shadow-ground" />
+            {/* Ground Shadow on Grass (Slender natural shadow) */}
+            <ellipse cx="32" cy="52" rx="18" ry="5" fill="#15803D" opacity="0.35" className="pup-shadow-ground" />
 
-            {/* Wagging Tail */}
+            {/* Wagging Feathered Golden Tail */}
             <path
-              d="M8,26 Q-10,12 -5,-2"
+              d="M16,26 Q2,12 6,-2"
               fill="none"
               stroke="#D97706"
-              strokeWidth="6"
+              strokeWidth="4.5"
               strokeLinecap="round"
               className="anim-excited-tail"
             />
 
-            {/* Back Legs (Walking step movement on ground) */}
-            <path d="M14,36 L12,50 L6,51" fill="none" stroke="#B45309" strokeWidth="5" strokeLinecap="round" className="leg-back-far" />
-            <path d="M21,36 L23,50 L30,51" fill="none" stroke="#D97706" strokeWidth="5" strokeLinecap="round" className="leg-back-near" />
+            {/* Back Legs (Slender, articulated joints) */}
+            <path d="M16,30 L14,42 L10,50 L6,51" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" className="leg-back-far" />
+            <path d="M22,30 L24,42 L28,50 L32,51" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" className="leg-back-near" />
 
-            {/* Dog Body (Golden Retriever Fur) */}
-            <ellipse cx="32" cy="30" rx="21" ry="14.5" fill="#F59E0B" />
+            {/* Slender Athletic Dog Torso (Contoured chest & flank) */}
+            <path
+              d="M16,28 Q24,20 38,22 Q46,24 48,29 Q46,36 36,35 Q22,36 16,28 Z"
+              fill="#F59E0B"
+            />
+            {/* Chest Highlight */}
+            <ellipse cx="40" cy="30" rx="7" ry="6" fill="#FBBF24" opacity="0.75" />
 
-            {/* Front Legs (Walking step movement on ground) */}
-            <path d="M40,36 L38,50 L33,51" fill="none" stroke="#B45309" strokeWidth="5" strokeLinecap="round" className="leg-front-far" />
-            <path d="M47,36 L49,50 L56,51" fill="none" stroke="#D97706" strokeWidth="5" strokeLinecap="round" className="leg-front-near" />
+            {/* Front Legs (Slender, agile step) */}
+            <path d="M38,30 L36,42 L33,50 L30,51" fill="none" stroke="#B45309" strokeWidth="3.6" strokeLinecap="round" className="leg-front-far" />
+            <path d="M44,30 L46,42 L49,50 L53,51" fill="none" stroke="#D97706" strokeWidth="3.6" strokeLinecap="round" className="leg-front-near" />
+
+            {/* Slender Neck */}
+            <path d="M38,24 L46,16 L50,22 L42,28 Z" fill="#F59E0B" />
 
             {/* Red Collar & Golden Medallion Bell */}
-            <path d="M46,24 Q49,29 48,34" fill="none" stroke="#DC2626" strokeWidth="3.5" strokeLinecap="round" />
-            <circle cx="49" cy="34" r="2.8" fill="#FDE047" stroke="#CA8A04" strokeWidth="0.8" />
+            <path d="M43,20 Q46,24 45,28" fill="none" stroke="#DC2626" strokeWidth="2.8" strokeLinecap="round" />
+            <circle cx="46" cy="28" r="2.2" fill="#FDE047" stroke="#CA8A04" strokeWidth="0.6" />
 
-            {/* Dog Head */}
-            <circle cx="52" cy="20" r="13.5" fill="#FBBF24" />
+            {/* Cute Puppy Head */}
+            <circle cx="50" cy="16" r="10.5" fill="#FBBF24" />
 
             {/* Snout & Cute Face */}
-            <ellipse cx="62" cy="23" rx="7.2" ry="5.5" fill="#FDE68A" />
-            <circle cx="68" cy="21" r="2.5" fill="#1F2937" />
+            <ellipse cx="58" cy="18" rx="5.8" ry="4.2" fill="#FDE68A" />
+            <circle cx="63" cy="16.5" r="2" fill="#1F2937" />
             {/* Smiling Mouth & Happy Pink Tongue */}
-            <path d="M63,25 Q66,30 69,25" fill="none" stroke="#1F2937" strokeWidth="1.4" strokeLinecap="round" />
-            <ellipse cx="66" cy="27" rx="2.8" ry="2.2" fill="#FB7185" />
+            <path d="M59,20 Q61.5,23 64,20" fill="none" stroke="#1F2937" strokeWidth="1.2" strokeLinecap="round" />
+            <ellipse cx="61.5" cy="21.5" rx="2.2" ry="1.6" fill="#FB7185" />
 
-            {/* Sparkling Happy Curved Eyes */}
-            <path d="M54,15 Q57,12 60,15" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" />
+            {/* Sparkling Happy Eyes */}
+            <path d="M51,12 Q53.5,9.5 56,12" fill="none" stroke="#1F2937" strokeWidth="1.6" strokeLinecap="round" />
 
-            {/* Floppy Ear Bobbing */}
-            <ellipse cx="44" cy="18" rx="5.5" ry="10" fill="#D97706" transform="rotate(-18 44 18)" className="anim-floppy-ear" />
+            {/* Floppy Silky Ear Bobbing */}
+            <ellipse cx="43" cy="14" rx="4.2" ry="8" fill="#D97706" transform="rotate(-15 43 14)" className="anim-floppy-ear" />
           </g>
 
           {/* ------------------------------------------------------------------ */}
