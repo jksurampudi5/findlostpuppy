@@ -69,7 +69,7 @@ export const DogCard: React.FC<DogCardProps> = ({ report }) => {
           <div className="dog-card-tags">
             <span className="attribute-pill">{dog.gender}</span>
             <span className="attribute-pill">{dog.age}</span>
-            {report.contactMechanism?.safeContactPhone && status === 'LOST' && (
+            {report.contactMechanism?.safeContactPhone && (
               <span className="attribute-pill" style={{ backgroundColor: '#F1F5F9', color: '#475569', fontWeight: 600 }}>
                 🛡️ {maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)
               </span>
