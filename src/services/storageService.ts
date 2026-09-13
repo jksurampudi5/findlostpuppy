@@ -478,7 +478,6 @@ class StorageService {
             !r.id.startsWith('LOST-LEO-') &&
             !r.id.includes('1788863155592') &&
             r.id !== 'LOST-CHARLIE-SIGHTED' &&
-            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
             !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
         );
       } else {
@@ -502,8 +501,7 @@ class StorageService {
       this.sightings = rawSightings.filter((s) => !this.isReportOrPetDeleted(s.reportId));
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
-      const rawProfiles: OwnerProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-      this.profiles = rawProfiles.filter((p) => p.email?.toLowerCase().trim() !== 'jksurampudi5@gmail.com');
+      this.profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
 
       const storedPets = localStorage.getItem(PETS_KEY);
       if (storedPets !== null) {
@@ -574,7 +572,6 @@ class StorageService {
             !r.id.startsWith('LOST-LEO-') &&
             !r.id.includes('1788863155592') &&
             r.id !== 'LOST-CHARLIE-SIGHTED' &&
-            r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== 'jksurampudi5@gmail.com' &&
             !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
         );
 
