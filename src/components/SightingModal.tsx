@@ -6,6 +6,7 @@ import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { compressImage } from '../utils/imageCompressor';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 interface SightingModalProps {
   isOpen: boolean;
@@ -78,7 +79,17 @@ export const SightingModal: React.FC<SightingModalProps> = ({
     setLoading(true);
 
     const emailCandidate = reporterContact.includes('@') ? reporterContact.trim() : (user?.email || undefined);
-    const phoneCandidate = !reporterContact.includes('@') && reporterContact.trim() ? reporterContact.trim() : (user?.phone || undefined);
+    let phoneCandidate = !reporterContact.includes('@') && reporterContact.trim() ? reporterContact.trim() : (user?.phone || undefined);
+
+    if (phoneCandidate && !reporterContact.includes('@')) {
+      const phoneCheck = validateIndianPhoneNumber(phoneCandidate);
+      if (!phoneCheck.isValid) {
+        setLoading(false);
+        showToast(phoneCheck.error || 'Please enter a valid 10-digit Indian phone number starting with 6, 7, 8, or 9.', 'warning');
+        return;
+      }
+      phoneCandidate = phoneCheck.cleanDigits;
+    }
 
     const newSighting: Sighting = {
       id: `sight-${Date.now()}`,

@@ -8,6 +8,7 @@ import { authService } from '../services/authService';
 import type { ContactMethod, OwnerProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { compressImage } from '../utils/imageCompressor';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -22,6 +23,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
   const [fullName, setFullName] = useState(existingProfile?.fullName || user?.name || '');
   const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string>(existingProfile?.photo || user?.avatar || '');
   const [preferredContact, setPreferredContact] = useState<ContactMethod>(
     existingProfile?.preferredContact || 'phone'
@@ -176,18 +178,29 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       return;
     }
     if (!phone.trim()) {
+      setPhoneError('Please enter your contact phone number.');
       showToast('Please enter your contact phone number.', 'warning');
       return;
     }
 
+    const phoneValidation = validateIndianPhoneNumber(phone);
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
+      showToast(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.', 'warning');
+      return;
+    }
+
+    setPhoneError(null);
     if (!user) return;
+
+    const cleanPhoneNumber = phoneValidation.cleanDigits;
 
     const profile: OwnerProfile = {
       ...(existingProfile || {}),
       id: existingProfile?.id || `owner-${user.id}`,
       userId: user.id,
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: cleanPhoneNumber,
       email: user.email,
       photo: photo.trim() || undefined,
       preferredContact,
@@ -202,12 +215,12 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     storageService.saveOwnerProfile(profile);
     authService.updateCurrentUser({
       name: fullName.trim(),
-      phone: phone.trim(),
+      phone: cleanPhoneNumber,
       avatar: photo.trim() || undefined,
     });
     refreshProgress();
     triggerStarCelebration();
-    showToast('🐾 Pet Parent profile saved!', 'success');
+    showToast('🐾 Pet Parent profile saved with verified phone number!', 'success');
 
     if (onSuccess) {
       onSuccess();
@@ -344,23 +357,59 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
                 <div className="form-group">
                   <label className="form-label cute-label" htmlFor="parent-phone">
-                    <span>📞 Phone Number to Call</span> <span className="required-tag">*</span>
+                    <span>📞 10-Digit Indian Phone Number</span> <span className="required-tag">*</span>
                   </label>
                   <div className="input-with-icon">
                     <Phone size={16} className="input-icon text-terracotta" />
                     <input
                       id="parent-phone"
                       type="tel"
-                      className="form-input cute-input"
-                      placeholder="+91 98480 •••••"
+                      maxLength={15}
+                      className={`form-input cute-input ${phoneError ? 'input-field-error' : ''}`}
+                      placeholder="+91 98480 12345 (Starts with 6, 7, 8, 9)"
                       value={phone}
                       onChange={(e) => {
-                        setPhone(e.target.value);
+                        const val = e.target.value;
+                        setPhone(val);
+                        if (val.trim()) {
+                          const res = validateIndianPhoneNumber(val);
+                          if (res.isValid) {
+                            setPhoneError(null);
+                          }
+                        } else {
+                          setPhoneError(null);
+                        }
                       }}
-                      onBlur={() => saveDraft(fullName, phone, photo)}
+                      onBlur={() => {
+                        if (phone.trim()) {
+                          const res = validateIndianPhoneNumber(phone);
+                          if (!res.isValid) {
+                            setPhoneError(res.error || 'Invalid Indian phone number');
+                          } else {
+                            setPhoneError(null);
+                            saveDraft(fullName, res.cleanDigits, photo);
+                          }
+                        } else {
+                          setPhoneError(null);
+                          saveDraft(fullName, phone, photo);
+                        }
+                      }}
                       required
                     />
                   </div>
+                  {phoneError ? (
+                    <span className="phone-validation-error" style={{ color: '#DC2626', fontSize: '0.78rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                      ⚠️ {phoneError}
+                    </span>
+                  ) : phone.trim() && validateIndianPhoneNumber(phone).isValid ? (
+                    <span className="phone-validation-success" style={{ color: '#16A34A', fontSize: '0.78rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                      ✓ Valid 10-digit Indian Mobile: {validateIndianPhoneNumber(phone).formatted}
+                    </span>
+                  ) : (
+                    <span className="form-hint" style={{ marginTop: '0.3rem', display: 'block', fontSize: '0.76rem', color: '#64748B' }}>
+                      🇮🇳 10-digit mobile number starting with 6, 7, 8, or 9 (Protected with privacy masking on public dashboard).
+                    </span>
+                  )}
                 </div>
 
                 <div className="form-group">

@@ -538,15 +538,12 @@ export const DashboardPage: React.FC = () => {
                                   border: '1px solid #CBD5E1',
                                   borderRadius: '6px',
                                   color: '#334155',
-                                  cursor: isOwnerOfReport(report, user) ? 'pointer' : 'default',
                                 }}
-                                title={isOwnerOfReport(report, user) ? `Your phone: ${ownerPhone}` : 'Direct phone is masked for family security'}
+                                title="Direct phone is masked to protect owner family privacy from spam and scrapers"
                               >
                                 <Phone size={12} className="text-emerald-600" />
                                 <span>
-                                  {isOwnerOfReport(report, user)
-                                    ? `Call: ${ownerPhone}`
-                                    : `Phone: ${maskPhoneNumber(ownerPhone)}`}
+                                  Phone: {maskPhoneNumber(ownerPhone)} (Protected)
                                 </span>
                               </div>
                             ) : (
@@ -566,25 +563,20 @@ export const DashboardPage: React.FC = () => {
                                   border: '1px solid #CBD5E1',
                                   borderRadius: '6px',
                                   color: '#334155',
-                                  cursor: isOwnerOfReport(report, user) ? 'pointer' : 'default',
                                 }}
-                                title={isOwnerOfReport(report, user) ? `Your email: ${ownerEmail}` : 'Email is masked for privacy'}
+                                title="Email is masked to protect owner family privacy from spam"
                               >
                                 <Mail size={12} className="text-sky-600" />
                                 <span>
-                                  {isOwnerOfReport(report, user)
-                                    ? ownerEmail
-                                    : maskEmail(ownerEmail)}
+                                  Email: {maskEmail(ownerEmail)} (Protected)
                                 </span>
                               </div>
                             )}
                           </div>
 
-                          {!isOwnerOfReport(report, user) && (
-                            <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
-                              🔒 Contact info is masked against spam. Click <strong>"Report Sighting"</strong> below to send verified tips & locations directly to the owner.
-                            </p>
-                          )}
+                          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
+                            🔒 <strong>Privacy Shield Active:</strong> Contact details are protected. Click <strong>"Report Sighting"</strong> below to send verified tips & photos directly to the family.
+                          </p>
                         </div>
 
                         <div className="dog-card-actions">
@@ -913,9 +905,7 @@ export const DashboardPage: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.74rem', color: '#64748B', marginTop: '0.35rem' }}>
                           <ShieldCheck size={12} className="text-emerald-600 flex-shrink-0" />
                           <span>
-                            {isOwnerOfReport(report, user)
-                              ? `Owner Phone: ${report.contactMechanism.safeContactPhone}`
-                              : `Verified Parent: ${maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)`}
+                            Verified Parent: {maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)
                           </span>
                         </div>
                       )}

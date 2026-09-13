@@ -32,7 +32,7 @@ import {
   handleDogImageError,
 } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
-import { maskPhoneNumber, maskEmail } from '../utils/privacyUtils';
+import { maskPhoneNumber, maskEmail, validateIndianPhoneNumber } from '../utils/privacyUtils';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
@@ -217,6 +217,16 @@ export const GuestSightingPage: React.FC = () => {
       return;
     }
 
+    let cleanReporterPhone: string | undefined = undefined;
+    if (reporterPhone.trim()) {
+      const phoneCheck = validateIndianPhoneNumber(reporterPhone);
+      if (!phoneCheck.isValid) {
+        showToast(phoneCheck.error || 'Please enter a valid 10-digit Indian phone number starting with 6, 7, 8, or 9.', 'warning');
+        return;
+      }
+      cleanReporterPhone = phoneCheck.cleanDigits;
+    }
+
     setSubmitting(true);
 
     const sightingId = `sight-${Date.now()}`;
@@ -233,7 +243,7 @@ export const GuestSightingPage: React.FC = () => {
       photos,
       description: description.trim() || 'Spotted by community member.',
       reporterName: reporterName.trim() || 'Good Samaritan (Guest)',
-      reporterPhone: reporterPhone.trim() || undefined,
+      reporterPhone: cleanReporterPhone,
       isGuest: true,
       createdAt: new Date().toISOString(),
     };
