@@ -58,9 +58,9 @@ export const SidebarNav: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id) : null;
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id) : null;
-  const existingReport = user ? storageService.getLatestReportByUserId(user.id) : null;
+  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
   const previewPhoto =
     existingPet?.primaryPhoto ||
@@ -403,8 +403,8 @@ export const SidebarNav: React.FC = () => {
               title="Owner Profile & Contact"
             >
               <div className="nav-tab-icon-circle circle-owner">
-                {existingProfile?.photo ? (
-                  <img src={existingProfile.photo} alt="Owner" className="nav-tab-avatar-img" />
+                {existingProfile?.photo || user?.avatar ? (
+                  <img src={existingProfile?.photo || user?.avatar} alt="Owner" className="nav-tab-avatar-img" />
                 ) : (
                   <svg viewBox="0 0 48 48" className="nav-animated-svg owner-avatar-svg" fill="none">
                     <circle cx="24" cy="24" r="16" fill="#FEF3C7" stroke="#F59E0B" strokeWidth="2" />
@@ -558,8 +558,8 @@ export const SidebarNav: React.FC = () => {
           {isAuthenticated && (
             <div className="sidebar-footer-profile">
               <div className="footer-user-row">
-                {existingProfile?.photo ? (
-                  <img src={existingProfile.photo} alt="User" className="footer-avatar-img" />
+                {existingProfile?.photo || user?.avatar ? (
+                  <img src={existingProfile?.photo || user?.avatar} alt="User" className="footer-avatar-img" />
                 ) : (
                   <div className="footer-avatar-initials">
                     {user?.name?.charAt(0).toUpperCase() || '🐾'}
@@ -567,7 +567,7 @@ export const SidebarNav: React.FC = () => {
                 )}
                 <div className={`footer-user-meta ${showLabels ? 'text-visible' : 'text-hidden'}`}>
                   <span className="footer-user-name">
-                    {user?.name || user?.email?.split('@')[0] || 'Pet Parent'}
+                    {existingProfile?.fullName || user?.name || user?.email?.split('@')[0] || 'Pet Parent'}
                   </span>
                   <span className="footer-user-email">{user?.email}</span>
                 </div>

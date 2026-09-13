@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Camera, X, Star, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { compressImage } from '../utils/imageCompressor';
 
 interface ImageUploaderProps {
   primaryPhoto: string;
@@ -30,8 +31,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         setErrorMsg('Please upload valid image files (JPG, PNG, WebP).');
         continue;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMsg('Images must be under 5MB each.');
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg('Images must be under 10MB each.');
         continue;
       }
       validFiles.push(file);
@@ -42,25 +43,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return;
     }
 
-    // Read files as Data URLs
-    const readPromises = validFiles.map((file) => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read image.'));
-        reader.readAsDataURL(file);
-      });
-    });
+    // Compress images down to max 800x800 for crisp, ultra-lightweight persistence
+    const readPromises = validFiles.map((file) => compressImage(file, 800, 800, 0.82));
 
     Promise.all(readPromises)
       .then((newImages) => {
         setUploading(false);
-        if (!primaryPhoto && newImages.length > 0) {
-          const first = newImages[0];
-          const rest = newImages.slice(1);
+        const nonNullImages = newImages.filter(Boolean);
+        if (!primaryPhoto && nonNullImages.length > 0) {
+          const first = nonNullImages[0];
+          const rest = nonNullImages.slice(1);
           onChange(first, [...additionalPhotos, ...rest]);
         } else {
-          onChange(primaryPhoto, [...additionalPhotos, ...newImages]);
+          onChange(primaryPhoto, [...additionalPhotos, ...nonNullImages]);
         }
       })
       .catch((err) => {

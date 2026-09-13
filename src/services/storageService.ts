@@ -366,7 +366,7 @@ class StorageService {
             const sanitized = JSON.parse(
               JSON.stringify(data, (k, v) => {
                 if (k === 'photos' && Array.isArray(v) && v.length > 2) return v.slice(0, 2);
-                if (typeof v === 'string' && v.startsWith('data:image/') && v.length > 150000) {
+                if (typeof v === 'string' && v.startsWith('data:image/') && v.length > 300000) {
                   return '';
                 }
                 return v;
@@ -982,34 +982,106 @@ class StorageService {
     });
   }
 
-  getOwnerProfileByUserId(userId: string): OwnerProfile | undefined {
-    const rawUserId = userId.replace(/^owner-/, '');
-    return this.profiles.find(
-      (p) =>
-        p.userId === userId ||
-        p.userId === rawUserId ||
-        p.id === userId ||
-        p.id === `owner-${userId}` ||
-        p.id === `owner-${rawUserId}`
-    );
+  loadProfiles(): void {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(PROFILES_KEY);
+        if (stored) {
+          this.profiles = JSON.parse(stored);
+        }
+      } catch {}
+    }
   }
 
-  hasCompletedOwnerProfile(userId: string): boolean {
-    const profile = this.getOwnerProfileByUserId(userId);
+  loadPets(): void {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(PETS_KEY);
+        if (stored) {
+          const rawPets: DogProfile[] = JSON.parse(stored);
+          this.pets = rawPets.filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
+        }
+      } catch {}
+    }
+  }
+
+  getOwnerProfileByUserId(userId: string, email?: string): OwnerProfile | undefined {
+    this.loadProfiles();
+    if (!userId && !email) return undefined;
+    const rawUserId = (userId || '').replace(/^owner-/, '');
+    const cleanEmail = email?.trim().toLowerCase();
+
+    // 1. Direct ID match
+    if (userId) {
+      const byId = this.profiles.find(
+        (p) =>
+          p.userId === userId ||
+          p.userId === rawUserId ||
+          p.id === userId ||
+          p.id === `owner-${userId}` ||
+          p.id === `owner-${rawUserId}`
+      );
+      if (byId) return byId;
+    }
+
+    // 2. Email match
+    if (cleanEmail) {
+      const byEmail = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === cleanEmail);
+      if (byEmail) return byEmail;
+    }
+
+    return undefined;
+  }
+
+  getOwnerProfileByEmail(email: string): OwnerProfile | undefined {
+    this.loadProfiles();
+    if (!email) return undefined;
+    const clean = email.trim().toLowerCase();
+    return this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean);
+  }
+
+  hasCompletedOwnerProfile(userId: string, email?: string): boolean {
+    const profile = this.getOwnerProfileByUserId(userId, email);
     return !!(profile && profile.fullName && profile.phone);
   }
 
-  hasCompletedLocation(userId: string): boolean {
-    const profile = this.getOwnerProfileByUserId(userId);
+  hasCompletedLocation(userId: string, email?: string): boolean {
+    const profile = this.getOwnerProfileByUserId(userId, email);
     return !!(profile && (profile.district || profile.city));
   }
 
   // PET PROFILES:
-  getPetProfileByUserId(userId: string): DogProfile | undefined {
-    const rawUserId = userId.replace(/^owner-/, '');
-    return this.pets.find(
-      (p) => p.ownerId === `owner-${userId}` || p.ownerId === userId || p.ownerId === `owner-${rawUserId}` || p.ownerId === rawUserId
+  getPetProfileByUserId(userId: string, email?: string): DogProfile | undefined {
+    this.loadPets();
+    this.loadReports();
+    if (!userId && !email) return undefined;
+    const rawUserId = (userId || '').replace(/^owner-/, '');
+
+    // 1. Match in pets collection
+    if (userId) {
+      const directPet = this.pets.find(
+        (p) =>
+          p.ownerId === `owner-${userId}` ||
+          p.ownerId === userId ||
+          p.ownerId === `owner-${rawUserId}` ||
+          p.ownerId === rawUserId
+      );
+      if (directPet) return directPet;
+    }
+
+    // 2. Match in reports collection (by userId or by email)
+    const cleanEmail = email?.trim().toLowerCase();
+    const rep = this.reports.find(
+      (r) =>
+        ((userId && (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId)) ||
+          (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail)) &&
+        !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
     );
+    if (rep && rep.dog) {
+      return rep.dog;
+    }
+
+    return undefined;
   }
 
   savePetProfile(pet: DogProfile): DogProfile {
@@ -1126,13 +1198,22 @@ class StorageService {
   }
 
   // LOST DOG REPORT MANAGEMENT:
-  getLatestReportByUserId(userId: string): LostReport | undefined {
-    const rawUserId = userId.replace(/^owner-/, '');
-    return this.reports.find(
-      (r) =>
-        (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId) &&
-        !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)
-    );
+  getLatestReportByUserId(userId: string, email?: string): LostReport | undefined {
+    this.loadReports();
+    if (!userId && !email) return undefined;
+    const rawUserId = (userId || '').replace(/^owner-/, '');
+    const cleanEmail = email?.trim().toLowerCase();
+
+    return this.reports.find((r) => {
+      if (this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) return false;
+      if (userId && (r.ownerId === `owner-${userId}` || r.ownerId === userId || r.ownerId === `owner-${rawUserId}` || r.ownerId === rawUserId)) {
+        return true;
+      }
+      if (cleanEmail && r.contactMechanism?.safeContactEmail?.trim().toLowerCase() === cleanEmail) {
+        return true;
+      }
+      return false;
+    });
   }
 
   saveReport(report: LostReport): LostReport {

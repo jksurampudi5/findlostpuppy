@@ -153,9 +153,24 @@ class AuthService {
     return { success: true, user };
   }
 
+  updateCurrentUser(partial: Partial<User>): User | null {
+    if (!this.currentUser) return null;
+    this.currentUser = { ...this.currentUser, ...partial };
+    const idx = this.users.findIndex(
+      (u) => u.id === this.currentUser?.id || u.email.toLowerCase() === this.currentUser?.email.toLowerCase()
+    );
+    if (idx >= 0) {
+      this.users[idx] = { ...this.users[idx], ...partial };
+      this.saveUsers();
+    }
+    this.saveSession(this.currentUser);
+    return this.currentUser;
+  }
+
   logout() {
     this.saveSession(null);
   }
 }
 
 export const authService = new AuthService();
+
