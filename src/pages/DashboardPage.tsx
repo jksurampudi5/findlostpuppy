@@ -44,12 +44,6 @@ export const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'missing' | 'safe' | 'browse' | 'my_pups'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Browse All Dogs tab filters (defaulting to Active Missing Dogs)
-  const [browseStatus, setBrowseStatus] = useState<ReportStatus | 'ALL'>('LOST');
-  const [browseBreed, setBrowseBreed] = useState<string>('ALL');
-  const [browseLocation, setBrowseLocation] = useState<string>('ALL');
-  const [browseSort, setBrowseSort] = useState<'newest' | 'sightings'>('newest');
-
   // Sighting Modal State
   const [sightingReport, setSightingReport] = useState<LostReport | null>(null);
 
@@ -91,23 +85,6 @@ export const DashboardPage: React.FC = () => {
     [reports]
   );
 
-  // Unique breeds and locations for Browse filters
-  const availableBreeds = useMemo(() => {
-    const breeds = new Set(reports.map((r) => r.dog.breed));
-    return Array.from(breeds).sort();
-  }, [reports]);
-
-  const availableLocations = useMemo(() => {
-    const locs = new Set(
-      reports.map((r) => {
-        const locStr = r.ownerApproximateLocation || r.lastKnownLocation || '';
-        const parts = locStr.split(',');
-        return parts[parts.length - 1]?.trim() || locStr;
-      })
-    );
-    return Array.from(locs).filter(Boolean).sort();
-  }, [reports]);
-
   // User's own registered pet & reports
   const myPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const myProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
@@ -142,45 +119,12 @@ export const DashboardPage: React.FC = () => {
   const displayedMissing = useMemo(() => applySearch(missingDogs), [missingDogs, applySearch]);
   const displayedSafe = useMemo(() => applySearch(safeDogs), [safeDogs, applySearch]);
 
-  // Filter for Browse All Dogs tab
+  // Filter for Browse All Dogs directory (shows all community dogs, sorted newest first)
   const displayedBrowse = useMemo(() => {
-    return reports
-      .filter((r) => {
-        if (browseStatus !== 'ALL') {
-          if (browseStatus === 'SAFE') {
-            if (r.status !== 'SAFE' && r.status !== 'REUNITED') return false;
-          } else if (r.status !== browseStatus) {
-            return false;
-          }
-        }
-        if (browseBreed !== 'ALL' && r.dog?.breed !== browseBreed) return false;
-        if (
-          browseLocation !== 'ALL' &&
-          !(r.ownerApproximateLocation || '').toLowerCase().includes(browseLocation.toLowerCase())
-        ) {
-          return false;
-        }
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
-          const matchName = (r.dog?.name || '').toLowerCase().includes(q);
-          const matchBreed = (r.dog?.breed || '').toLowerCase().includes(q);
-          const matchColor = (r.dog?.color || '').toLowerCase().includes(q);
-          const matchLoc = (r.ownerApproximateLocation || '').toLowerCase().includes(q) || (r.lastKnownLocation || '').toLowerCase().includes(q);
-          const matchMarks = r.dog?.distinguishingMarks?.toLowerCase().includes(q) || false;
-          const matchNotes = r.additionalNotes?.toLowerCase().includes(q) || false;
-          if (!matchName && !matchBreed && !matchColor && !matchLoc && !matchMarks && !matchNotes) {
-            return false;
-          }
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (browseSort === 'sightings') {
-          return (b.sightingCount || 0) - (a.sightingCount || 0);
-        }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-  }, [reports, browseStatus, browseBreed, browseLocation, searchQuery, browseSort]);
+    return applySearch(reports).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [reports, applySearch]);
 
   // Action: Atomically change report status with mutual exclusivity
   const handleStatusChange = (reportId: string, newStatus: ReportStatus) => {
@@ -688,67 +632,143 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="dog-profiles-grid">
-                {displayedSafe.map((report) => (
-                  <div key={report.id} className="dog-profile-dashboard-card card reunited-card">
-                    <div className="dog-profile-photo-container">
-                      <img
-                        src={getDogPhotoUrl(report.dog, report)}
-                        alt={getDogDisplayName(report.dog, report)}
-                        className="dog-profile-photo"
-                        onError={handleDogImageError}
-                      />
-                      <div className="dog-profile-floating-badge">
-                        <span className="reunited-celebration-pill">
-                          <Heart size={12} />
-                          <span>SAFE AT HOME 🏡</span>
-                        </span>
+                {displayedSafe.map((report) => {
+                  const ownerPhone = report.contactMechanism?.safeContactPhone;
+                  const ownerEmail = report.contactMechanism?.safeContactEmail;
+                  const displayName = getDogDisplayName(report.dog, report);
+                  const photoUrl = getDogPhotoUrl(report.dog, report);
+
+                  return (
+                    <div key={report.id} className="dog-profile-dashboard-card card reunited-card">
+                      <div className="dog-profile-photo-container">
+                        <img
+                          src={photoUrl}
+                          alt={displayName}
+                          className="dog-profile-photo"
+                          onError={handleDogImageError}
+                        />
+                        <div className="dog-profile-floating-badge">
+                          <span className="reunited-celebration-pill">
+                            <Heart size={12} />
+                            <span>SAFE AT HOME 🏡</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="dog-profile-content">
+                        <div className="dog-name-row">
+                          <h3 className="dog-card-name">{displayName}</h3>
+                          <span className="reunion-badge">Safe at Home</span>
+                        </div>
+
+                        <div className="dog-meta-tags">
+                          <span className="meta-tag">🐕 {report.dog.breed}</span>
+                          <span className="meta-tag">{report.ownerApproximateLocation}</span>
+                        </div>
+
+                        <div className="reunion-story-box">
+                          <Heart size={14} className="text-emerald-600 flex-shrink-0 mt-1" />
+                          <p className="reunion-story-text">
+                            {report.additionalNotes || 'Safe with loving family at home!'}
+                          </p>
+                        </div>
+
+                        {/* PRIVACY PROTECTED OWNER CONTACT */}
+                        <div className="emergency-owner-contact-box" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.75rem', marginTop: '0.5rem' }}>
+                          <div className="emergency-contact-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <ShieldCheck size={14} className="text-emerald-600" />
+                              <span className="emergency-contact-label font-bold text-gray-800" style={{ fontSize: '0.78rem' }}>
+                                {isOwnerOfReport(report, user) ? '👤 Your Pet Listing (Verified Owner)' : '🛡️ Verified Owner Contact (Protected)'}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', backgroundColor: isOwnerOfReport(report, user) ? '#DCFCE7' : '#EFF6FF', color: isOwnerOfReport(report, user) ? '#15803D' : '#1D4ED8', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                              {isOwnerOfReport(report, user) ? 'Owner View' : 'Privacy Shield'}
+                            </span>
+                          </div>
+
+                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {ownerPhone ? (
+                              <div
+                                className="btn-emergency-contact btn-emergency-phone"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                }}
+                                title="Direct phone is masked to protect owner family privacy from spam and scrapers"
+                              >
+                                <Phone size={12} className="text-emerald-600" />
+                                <span>
+                                  Phone: {maskPhoneNumber(ownerPhone)} (Protected)
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Phone not shared</span>
+                            )}
+
+                            {ownerEmail && (
+                              <div
+                                className="btn-emergency-contact btn-emergency-email"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                }}
+                                title="Email is masked to protect owner family privacy from spam"
+                              >
+                                <Mail size={12} className="text-sky-600" />
+                                <span>
+                                  Email: {maskEmail(ownerEmail)} (Protected)
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
+                            🔒 <strong>Privacy Shield Active:</strong> Contact details are protected.
+                          </p>
+                        </div>
+
+                        <div className="dog-card-actions">
+                          <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
+                            <span>View Pup Details 🐾</span>
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(report.id, 'LOST')}
+                            className="btn btn-ghost btn-sm text-amber-600"
+                            title="Report missing if needed"
+                          >
+                            <span>Report Missing 🚨</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReport(report.id, displayName)}
+                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                            title="Remove this listing"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="dog-profile-content">
-                      <div className="dog-name-row">
-                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
-                        <span className="reunion-badge">Safe at Home</span>
-                      </div>
-
-                      <div className="dog-meta-tags">
-                        <span className="meta-tag">🐕 {report.dog.breed}</span>
-                        <span className="meta-tag">{report.ownerApproximateLocation}</span>
-                      </div>
-
-                      <div className="reunion-story-box">
-                        <Heart size={14} className="text-emerald-600 flex-shrink-0 mt-1" />
-                        <p className="reunion-story-text">
-                          {report.additionalNotes || 'Safe with loving family at home!'}
-                        </p>
-                      </div>
-
-                      <div className="dog-card-actions">
-                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                          <span>View Pup Details 🐾</span>
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => handleStatusChange(report.id, 'LOST')}
-                          className="btn btn-ghost btn-sm text-amber-600"
-                          title="Report missing if needed"
-                        >
-                          <span>Report Missing 🚨</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
-                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                          title="Remove this listing"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -763,94 +783,12 @@ export const DashboardPage: React.FC = () => {
               <div>
                 <h2 className="tab-section-title text-amber-700">🔍 Browse Community Dogs Directory</h2>
                 <p className="tab-section-desc">
-                  Filter by status, breed, or locality to quickly identify pets and match sightings across neighborhoods.
+                  Complete directory of all registered and recovered community dogs across neighborhoods.
                 </p>
               </div>
               <span className="results-count-badge amber-badge">
-                Showing {displayedBrowse.length} of {reports.length} community dogs
+                Showing {displayedBrowse.length} community dogs
               </span>
-            </div>
-
-            {/* Filter controls row */}
-            <div className="discovery-controls card" style={{ marginBottom: '1.5rem' }}>
-              <div className="filters-row">
-                {/* Status Filter */}
-                <div className="filter-select-group">
-                  <label className="filter-label" htmlFor="browse-status">Status:</label>
-                  <select
-                    id="browse-status"
-                    className="form-select filter-select cute-select"
-                    value={browseStatus}
-                    onChange={(e) => setBrowseStatus(e.target.value as any)}
-                  >
-                    <option value="ALL">All Statuses</option>
-                    <option value="LOST">🚨 Missing (Lost)</option>
-                    <option value="SAFE">🏡 Safe at Home (In Home)</option>
-                  </select>
-                </div>
-
-                {/* Breed Filter */}
-                <div className="filter-select-group">
-                  <label className="filter-label" htmlFor="browse-breed">Breed:</label>
-                  <select
-                    id="browse-breed"
-                    className="form-select filter-select cute-select"
-                    value={browseBreed}
-                    onChange={(e) => setBrowseBreed(e.target.value)}
-                  >
-                    <option value="ALL">All Breeds</option>
-                    {availableBreeds.map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Location Filter */}
-                <div className="filter-select-group">
-                  <label className="filter-label" htmlFor="browse-loc">Location:</label>
-                  <select
-                    id="browse-loc"
-                    className="form-select filter-select cute-select"
-                    value={browseLocation}
-                    onChange={(e) => setBrowseLocation(e.target.value)}
-                  >
-                    <option value="ALL">All Locations</option>
-                    {availableLocations.map((loc) => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sort Filter */}
-                <div className="filter-select-group">
-                  <label className="filter-label" htmlFor="browse-sort">Sort:</label>
-                  <select
-                    id="browse-sort"
-                    className="form-select filter-select cute-select"
-                    value={browseSort}
-                    onChange={(e) => setBrowseSort(e.target.value as any)}
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="sightings">Most Sightings</option>
-                  </select>
-                </div>
-
-                {(browseStatus !== 'ALL' || browseBreed !== 'ALL' || browseLocation !== 'ALL' || searchQuery) && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => {
-                      setBrowseStatus('ALL');
-                      setBrowseBreed('ALL');
-                      setBrowseLocation('ALL');
-                      setSearchQuery('');
-                    }}
-                    style={{ alignSelf: 'flex-end', marginBottom: '0.25rem' }}
-                  >
-                    Reset Filters
-                  </button>
-                )}
-              </div>
             </div>
 
             {displayedBrowse.length === 0 ? (
@@ -858,147 +796,213 @@ export const DashboardPage: React.FC = () => {
                 <Search size={44} className="empty-icon text-amber-500" />
                 <h3>No Dogs Found</h3>
                 <p>
-                  No community dogs match your current search and filter criteria. Try adjusting or clearing filters above.
+                  No community dogs match your current search query.
                 </p>
               </div>
             ) : (
               <div className="dog-profiles-grid">
-                {displayedBrowse.map((report) => (
-                  <div key={report.id} className="dog-profile-dashboard-card card">
-                    <div className="dog-profile-photo-container">
-                      <img
-                        src={getDogPhotoUrl(report.dog, report)}
-                        alt={getDogDisplayName(report.dog, report)}
-                        className="dog-profile-photo"
-                        onError={handleDogImageError}
-                      />
-                      <div className="dog-profile-floating-badge">
-                        <StatusBadge status={report.status} size="sm" />
-                      </div>
-                      {report.sightingCount > 0 && report.status !== 'SAFE' && report.status !== 'REUNITED' && (
-                        <div className="sighting-count-tag">
-                          <Eye size={12} />
-                          <span>{report.sightingCount} sighting{report.sightingCount > 1 ? 's' : ''}</span>
+                {displayedBrowse.map((report) => {
+                  const ownerPhone = report.contactMechanism?.safeContactPhone;
+                  const ownerEmail = report.contactMechanism?.safeContactEmail;
+                  const displayName = getDogDisplayName(report.dog, report);
+                  const photoUrl = getDogPhotoUrl(report.dog, report);
+
+                  return (
+                    <div key={report.id} className="dog-profile-dashboard-card card">
+                      <div className="dog-profile-photo-container">
+                        <img
+                          src={photoUrl}
+                          alt={displayName}
+                          className="dog-profile-photo"
+                          onError={handleDogImageError}
+                        />
+                        <div className="dog-profile-floating-badge">
+                          <StatusBadge status={report.status} size="sm" />
                         </div>
-                      )}
-                    </div>
-
-                    <div className="dog-profile-content">
-                      <div className="dog-name-row">
-                        <h3 className="dog-card-name">{getDogDisplayName(report.dog, report)}</h3>
-                        <span className="dog-id-code">#{report.id.split('-').pop()}</span>
+                        {report.sightingCount > 0 && report.status !== 'SAFE' && report.status !== 'REUNITED' && (
+                          <div className="sighting-count-tag">
+                            <Eye size={12} />
+                            <span>{report.sightingCount} sighting{report.sightingCount > 1 ? 's' : ''}</span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="dog-meta-tags">
-                        <span className="meta-tag">🐕 {report.dog.breed}</span>
-                        <span className="meta-tag">{report.dog.gender}</span>
-                        <span className="meta-tag">{report.dog.color}</span>
-                      </div>
-
-                      <div className="dog-area-snippet">
-                        <MapPin size={14} className="text-terracotta flex-shrink-0" />
-                        <span>{report.ownerApproximateLocation || report.lastKnownLocation}</span>
-                      </div>
-
-                      {/* Browse Card Masked Contact Relay */}
-                      {report.contactMechanism?.safeContactPhone && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.74rem', color: '#64748B', marginTop: '0.35rem' }}>
-                          <ShieldCheck size={12} className="text-emerald-600 flex-shrink-0" />
-                          <span>
-                            Verified Parent: {maskPhoneNumber(report.contactMechanism.safeContactPhone)} (Protected)
-                          </span>
+                      <div className="dog-profile-content">
+                        <div className="dog-name-row">
+                          <h3 className="dog-card-name">{displayName}</h3>
+                          <span className="dog-id-code">#{report.id.split('-').pop()}</span>
                         </div>
-                      )}
 
-                      <div className="dog-card-actions">
-                        {report.status !== 'SAFE' && report.status !== 'REUNITED' && (
+                        <div className="dog-meta-tags">
+                          <span className="meta-tag">🐕 {report.dog.breed}</span>
+                          <span className="meta-tag">{report.dog.gender}</span>
+                          <span className="meta-tag">{report.dog.color}</span>
+                        </div>
+
+                        <div className="dog-area-snippet">
+                          <MapPin size={14} className="text-terracotta flex-shrink-0" />
+                          <span>{report.ownerApproximateLocation || report.lastKnownLocation}</span>
+                        </div>
+
+                        {/* PRIVACY PROTECTED OWNER CONTACT */}
+                        <div className="emergency-owner-contact-box" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.75rem', marginTop: '0.5rem' }}>
+                          <div className="emergency-contact-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <ShieldCheck size={14} className="text-emerald-600" />
+                              <span className="emergency-contact-label font-bold text-gray-800" style={{ fontSize: '0.78rem' }}>
+                                {isOwnerOfReport(report, user) ? '👤 Your Pet Listing (Verified Owner)' : '🛡️ Verified Owner Contact (Protected)'}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', backgroundColor: isOwnerOfReport(report, user) ? '#DCFCE7' : '#EFF6FF', color: isOwnerOfReport(report, user) ? '#15803D' : '#1D4ED8', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                              {isOwnerOfReport(report, user) ? 'Owner View' : 'Privacy Shield'}
+                            </span>
+                          </div>
+
+                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {ownerPhone ? (
+                              <div
+                                className="btn-emergency-contact btn-emergency-phone"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                }}
+                                title="Direct phone is masked to protect owner family privacy from spam and scrapers"
+                              >
+                                <Phone size={12} className="text-emerald-600" />
+                                <span>
+                                  Phone: {maskPhoneNumber(ownerPhone)} (Protected)
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Phone not shared</span>
+                            )}
+
+                            {ownerEmail && (
+                              <div
+                                className="btn-emergency-contact btn-emergency-email"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.78rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  backgroundColor: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  color: '#334155',
+                                }}
+                                title="Email is masked to protect owner family privacy from spam"
+                              >
+                                <Mail size={12} className="text-sky-600" />
+                                <span>
+                                  Email: {maskEmail(ownerEmail)} (Protected)
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
+                            🔒 <strong>Privacy Shield Active:</strong> Contact details are protected.
+                          </p>
+                        </div>
+
+                        <div className="dog-card-actions">
+                          {report.status !== 'SAFE' && report.status !== 'REUNITED' && (
+                            <button
+                              type="button"
+                              onClick={() => setSightingReport(report)}
+                              className="btn btn-secondary btn-sm sighting-trigger-btn"
+                            >
+                              <Eye size={15} />
+                              <span>I Spotted This Dog</span>
+                            </button>
+                          )}
+
+                          {report.status === 'LOST' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(report.id, 'SAFE')}
+                              className="btn btn-sm"
+                              style={{
+                                backgroundColor: '#ECFDF5',
+                                color: '#059669',
+                                borderColor: '#A7F3D0',
+                                fontWeight: 700,
+                              }}
+                              title="Mark Safe at Home 🏡"
+                            >
+                              <Check size={14} />
+                              <span>Safe at Home 🏡</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(report.id, 'LOST')}
+                              className="btn btn-sm btn-ghost text-amber-600"
+                              title="Report missing if needed"
+                            >
+                              <span>Report Missing 🚨</span>
+                            </button>
+                          )}
+
+                          {report.status === 'LOST' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
+                                  report,
+                                  report.dog,
+                                  report.contactMechanism?.safeContactPhone
+                                );
+                                try {
+                                  if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(dashboardUrl);
+                                  }
+                                } catch {}
+                                showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
+                                window.open(whatsappUrl, '_blank');
+                              }}
+                              className="btn btn-whatsapp btn-sm"
+                              style={{
+                                backgroundColor: '#25D366',
+                                color: '#FFFFFF',
+                                borderColor: '#25D366',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                fontWeight: 700,
+                              }}
+                              title="Share Alert on WhatsApp"
+                            >
+                              <Share2 size={13} />
+                              <span>WhatsApp</span>
+                            </button>
+                          )}
+
+                          <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
+                            <span>View Details →</span>
+                          </Link>
+
                           <button
                             type="button"
-                            onClick={() => setSightingReport(report)}
-                            className="btn btn-secondary btn-sm sighting-trigger-btn"
+                            onClick={() => handleDeleteReport(report.id, displayName)}
+                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                            title="Remove this listing"
                           >
-                            <Eye size={15} />
-                            <span>I Spotted This Dog</span>
+                            <Trash2 size={14} />
                           </button>
-                        )}
-
-                        {report.status === 'LOST' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(report.id, 'SAFE')}
-                            className="btn btn-sm"
-                            style={{
-                              backgroundColor: '#ECFDF5',
-                              color: '#059669',
-                              borderColor: '#A7F3D0',
-                              fontWeight: 700,
-                            }}
-                            title="Mark Safe at Home 🏡"
-                          >
-                            <Check size={14} />
-                            <span>Safe at Home 🏡</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(report.id, 'LOST')}
-                            className="btn btn-sm btn-ghost text-amber-600"
-                            title="Report missing if needed"
-                          >
-                            <span>Report Missing 🚨</span>
-                          </button>
-                        )}
-
-                        {report.status === 'LOST' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
-                                report,
-                                report.dog,
-                                report.contactMechanism?.safeContactPhone
-                              );
-                              try {
-                                if (navigator.clipboard) {
-                                  navigator.clipboard.writeText(dashboardUrl);
-                                }
-                              } catch {}
-                              showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
-                              window.open(whatsappUrl, '_blank');
-                            }}
-                            className="btn btn-whatsapp btn-sm"
-                            style={{
-                              backgroundColor: '#25D366',
-                              color: '#FFFFFF',
-                              borderColor: '#25D366',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              fontWeight: 700,
-                            }}
-                            title="Share Alert on WhatsApp"
-                          >
-                            <Share2 size={13} />
-                            <span>WhatsApp</span>
-                          </button>
-                        )}
-
-                        <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                          <span>View Details →</span>
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
-                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                          title="Remove this listing"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
