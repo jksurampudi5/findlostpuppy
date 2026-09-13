@@ -10152,39 +10152,39 @@
   100% { transform: rotate(-10deg) translateY(2px); }
 }
 
-/* Dog Walking / Trotting Leg Motion on Grass */
+/* Dog Walking / Trotting Leg Motion on Grass (4-Beat Diagonal Trot) */
 .leg-back-far {
-  transform-origin: 18px 36px;
-  animation: legTrotStepBackFar 0.34s ease-in-out infinite alternate;
+  transform-origin: 16px 30px;
+  animation: legTrotStepBackFar 0.32s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 .leg-back-near {
-  transform-origin: 18px 36px;
-  animation: legTrotStepBackNear 0.34s ease-in-out infinite alternate;
+  transform-origin: 22px 30px;
+  animation: legTrotStepBackNear 0.32s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 .leg-front-far {
-  transform-origin: 44px 36px;
-  animation: legTrotStepFrontFar 0.34s ease-in-out infinite alternate;
+  transform-origin: 38px 30px;
+  animation: legTrotStepFrontFar 0.32s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 .leg-front-near {
-  transform-origin: 44px 36px;
-  animation: legTrotStepFrontNear 0.34s ease-in-out infinite alternate;
+  transform-origin: 44px 30px;
+  animation: legTrotStepFrontNear 0.32s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 
 @keyframes legTrotStepBackFar {
-  0% { transform: rotate(-18deg); }
-  100% { transform: rotate(16deg); }
+  0% { transform: rotate(-20deg); }
+  100% { transform: rotate(18deg); }
 }
 @keyframes legTrotStepBackNear {
-  0% { transform: rotate(18deg); }
-  100% { transform: rotate(-16deg); }
+  0% { transform: rotate(20deg); }
+  100% { transform: rotate(-18deg); }
 }
 @keyframes legTrotStepFrontFar {
-  0% { transform: rotate(18deg); }
-  100% { transform: rotate(-16deg); }
+  0% { transform: rotate(20deg); }
+  100% { transform: rotate(-18deg); }
 }
 @keyframes legTrotStepFrontNear {
-  0% { transform: rotate(-18deg); }
-  100% { transform: rotate(16deg); }
+  0% { transform: rotate(-20deg); }
+  100% { transform: rotate(18deg); }
 }
 
 /* Rotating Sun */
