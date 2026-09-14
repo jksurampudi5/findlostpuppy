@@ -43,6 +43,19 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const [, setForceUpdate] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => {
+      setForceUpdate((prev) => prev + 1);
+    };
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
@@ -58,17 +71,13 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     }
   }, [petSafetyStatus]);
 
-  const safetyChoice: 'safe' | 'missing' | null =
+  // ACID-compliant reactive resolution: LOST report strictly takes precedence over SAFE
+  const isDirectlyLost = petSafetyStatus === 'LOST' || existingReport?.status === 'LOST';
+  const isDirectlySafe = petSafetyStatus === 'SAFE' || existingReport?.status === 'SAFE' || (user && storageService.isPetSafe(user.id, user.email));
+
+  const safetyChoice: 'safe' | 'missing' =
     userSelectedChoice ??
-    (petSafetyStatus === 'LOST'
-      ? 'missing'
-      : petSafetyStatus === 'SAFE'
-      ? 'safe'
-      : existingReport && existingReport.status === 'LOST'
-      ? 'missing'
-      : user && storageService.isPetSafe(user.id)
-      ? 'safe'
-      : null);
+    (isDirectlyLost ? 'missing' : isDirectlySafe ? 'safe' : 'safe');
 
   // Modal State for reporting or updating missing pet
   const [isMissingModalOpen, setIsMissingModalOpen] = useState(false);
@@ -167,6 +176,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     try {
       storageService.saveReport(finalReport);
       markPetLost();
+      setUserSelectedChoice('missing');
       setIsMissingModalOpen(false);
 
       showToast(

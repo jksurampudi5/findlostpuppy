@@ -187,11 +187,19 @@ export const DashboardPage: React.FC = () => {
   };
 
   // Compute the logged-in owner's missing dog name for the banner
-  const ownerMissingReport = user ? myReports.find(r => r.status === 'LOST') : null;
+  const userReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
+  const effectiveSafetyStatus: 'SAFE' | 'LOST' | 'UNDECIDED' = (() => {
+    if (petSafetyStatus === 'LOST' || userReport?.status === 'LOST') return 'LOST';
+    if (petSafetyStatus === 'SAFE' || userReport?.status === 'SAFE' || (userReport?.status as any) === 'REUNITED') return 'SAFE';
+    if (user && storageService.isPetSafe(user.id, user.email)) return 'SAFE';
+    return 'UNDECIDED';
+  })();
+
+  const ownerMissingReport = user ? (myReports.find(r => r.status === 'LOST') || (userReport?.status === 'LOST' ? userReport : null)) : null;
   const missingDogBannerName = ownerMissingReport
     ? getDogDisplayName(ownerMissingReport.dog, ownerMissingReport)
     : myPet ? getDogDisplayName(myPet) : 'Your Dog';
-  const showOwnerMissingBanner = petSafetyStatus === 'LOST' && user && !bannerDismissed;
+  const showOwnerMissingBanner = effectiveSafetyStatus === 'LOST' && user && !bannerDismissed;
 
   return (
     <div className="dashboard-page">
@@ -260,13 +268,13 @@ export const DashboardPage: React.FC = () => {
 
           {/* Real Dynamic Pet Status Animation — ACID compliant: driven by petSafetyStatus from AuthContext */}
           <div className="dashboard-hero-animation-wrap" style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
-            {petSafetyStatus === 'LOST' ? (
+            {effectiveSafetyStatus === 'LOST' ? (
               /* 🚨 Pet is MISSING — show the dusk away-from-home search animation */
               <DogAwayFromHomeAnimation
                 dogName={animationDogName}
                 lastSeenArea={animationLocation}
               />
-            ) : petSafetyStatus === 'SAFE' ? (
+            ) : effectiveSafetyStatus === 'SAFE' ? (
               /* 🏡 Pet is SAFE — show the reunion going-home animation */
               <DogGoingHomeAnimation dogName={animationDogName} />
             ) : (
@@ -1112,17 +1120,17 @@ export const DashboardPage: React.FC = () => {
                       </div>
 
                       <div className="my-pet-status-pill">
-                        {petSafetyStatus === 'SAFE' ? (
+                        {effectiveSafetyStatus === 'SAFE' ? (
                           <span className="safe-pill-tag">
                             <Heart size={13} />
                             <span>Safe at Home 🏠</span>
                           </span>
-                        ) : petSafetyStatus === 'LOST' ? (
+                        ) : effectiveSafetyStatus === 'LOST' ? (
                           <span className="missing-pill-tag">
                             <AlertTriangle size={13} />
                             <span>Active Alert 🚨</span>
                           </span>
-                        ) : myReports.length > 0 ? (
+                        ) : myReports.length > 0 && myReports.some(r => r.status === 'LOST') ? (
                           <span className="missing-pill-tag">
                             <AlertTriangle size={13} />
                             <span>Active Alert 🚨</span>

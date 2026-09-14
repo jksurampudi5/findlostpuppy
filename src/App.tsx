@@ -210,9 +210,10 @@ function GlobalMissingBanner() {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
 
-  if (petSafetyStatus !== 'LOST' || !user || dismissed) return null;
+  const myReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
+  const isLost = petSafetyStatus === 'LOST' || myReport?.status === 'LOST';
 
-  const myReport = storageService.getLatestReportByUserId(user.id, user.email);
+  if (!isLost || !user || dismissed) return null;
   const dogName = myReport ? getDogDisplayName(myReport.dog, myReport) : 'Your Dog';
 
   return (

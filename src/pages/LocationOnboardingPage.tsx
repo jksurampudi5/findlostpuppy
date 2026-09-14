@@ -41,12 +41,26 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const [, setForceUpdate] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => {
+      setForceUpdate((prev) => prev + 1);
+      refreshProgress();
+    };
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [refreshProgress]);
+
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
   const isLost =
     petSafetyStatus === 'LOST' ||
-    (petSafetyStatus !== 'SAFE' && existingReport?.status === 'LOST');
+    existingReport?.status === 'LOST';
   const dogPhoto =
     existingPet?.primaryPhoto ||
     existingReport?.dog?.primaryPhoto ||

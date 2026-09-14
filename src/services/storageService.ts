@@ -1311,17 +1311,27 @@ class StorageService {
 
   saveReport(report: LostReport): LostReport {
     return this.executeTransaction(() => {
-      const rawUserId = (report.ownerId || '').replace(/^owner-/, '');
-      this.skippedReportUserIds = this.skippedReportUserIds.filter(
-        (id) => id !== report.ownerId && id !== `owner-${rawUserId}` && id !== rawUserId
-      );
-
-      const canonicalId = normalizeReportId(report.id);
+      const rawUserId = (report.ownerId || '').replace(/^(owner-)+/, '');
       const ownerEmail = extractReportOwnerEmail(report, this.profiles);
 
       if ((report.status as any) === 'REUNITED') {
         report.status = 'SAFE';
       }
+
+      if (report.status === 'LOST') {
+        this.skippedReportUserIds = this.skippedReportUserIds.filter((id) => {
+          const clean = id.replace(/^(owner-)+/, '');
+          if (clean === rawUserId || id === report.ownerId || id === `owner-${rawUserId}`) return false;
+          if (ownerEmail && id.toLowerCase() === ownerEmail.toLowerCase()) return false;
+          return true;
+        });
+      } else if (report.status === 'SAFE') {
+        if (!this.skippedReportUserIds.includes(report.ownerId) && !this.skippedReportUserIds.includes(rawUserId)) {
+          this.skippedReportUserIds.push(report.ownerId);
+        }
+      }
+
+      const canonicalId = normalizeReportId(report.id);
 
       // Find existing report by canonical ID OR by owner unique email OR by owner ID
       const existingIdx = this.reports.findIndex((r) => {
@@ -1338,7 +1348,7 @@ class StorageService {
           ...this.reports[existingIdx],
           ...report,
           id: this.reports[existingIdx].id, // Preserve established ID
-          status: report.status || this.reports[existingIdx].status,
+          status: report.status, // Explicitly use the new status
           updatedAt: new Date().toISOString(),
         };
       } else {
@@ -1436,11 +1446,14 @@ class StorageService {
 
   markPetLost(userId: string, email?: string): void {
     this.executeTransaction(() => {
-      const rawUserId = userId.replace(/^owner-/, '');
+      const rawUserId = userId.replace(/^(owner-)+/, '');
       const cleanEmail = email?.trim().toLowerCase();
-      this.skippedReportUserIds = this.skippedReportUserIds.filter(
-        (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
-      );
+      this.skippedReportUserIds = this.skippedReportUserIds.filter((id) => {
+        const cleanId = id.replace(/^(owner-)+/, '');
+        if (cleanId === rawUserId || id === userId || id === `owner-${rawUserId}`) return false;
+        if (cleanEmail && id.toLowerCase() === cleanEmail) return false;
+        return true;
+      });
 
       // Atomically mark reports as LOST for this owner
       let matched = false;
@@ -1458,43 +1471,57 @@ class StorageService {
         }
       }
 
-      // If no report exists yet but a pet profile is registered, auto-create the missing alert report
+      // If no report exists yet, auto-create the missing alert report
       if (!matched) {
         const pet = this.getPetProfileByUserId(userId, email);
         const ownerProfile = this.getOwnerProfileByUserId(userId, email);
-        if (pet) {
-          const approxLoc =
-            ownerProfile?.approximateArea ||
-            [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
-            'Local Neighborhood';
-          const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
-          if (!this.isReportOrPetDeleted(reportId, pet.id)) {
-            const newReport: LostReport = {
-              id: reportId,
-              dogId: pet.id,
-              ownerId: `owner-${rawUserId}`,
-              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
-              ownerApproximateLocation: approxLoc,
-              lastKnownLocation: approxLoc,
-              lastKnownLatitude: ownerProfile?.latitude,
-              lastKnownLongitude: ownerProfile?.longitude,
-              dateLost: new Date().toISOString().split('T')[0],
-              timeLost: '12:00 PM',
-              additionalNotes: '',
-              status: 'LOST',
-              contactMechanism: {
-                showPhone: true,
-                showEmail: true,
-                safeContactPhone: ownerProfile?.phone || '',
-                safeContactEmail: ownerProfile?.email || '',
-                contactNote: 'Please reach out immediately if spotted!',
-              },
-              sightingCount: 0,
-              createdAt: pet.createdAt || new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            this.reports.unshift(newReport);
-          }
+        const approxLoc =
+          ownerProfile?.approximateArea ||
+          [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
+          'Local Neighborhood';
+        const dogId = pet?.id || `pet-${rawUserId}`;
+        const reportId = `LOST-${dogId.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+        if (!this.isReportOrPetDeleted(reportId, dogId)) {
+          const newReport: LostReport = {
+            id: reportId,
+            dogId: dogId,
+            ownerId: `owner-${rawUserId}`,
+            dog: pet
+              ? { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] }
+              : {
+                  id: dogId,
+                  ownerId: `owner-${rawUserId}`,
+                  name: 'My Dog',
+                  breed: 'Companion Pet',
+                  gender: 'Male',
+                  age: '2 years',
+                  size: 'Medium (10-25kg)',
+                  color: 'Not specified',
+                  distinguishingMarks: '',
+                  primaryPhoto: abulluImg,
+                  photos: [abulluImg],
+                  createdAt: new Date().toISOString(),
+                },
+            ownerApproximateLocation: approxLoc,
+            lastKnownLocation: approxLoc,
+            lastKnownLatitude: ownerProfile?.latitude,
+            lastKnownLongitude: ownerProfile?.longitude,
+            dateLost: new Date().toISOString().split('T')[0],
+            timeLost: '12:00 PM',
+            additionalNotes: '',
+            status: 'LOST',
+            contactMechanism: {
+              showPhone: true,
+              showEmail: true,
+              safeContactPhone: ownerProfile?.phone || '',
+              safeContactEmail: ownerProfile?.email || cleanEmail || '',
+              contactNote: 'Please reach out immediately if spotted!',
+            },
+            sightingCount: 0,
+            createdAt: pet?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          this.reports.unshift(newReport);
         }
       }
     });
@@ -1502,20 +1529,40 @@ class StorageService {
 
   clearPetSafe(userId: string): void {
     this.executeTransaction(() => {
-      const rawUserId = userId.replace(/^owner-/, '');
+      const rawUserId = userId.replace(/^(owner-)+/, '');
       this.skippedReportUserIds = this.skippedReportUserIds.filter(
-        (id) => id !== userId && id !== `owner-${rawUserId}` && id !== rawUserId
+        (id) => id.replace(/^(owner-)+/, '') !== rawUserId && id !== userId && id !== `owner-${rawUserId}`
       );
     });
   }
 
-  isPetSafe(userId: string): boolean {
+  getPetSafetyStatus(userId: string, email?: string): 'SAFE' | 'LOST' | 'UNDECIDED' {
+    if (!userId && !email) return 'UNDECIDED';
+    const rep = this.getLatestReportByUserId(userId, email);
+    if (rep) {
+      if (rep.status === 'LOST') return 'LOST';
+      if (rep.status === 'SAFE' || (rep.status as any) === 'REUNITED') return 'SAFE';
+    }
+    if (this.hasSkippedReport(userId)) return 'SAFE';
+    return 'UNDECIDED';
+  }
+
+  isPetSafe(userId: string, email?: string): boolean {
+    if (!userId && !email) return false;
+    const rep = this.getLatestReportByUserId(userId, email);
+    if (rep) {
+      if (rep.status === 'LOST') return false;
+      if (rep.status === 'SAFE' || (rep.status as any) === 'REUNITED') return true;
+    }
     return this.hasSkippedReport(userId);
   }
 
   hasSkippedReport(userId: string): boolean {
-    const rawUserId = userId.replace(/^owner-/, '');
-    return this.skippedReportUserIds.includes(userId) || this.skippedReportUserIds.includes(rawUserId);
+    const rawUserId = userId.replace(/^(owner-)+/, '');
+    return this.skippedReportUserIds.some((id) => {
+      const clean = id.replace(/^(owner-)+/, '');
+      return clean === rawUserId || id === userId || id === `owner-${rawUserId}`;
+    });
   }
 
   hasCompletedReport(userId: string, email?: string): boolean {

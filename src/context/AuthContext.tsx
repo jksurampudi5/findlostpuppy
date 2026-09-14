@@ -60,10 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [petSafetyStatus, setPetSafetyStatus] = useState<'SAFE' | 'LOST' | 'UNDECIDED'>(() => {
     const u = authService.getCurrentUser();
     if (!u) return 'UNDECIDED';
-    if (storageService.isPetSafe(u.id)) return 'SAFE';
-    const rep = storageService.getLatestReportByUserId(u.id);
-    if (rep && rep.status === 'LOST') return 'LOST';
-    return 'UNDECIDED';
+    return storageService.getPetSafetyStatus(u.id, u.email);
   });
 
   const [activeOnboardingTab, setActiveOnboardingTab] = useState<OnboardingTab>(() => {
@@ -127,16 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setHasCompletedDog((prev) => (prev !== hasDog ? hasDog : prev));
       setHasCompletedReport((prev) => (prev !== hasReport ? hasReport : prev));
 
-      const isSafe = storageService.isPetSafe(currentUser.id);
-      let newSafety: 'SAFE' | 'LOST' | 'UNDECIDED' = 'UNDECIDED';
-      if (isSafe) {
-        newSafety = 'SAFE';
-      } else {
-        const rep = storageService.getLatestReportByUserId(currentUser.id, currentUser.email);
-        if (rep && rep.status === 'LOST') {
-          newSafety = 'LOST';
-        }
-      }
+      const newSafety = storageService.getPetSafetyStatus(currentUser.id, currentUser.email);
       setPetSafetyStatus((prev) => (prev !== newSafety ? newSafety : prev));
     } else {
       setUser((prev) => (prev ? null : prev));
@@ -209,16 +197,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setHasCompletedDog(hasDog);
       setHasCompletedReport(hasReport);
 
-      if (storageService.isPetSafe(res.user.id)) {
-        setPetSafetyStatus('SAFE');
-      } else {
-        const rep = storageService.getLatestReportByUserId(res.user.id);
-        if (rep && rep.status === 'LOST') {
-          setPetSafetyStatus('LOST');
-        } else {
-          setPetSafetyStatus('UNDECIDED');
-        }
-      }
+      const newSafety = storageService.getPetSafetyStatus(res.user.id, res.user.email);
+      setPetSafetyStatus(newSafety);
 
       setActiveOnboardingTab(!hasOwner ? 'owner' : !hasLoc ? 'location' : !hasDog ? 'dog' : !hasReport ? 'report' : 'completed');
       return { success: true };

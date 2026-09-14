@@ -79,13 +79,11 @@ export const SidebarNav: React.FC = () => {
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
   // ACID compliance: derive effective status from AuthContext (reactive) + direct report check (fallback)
-  // This ensures the sidebar ALWAYS reflects the true state even if AuthContext hasn't re-computed yet
+  // This ensures the sidebar ALWAYS reflects the true state with LOST taking strict precedence
   const effectiveStatus: 'LOST' | 'SAFE' | 'UNDECIDED' = (() => {
-    if (petSafetyStatus === 'LOST') return 'LOST';
-    if (petSafetyStatus === 'SAFE') return 'SAFE';
-    // Fallback: check the user's own report directly
-    if (existingReport?.status === 'LOST') return 'LOST';
-    if (existingReport?.status === 'SAFE' || existingReport?.status === 'REUNITED') return 'SAFE';
+    if (petSafetyStatus === 'LOST' || existingReport?.status === 'LOST') return 'LOST';
+    if (petSafetyStatus === 'SAFE' || existingReport?.status === 'SAFE' || (existingReport?.status as any) === 'REUNITED') return 'SAFE';
+    if (user && storageService.isPetSafe(user.id, user.email)) return 'SAFE';
     return 'UNDECIDED';
   })();
 
