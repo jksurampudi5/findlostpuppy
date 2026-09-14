@@ -330,6 +330,14 @@
   box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
 }
 
+/* Drawer lost item */
+.drawer-lost-item {
+  background: #FEF2F2 !important;
+  border-color: #FECACA !important;
+  color: #DC2626 !important;
+  font-weight: 700 !important;
+}
+
 /* Global missing alert banner - shown across all pages when pet is MISSING */
 .global-missing-banner {
   position: sticky;

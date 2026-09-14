@@ -30,6 +30,7 @@ export const SidebarNav: React.FC = () => {
     activeOnboardingTab,
     setActiveOnboardingTab,
     petSafetyStatus,
+    refreshProgress,
     logout,
   } = useAuth();
 
@@ -58,14 +59,43 @@ export const SidebarNav: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Force re-render when reports change in localStorage so effectiveStatus updates immediately
+  const [, setForceUpdate] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => {
+      setForceUpdate(n => n + 1);
+      refreshProgress(); // also sync AuthContext petSafetyStatus
+    };
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [refreshProgress]);
+
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
+  // ACID compliance: derive effective status from AuthContext (reactive) + direct report check (fallback)
+  // This ensures the sidebar ALWAYS reflects the true state even if AuthContext hasn't re-computed yet
+  const effectiveStatus: 'LOST' | 'SAFE' | 'UNDECIDED' = (() => {
+    if (petSafetyStatus === 'LOST') return 'LOST';
+    if (petSafetyStatus === 'SAFE') return 'SAFE';
+    // Fallback: check the user's own report directly
+    if (existingReport?.status === 'LOST') return 'LOST';
+    if (existingReport?.status === 'SAFE' || existingReport?.status === 'REUNITED') return 'SAFE';
+    return 'UNDECIDED';
+  })();
+
+  const isLost = effectiveStatus === 'LOST';
+  const isSafe = effectiveStatus === 'SAFE';
+
   const previewPhoto =
     existingPet?.primaryPhoto ||
     existingReport?.dog?.primaryPhoto ||
-    (petSafetyStatus === 'LOST' ? missingPuppyImg : safePuppyImg);
+    (isLost ? missingPuppyImg : safePuppyImg);
 
   const previewDogName = existingPet?.name || existingReport?.dog?.name || 'Your Pup';
   const previewBreed = existingPet?.breed || existingReport?.dog?.breed || 'Companion Pet';
@@ -139,20 +169,16 @@ export const SidebarNav: React.FC = () => {
                 <button
                   type="button"
                   className={`mobile-quick-safety-badge ${
-                    petSafetyStatus === 'LOST'
-                      ? 'badge-lost-pulse'
-                      : petSafetyStatus === 'SAFE'
-                      ? 'badge-safe-glow'
-                      : 'badge-neutral'
+                    isLost ? 'badge-lost-pulse' : isSafe ? 'badge-safe-glow' : 'badge-neutral'
                   }`}
                   onClick={() => handleTabClick('report', '/alert')}
                   title="View Pet Alert Status"
                 >
                   <span className="safety-badge-emoji">
-                    {petSafetyStatus === 'LOST' ? '🚨' : petSafetyStatus === 'SAFE' ? '🏡' : '🐾'}
+                    {isLost ? '🚨' : isSafe ? '🏡' : '🐾'}
                   </span>
                   <span className="safety-badge-text">
-                    {petSafetyStatus === 'LOST' ? 'Missing!' : petSafetyStatus === 'SAFE' ? 'Safe' : 'Status'}
+                    {isLost ? 'MISSING!' : isSafe ? 'Safe' : 'Status'}
                   </span>
                 </button>
 
@@ -214,7 +240,7 @@ export const SidebarNav: React.FC = () => {
         {/* Pet Quick Card in Drawer */}
         {isAuthenticated && (
           <div
-            className={`drawer-pet-card ${petSafetyStatus === 'LOST' ? 'pet-card-lost' : 'pet-card-safe'}`}
+            className={`drawer-pet-card ${isLost ? 'pet-card-lost' : 'pet-card-safe'}`}
             onClick={() => handleTabClick('report', '/alert')}
           >
             <img src={previewPhoto} alt={previewDogName} className="drawer-pet-img" />
@@ -222,7 +248,7 @@ export const SidebarNav: React.FC = () => {
               <div className="drawer-pet-name-row">
                 <h4 className="drawer-pet-name">{previewDogName}</h4>
                 <span className="drawer-status-pill">
-                  {petSafetyStatus === 'LOST' ? '🚨 MISSING' : '💚 SAFE'}
+                  {isLost ? '🚨 MISSING' : '💚 SAFE'}
                 </span>
               </div>
               <p className="drawer-pet-breed">{previewBreed}</p>
@@ -278,12 +304,12 @@ export const SidebarNav: React.FC = () => {
           {/* 5. Missing Alert */}
           <button
             type="button"
-            className={`drawer-nav-item emergency-item ${isAlertActive ? 'active' : ''}`}
+            className={`drawer-nav-item emergency-item ${isAlertActive ? 'active' : ''} ${isLost ? 'drawer-lost-item' : ''}`}
             onClick={() => handleTabClick('report', '/alert')}
           >
             <AlertTriangle size={18} />
-            <span>Missing Alert & Status</span>
-            {petSafetyStatus === 'LOST' && <span className="drawer-pulse-dot" />}
+            <span>{isLost ? '🔴 Pet is MISSING' : 'Missing Alert & Status'}</span>
+            {isLost && <span className="drawer-pulse-dot" />}
           </button>
 
           {/* 6. Admin Portal */}
@@ -497,17 +523,17 @@ export const SidebarNav: React.FC = () => {
               type="button"
               id="sidebar-missing-alert-tab"
               className={`sidebar-nav-tab emergency-nav-tab ${
-                petSafetyStatus === 'LOST' ? 'status-lost' : petSafetyStatus === 'SAFE' ? 'status-safe' : ''
+                isLost ? 'status-lost' : isSafe ? 'status-safe' : ''
               } ${isAlertActive ? 'active' : ''}`}
               onClick={() => handleTabClick('report', '/alert')}
-              title="Missing Dog Alert & Safety Status"
+              title={isLost ? 'PET IS MISSING — Manage Alert' : 'Missing Dog Alert & Safety Status'}
             >
               <div
                 className={`nav-tab-icon-circle circle-alert ${
-                  petSafetyStatus === 'LOST' ? 'pulse-beacon-red' : petSafetyStatus === 'SAFE' ? 'safe-glow-green' : ''
+                  isLost ? 'pulse-beacon-red' : isSafe ? 'safe-glow-green' : ''
                 }`}
               >
-                {petSafetyStatus === 'LOST' ? (
+                {isLost ? (
                   <svg viewBox="0 0 48 48" className="nav-animated-svg siren-beacon-svg" fill="none">
                     <circle cx="24" cy="24" r="16" fill="#FEE2E2" stroke="#EF4444" strokeWidth="2" />
                     <path d="M16 28 C16 18, 32 18, 32 28 Z" fill="#DC2626" className="anim-siren-dome" />
@@ -519,20 +545,26 @@ export const SidebarNav: React.FC = () => {
                 ) : (
                   <svg viewBox="0 0 48 48" className="nav-animated-svg home-safe-svg" fill="none">
                     <circle cx="24" cy="24" r="16" fill="#DCFCE7" stroke="#16A34A" strokeWidth="2" />
-                    {/* Cozy Home */}
                     <path d="M15 24 L24 16 L33 24 L33 32 L15 32 Z" fill="#16A34A" />
                     <rect x="21" y="25" width="6" height="7" fill="#DCFCE7" />
                   </svg>
                 )}
               </div>
               <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title">
-                  {petSafetyStatus === 'LOST' ? 'Missing Alert' : 'Pet Safety'}
+                <span className="nav-tab-title" style={isLost ? { color: '#DC2626', fontWeight: 800 } : {}}>
+                  {isLost ? '🔴 PET IS MISSING' : isSafe ? 'Pet Safety' : 'Pet Safety'}
                 </span>
-                <span className="nav-tab-desc">
-                  {petSafetyStatus === 'LOST' ? '🚨 Missing SOS Active' : petSafetyStatus === 'SAFE' ? '🏡 Safe at Home 💚' : 'Set Safety Status'}
+                <span className="nav-tab-desc" style={isLost ? { color: '#EF4444' } : {}}>
+                  {isLost
+                    ? `🚨 Searching for ${previewDogName}...`
+                    : isSafe
+                    ? '🏡 Safe at Home 💚'
+                    : 'Set Safety Status'}
                 </span>
               </div>
+              {isLost && showLabels && (
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', animation: 'beaconPulse 1.2s infinite', flexShrink: 0 }} />
+              )}
             </button>
 
             {/* 6. ADMIN (Rendered if user is Admin) */}
@@ -619,18 +651,18 @@ export const SidebarNav: React.FC = () => {
             <button
               type="button"
               className={`dock-center-sos-btn ${
-                petSafetyStatus === 'LOST' ? 'dock-sos-lost' : petSafetyStatus === 'SAFE' ? 'dock-sos-safe' : ''
+                isLost ? 'dock-sos-lost' : isSafe ? 'dock-sos-safe' : ''
               } ${isAlertActive ? 'active' : ''}`}
               onClick={() => handleTabClick('report', '/alert')}
               title="Pet Safety Alert"
             >
               <div className="center-sos-icon-glow">
                 <span className="sos-badge-icon">
-                  {petSafetyStatus === 'LOST' ? '🚨' : petSafetyStatus === 'SAFE' ? '🏡' : '🐾'}
+                  {isLost ? '🚨' : isSafe ? '🏡' : '🐾'}
                 </span>
               </div>
-              <span className="dock-label sos-label">
-                {petSafetyStatus === 'LOST' ? 'Missing!' : 'Alert'}
+              <span className="dock-label sos-label" style={isLost ? { color: '#DC2626', fontWeight: 800 } : {}}>
+                {isLost ? '⚠ Missing!' : 'Alert'}
               </span>
             </button>
 
