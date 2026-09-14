@@ -924,6 +924,15 @@
 
 /* Responsive Overrides */
 @media (max-width: 768px) {
+  .app-layout-sidebar {
+    flex-direction: column !important;
+  }
+
+  .app-main-viewport {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
   .constant-left-sidebar {
     display: none !important;
   }

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { storageBucketService } from './storageBucketService';
 import type { OwnerProfile, DogProfile, LostReport, Sighting, User } from '../types';
 
 export interface SupabaseSyncStatus {
@@ -82,9 +83,10 @@ export const supabaseSyncService = {
         .filter(Boolean)
         .join(', ') || profile.address || '';
 
+      const cleanUserId = userId.replace(/^owner-/, '');
       const { error } = await supabase.from('profiles').upsert(
         {
-          id: userId,
+          id: cleanUserId,
           email: profile.email.toLowerCase().trim(),
           name: profile.fullName,
           phone: profile.phone,
@@ -111,16 +113,31 @@ export const supabaseSyncService = {
   async syncPet(pet: DogProfile): Promise<boolean> {
     if (!supabase || !isSupabaseConfigured()) return false;
     try {
+      const cleanUserId = (pet.ownerId || '').replace(/^owner-/, '');
+      let finalPhotoUrl = pet.primaryPhoto || '';
+
+      if (finalPhotoUrl.startsWith('data:') && cleanUserId) {
+        try {
+          const publicUrl = await storageBucketService.uploadPetPhoto(cleanUserId, pet.id, finalPhotoUrl, 0);
+          if (publicUrl) {
+            finalPhotoUrl = publicUrl;
+            pet.primaryPhoto = publicUrl;
+          }
+        } catch (uploadErr) {
+          console.warn('[Supabase] syncPet photo upload notice:', uploadErr);
+        }
+      }
+
       const { error } = await supabase.from('pets').upsert(
         {
           id: pet.id,
-          user_id: pet.ownerId,
+          user_id: cleanUserId,
           name: pet.name,
           breed: pet.breed,
           gender: pet.gender,
           color: pet.color,
           markings: pet.distinguishingMarks || '',
-          photo_url: pet.primaryPhoto || '',
+          photo_url: finalPhotoUrl,
           is_lost: false,
           created_at: pet.createdAt || new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -145,13 +162,17 @@ export const supabaseSyncService = {
   async syncLostReport(report: LostReport): Promise<boolean> {
     if (!supabase || !isSupabaseConfigured()) return false;
     try {
+      const cleanUserId = (report.ownerId || '').replace(/^owner-/, '');
+      let finalPhotoUrl = report.dog?.primaryPhoto || '';
+
+      // Step 1: Ensure missing_reports row exists first (satisfies Storage RLS EXISTS policy)
       const { error } = await supabase.from('missing_reports').upsert(
         {
           id: report.id,
           pet_id: report.dogId || report.dog?.id || report.id,
-          user_id: report.ownerId,
+          user_id: cleanUserId,
           pet_name: report.dog?.name || 'Lost Dog',
-          pet_photo: report.dog?.primaryPhoto || '',
+          pet_photo: finalPhotoUrl,
           landmark: report.lastKnownLocation || '',
           district: report.ownerApproximateLocation || '',
           state: 'AP',
@@ -167,6 +188,21 @@ export const supabaseSyncService = {
         lastSyncError = error.message;
         return false;
       }
+
+      // Step 2: If photo is Base64 data URL, upload to missing-reports/{report_id}/photo_{timestamp}_{random}.jpg
+      if (finalPhotoUrl.startsWith('data:')) {
+        try {
+          const publicUrl = await storageBucketService.uploadMissingReportPhoto(report.id, finalPhotoUrl);
+          if (publicUrl) {
+            finalPhotoUrl = publicUrl;
+            if (report.dog) report.dog.primaryPhoto = publicUrl;
+            await supabase.from('missing_reports').update({ pet_photo: publicUrl }).eq('id', report.id);
+          }
+        } catch (uploadErr) {
+          console.warn('[Supabase] syncLostReport photo upload notice:', uploadErr);
+        }
+      }
+
       return true;
     } catch (err) {
       console.warn('[Supabase] syncLostReport exception:', err);
@@ -180,6 +216,20 @@ export const supabaseSyncService = {
   async syncSighting(sighting: Sighting): Promise<boolean> {
     if (!supabase || !isSupabaseConfigured()) return false;
     try {
+      let finalPhotoUrl = sighting.photo || '';
+
+      if (finalPhotoUrl.startsWith('data:') && sighting.reportId) {
+        try {
+          const publicUrl = await storageBucketService.uploadSightingPhoto(sighting.reportId, finalPhotoUrl);
+          if (publicUrl) {
+            finalPhotoUrl = publicUrl;
+            sighting.photo = publicUrl;
+          }
+        } catch (uploadErr) {
+          console.warn('[Supabase] syncSighting photo upload notice:', uploadErr);
+        }
+      }
+
       const { error } = await supabase.from('sightings').upsert(
         {
           id: sighting.id,
@@ -189,7 +239,7 @@ export const supabaseSyncService = {
           reporter_phone: sighting.reporterPhone || '',
           landmark: sighting.location || '',
           notes: sighting.description || '',
-          photo_url: sighting.photo || '',
+          photo_url: finalPhotoUrl,
           created_at: sighting.createdAt || new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -217,11 +267,21 @@ export const supabaseSyncService = {
   } | null> {
     if (!supabase || !isSupabaseConfigured()) return null;
     try {
-      const [profilesRes, petsRes, reportsRes, sightingsRes] = await Promise.all([
+      // Step 12 Privacy Hardening: Read from controlled public views missing_reports_public and sightings_public
+      // Fall back gracefully to base tables if views are not yet created or being initialized in migration
+      let reportsRes = await supabase.from('missing_reports_public').select('*');
+      if (reportsRes.error) {
+        reportsRes = await supabase.from('missing_reports').select('*');
+      }
+
+      let sightingsRes = await supabase.from('sightings_public').select('*');
+      if (sightingsRes.error) {
+        sightingsRes = await supabase.from('sightings').select('*');
+      }
+
+      const [profilesRes, petsRes] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('pets').select('*'),
-        supabase.from('missing_reports').select('*'),
-        supabase.from('sightings').select('*'),
       ]);
 
       if (profilesRes.error && !profilesRes.error.message.includes('does not exist')) {

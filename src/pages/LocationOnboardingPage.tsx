@@ -377,7 +377,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
     const profile: OwnerProfile = {
       ...(existingProfile || {}),
-      id: existingProfile?.id || `owner-${user.id}`,
+      id: user.id,
       userId: user.id,
       fullName: existingProfile?.fullName || user.name || 'Pet Parent',
       phone: existingProfile?.phone || user.phone || '',

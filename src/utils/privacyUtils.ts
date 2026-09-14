@@ -25,7 +25,13 @@ export function maskPhoneNumber(phone?: string | null): string {
     return '••••• •••••';
   }
 
-  const rawDigits = phone.replace(/\D/g, '');
+  const trimmed = phone.trim();
+  // Idempotency: Return immediately if string already contains mask characters
+  if (trimmed.includes('•') || trimmed.includes('*')) {
+    return trimmed;
+  }
+
+  const rawDigits = trimmed.replace(/\D/g, '');
   if (rawDigits.length < 4) {
     return '••••• •••••';
   }
@@ -60,6 +66,12 @@ export function maskEmail(email?: string | null): string {
   }
 
   const trimmed = email.trim().toLowerCase();
+
+  // Idempotency: Return immediately if string already contains mask characters
+  if (trimmed.includes('•') || trimmed.includes('*')) {
+    return trimmed;
+  }
+
   const [localPart, domainPart] = trimmed.split('@');
 
   if (!localPart || !domainPart) {

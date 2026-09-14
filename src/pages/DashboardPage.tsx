@@ -542,22 +542,21 @@ export const DashboardPage: React.FC = () => {
                                   <span>📞 {ownerPhone}</span>
                                 </a>
                               ) : (
-                                /* Guest sees masked, but gets a clickable "Notify Owner" button */
+                                /* Guest sees protected badge and a safe "Report Sighting" action */
                                 <>
-                                  <div style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', color: '#334155' }} title="Phone is masked for privacy">
+                                  <div style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', color: '#334155' }} title="Phone is protected for owner privacy">
                                     <Phone size={12} className="text-emerald-600" />
                                     <span>{maskPhoneNumber(ownerPhone)}</span>
                                   </div>
-                                  <a
-                                    href={`tel:+91${ownerPhone}`}
+                                  <Link
+                                    to={`/report-sighting/${report.id}`}
                                     className="btn-emergency-contact"
                                     style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#22C55E', border: 'none', borderRadius: '7px', color: '#FFFFFF', fontWeight: 700, textDecoration: 'none' }}
-                                    title="Tap to call owner now & report sighting"
-                                    onClick={() => showToast('📞 Calling owner to report sighting...', 'success')}
+                                    title="Report a sighting to alert the owner"
                                   >
-                                    <Phone size={13} />
-                                    <span>📞 Call Owner</span>
-                                  </a>
+                                    <Eye size={13} />
+                                    <span>📸 Report Sighting</span>
+                                  </Link>
                                 </>
                               )
                             ) : (

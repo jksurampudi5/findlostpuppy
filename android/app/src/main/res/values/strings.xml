@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FindLostPuppy</string>
+    <string name="title_activity_main">FindLostPuppy</string>
+    <string name="package_name">com.findlostpuppy.app</string>
+    <string name="custom_url_scheme">com.findlostpuppy.app</string>
+</resources>

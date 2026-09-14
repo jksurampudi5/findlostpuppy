@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
-import { Camera, X, Star, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Camera, X, Star, AlertCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { compressImage } from '../utils/imageCompressor';
+import { storageBucketService } from '../services/storageBucketService';
 
 interface ImageUploaderProps {
   primaryPhoto: string;
   additionalPhotos: string[];
   onChange: (primary: string, additional: string[]) => void;
   dogName?: string;
+  userId?: string;
+  petId?: string;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
@@ -14,15 +17,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   additionalPhotos,
   onChange,
   dogName = 'your pup',
+  userId,
+  petId,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadProgressText, setUploadProgressText] = useState<string>('');
 
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setErrorMsg('');
     setUploading(true);
+    setUploadProgressText('Validating and compressing photos...');
 
     const validFiles: File[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -43,26 +50,60 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return;
     }
 
-    // Compress images down to max 800x800 for crisp, ultra-lightweight persistence
-    const readPromises = validFiles.map((file) => compressImage(file, 800, 800, 0.82));
+    try {
+      // 1. Compress images down to max 800x800 for crisp, ultra-lightweight persistence
+      const readPromises = validFiles.map((file) => compressImage(file, 800, 800, 0.82));
+      const compressedImages = await Promise.all(readPromises);
+      const nonNullImages = compressedImages.filter(Boolean);
 
-    Promise.all(readPromises)
-      .then((newImages) => {
+      if (nonNullImages.length === 0) {
         setUploading(false);
-        const nonNullImages = newImages.filter(Boolean);
-        if (!primaryPhoto && nonNullImages.length > 0) {
-          const first = nonNullImages[0];
-          const rest = nonNullImages.slice(1);
-          onChange(first, [...additionalPhotos, ...rest]);
-        } else {
-          onChange(primaryPhoto, [...additionalPhotos, ...nonNullImages]);
-        }
-      })
-      .catch((err) => {
-        setUploading(false);
-        setErrorMsg('Error processing image. Please try another file.');
-        console.error(err);
-      });
+        return;
+      }
+
+      // 2. Upload to Supabase Storage if user & pet context is provided
+      let finalUrls: string[] = [];
+
+      if (userId && petId) {
+        setUploadProgressText('Uploading to secure cloud storage...');
+        const startingIndex = (primaryPhoto ? 1 : 0) + additionalPhotos.length;
+
+        const uploadPromises = nonNullImages.map(async (compressed, idx) => {
+          try {
+            const publicUrl = await storageBucketService.uploadPetPhoto(
+              userId,
+              petId,
+              compressed,
+              startingIndex + idx
+            );
+            return publicUrl || compressed; // Fallback to compressed Base64 if offline/error
+          } catch (uploadErr) {
+            console.warn('[ImageUploader] Upload fallback to local media:', uploadErr);
+            return compressed;
+          }
+        });
+
+        finalUrls = await Promise.all(uploadPromises);
+      } else {
+        finalUrls = nonNullImages;
+      }
+
+      setUploading(false);
+      setUploadProgressText('');
+
+      if (!primaryPhoto && finalUrls.length > 0) {
+        const first = finalUrls[0];
+        const rest = finalUrls.slice(1);
+        onChange(first, [...additionalPhotos, ...rest]);
+      } else {
+        onChange(primaryPhoto, [...additionalPhotos, ...finalUrls]);
+      }
+    } catch (err) {
+      setUploading(false);
+      setUploadProgressText('');
+      setErrorMsg('Error processing image. Please try another file.');
+      console.error(err);
+    }
   };
 
   const handleMakePrimary = (photoUrl: string) => {
@@ -112,12 +153,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       {/* Drop / Click Trigger Area */}
       <div
-        className="upload-dropzone"
-        onClick={() => fileInputRef.current?.click()}
+        className={`upload-dropzone ${uploading ? 'uploading-active' : ''}`}
+        onClick={() => !uploading && fileInputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          handleFiles(e.dataTransfer.files);
+          if (!uploading) {
+            handleFiles(e.dataTransfer.files);
+          }
         }}
       >
         <input
@@ -126,14 +169,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           accept="image/png, image/jpeg, image/webp"
           multiple
           className="sr-only"
+          disabled={uploading}
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="dropzone-content">
           <div className="dropzone-icon-circle">
-            <Camera size={26} />
+            {uploading ? (
+              <Loader2 size={26} className="animate-spin text-terracotta" />
+            ) : (
+              <Camera size={26} />
+            )}
           </div>
           <p className="dropzone-title">
-            {uploading ? 'Processing photos...' : 'Click to browse or drag photos here'}
+            {uploading
+              ? uploadProgressText || 'Uploading to cloud...'
+              : 'Click to browse or drag photos here'}
           </p>
           <span className="dropzone-sub">
             PNG, JPG, or WEBP (Max 5MB each)
