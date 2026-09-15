@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FindLostPuppy Privacy Policy">
+  <title>Privacy Policy — FindLostPuppy</title>
+  <style>
+    :root { color-scheme: light; --navy:#0B132B; --terracotta:#FF7F50; --ink:#172033; --muted:#5f6b7a; --bg:#f7f8fb; --card:#fff; --line:#e5e8ee; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); line-height:1.7; }
+    header { background:var(--navy); color:#fff; padding:48px 20px; }
+    .wrap { max-width:900px; margin:0 auto; }
+    header h1 { margin:0 0 8px; font-size:clamp(30px,5vw,46px); line-height:1.15; }
+    header p { margin:0; color:#dce3f2; }
+    main { padding:28px 20px 60px; }
+    article { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:32px; box-shadow:0 8px 30px rgba(11,19,43,.06); }
+    h2 { margin-top:32px; color:var(--navy); font-size:22px; }
+    h2:first-child { margin-top:0; }
+    h3 { color:var(--navy); font-size:18px; }
+    a { color:#c95732; }
+    .notice { border-left:4px solid var(--terracotta); background:#fff7f3; padding:14px 16px; border-radius:8px; }
+    footer { text-align:center; color:var(--muted); padding:0 20px 40px; font-size:14px; }
+    @media (max-width:600px) { article { padding:22px; border-radius:14px; } header { padding:36px 20px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>FindLostPuppy</h1>
+      <p>Privacy Policy · Version 1.0 · Effective date: September 2026</p>
+    </div>
+  </header>
+  <main>
+    <article class="wrap">
+      <p class="notice"><strong>In simple terms:</strong> FindLostPuppy is a community platform for sharing information about lost and found dogs. We collect and process information needed to provide authentication, dog listings, missing-dog reports, sightings, location-based discovery, moderation and account management.</p>
+
+      <h2>1. Information We Collect</h2>
+      <ul>
+        <li><strong>Account information:</strong> Email address used for authentication and optional pet-parent name.</li>
+        <li><strong>Pet-parent profile:</strong> Full name, phone number and administrative location information such as State, District, Mandal/Taluk and Locality/Village.</li>
+        <li><strong>Dog information:</strong> Name, breed, gender, age, size, color, distinguishing marks, collar information, microchip status, temperament, medical notes and photographs, as provided by you.</li>
+        <li><strong>Location information:</strong> Administrative location selections and, when you give permission, device GPS coordinates used to determine the relevant administrative area. Exact coordinates are not intended to be displayed publicly.</li>
+        <li><strong>Reports and sightings:</strong> Dates, times, descriptions, approximate areas, notes, reporter information and photographs submitted with missing-dog or sighting reports.</li>
+        <li><strong>Safety and moderation information:</strong> User reports, listing reports, blocked-account information and consent records.</li>
+      </ul>
+
+      <h2>2. How We Use Information</h2>
+      <ul>
+        <li>To authenticate users and maintain accounts.</li>
+        <li>To create and display community missing-dog alerts, dog listings and sightings.</li>
+        <li>To help users discover reports and sightings relevant to an area.</li>
+        <li>To convert permitted GPS coordinates into administrative areas for location-based functionality.</li>
+        <li>To protect private contact information through masking and controlled display.</li>
+        <li>To enforce community guidelines, prevent abuse and moderate reported content.</li>
+        <li>To maintain, secure and troubleshoot the service.</li>
+      </ul>
+
+      <h2>3. Data Storage and Architecture</h2>
+      <p>FindLostPuppy uses both local device/browser storage and cloud services. Certain application state, sessions, cached information and locally managed records may be stored in browser/device localStorage. Core account, profile, dog, missing-report and sighting information may also be synchronized to cloud infrastructure operated through Supabase.</p>
+      <p>Uploaded images are stored in the Supabase Storage bucket used by FindLostPuppy. The application also uses a community synchronization relay for public community listing data.</p>
+      <p>FindLostPuppy is designed to display broad administrative areas such as Locality/Village, Mandal/Taluk, District and State rather than exposing a user's precise home address or exact GPS coordinates in public community views.</p>
+
+      <h2>4. Information Sharing and Disclosure</h2>
+      <p><strong>Public community information:</strong> Missing-dog photos, dog names, breed information, approximate area information and sighting notes may be visible to visitors or other users so they can help locate a dog.</p>
+      <p><strong>Protected contact information:</strong> Email addresses, phone numbers and owner names are masked in public views where the application provides privacy masking. Certain protected contact actions may reveal information only where the application permits them.</p>
+      <p><strong>Service providers:</strong> FindLostPuppy uses third-party infrastructure and APIs to provide authentication, cloud database and storage, reverse-geocoding, PIN-code lookup, community synchronization and web hosting. These providers may process information necessary to provide their services.</p>
+      <p><strong>No sale of personal information:</strong> We do not sell, rent or trade your personal information to advertisers.</p>
+      <p>We may disclose information when required by applicable law, legal process, or when reasonably necessary to protect users, the service, or others from fraud, abuse or security threats.</p>
+
+      <h2>5. Third-Party Services</h2>
+      <p>FindLostPuppy currently uses the following external services:</p>
+      <ul>
+        <li><strong>Supabase:</strong> authentication, cloud database synchronization and image storage.</li>
+        <li><strong>OpenStreetMap Nominatim:</strong> reverse-geocoding when a user chooses device-based area detection. GPS coordinates may be sent to the service for this lookup.</li>
+        <li><strong>Postal Pincode API:</strong> PIN-code lookup used to populate Indian administrative/locality information. A user-entered six-digit PIN code may be sent for the lookup.</li>
+        <li><strong>KVDB.io:</strong> community synchronization relay used for public community listing data.</li>
+        <li><strong>GitHub Pages:</strong> web hosting for the FindLostPuppy web application and public documentation.</li>
+      </ul>
+      <p>FindLostPuppy does not currently use third-party advertising trackers, tracking pixels, Google Analytics or Meta Pixel.</p>
+
+      <h2>6. Location Privacy</h2>
+      <p>Device location is optional and requires user permission. When enabled, GPS coordinates may be used to determine an administrative area through reverse-geocoding. Users may also provide location information manually where the application offers that option.</p>
+      <p>Public community views are designed to show approximate administrative location rather than exact GPS coordinates or a private street address. Users should avoid voluntarily submitting sensitive location details that they do not want to share publicly.</p>
+
+      <h2>7. Photos and User Content</h2>
+      <p>You are responsible for content you submit. Upload only photographs and information that you have permission to share. Do not unnecessarily expose another person's private information or submit unlawful, abusive, fraudulent or misleading content.</p>
+
+      <h2>8. Account Deletion, Retention and Data Management</h2>
+      <p>FindLostPuppy provides an account deletion function under <strong>Settings → Delete Account</strong>. Account, profile, pet and missing-report records maintained by the application are removed from the application's local data and associated cloud database records as part of account deletion.</p>
+      <p>Some sighting records may require administrative handling. Certain moderation/security information may be retained where reasonably necessary to prevent abuse, protect the service, resolve disputes or comply with legal obligations.</p>
+      <p><strong>Important:</strong> The current application does not automatically remove every previously uploaded image object from the Supabase Storage bucket when an account is deleted. Therefore, cloud-stored media may remain after database records are removed until separately deleted or otherwise managed. We do not represent account deletion as an immediate guarantee that every copy of every uploaded media object has been erased.</p>
+
+      <h2>9. Your Choices and Rights</h2>
+      <ul>
+        <li>You may choose whether to provide optional information.</li>
+        <li>You may allow or deny device location permission through your device/browser settings.</li>
+        <li>You may update profile, location and dog information through the application where those editing functions are available.</li>
+        <li>You may use the account deletion function available in Settings.</li>
+        <li>You may export application data where the application's data-export function is available.</li>
+      </ul>
+      <p>Requests may be subject to applicable legal, security and operational requirements.</p>
+
+      <h2>10. Cookies and Tracking</h2>
+      <p>FindLostPuppy uses standard browser/device storage for functional application state, session persistence and locally managed data. The application does not currently employ third-party advertising trackers or analytics pixels.</p>
+
+      <h2>11. Security</h2>
+      <p>We use reasonable technical and organizational measures intended to protect information, including authenticated access, database access controls, privacy masking and protected storage mechanisms. No internet transmission or electronic storage system can be guaranteed to be completely secure.</p>
+
+      <h2>12. Children's Privacy</h2>
+      <p>FindLostPuppy is not directed to children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided personal information to the service, please use the official FindLostPuppy project contact channel so the matter can be reviewed.</p>
+
+      <h2>13. Important Service Scope</h2>
+      <p>FindLostPuppy is a community information platform. It does not take custody of animals, determine legal ownership, resolve ownership disputes, or guarantee that a lost dog will be located or reunited. Users remain responsible for their own decisions, safety and interactions with other users.</p>
+
+      <h2>14. Changes to This Privacy Policy</h2>
+      <p>We may revise this Privacy Policy when the application, privacy practices or legal requirements change. Material updates will be published with an updated version number and effective date.</p>
+
+      <h2>15. Contact</h2>
+      <p>No verified privacy-support email address is currently published for FindLostPuppy. Until a dedicated privacy contact address is published, privacy-related requests may be submitted through the official FindLostPuppy project repository:</p>
+      <p><a href="https://github.com/jksurampudi5/findlostpuppy" rel="noopener noreferrer">https://github.com/jksurampudi5/findlostpuppy</a></p>
+    </article>
+  </main>
+  <footer>© 2026 FindLostPuppy · Privacy Policy · Version 1.0</footer>
+</body>
+</html>
