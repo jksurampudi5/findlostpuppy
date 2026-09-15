@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Heart, PawPrint, Palette, ArrowRight, X } from 'lucide-react';
+import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import './LaunchTributeOverlay.css';
 
 interface LaunchTributeOverlayProps {
@@ -10,8 +10,8 @@ interface LaunchTributeOverlayProps {
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
-  const [countdown, setCountdown] = useState(20);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
+  const [showProceedBtn, setShowProceedBtn] = useState(false);
 
   const paragraph1Words = [
     "A", "very", "special", "note", "of", "gratitude", "to", "Priyanka", "Sharma", "—",
@@ -31,7 +31,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     if (forceOpen) {
       setVisible(true);
       setPhase('tribute');
-      setCountdown(20);
+      setShowProceedBtn(false);
       setCurrentWordIndex(0);
       return;
     }
@@ -53,7 +53,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     const handleReopen = () => {
       setVisible(true);
       setPhase('tribute');
-      setCountdown(20);
+      setShowProceedBtn(false);
       setCurrentWordIndex(0);
     };
 
@@ -72,35 +72,35 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     }
   }, [visible]);
 
-  // Word-by-word reading progression (syncs across the 18-second reading window)
+  // Word-by-word reading progression at a relaxed, comfortable cadence (~380ms per word)
   useEffect(() => {
     if (visible && phase === 'tribute') {
       setCurrentWordIndex(0);
-      // Read 61 words across ~17 seconds (~275ms per word)
+      setShowProceedBtn(false);
+
       const wordInterval = setInterval(() => {
         setCurrentWordIndex((prev) => {
-          if (prev < totalWords) return prev + 1;
+          if (prev < totalWords) {
+            return prev + 1;
+          }
           return prev;
         });
-      }, 275);
+      }, 380);
 
       return () => clearInterval(wordInterval);
     }
   }, [visible, phase, totalWords]);
 
-  // Auto-countdown timer during tribute phase (20 seconds for comfortable reading)
+  // Once reading finishes ("finds its way home."), pause for 3 seconds then gracefully reveal the proceed button
   useEffect(() => {
-    if (visible && phase === 'tribute') {
-      if (countdown <= 0) {
-        handleDismiss();
-        return;
-      }
-      const timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(timer);
+    if (visible && phase === 'tribute' && currentWordIndex >= totalWords) {
+      const pauseTimer = setTimeout(() => {
+        setShowProceedBtn(true);
+      }, 3000);
+
+      return () => clearTimeout(pauseTimer);
     }
-  }, [visible, phase, countdown]);
+  }, [visible, phase, currentWordIndex, totalWords]);
 
   const handleDismiss = () => {
     sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
@@ -141,60 +141,46 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       ) : (
         <div className="launch-tribute-stage animate-slide-up">
           <div className="launch-tribute-card">
-            {/* Top close button */}
+            {/* Top Close Button */}
             <button
               type="button"
               className="tribute-close-btn"
               onClick={handleDismiss}
-              aria-label="Enter app directly"
+              aria-label="Close and continue to home"
             >
               <X size={18} />
             </button>
 
-            {/* Glowing artistic badge */}
-            <div className="tribute-header-badge">
-              <Palette size={15} className="badge-icon-palette" />
-              <span>A SPECIAL NOTE OF GRATITUDE</span>
-              <Sparkles size={15} className="badge-icon-sparkle" />
+            {/* Header: Inaugural Launch & Brand */}
+            <div className="tribute-editorial-header">
+              <div className="tribute-header-eyebrow">
+                <Sparkles size={13} className="eyebrow-sparkle" />
+                <span>INAUGURAL LAUNCH • 2026</span>
+              </div>
+              <h2 className="tribute-launch-title">
+                Welcome to <span className="highlight-brand">findlostpuppy</span>
+              </h2>
             </div>
 
-            {/* Launch greeting */}
-            <h2 className="tribute-launch-title">
-              Welcome to the initial launch of <span className="highlight-brand">findlostpuppy</span>! 🐶✨
-            </h2>
-
-            {/* Dedicated Hero Card */}
-            <div className="tribute-honoree-card">
-              <div className="tribute-avatar-ring">
-                <div className="tribute-avatar-inner">
-                  <Palette size={26} className="avatar-art-icon" />
-                  <Heart size={16} className="avatar-heart-icon" />
-                </div>
+            {/* Prestigious Honoree Hero Presentation */}
+            <div className="tribute-honoree-banner">
+              <div className="honoree-eyebrow-chip">
+                <Sparkles size={12} className="chip-sparkle" />
+                <span>A SPECIAL NOTE OF GRATITUDE</span>
+                <Sparkles size={12} className="chip-sparkle" />
               </div>
-              <div className="tribute-honoree-details">
-                <span className="honoree-label">HONORING & DEDICATED TO</span>
-                <h3 className="honoree-name">Priyanka Sharma</h3>
-                <p className="honoree-roles">
-                  <span>🎨 Inspiring Art Teacher & Pet Lover 🐾</span>
-                </p>
-              </div>
-              <div className="tribute-art-sticker">
-                <span className="art-palette-float">🎨</span>
-                <span className="art-paw-float">🐶</span>
-              </div>
+              <h3 className="honoree-signature-name">Priyanka Sharma</h3>
+              <p className="honoree-signature-subtitle">
+                Inspiring Art Teacher & Devoted Pet Lover
+              </p>
             </div>
 
-            {/* Word-by-Word Illuminated Reading Container (Zero-Reflow Guaranteed) */}
-            <div className="tribute-quote-container reading-container">
-              <div className="artistic-ribbon-bar">
-                <span className="ribbon-art-icon">🎨</span>
-                <span className="ribbon-title-text">A Tribute to Priyanka Sharma</span>
-                <span className="ribbon-sparkle-icon">🐾✨</span>
-              </div>
+            {/* Editorial Quote Passage (Liquid Light Typography) */}
+            <div className="tribute-passage-section">
+              <div className="passage-quote-mark top-mark">“</div>
 
               {/* Paragraph 1 */}
-              <p className="tribute-quote-paragraph illuminated-text">
-                <span className="quote-mark">“</span>
+              <p className="tribute-paragraph illuminated-text">
                 {paragraph1Words.map((word, idx) => {
                   const globalIdx = idx;
                   let wordClass = 'word-upcoming';
@@ -208,11 +194,6 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                     <React.Fragment key={idx}>
                       <span
                         className={`reading-word ${wordClass} ${isSpecialName ? 'word-name' : ''}`}
-                        style={{
-                          '--art-color': isSpecialName
-                            ? '#FB7185'
-                            : ['#FB923C', '#F472B6', '#38BDF8', '#4ADE80', '#A78BFA', '#FBBF24'][globalIdx % 6]
-                        } as React.CSSProperties}
                         onClick={() => setCurrentWordIndex(globalIdx)}
                       >
                         {word}
@@ -223,7 +204,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
               </p>
 
               {/* Paragraph 2 */}
-              <p className="tribute-quote-paragraph illuminated-text">
+              <p className="tribute-paragraph illuminated-text">
                 {paragraph2Words.map((word, idx) => {
                   const globalIdx = paragraph1Words.length + idx;
                   let wordClass = 'word-upcoming';
@@ -236,9 +217,6 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                     <React.Fragment key={idx}>
                       <span
                         className={`reading-word ${wordClass}`}
-                        style={{
-                          '--art-color': ['#FB923C', '#F472B6', '#38BDF8', '#4ADE80', '#A78BFA', '#FBBF24'][globalIdx % 6]
-                        } as React.CSSProperties}
                         onClick={() => setCurrentWordIndex(globalIdx)}
                       >
                         {word}
@@ -246,26 +224,35 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                     </React.Fragment>
                   );
                 })}
-                <span className="quote-mark">”</span>
               </p>
+
+              <div className="passage-quote-mark bottom-mark">”</div>
             </div>
 
-            {/* Footer / CTA Actions */}
+            {/* Actions Bar - Gracefully reveals Continue button after tribute finishes */}
             <div className="tribute-actions-row">
-              <button
-                type="button"
-                className="tribute-enter-btn"
-                onClick={handleDismiss}
-              >
-                <span>Continue to Home Page</span>
-                <PawPrint size={18} className="btn-paw-icon" />
-                <ArrowRight size={18} className="btn-arrow-icon" />
-              </button>
-
-              {!forceOpen && (
-                <span className="tribute-auto-timer">
-                  Continuing to home in {countdown}s...
-                </span>
+              {showProceedBtn ? (
+                <button
+                  type="button"
+                  className="tribute-enter-btn animate-proceed-reveal"
+                  onClick={handleDismiss}
+                  autoFocus
+                >
+                  <span>Continue to Home Page</span>
+                  <PawPrint size={18} className="btn-paw-icon" />
+                  <ArrowRight size={18} className="btn-arrow-icon" />
+                </button>
+              ) : (
+                <div 
+                  className="tribute-actions-holding" 
+                  onClick={() => setShowProceedBtn(true)}
+                  title="Click to proceed immediately"
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="holding-pulse-dot" />
+                  <span className="holding-text">Reading tribute note...</span>
+                </div>
               )}
             </div>
           </div>
