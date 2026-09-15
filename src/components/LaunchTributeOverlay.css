@@ -1,0 +1,588 @@
+/* ==========================================================================
+   LAUNCH TRIBUTE OVERLAY STYLING (App Logo Stage + Dedication Card)
+   ========================================================================== */
+
+.launch-overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  overflow-y: auto;
+  background: radial-gradient(circle at center, #1E1714 0%, #120E0D 100%);
+  transition: background 0.6s ease;
+}
+
+.launch-overlay-backdrop.tribute {
+  background: radial-gradient(circle at 50% 30%, #2A1D17 0%, #140F0D 100%);
+}
+
+/* Ambient glow orbs in background */
+.launch-ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  opacity: 0.35;
+  transition: all 1s ease;
+}
+
+.glow-1 {
+  width: 320px;
+  height: 320px;
+  background: #FF6B4A;
+  top: 15%;
+  left: 20%;
+  animation: floatOrb 8s infinite alternate ease-in-out;
+}
+
+.glow-2 {
+  width: 280px;
+  height: 280px;
+  background: #F59E0B;
+  bottom: 20%;
+  right: 20%;
+  animation: floatOrb 10s infinite alternate-reverse ease-in-out;
+}
+
+.glow-3 {
+  width: 220px;
+  height: 220px;
+  background: #EC4899;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.2;
+}
+
+@keyframes floatOrb {
+  0% { transform: translateY(0px) scale(1); }
+  100% { transform: translateY(-30px) scale(1.15); }
+}
+
+/* --------------------------------------------------------------------------
+   STAGE 1: ANIMATED APP LOGO STAGE
+   -------------------------------------------------------------------------- */
+.launch-logo-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  animation: logoFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes logoFadeIn {
+  0% { opacity: 0; transform: scale(0.88); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.launch-logo-container {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.75rem;
+}
+
+.launch-logo-badge {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #FF7B54 0%, #EA580C 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 36px rgba(234, 88, 12, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  z-index: 3;
+  animation: breatheBadge 2.8s ease-in-out infinite;
+}
+
+@keyframes breatheBadge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); box-shadow: 0 20px 44px rgba(234, 88, 12, 0.55); }
+}
+
+.launch-paw-emoji {
+  font-size: 3.2rem;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
+  user-select: none;
+}
+
+.launch-radar-pulse {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 123, 84, 0.5);
+  pointer-events: none;
+}
+
+.pulse-1 {
+  width: 104px;
+  height: 104px;
+  animation: pulseRadar 2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite;
+}
+
+.pulse-2 {
+  width: 104px;
+  height: 104px;
+  animation: pulseRadar 2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite 0.7s;
+}
+
+@keyframes pulseRadar {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.launch-brand-title {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-find {
+  color: #FFFFFF;
+}
+
+.brand-lost {
+  color: #FF7B54;
+  margin: 0 0.05em;
+}
+
+.brand-puppy {
+  color: #FDBA74;
+}
+
+.launch-brand-tagline {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin: 0 0 2rem;
+  letter-spacing: -0.01em;
+}
+
+.launch-progress-bar-wrap {
+  width: 160px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+
+.launch-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #FF7B54, #FDBA74);
+  border-radius: 99px;
+  animation: progressFill 2.7s ease-in-out forwards;
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+/* --------------------------------------------------------------------------
+   STAGE 2: DEDICATION & TRIBUTE CARD STAGE
+   -------------------------------------------------------------------------- */
+.launch-tribute-stage {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 580px;
+  animation: cardSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cardSlideUp {
+  0% { opacity: 0; transform: translateY(32px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.launch-tribute-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 32px;
+  border: 1px solid rgba(255, 214, 194, 0.75);
+  padding: 2.25rem 2rem 2rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+  display: flex;
+  flex-direction: column;
+}
+
+.tribute-close-btn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tribute-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0F172A;
+  transform: scale(1.08);
+}
+
+.tribute-header-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(236, 72, 153, 0.12));
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 99px;
+  color: #C2410C;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: 1rem;
+}
+
+.badge-icon-palette {
+  color: #EA580C;
+}
+
+.badge-icon-sparkle {
+  color: #DB2777;
+}
+
+.tribute-launch-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1E293B;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.35rem;
+}
+
+.highlight-brand {
+  color: #EA580C;
+}
+
+/* Honoree Hero Profile */
+.tribute-honoree-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, #FFF7ED 0%, #FDF2F8 100%);
+  border: 1px solid rgba(254, 215, 170, 0.75);
+  border-radius: 20px;
+  padding: 1.15rem 1.25rem;
+  margin-bottom: 1.35rem;
+}
+
+.tribute-avatar-ring {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #F97316 0%, #EC4899 100%);
+  padding: 2px;
+  box-shadow: 0 8px 18px rgba(236, 72, 153, 0.25);
+}
+
+.tribute-avatar-inner {
+  width: 100%;
+  height: 100%;
+  background: #FFFFFF;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.avatar-art-icon {
+  color: #EA580C;
+}
+
+.avatar-heart-icon {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  color: #EC4899;
+  fill: #EC4899;
+  background: #FFFFFF;
+  border-radius: 50%;
+  padding: 1px;
+}
+
+.tribute-honoree-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.honoree-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #9A3412;
+  text-transform: uppercase;
+}
+
+.honoree-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1E293B;
+  letter-spacing: -0.02em;
+  margin: 0.1rem 0;
+}
+
+.honoree-roles {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748B;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bullet-sep {
+  color: #CBD5E1;
+  font-size: 0.6rem;
+}
+
+/* Quote Text & Word-by-Word Reading Container */
+.tribute-quote-container {
+  background: #FAF7F2;
+  border-left: 4px solid #EA580C;
+  border-radius: 0 20px 20px 0;
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.06);
+}
+
+.artistic-ribbon-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.55rem 1rem;
+  background: linear-gradient(135deg, rgba(254, 215, 170, 0.35) 0%, rgba(252, 231, 243, 0.35) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 99px;
+}
+
+.ribbon-art-icon {
+  font-size: 1.15rem;
+  animation: artWiggle 2.5s infinite ease-in-out;
+}
+
+@keyframes artWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.ribbon-title-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #EA580C 0%, #DB2777 50%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+}
+
+.ribbon-sparkle-icon {
+  font-size: 1rem;
+}
+
+.illuminated-text {
+  font-size: 1.05rem;
+  line-height: 1.75;
+  margin: 0 0 0.95rem;
+  user-select: none;
+}
+
+.illuminated-text:last-child {
+  margin-bottom: 0;
+}
+
+.quote-mark {
+  font-family: Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #EA580C;
+  margin: 0 0.2rem;
+  vertical-align: baseline;
+}
+
+/* Individual word states - painted in an artistic color wave side by side */
+.reading-word {
+  display: inline-block;
+  margin-right: 0.16em;
+  border-radius: 6px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+/* Upcoming word (soft muted waiting to be painted) */
+.word-upcoming {
+  color: #94A3B8;
+  opacity: 0.4;
+}
+
+/* Active word being read (artistic glowing brushstroke highlight) */
+.word-active {
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, #EA580C 0%, #F59E0B 100%);
+  padding: 0.05em 0.35em;
+  font-weight: 800;
+  transform: scale(1.15) translateY(-2px);
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  position: relative;
+}
+
+/* Read words: Painted in radiant, artistic colors side-by-side! */
+.word-read {
+  color: var(--art-color, #EA580C);
+  font-weight: 700;
+  opacity: 1;
+  transition: color 0.3s ease;
+}
+
+/* Special glowing highlight for Priyanka Sharma's name */
+.word-name.word-read {
+  font-weight: 900;
+  background: linear-gradient(135deg, #E11D48, #EA580C, #D97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(225, 29, 72, 0.25));
+}
+
+
+/* Actions Row */
+.tribute-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tribute-enter-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.95rem 1.5rem;
+  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
+  color: #FFFFFF;
+  font-size: 1.02rem;
+  font-weight: 700;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(234, 88, 12, 0.35);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tribute-enter-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(234, 88, 12, 0.45);
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+}
+
+.tribute-enter-btn:active {
+  transform: translateY(1px);
+}
+
+.btn-paw-icon {
+  animation: gentleBounce 2s infinite ease-in-out;
+}
+
+@keyframes gentleBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.btn-arrow-icon {
+  transition: transform 0.2s ease;
+}
+
+.tribute-enter-btn:hover .btn-arrow-icon {
+  transform: translateX(4px);
+}
+
+.tribute-auto-timer {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Responsive adjustments for phones */
+@media (max-width: 480px) {
+  .launch-tribute-card {
+    padding: 1.65rem 1.25rem 1.4rem;
+    border-radius: 26px;
+  }
+
+  .launch-brand-title {
+    font-size: 2.2rem;
+  }
+
+  .tribute-launch-title {
+    font-size: 1.25rem;
+  }
+
+  .tribute-honoree-card {
+    padding: 0.9rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .tribute-avatar-ring {
+    width: 48px;
+    height: 48px;
+  }
+
+  .honoree-name {
+    font-size: 1.15rem;
+  }
+
+  .tribute-quote-paragraph {
+    font-size: 0.88rem;
+  }
+
+  .tribute-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .tribute-auto-timer {
+    text-align: center;
+  }
+}
