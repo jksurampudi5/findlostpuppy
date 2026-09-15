@@ -3,11 +3,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Configuration with environment variable support & resilient production fallbacks
 const SUPABASE_URL = 
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 
-  'https://kfmtlrmttskqaepoznwy.supabase.co';
+  'https://hydvoguhdvrkabmmjhto.supabase.co';
 
 const SUPABASE_ANON_KEY = 
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 
-  'sb_publishable_dnnUOFUQhzVx3tPkVE7N1g_b9wtlIcv';
+  (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY)) || 
+  'sb_publishable_ukxJgywV6KEl_-BhkCsUuA_B3yYYdPr';
 
 let supabaseInstance: SupabaseClient | null = null;
 
