@@ -108,7 +108,7 @@ export const EmailAuthPage = () => {
             <p className="auth-card-instruction">
               {step === 'email'
                 ? 'Enter your email to sign in or create an account. A secure one-time code will be sent to your inbox.'
-                : `We've sent a 6-digit verification code and magic link to ${email}.`}
+                : `We've sent a verification code and magic link to ${email}.`}
             </p>
           </div>
 
@@ -158,11 +158,11 @@ export const EmailAuthPage = () => {
               </button>
             </form>
           ) : (
-            /* Step 2: 6-Digit OTP Input */
+            /* Step 2: Verification Code Input (Supports both 6-digit and 8-digit Supabase OTPs) */
             <form onSubmit={handleOtpSubmit} className="auth-card-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="user-otp">
-                  6-Digit Verification Code <span className="required-tag">*</span>
+                  Verification Code <span className="required-tag">*</span>
                 </label>
                 <div className="input-with-icon">
                   <KeyRound size={18} className="input-icon" />
@@ -171,13 +171,13 @@ export const EmailAuthPage = () => {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={6}
+                    maxLength={8}
                     className="form-input"
-                    placeholder="123456"
+                    placeholder="Enter code"
                     value={otpToken}
                     onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
                     style={{
-                      letterSpacing: '0.35em',
+                      letterSpacing: otpToken.length > 6 ? '0.22em' : '0.35em',
                       fontSize: '1.35rem',
                       fontWeight: '700',
                       textAlign: 'center',
