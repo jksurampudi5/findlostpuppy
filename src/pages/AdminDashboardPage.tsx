@@ -36,7 +36,7 @@ import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
 export const AdminDashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -260,6 +260,36 @@ export const AdminDashboardPage: React.FC = () => {
 
   const missingReportsCount = useMemo(() => reports.filter((r) => r.status === 'LOST').length, [reports]);
   const safeReportsCount = useMemo(() => reports.filter((r) => r.status === 'SAFE').length, [reports]);
+
+  if (!isAdmin) {
+    return (
+      <div className="admin-portal-page">
+        <div className="app-container" style={{ maxWidth: 640, margin: '4rem auto', textAlign: 'center' }}>
+          <div className="card" style={{ padding: '3rem 2rem' }}>
+            <div className="auth-paw-icon-bubble" style={{ background: '#E06D44', margin: '0 auto 1.5rem auto' }}>
+              <Shield size={36} color="#ffffff" />
+            </div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem' }}>
+              Administrator Authorization Required
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '2rem' }}>
+              {user
+                ? `The signed-in account (${user.email}) does not have administrative privileges. Please sign in with an authorized admin email (e.g. jksurampudi5@gmail.com).`
+                : 'Please sign in with an authorized administrator account to access community rosters and administrative controls.'}
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/owner" className="btn btn-primary">
+                🐾 {user ? 'Switch Account' : 'Sign In as Admin'}
+              </Link>
+              <Link to="/dashboard" className="btn btn-secondary">
+                ← Return to Community Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-portal-page">

@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
+import { storageBucketService } from '../services/storageBucketService';
 
 interface SightingModalProps {
   isOpen: boolean;
@@ -56,8 +57,8 @@ export const SightingModal: React.FC<SightingModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Image should be under 10MB', 'warning');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image should be under 5MB', 'warning');
       return;
     }
 
@@ -69,7 +70,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim() || !description.trim()) {
       showToast('Please provide both the location and a brief description.', 'warning');
@@ -91,6 +92,19 @@ export const SightingModal: React.FC<SightingModalProps> = ({
       phoneCandidate = phoneCheck.cleanDigits;
     }
 
+    // Upload sighting photo if provided
+    let finalPhoto = photo;
+    if (photo && photo.startsWith('data:')) {
+      try {
+        const publicUrl = await storageBucketService.uploadSightingPhoto(reportId, photo);
+        if (publicUrl) {
+          finalPhoto = publicUrl;
+        }
+      } catch (err) {
+        console.warn('[SightingModal] Sighting photo upload fallback to local media:', err);
+      }
+    }
+
     const newSighting: Sighting = {
       id: `sight-${Date.now()}`,
       reportId,
@@ -98,7 +112,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
       date,
       time,
       location: location.trim(),
-      photo: photo || undefined,
+      photo: finalPhoto || undefined,
       description: description.trim(),
       reporterName: reporterName.trim() || user?.name || 'Caring Neighbor',
       reporterPhone: phoneCandidate,

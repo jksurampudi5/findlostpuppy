@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ImageUploader } from '../components/ImageUploader';
 import { storageService } from '../services/storageService';
+import { storageBucketService } from '../services/storageBucketService';
 import type { DogGender, DogSize, DogProfile } from '../types';
 import { handleDogImageError, getDogPhotoUrl } from '../utils/dogPhotoHelper';
 
@@ -45,6 +46,10 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const hasSkipped = user ? storageService.hasSkippedPetProfile(user.id) : false;
   const isInitiallyComplete = !!existingPet || hasSkipped;
 
+  // Stable pet ID draft for uploads before initial save
+  const [petDraftId] = useState<string>(() => existingPet?.id || `pet-${Date.now()}`);
+  const petId = existingPet?.id || petDraftId;
+
   // Form Field States (All optional)
   const [dogName, setDogName] = useState(existingPet?.name || '');
   const [breed, setBreed] = useState(existingPet?.breed || '');
@@ -67,14 +72,36 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   // Handle Save / Submit Pet Profile
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setSubmitting(true);
+    const ownerId = user.id;
 
-    const petId = existingPet?.id || `pet-${Date.now()}`;
-    const ownerId = `owner-${user.id}`;
+    // Convert any remaining base64 images if not yet uploaded
+    let finalPrimary = primaryPhoto;
+    const finalAdditionals = [...additionalPhotos];
+
+    if (finalPrimary && finalPrimary.startsWith('data:')) {
+      try {
+        const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0);
+        if (uploaded) finalPrimary = uploaded;
+      } catch (err) {
+        console.warn('[DogOnboardingPage] Primary photo upload retry fallback:', err);
+      }
+    }
+
+    for (let i = 0; i < finalAdditionals.length; i++) {
+      if (finalAdditionals[i] && finalAdditionals[i].startsWith('data:')) {
+        try {
+          const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalAdditionals[i], i + 1);
+          if (uploaded) finalAdditionals[i] = uploaded;
+        } catch (err) {
+          console.warn('[DogOnboardingPage] Gallery photo upload retry fallback:', err);
+        }
+      }
+    }
 
     const profile: DogProfile = {
       id: petId,
@@ -87,8 +114,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       color: color.trim() || 'Not specified',
       distinguishingMarks: distinguishingMarks.trim() || '',
       collarInfo: collarInfo.trim() || undefined,
-      primaryPhoto: primaryPhoto || '',
-      photos: additionalPhotos,
+      primaryPhoto: finalPrimary || '',
+      photos: finalAdditionals,
       createdAt: existingPet?.createdAt || new Date().toISOString(),
     };
 
@@ -379,6 +406,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                         setAdditionalPhotos(additionals);
                       }}
                       dogName={dogName || 'your pet'}
+                      userId={user?.id}
+                      petId={petId}
                     />
                   </div>
 

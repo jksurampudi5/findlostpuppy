@@ -23,3 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 scratch/
+
+# Android Signing and Keystores
+*.jks
+*.keystore
+key.properties
+keystore.properties
+release-signing.properties
+*.signing.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore

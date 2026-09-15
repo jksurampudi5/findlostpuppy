@@ -32,12 +32,15 @@ import {
   handleDogImageError,
 } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
-import { maskPhoneNumber, maskEmail, validateIndianPhoneNumber } from '../utils/privacyUtils';
+import { maskPhoneNumber, maskEmail, validateIndianPhoneNumber, isOwnerOfReport } from '../utils/privacyUtils';
+import { useAuth } from '../context/AuthContext';
+import { storageBucketService } from '../services/storageBucketService';
 import type { LostReport, Sighting } from '../types';
 
 export const GuestSightingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   const [report, setReport] = useState<LostReport | null>(null);
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -179,12 +182,15 @@ export const GuestSightingPage: React.FC = () => {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!f.type.startsWith('image/')) continue;
-      if (f.size > 10 * 1024 * 1024) continue;
+      if (f.size > 5 * 1024 * 1024) {
+        showToast('Photos must be under 5MB each.', 'warning');
+        continue;
+      }
       validFiles.push(f);
     }
 
     if (validFiles.length === 0) {
-      showToast('Please upload valid images under 10MB.', 'warning');
+      showToast('Please upload valid images under 5MB.', 'warning');
       return;
     }
 
@@ -204,7 +210,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Submit Sighting in GUEST MODE (No login required!)
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!locationText.trim()) {
@@ -229,6 +235,22 @@ export const GuestSightingPage: React.FC = () => {
 
     setSubmitting(true);
 
+    // Upload photos to sightings/{report_id}/
+    const uploadedPhotos: string[] = [];
+    for (const p of photos) {
+      if (p.startsWith('data:')) {
+        try {
+          const publicUrl = await storageBucketService.uploadSightingPhoto(report.id, p);
+          uploadedPhotos.push(publicUrl || p);
+        } catch (err) {
+          console.warn('[GuestSightingPage] Sighting photo upload fallback:', err);
+          uploadedPhotos.push(p);
+        }
+      } else {
+        uploadedPhotos.push(p);
+      }
+    }
+
     const sightingId = `sight-${Date.now()}`;
     const sighting: Sighting = {
       id: sightingId,
@@ -239,8 +261,8 @@ export const GuestSightingPage: React.FC = () => {
       location: locationText.trim(),
       latitude,
       longitude,
-      photo: photos[0] || undefined,
-      photos,
+      photo: uploadedPhotos[0] || undefined,
+      photos: uploadedPhotos,
       description: description.trim() || 'Spotted by community member.',
       reporterName: reporterName.trim() || 'Good Samaritan (Guest)',
       reporterPhone: cleanReporterPhone,
@@ -311,6 +333,7 @@ export const GuestSightingPage: React.FC = () => {
   }
 
   const { dog, lastKnownLocation, ownerApproximateLocation, dateLost, timeLost, contactMechanism } = report;
+  const isOwner = isOwnerOfReport(report, user);
   const ownerPhone =
     contactMechanism?.safeContactPhone ||
     (report as any)?.ownerPhone ||
@@ -734,16 +757,15 @@ export const GuestSightingPage: React.FC = () => {
 
                 {/* Direct Notify Actions */}
                 <div className="success-actions-row">
-                  {cleanPhone && (
+                  {isOwner && cleanPhone && (
                     <button
                       type="button"
                       onClick={() => {
                         const notifyMsg =
-                          `Hi! I just reported a sighting of *"${dog.name}"* with photos on FindLostPuppy!\n\n` +
+                          `Hi! Sighting of *"${dog.name}"* recorded on FindLostPuppy!\n\n` +
                           `📍 *Location:* ${locationText}\n` +
                           `🕒 *Time:* ${date} at ${time}\n` +
-                          (description ? `📝 *Notes:* ${description}\n` : '') +
-                          `\nPlease check your alert hub! 🙏`;
+                          (description ? `📝 *Notes:* ${description}\n` : '');
                         window.open(
                           `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
                             notifyMsg
@@ -763,15 +785,61 @@ export const GuestSightingPage: React.FC = () => {
                       }}
                     >
                       <Share2 size={16} />
-                      <span>💬 Inform Owner on WhatsApp Now</span>
+                      <span>💬 Open in WhatsApp</span>
                     </button>
                   )}
 
-                  {ownerPhone && (
+                  {isOwner && ownerPhone && (
                     <a href={`tel:${ownerPhone}`} className="btn btn-outline btn-lg">
                       <Phone size={16} />
-                      <span>📞 Call Owner Directly</span>
+                      <span>📞 Call Verified Phone</span>
                     </a>
+                  )}
+
+                  {!isOwner && (
+                    <>
+                      <div
+                        className="privacy-confirmation-card"
+                        style={{
+                          backgroundColor: '#F0FDF4',
+                          border: '1px solid #BBF7D0',
+                          borderRadius: '12px',
+                          padding: '0.9rem 1rem',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.75rem',
+                          width: '100%',
+                          marginBottom: '0.5rem',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <ShieldCheck size={20} className="text-emerald-600 flex-shrink-0" style={{ marginTop: '2px' }} />
+                        <div style={{ fontSize: '0.85rem', color: '#166534', lineHeight: 1.45 }}>
+                          <strong style={{ display: 'block', marginBottom: '0.2rem' }}>Sighting Report Safely Recorded</strong>
+                          <span>
+                            Your sighting report and photos have been securely added to {dog.name}&apos;s live recovery hub. The family receives real-time dashboard notifications while direct phone numbers remain shielded from public web scrapers.
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleShareWhatsApp}
+                        className="btn btn-whatsapp btn-lg"
+                        style={{
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          borderColor: '#25D366',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <Share2 size={16} />
+                        <span>📢 Spread Word in WhatsApp Groups</span>
+                      </button>
+                    </>
                   )}
 
                   <button

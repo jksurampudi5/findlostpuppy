@@ -9,6 +9,7 @@ import type { ContactMethod, OwnerProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
+import { storageBucketService } from '../services/storageBucketService';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -62,7 +63,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       });
       const draft: OwnerProfile = {
         ...(p || {}),
-        id: p?.id || `owner-${user.id}`,
+        id: user.id,
         userId: user.id,
         fullName: cleanName || p?.fullName || user.name || '',
         phone: cleanPhone || p?.phone || user.phone || '',
@@ -115,26 +116,40 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       showToast('Please select an image file (JPG, PNG, WebP).', 'warning');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Image size should be under 10MB.', 'warning');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image size should be under 5MB.', 'warning');
       return;
     }
     try {
       showToast('Compressing photo for lightning-fast save...', 'info');
       const compressed = await compressImage(file, 600, 600, 0.85);
+      // Instant local preview
       setPhoto(compressed);
 
-      authService.updateCurrentUser({ avatar: compressed });
+      let finalPhotoUrl = compressed;
+      if (user?.id) {
+        try {
+          const publicUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
+          if (publicUrl) {
+            finalPhotoUrl = publicUrl;
+            setPhoto(publicUrl);
+          }
+        } catch (uploadErr) {
+          console.warn('[PetParentContactPage] Cloud upload fallback to local preview:', uploadErr);
+        }
+      }
+
+      authService.updateCurrentUser({ avatar: finalPhotoUrl });
       if (user) {
         const p = storageService.getOwnerProfileByUserId(user.id, user.email);
         const updated: OwnerProfile = {
           ...(p || {}),
-          id: p?.id || `owner-${user.id}`,
+          id: user.id,
           userId: user.id,
           fullName: fullNameRef.current.trim() || user.name || '',
           phone: phoneRef.current.trim() || user.phone || '',
           email: user.email,
-          photo: compressed,
+          photo: finalPhotoUrl,
           preferredContact,
           address: p?.address || '',
           state: p?.state || '',
@@ -146,7 +161,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         storageService.saveOwnerProfile(updated);
         refreshProgress();
       }
-      showToast('✓ Photo saved & attached to your profile!', 'success');
+      showToast('✓ Photo saved & uploaded to cloud!', 'success');
     } catch {
       showToast('Could not process photo. Please try another image.', 'error');
     }
@@ -191,17 +206,18 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
 
     setPhoneError(null);
-    if (!user) return;
+    const effectiveUserId = user?.id || existingProfile?.userId || 'user-parent-' + Date.now();
+    const effectiveEmail = user?.email || existingProfile?.email || 'parent@findlostpuppy.com';
 
     const cleanPhoneNumber = phoneValidation.cleanDigits;
 
     const profile: OwnerProfile = {
       ...(existingProfile || {}),
-      id: existingProfile?.id || `owner-${user.id}`,
-      userId: user.id,
+      id: effectiveUserId,
+      userId: effectiveUserId,
       fullName: fullName.trim(),
       phone: cleanPhoneNumber,
-      email: user.email,
+      email: effectiveEmail,
       photo: photo.trim() || undefined,
       preferredContact,
       address: existingProfile?.address || '',

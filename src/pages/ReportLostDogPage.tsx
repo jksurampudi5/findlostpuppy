@@ -119,7 +119,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     if (!user) return;
 
     const reportId = existingReport?.id || `LOST-${Date.now()}`;
-    const ownerId = `owner-${user.id}`;
+    const ownerId = user.id;
     const dogId = existingPet?.id || existingReport?.dogId || `dog-${Date.now()}`;
 
     const dogPhoto =
