@@ -10,13 +10,29 @@ interface LaunchTributeOverlayProps {
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(20);
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
+
+  const paragraph1Words = [
+    "A", "very", "special", "note", "of", "gratitude", "to", "Priyanka", "Sharma", "—",
+    "a", "gifted", "artist,", "inspiring", "educator,", "and", "devoted", "pet", "lover."
+  ];
+
+  const paragraph2Words = [
+    "Your", "boundless", "love", "for", "animals", "and", "creative", "perspective", "were", "a",
+    "guiding", "light", "in", "shaping", "this", "app.", "Thank", "you", "for", "your", "warmth,",
+    "insight,", "and", "faith", "in", "this", "journey", "to", "ensure", "no", "lost", "pet", "is",
+    "ever", "forgotten", "and", "every", "puppy", "finds", "its", "way", "home."
+  ];
+
+  const totalWords = paragraph1Words.length + paragraph2Words.length;
 
   useEffect(() => {
     if (forceOpen) {
       setVisible(true);
       setPhase('tribute');
-      setCountdown(10);
+      setCountdown(20);
+      setCurrentWordIndex(0);
       return;
     }
 
@@ -37,14 +53,31 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     const handleReopen = () => {
       setVisible(true);
       setPhase('tribute');
-      setCountdown(10);
+      setCountdown(20);
+      setCurrentWordIndex(0);
     };
 
     window.addEventListener('open-tribute-modal', handleReopen);
     return () => window.removeEventListener('open-tribute-modal', handleReopen);
   }, []);
 
-  // Auto-countdown timer during tribute phase (10 seconds for comfortable reading)
+  // Word-by-word reading progression (syncs across the 18-second reading window)
+  useEffect(() => {
+    if (visible && phase === 'tribute') {
+      setCurrentWordIndex(0);
+      // Read 61 words across ~17 seconds (~280ms per word)
+      const wordInterval = setInterval(() => {
+        setCurrentWordIndex((prev) => {
+          if (prev < totalWords) return prev + 1;
+          return prev;
+        });
+      }, 275);
+
+      return () => clearInterval(wordInterval);
+    }
+  }, [visible, phase, totalWords]);
+
+  // Auto-countdown timer during tribute phase (20 seconds for comfortable reading)
   useEffect(() => {
     if (visible && phase === 'tribute') {
       if (countdown <= 0) {
@@ -140,13 +173,67 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
               </div>
             </div>
 
-            {/* Note text */}
-            <div className="tribute-quote-container">
-              <p className="tribute-quote-paragraph">
-                "A very special note of gratitude to <strong>Priyanka Sharma</strong> — a gifted artist, inspiring educator, and devoted pet lover.
+            {/* Word-by-Word Illuminated Reading Container */}
+            <div className="tribute-quote-container reading-container">
+              <div className="artistic-ribbon-bar">
+                <span className="ribbon-art-icon">🎨</span>
+                <span className="ribbon-title-text">A Tribute to Priyanka Sharma</span>
+                <span className="ribbon-sparkle-icon">🐾✨</span>
+              </div>
+
+              {/* Paragraph 1 */}
+              <p className="tribute-quote-paragraph illuminated-text">
+                <span className="quote-mark">“</span>
+                {paragraph1Words.map((word, idx) => {
+                  const globalIdx = idx;
+                  let wordClass = 'word-upcoming';
+                  if (globalIdx < currentWordIndex) {
+                    wordClass = 'word-read';
+                  } else if (globalIdx === currentWordIndex) {
+                    wordClass = 'word-active';
+                  }
+                  const isSpecialName = word === 'Priyanka' || word === 'Sharma';
+                  return (
+                    <span
+                      key={idx}
+                      className={`reading-word ${wordClass} ${isSpecialName ? 'word-name' : ''}`}
+                      style={{
+                        '--art-color': isSpecialName
+                          ? '#E11D48'
+                          : ['#EA580C', '#D97706', '#DB2777', '#C2410C', '#7C3AED', '#0284C7'][globalIdx % 6]
+                      } as React.CSSProperties}
+                      onClick={() => setCurrentWordIndex(globalIdx)}
+                    >
+                      {word}{' '}
+                    </span>
+                  );
+                })}
               </p>
-              <p className="tribute-quote-paragraph">
-                Your boundless love for animals and creative perspective were a guiding light in shaping this app. Thank you for your warmth, insight, and faith in this journey to ensure no lost pet is ever forgotten and every puppy finds its way home."
+
+              {/* Paragraph 2 */}
+              <p className="tribute-quote-paragraph illuminated-text">
+                {paragraph2Words.map((word, idx) => {
+                  const globalIdx = paragraph1Words.length + idx;
+                  let wordClass = 'word-upcoming';
+                  if (globalIdx < currentWordIndex) {
+                    wordClass = 'word-read';
+                  } else if (globalIdx === currentWordIndex) {
+                    wordClass = 'word-active';
+                  }
+                  return (
+                    <span
+                      key={idx}
+                      className={`reading-word ${wordClass}`}
+                      style={{
+                        '--art-color': ['#EA580C', '#D97706', '#DB2777', '#C2410C', '#7C3AED', '#0284C7'][globalIdx % 6]
+                      } as React.CSSProperties}
+                      onClick={() => setCurrentWordIndex(globalIdx)}
+                    >
+                      {word}{' '}
+                    </span>
+                  );
+                })}
+                <span className="quote-mark">”</span>
               </p>
             </div>
 
@@ -157,14 +244,14 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                 className="tribute-enter-btn"
                 onClick={handleDismiss}
               >
-                <span>Enter findlostpuppy</span>
+                <span>Continue to Home Page</span>
                 <PawPrint size={18} className="btn-paw-icon" />
                 <ArrowRight size={18} className="btn-arrow-icon" />
               </button>
 
               {!forceOpen && (
                 <span className="tribute-auto-timer">
-                  Continuing in {countdown}s...
+                  Continuing to home in {countdown}s...
                 </span>
               )}
             </div>
