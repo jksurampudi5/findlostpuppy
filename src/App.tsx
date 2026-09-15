@@ -23,6 +23,8 @@ import { DogDetailPage } from './pages/DogDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
+import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
+
 import './App.css';
 
 function MainAppFlow() {
@@ -261,6 +263,7 @@ export function App() {
     <Router basename={basename}>
       <ToastProvider>
         <AuthProvider>
+          <LaunchTributeOverlay />
           <div className="app-layout-sidebar">
             <SidebarNav />
             <div className="app-main-viewport">

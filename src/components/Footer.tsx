@@ -121,6 +121,28 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
+        {/* Dedicated Tribute Banner for Priyanka Sharma */}
+        <div className="footer-dedication-banner">
+          <div className="dedication-banner-header">
+            <div className="dedication-pill">
+              <span>🎨 A SPECIAL NOTE OF GRATITUDE 🐾</span>
+            </div>
+            <button
+              type="button"
+              className="dedication-interactive-trigger"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-tribute-modal'))}
+              title="Open full interactive dedication"
+            >
+              View Full Presentation ✨
+            </button>
+          </div>
+          <div className="dedication-banner-body">
+            <p className="dedication-quote-text">
+              "Welcome to the initial launch of <strong>findlostpuppy</strong>! 🐶✨ A very special note of gratitude to <strong>Priyanka Sharma</strong> — a gifted artist, inspiring educator, and devoted pet lover. Your boundless love for animals and creative perspective were a guiding light in shaping this app. Thank you for your warmth, insight, and faith in this journey to ensure no lost pet is ever forgotten and every puppy finds its way home."
+            </p>
+          </div>
+        </div>
+
         <div className="footer-bottom">
           <p>© 2026 FindLostPuppy 🐾 Community Initiative. Designed with love for pups everywhere.</p>
           <div className="footer-bottom-links">
