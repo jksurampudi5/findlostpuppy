@@ -156,7 +156,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
             <div className="tribute-honoree-card">
               <div className="tribute-avatar-ring">
                 <div className="tribute-avatar-inner">
-                  <Palette size={24} className="avatar-art-icon" />
+                  <Palette size={26} className="avatar-art-icon" />
                   <Heart size={16} className="avatar-heart-icon" />
                 </div>
               </div>
@@ -164,12 +164,12 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                 <span className="honoree-label">HONORING & DEDICATED TO</span>
                 <h3 className="honoree-name">Priyanka Sharma</h3>
                 <p className="honoree-roles">
-                  <span>🎨 Gifted Artist</span>
-                  <span className="bullet-sep">•</span>
-                  <span>Inspiring Educator</span>
-                  <span className="bullet-sep">•</span>
-                  <span>🐾 Devoted Pet Lover</span>
+                  <span>🎨 Inspiring Art Teacher & Pet Lover 🐾</span>
                 </p>
+              </div>
+              <div className="tribute-art-sticker">
+                <span className="art-palette-float">🎨</span>
+                <span className="art-paw-float">🐶</span>
               </div>
             </div>
 
