@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.findlostpuppy.app',
-  appName: 'FindLostPuppy',
+  appId: 'om.findlostpuppy.app',
+  appName: 'findlostpuppy',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
