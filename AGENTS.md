@@ -15,3 +15,6 @@
 - **Sonu Photo Preservation**: Dog Sonu (`#1788885000505`) must always resolve to `/src/assets/sonu.jpg`.
 - **LOST vs SAFE Mutual Exclusivity**: A pet cannot be in both states simultaneously.
 - **Image Compression**: All user photo uploads must be compressed via `compressImage` to stay safely within `localStorage` limits.
+
+## 4. Release Bundle Naming & Version Tracking
+- Whenever building Android release AAB bundles, always copy the bundle to Desktop with explicit versioning (e.g., `findlostpuppy-v{versionName}-code{versionCode}-release.aab`) alongside `findlostpuppy-release.aab` so every release is clearly tracked.
