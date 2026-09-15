@@ -208,7 +208,7 @@ class AuthService {
     token: string
   ): Promise<{ success: boolean; user?: User; session?: Session; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
-    const cleanToken = token.trim();
+    const cleanToken = token.trim().replace(/\D/g, '');
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { success: false, error: 'Invalid email address.' };
@@ -225,11 +225,39 @@ class AuthService {
     }
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      // 1. Primary check: type 'email'
+      let res = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token: cleanToken,
         type: 'email',
       });
+
+      // 2. Resilient fallback: If rejected, try 'magiclink' and 'signup' (covers first-time unconfirmed users)
+      if (
+        res.error &&
+        (res.error.message.toLowerCase().includes('invalid') ||
+          res.error.message.toLowerCase().includes('expired'))
+      ) {
+        const tryMagic = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: cleanToken,
+          type: 'magiclink',
+        });
+        if (!tryMagic.error && tryMagic.data?.user) {
+          res = tryMagic;
+        } else {
+          const trySignup = await supabase.auth.verifyOtp({
+            email: cleanEmail,
+            token: cleanToken,
+            type: 'signup',
+          });
+          if (!trySignup.error && trySignup.data?.user) {
+            res = trySignup;
+          }
+        }
+      }
+
+      const { data, error } = res;
 
       if (error) {
         if (cleanToken === '999999' || cleanToken === '123456') {
