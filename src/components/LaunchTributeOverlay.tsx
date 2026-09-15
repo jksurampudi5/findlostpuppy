@@ -61,11 +61,22 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     return () => window.removeEventListener('open-tribute-modal', handleReopen);
   }, []);
 
+  // Lock body scroll when overlay is active to eliminate background judder
+  useEffect(() => {
+    if (visible) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [visible]);
+
   // Word-by-word reading progression (syncs across the 18-second reading window)
   useEffect(() => {
     if (visible && phase === 'tribute') {
       setCurrentWordIndex(0);
-      // Read 61 words across ~17 seconds (~280ms per word)
+      // Read 61 words across ~17 seconds (~275ms per word)
       const wordInterval = setInterval(() => {
         setCurrentWordIndex((prev) => {
           if (prev < totalWords) return prev + 1;
@@ -173,7 +184,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
               </div>
             </div>
 
-            {/* Word-by-Word Illuminated Reading Container */}
+            {/* Word-by-Word Illuminated Reading Container (Zero-Reflow Guaranteed) */}
             <div className="tribute-quote-container reading-container">
               <div className="artistic-ribbon-bar">
                 <span className="ribbon-art-icon">🎨</span>
@@ -194,18 +205,19 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                   }
                   const isSpecialName = word === 'Priyanka' || word === 'Sharma';
                   return (
-                    <span
-                      key={idx}
-                      className={`reading-word ${wordClass} ${isSpecialName ? 'word-name' : ''}`}
-                      style={{
-                        '--art-color': isSpecialName
-                          ? '#E11D48'
-                          : ['#EA580C', '#D97706', '#DB2777', '#C2410C', '#7C3AED', '#0284C7'][globalIdx % 6]
-                      } as React.CSSProperties}
-                      onClick={() => setCurrentWordIndex(globalIdx)}
-                    >
-                      {word}{' '}
-                    </span>
+                    <React.Fragment key={idx}>
+                      <span
+                        className={`reading-word ${wordClass} ${isSpecialName ? 'word-name' : ''}`}
+                        style={{
+                          '--art-color': isSpecialName
+                            ? '#FB7185'
+                            : ['#FB923C', '#F472B6', '#38BDF8', '#4ADE80', '#A78BFA', '#FBBF24'][globalIdx % 6]
+                        } as React.CSSProperties}
+                        onClick={() => setCurrentWordIndex(globalIdx)}
+                      >
+                        {word}
+                      </span>{' '}
+                    </React.Fragment>
                   );
                 })}
               </p>
@@ -221,16 +233,17 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                     wordClass = 'word-active';
                   }
                   return (
-                    <span
-                      key={idx}
-                      className={`reading-word ${wordClass}`}
-                      style={{
-                        '--art-color': ['#EA580C', '#D97706', '#DB2777', '#C2410C', '#7C3AED', '#0284C7'][globalIdx % 6]
-                      } as React.CSSProperties}
-                      onClick={() => setCurrentWordIndex(globalIdx)}
-                    >
-                      {word}{' '}
-                    </span>
+                    <React.Fragment key={idx}>
+                      <span
+                        className={`reading-word ${wordClass}`}
+                        style={{
+                          '--art-color': ['#FB923C', '#F472B6', '#38BDF8', '#4ADE80', '#A78BFA', '#FBBF24'][globalIdx % 6]
+                        } as React.CSSProperties}
+                        onClick={() => setCurrentWordIndex(globalIdx)}
+                      >
+                        {word}
+                      </span>{' '}
+                    </React.Fragment>
                   );
                 })}
                 <span className="quote-mark">”</span>
