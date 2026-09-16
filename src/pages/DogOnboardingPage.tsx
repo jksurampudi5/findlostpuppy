@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PawPrint,
@@ -9,6 +9,8 @@ import {
   Heart,
   Tag,
   Smile,
+  Search,
+  ChevronDown,
 } from 'lucide-react';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { useAuth } from '../context/AuthContext';
@@ -18,20 +20,18 @@ import { storageService } from '../services/storageService';
 import { storageBucketService } from '../services/storageBucketService';
 import type { DogGender, DogSize, DogProfile } from '../types';
 import { handleDogImageError, getDogPhotoUrl } from '../utils/dogPhotoHelper';
+import {
+  searchDogBreeds,
+  DOG_AGE_OPTIONS,
+  DOG_SIZE_OPTIONS,
+  DOG_COLOR_OPTIONS,
+} from '../data/dogBreeds';
 
 interface DogOnboardingPageProps {
   onBackToLocation?: () => void;
   onBackToOwner?: () => void;
   onSuccess?: () => void;
 }
-
-const DOG_SIZES: { label: DogSize; icon: string; desc: string }[] = [
-  { label: 'Toy (under 5kg)', icon: '🐕', desc: 'Under 5kg' },
-  { label: 'Small (5-10kg)', icon: '🐶', desc: '5-10kg' },
-  { label: 'Medium (10-25kg)', icon: '🐕‍🦺', desc: '10-25kg' },
-  { label: 'Large (25-45kg)', icon: '🦮', desc: '25-45kg' },
-  { label: 'Extra Large (45kg+)', icon: '🐾', desc: '45kg+' },
-];
 
 export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   onBackToLocation,
@@ -50,17 +50,28 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const [petDraftId] = useState<string>(() => existingPet?.id || `pet-${Date.now()}`);
   const petId = existingPet?.id || petDraftId;
 
-  // Form Field States (All optional)
+  // Form Field States
   const [dogName, setDogName] = useState(existingPet?.name || '');
   const [breed, setBreed] = useState(existingPet?.breed || '');
+  const [isBreedOpen, setIsBreedOpen] = useState(false);
+  const breedRef = useRef<HTMLDivElement>(null);
+
   const [gender, setGender] = useState<DogGender>(existingPet?.gender || 'Male');
-  const [age, setAge] = useState(existingPet?.age || '');
+  const [age, setAge] = useState(existingPet?.age || '2 years');
   const [size, setSize] = useState<DogSize>(existingPet?.size || 'Medium (10-25kg)');
-  const [color, setColor] = useState(existingPet?.color || '');
+  const [color, setColor] = useState(existingPet?.color || 'Golden / Fawn');
   const [distinguishingMarks, setDistinguishingMarks] = useState(
     existingPet?.distinguishingMarks || ''
   );
-  const [collarInfo, setCollarInfo] = useState(existingPet?.collarInfo || '');
+
+  // Collar, Tag, or Microchip: Yes/No + companion detail
+  const [hasCollarOrChip, setHasCollarOrChip] = useState<boolean>(() => {
+    if (!existingPet?.collarInfo) return false;
+    const lower = existingPet.collarInfo.toLowerCase().trim();
+    return lower !== 'no' && lower !== 'none' && lower !== 'no collar';
+  });
+  const [collarDetails, setCollarDetails] = useState(existingPet?.collarInfo || '');
+
   const [primaryPhoto, setPrimaryPhoto] = useState(existingPet?.primaryPhoto || '');
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>(
     existingPet?.photos || []
@@ -70,6 +81,22 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const [isSubmitted, setIsSubmitted] = useState<boolean>(isInitiallyComplete);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Search & filter dog breeds
+  const filteredBreeds = useMemo(() => {
+    return searchDogBreeds(breed);
+  }, [breed]);
+
+  // Click outside to close breed dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (breedRef.current && !breedRef.current.contains(e.target as Node)) {
+        setIsBreedOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Handle Save / Submit Pet Profile
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,17 +130,21 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       }
     }
 
+    const finalCollar = hasCollarOrChip
+      ? (collarDetails.trim() || 'Collar / Tag / Microchip equipped')
+      : undefined;
+
     const profile: DogProfile = {
       id: petId,
       ownerId,
       name: dogName.trim() || 'Bruno',
-      breed: breed.trim() || 'Companion Pet',
+      breed: breed.trim() || 'Street Dog / Desi / Indie',
       gender,
-      age: age.trim() || 'Unknown',
+      age: age.trim() || '2 years',
       size,
-      color: color.trim() || 'Not specified',
+      color: color.trim() || 'Golden / Fawn',
       distinguishingMarks: distinguishingMarks.trim() || '',
-      collarInfo: collarInfo.trim() || undefined,
+      collarInfo: finalCollar,
       primaryPhoto: finalPrimary || '',
       photos: finalAdditionals,
       createdAt: existingPet?.createdAt || new Date().toISOString(),
@@ -169,22 +200,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   return (
     <div className="onboarding-page">
       <div className="app-container onboarding-container">
-        <div className="onboarding-card card owner-theme-card">
-          {/* Header Greeting */}
-          <div className="onboarding-header">
-            <div className="cute-welcome-banner">
-              <div className="cute-welcome-icon">🐾</div>
-              <div className="cute-welcome-text">
-                <h1 className="cute-page-title">Pet Profile (Optional) 🐶</h1>
-                <p className="cute-page-sub">
-                  Tell us about your pet. This is completely optional — you can add details now or skip anytime.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* CASE 1: SUBMITTED STATE -> SHOWCASE PREVIEW */}
-          {isSubmitted && !isEditing ? (
+        {/* CASE 1: SUBMITTED STATE -> SHOWCASE PREVIEW */}
+        {isSubmitted && !isEditing ? (
+          <div className="onboarding-card card owner-theme-card pet-combined-card">
             <div className="pet-profile-showcase">
               {/* Owner & Pet Family Banner */}
               {(() => {
@@ -255,315 +273,437 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               })()}
 
               {existingPet ? (
-                /* Registered Pet Showcase Card */
-                <div className="pet-card-summary">
-                  <div className="pet-summary-photo-wrap">
-                    {existingPet.primaryPhoto ? (
-                      <img
-                        src={getDogPhotoUrl(existingPet)}
-                        alt={existingPet.name}
-                        className="pet-summary-photo"
-                        onError={handleDogImageError}
-                      />
-                    ) : (
-                      <div className="pet-summary-avatar-placeholder">
-                        <PawPrint size={40} />
+                <>
+                  <div className="pet-showcase-card">
+                    <div className="pet-showcase-top">
+                      <div className="pet-photo-hero-wrap">
+                        {existingPet.primaryPhoto ? (
+                          <img
+                            src={getDogPhotoUrl(existingPet)}
+                            alt={existingPet.name}
+                            className="pet-showcase-hero-img"
+                            onError={handleDogImageError}
+                          />
+                        ) : (
+                          <div className="pet-photo-hero-placeholder">🐶</div>
+                        )}
+                      </div>
+                      <div className="pet-showcase-title-block">
+                        <div className="pet-showcase-badge-row">
+                          <span className="badge badge-success">✓ Profile Synced</span>
+                          <span className="badge badge-primary">{existingPet.gender === 'Male' ? '♂ Male' : '♀ Female'}</span>
+                        </div>
+                        <h2 className="pet-showcase-name">{existingPet.name}</h2>
+                        <span className="pet-showcase-breed">🐕 {existingPet.breed}</span>
+                      </div>
+                    </div>
+
+                    <div className="pet-showcase-grid">
+                      <div className="pet-showcase-stat">
+                        <span className="stat-label">Age</span>
+                        <span className="stat-value">{existingPet.age || 'Not specified'}</span>
+                      </div>
+                      <div className="pet-showcase-stat">
+                        <span className="stat-label">Size</span>
+                        <span className="stat-value">{existingPet.size}</span>
+                      </div>
+                      <div className="pet-showcase-stat">
+                        <span className="stat-label">Color</span>
+                        <span className="stat-value">{existingPet.color}</span>
+                      </div>
+                      {existingPet.collarInfo && (
+                        <div className="pet-showcase-stat">
+                          <span className="stat-label">Collar / Chip</span>
+                          <span className="stat-value">{existingPet.collarInfo}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {existingPet.distinguishingMarks && (
+                      <div className="pet-showcase-note">
+                        <span className="note-label">✨ Special Traits & Markings</span>
+                        <p className="note-text">{existingPet.distinguishingMarks}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="pet-summary-info">
-                    <div className="pet-summary-header-row">
-                      <h2 className="pet-summary-name">{existingPet.name}</h2>
-                      <span className="pet-badge-tag">
-                        <Heart size={12} />
-                        <span>Registered Pet</span>
-                      </span>
-                    </div>
-
-                    <div className="pet-summary-tags-row">
-                      <span className="pet-meta-pill">🐕 {existingPet.breed}</span>
-                      <span className="pet-meta-pill">
-                        {existingPet.gender === 'Male' ? '♂ Male' : '♀ Female'}
-                      </span>
-                      {existingPet.age && (
-                        <span className="pet-meta-pill">🎂 {existingPet.age}</span>
-                      )}
-                      <span className="pet-meta-pill">📏 {existingPet.size}</span>
-                    </div>
-
-                    {existingPet.color && (
-                      <p className="pet-summary-desc">
-                        <strong>Color & Markings:</strong> {existingPet.color}
-                      </p>
-                    )}
-
-                    {existingPet.distinguishingMarks && (
-                      <p className="pet-summary-desc">
-                        <strong>Special Traits:</strong> {existingPet.distinguishingMarks}
-                      </p>
-                    )}
-
-                    {existingPet.collarInfo && (
-                      <p className="pet-summary-desc">
-                        <strong>Collar / Tags:</strong> {existingPet.collarInfo}
-                      </p>
-                    )}
+                  <div className="pet-showcase-actions">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="btn btn-outline btn-md"
+                    >
+                      <Edit3 size={16} />
+                      <span>Edit Pet Details</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleProceedToAlert}
+                      className="btn btn-primary btn-md continue-to-location-orange-btn"
+                    >
+                      <span>Proceed to Pet Safety Check 🐾 →</span>
+                    </button>
                   </div>
-                </div>
+                </>
               ) : (
-                /* Skipped Pet Placeholder Card */
-                <div className="pet-skipped-card">
-                  <div className="pet-skipped-icon">🐕</div>
-                  <div className="pet-skipped-content">
-                    <h3 className="pet-skipped-title">No Pet Registered Yet</h3>
-                    <p className="pet-skipped-desc">
-                      You chose to skip adding a pet during onboarding. You can add your furry friend’s details anytime!
-                    </p>
+                <div className="empty-pet-showcase">
+                  <span className="empty-pet-icon">🐾</span>
+                  <h3>No Pet Profile Added</h3>
+                  <p>You can add your pet details anytime to generate instant lost pet alerts.</p>
+                  <div className="pet-showcase-actions">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="btn btn-primary btn-md"
+                    >
+                      <span>+ Add Pet Details Now</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleProceedToAlert}
+                      className="btn btn-outline btn-md"
+                    >
+                      <span>Continue →</span>
+                    </button>
                   </div>
                 </div>
               )}
-
-              {/* Showcase Actions */}
-              <div className="showcase-actions-row">
-                <div className="action-buttons-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="btn btn-outline btn-md"
-                  >
-                    <Edit3 size={15} />
-                    <span>{existingPet ? '✏️ Update Pet Details' : '+ Add Pet Profile Now'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleProceedToAlert}
-                    className="btn btn-primary btn-md"
-                  >
-                    <span>Proceed to Pet Safety Check 🐾 →</span>
-                  </button>
+            </div>
+          </div>
+        ) : (
+          /* CASE 2: UNIFIED MODERN PET PROFILE FORM (Same Pattern as Owner Profile) */
+          <div className="onboarding-card card owner-theme-card pet-combined-card">
+            {/* 1. Header Banner */}
+            <div className="pet-unified-header">
+              <div className="pet-header-left">
+                <span className="pet-header-icon">🐾</span>
+                <div>
+                  <h2 className="pet-header-title">
+                    {isEditing ? 'Update Pet Details' : 'Pet Profile (Optional)'}
+                  </h2>
+                  <p className="pet-header-subtitle">
+                    Select your pet’s details below. You can skip anytime.
+                  </p>
                 </div>
               </div>
-            </div>
-          ) : (
-            /* CASE 2: FORM FOR ADDING / EDITING PET DETAILS */
-            <form onSubmit={handleSubmit} className="onboarding-form">
-              {/* Optional Prompt Banner */}
-              <div className="optional-step-banner">
-                <div className="optional-banner-text">
-                  <Smile size={18} className="optional-icon" />
-                  <span>
-                    <strong>Optional Step:</strong> If you don’t have a pet or wish to add details later, you can skip anytime.
-                  </span>
-                </div>
+              {!isEditing && (
                 <button
                   type="button"
                   onClick={handleSkip}
-                  className="btn btn-ghost btn-sm skip-step-link"
+                  className="btn btn-ghost btn-sm pet-skip-header-link"
                 >
                   <span>Skip for now →</span>
                 </button>
-              </div>
+              )}
+            </div>
 
-              <div className="form-section-card cute-section-card">
-                <h3 className="section-title-sm cute-section-title">
-                  <span className="cute-title-icon">🐶</span>
-                  <span>{isEditing ? 'Update Pet Details' : 'Pet Information (Optional)'}</span>
-                </h3>
-
-                <div className="form-vertical-stack">
-                  {/* 1. Pet Name */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-name">
-                      <span>1. Pet Name</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <Smile size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-name"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. Bruno, Bella, Luna, Charlie"
-                        value={dogName}
-                        onChange={(e) => setDogName(e.target.value)}
-                      />
+            {/* 2. Unified Form */}
+            <form onSubmit={handleSubmit} className="pet-combined-form">
+              <div className="pet-combined-fields">
+                {/* 1. Pet Name */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="pet-name">
+                    <span>🐶 1. Pet Name</span>
+                    <span className="optional-tag">Optional</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <Smile size={18} />
                     </div>
-                  </div>
-
-                  {/* 2. Photos */}
-                  <div className="form-group">
-                    <label className="form-label cute-label">
-                      <span>2. Pet Photos</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <ImageUploader
-                      primaryPhoto={primaryPhoto}
-                      additionalPhotos={additionalPhotos}
-                      onChange={(primary, additionals) => {
-                        setPrimaryPhoto(primary);
-                        setAdditionalPhotos(additionals);
-                      }}
-                      dogName={dogName || 'your pet'}
-                      userId={user?.id}
-                      petId={petId}
+                    <input
+                      id="pet-name"
+                      type="text"
+                      className="owner-modern-input"
+                      placeholder="e.g. Bruno, Bella, Luna, Charlie"
+                      value={dogName}
+                      onChange={(e) => setDogName(e.target.value)}
                     />
                   </div>
+                </div>
 
-                  {/* 3. Breed */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-breed">
-                      <span>3. Breed</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <Tag size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-breed"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. Golden Retriever, Indie / Desi, Beagle, Labrador, Pomeranian"
-                        value={breed}
-                        onChange={(e) => setBreed(e.target.value)}
+                {/* 2. Photos */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label">
+                    <span>📸 2. Pet Photos</span>
+                    <span className="optional-tag">Optional</span>
+                  </label>
+                  <ImageUploader
+                    primaryPhoto={primaryPhoto}
+                    additionalPhotos={additionalPhotos}
+                    onChange={(primary, additionals) => {
+                      setPrimaryPhoto(primary);
+                      setAdditionalPhotos(additionals);
+                    }}
+                    dogName={dogName || 'your pet'}
+                    userId={user?.id}
+                    petId={petId}
+                  />
+                </div>
+
+                {/* 3. Breed (Interactive Autocomplete Dropdown, Sorted A to Z, Includes Street Dog) */}
+                <div className="owner-modern-form-group" ref={breedRef} style={{ position: 'relative' }}>
+                  <label className="owner-modern-label" htmlFor="pet-breed">
+                    <span>🏷️ 3. Breed</span>
+                    <span className="optional-tag">Search or select</span>
+                  </label>
+                  <div
+                    className="owner-modern-input-wrapper breed-autocomplete-wrapper"
+                    onClick={() => setIsBreedOpen(true)}
+                  >
+                    <div className="owner-input-icon-prefix">
+                      <Search size={18} />
+                    </div>
+                    <input
+                      id="pet-breed"
+                      type="text"
+                      className="owner-modern-input"
+                      placeholder="Type a letter (e.g. 's') or click for all breeds..."
+                      value={breed}
+                      onChange={(e) => {
+                        setBreed(e.target.value);
+                        if (!isBreedOpen) setIsBreedOpen(true);
+                      }}
+                      onFocus={() => setIsBreedOpen(true)}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="breed-dropdown-toggle-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsBreedOpen(!isBreedOpen);
+                      }}
+                      title="Toggle breeds list"
+                    >
+                      <ChevronDown
+                        size={18}
+                        style={{
+                          transform: isBreedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s ease',
+                        }}
                       />
-                    </div>
+                    </button>
                   </div>
 
-                  {/* 4. Gender */}
-                  <div className="form-group">
-                    <label className="form-label cute-label">
-                      <span>4. Gender</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="gender-selector-grid">
-                      <button
-                        type="button"
-                        className={`gender-option-btn ${gender === 'Male' ? 'selected' : ''}`}
-                        onClick={() => setGender('Male')}
-                      >
-                        <span className="gender-symbol">♂</span>
-                        <span className="gender-name">Male</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className={`gender-option-btn ${gender === 'Female' ? 'selected' : ''}`}
-                        onClick={() => setGender('Female')}
-                      >
-                        <span className="gender-symbol">♀</span>
-                        <span className="gender-name">Female</span>
-                      </button>
+                  {/* Autocomplete Dropdown Popover */}
+                  {isBreedOpen && (
+                    <div className="breed-dropdown-menu">
+                      <div className="breed-dropdown-header">
+                        <span>Showing {filteredBreeds.length} breeds (A to Z)</span>
+                      </div>
+                      <div className="breed-dropdown-list">
+                        {filteredBreeds.length > 0 ? (
+                          filteredBreeds.map((b) => (
+                            <button
+                              key={b}
+                              type="button"
+                              className={`breed-dropdown-item ${breed === b ? 'selected' : ''}`}
+                              onClick={() => {
+                                setBreed(b);
+                                setIsBreedOpen(false);
+                              }}
+                            >
+                              <span className="breed-item-icon">🐕</span>
+                              <span className="breed-item-name">{b}</span>
+                              {breed === b && <Check size={14} className="breed-check-icon" />}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="breed-dropdown-empty">
+                            <span>No breeds found for "{breed}". You can still use this as custom breed!</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* 5. Age */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-age">
-                      <span>5. Age</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <Sparkles size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-age"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. 2 years, 6 months, Puppy"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value)}
-                      />
+                {/* 4. Gender (Modern Segmented Button) */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label">
+                    <span>⚧ 4. Gender</span>
+                    <span className="optional-tag">Optional</span>
+                  </label>
+                  <div className="pet-segmented-row">
+                    <button
+                      type="button"
+                      className={`pet-segmented-btn ${gender === 'Male' ? 'active' : ''}`}
+                      onClick={() => setGender('Male')}
+                    >
+                      <span className="gender-glyph">♂</span>
+                      <span>Male</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`pet-segmented-btn ${gender === 'Female' ? 'active' : ''}`}
+                      onClick={() => setGender('Female')}
+                    >
+                      <span className="gender-glyph">♀</span>
+                      <span>Female</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5. Age Dropdown (1 to 30) */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="pet-age-select">
+                    <span>🎂 5. Age</span>
+                    <span className="optional-tag">1 to 30 years</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <Sparkles size={18} />
                     </div>
-                  </div>
-
-                  {/* 6. Size Category */}
-                  <div className="form-group">
-                    <label className="form-label cute-label">
-                      <span>6. Size Category</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="dog-size-pills-row">
-                      {DOG_SIZES.map((s) => (
-                        <button
-                          key={s.label}
-                          type="button"
-                          className={`size-pill-btn ${size === s.label ? 'active' : ''}`}
-                          onClick={() => setSize(s.label)}
-                        >
-                          <span className="size-icon">{s.icon}</span>
-                          <span className="size-label">{s.desc}</span>
-                        </button>
+                    <select
+                      id="pet-age-select"
+                      className="owner-modern-input owner-modern-select"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                    >
+                      {DOG_AGE_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
                       ))}
+                    </select>
+                    <div className="owner-select-chevron">
+                      <ChevronDown size={18} />
                     </div>
                   </div>
+                </div>
 
-                  {/* 7. Color & Markings */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-color">
-                      <span>7. Color & Distinctive Markings</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <PawPrint size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-color"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. Golden brown with white chest, black ears"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                      />
+                {/* 6. Size Category Dropdown */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="pet-size-select">
+                    <span>📏 6. Size Category</span>
+                    <span className="optional-tag">Weight class</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <PawPrint size={18} />
+                    </div>
+                    <select
+                      id="pet-size-select"
+                      className="owner-modern-input owner-modern-select"
+                      value={size}
+                      onChange={(e) => setSize(e.target.value as DogSize)}
+                    >
+                      {DOG_SIZE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="owner-select-chevron">
+                      <ChevronDown size={18} />
                     </div>
                   </div>
+                </div>
 
-                  {/* 8. Distinguishing Marks or Personality */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-marks">
-                      <span>8. Special Traits & Unique Features</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <Heart size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-marks"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. One floppy ear, loves belly rubs, shy with strangers"
-                        value={distinguishingMarks}
-                        onChange={(e) => setDistinguishingMarks(e.target.value)}
-                      />
+                {/* 7. Color & Distinctive Markings (Dropdown + Custom Input) */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="pet-color-select">
+                    <span>🎨 7. Color & Distinctive Markings</span>
+                    <span className="optional-tag">Coat & pattern</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <Tag size={18} />
+                    </div>
+                    <select
+                      id="pet-color-select"
+                      className="owner-modern-input owner-modern-select"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                    >
+                      {DOG_COLOR_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="owner-select-chevron">
+                      <ChevronDown size={18} />
                     </div>
                   </div>
+                </div>
 
-                  {/* 9. Distinguishing Marks or Collar */}
-                  <div className="form-group">
-                    <label className="form-label cute-label" htmlFor="pet-collar">
-                      <span>9. Collar, Tag, or Microchip</span>
-                      <span className="optional-tag">Optional</span>
-                    </label>
-                    <div className="input-with-icon">
-                      <Tag size={16} className="input-icon text-terracotta" />
-                      <input
-                        id="pet-collar"
-                        type="text"
-                        className="form-input cute-input"
-                        placeholder="e.g. Red collar with bell, Microchipped"
-                        value={collarInfo}
-                        onChange={(e) => setCollarInfo(e.target.value)}
-                      />
+                {/* 8. Special Traits & Personality */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="pet-marks">
+                    <span>✨ 8. Special Traits & Identifying Marks</span>
+                    <span className="optional-tag">Optional details</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <Heart size={18} />
                     </div>
+                    <input
+                      id="pet-marks"
+                      type="text"
+                      className="owner-modern-input"
+                      placeholder="e.g. White chest patch, one floppy ear, friendly, loves balls"
+                      value={distinguishingMarks}
+                      onChange={(e) => setDistinguishingMarks(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* 9. Collar, Tag, or Microchip (Yes/No Toggle + Custom Input to Side) */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label">
+                    <span>🔖 9. Collar, Tag, or Microchip</span>
+                    <span className="optional-tag">Yes or No</span>
+                  </label>
+                  <div className="collar-chip-control-row">
+                    <div className="pet-yes-no-toggle">
+                      <button
+                        type="button"
+                        className={`pet-yes-no-btn ${hasCollarOrChip ? 'active' : ''}`}
+                        onClick={() => setHasCollarOrChip(true)}
+                      >
+                        <Check size={16} />
+                        <span>Yes</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`pet-yes-no-btn ${!hasCollarOrChip ? 'active' : ''}`}
+                        onClick={() => {
+                          setHasCollarOrChip(false);
+                          setCollarDetails('');
+                        }}
+                      >
+                        <span>No</span>
+                      </button>
+                    </div>
+
+                    {hasCollarOrChip && (
+                      <div className="owner-modern-input-wrapper collar-details-wrapper">
+                        <div className="owner-input-icon-prefix">
+                          <Tag size={16} />
+                        </div>
+                        <input
+                          type="text"
+                          className="owner-modern-input"
+                          placeholder="e.g. Red collar with bell, QR Tag, Microchip #..."
+                          value={collarDetails}
+                          onChange={(e) => setCollarDetails(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* ACTIONS FOOTER */}
-              <div className="wizard-actions-footer">
-                <div className="action-buttons-wrap">
+              <div className="owner-actions-bottom-row" style={{ marginTop: '2.5rem' }}>
+                <div className="pet-actions-left">
                   {isEditing ? (
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
-                      className="btn btn-outline btn-lg"
+                      className="btn btn-outline btn-md"
                     >
                       <span>Cancel</span>
                     </button>
@@ -571,7 +711,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                     <button
                       type="button"
                       onClick={handleBack}
-                      className="btn btn-outline btn-lg"
+                      className="btn btn-outline btn-md"
                     >
                       <ArrowLeft size={16} />
                       <span>Back to Location</span>
@@ -582,27 +722,25 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                     <button
                       type="button"
                       onClick={handleSkip}
-                      className="btn btn-ghost btn-md skip-pet-btn"
+                      className="btn btn-ghost btn-sm skip-pet-btn"
                     >
                       <span>Skip Step</span>
                     </button>
                   )}
                 </div>
 
-                <div className="action-buttons-wrap">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="btn btn-primary btn-lg save-pet-btn"
-                  >
-                    <Check size={18} />
-                    <span>{isEditing ? '✓ Update Pet Details' : '🐾 Save Pet Profile'}</span>
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary btn-lg continue-to-location-orange-btn"
+                >
+                  <Check size={18} />
+                  <span>{isEditing ? '✓ Update Pet Details' : '🐾 Save Pet Profile'}</span>
+                </button>
               </div>
             </form>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
