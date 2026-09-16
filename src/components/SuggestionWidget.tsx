@@ -9,16 +9,17 @@ import {
   Star,
   Bug,
   Heart,
-  Palette,
   Rocket,
-  MessageSquareQuote,
-  Flame,
+  ExternalLink,
+  Edit2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import type { SuggestionCategory } from '../types';
+
+const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();
@@ -30,14 +31,17 @@ export const SuggestionWidget: React.FC = () => {
     return localStorage.getItem('findlostpuppy_suggestion_callout_dismissed') === 'true';
   });
 
-  // Form states
+  // Simplified form states
   const [category, setCategory] = useState<SuggestionCategory>('feature');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [suggestionText, setSuggestionText] = useState('');
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
+
+  // Identity states (prefilled silently)
   const [name, setName] = useState(user?.name || '');
   const [contact, setContact] = useState(user?.email || user?.phone || '');
+  const [isEditingContact, setIsEditingContact] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -72,27 +76,27 @@ export const SuggestionWidget: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
-      showToast('Please enter a short title or summary for your suggestion.', 'warning');
-      return;
-    }
-
-    if (!description.trim()) {
-      showToast('Please describe your idea or feedback.', 'warning');
+    const trimmed = suggestionText.trim();
+    if (!trimmed) {
+      showToast('Please share your idea or suggestion.', 'warning');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      // Derive a short summary title from first sentence or up to 60 chars
+      const firstLine = trimmed.split('\n')[0].trim();
+      const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
+
       storageService.saveSuggestion({
         userId: user?.id,
         userName: name.trim() || user?.name || 'Community Member',
         userEmail: contact.includes('@') ? contact.trim() : user?.email,
         userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
         category,
-        title: title.trim(),
-        description: description.trim(),
+        title: derivedTitle,
+        description: trimmed,
         rating,
         pageUrl: location.pathname,
       });
@@ -105,8 +109,7 @@ export const SuggestionWidget: React.FC = () => {
       setTimeout(() => {
         setIsSuccess(false);
         setIsOpen(false);
-        setTitle('');
-        setDescription('');
+        setSuggestionText('');
       }, 2500);
     } catch {
       showToast('Could not save suggestion. Please try again.', 'error');
@@ -115,13 +118,12 @@ export const SuggestionWidget: React.FC = () => {
     }
   };
 
+  // 4 simplified, punchy categories
   const categories: { key: SuggestionCategory; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: 'feature', label: 'New Feature', icon: <Rocket size={15} />, color: '#f97316' },
-    { key: 'improvement', label: 'Improvement', icon: <Sparkles size={15} />, color: '#3b82f6' },
-    { key: 'ui_ux', label: 'UI & Design', icon: <Palette size={15} />, color: '#8b5cf6' },
-    { key: 'bug', label: 'Report Bug', icon: <Bug size={15} />, color: '#ef4444' },
-    { key: 'praise', label: 'Praise & Love', icon: <Heart size={15} />, color: '#ec4899' },
-    { key: 'other', label: 'Other Idea', icon: <MessageSquareQuote size={15} />, color: '#10b981' },
+    { key: 'feature', label: 'Feature Idea', icon: <Rocket size={16} />, color: '#f97316' },
+    { key: 'improvement', label: 'Improvement', icon: <Sparkles size={16} />, color: '#3b82f6' },
+    { key: 'bug', label: 'Report Issue', icon: <Bug size={16} />, color: '#ef4444' },
+    { key: 'praise', label: 'Praise & Other', icon: <Heart size={16} />, color: '#ec4899' },
   ];
 
   const ratingDescriptions = [
@@ -129,14 +131,14 @@ export const SuggestionWidget: React.FC = () => {
     'Needs attention 🛠️',
     'Fair, could be better 💡',
     'Good experience 👍',
-    'Really great! 🌟',
-    'Incredible app! ❤️',
+    'Great experience! 🌟',
+    'Loved it! ❤️',
   ];
 
   return (
     <>
       {/* ========================================================================= */}
-      {/* 1. EYE-CATCHER FLOATING WIDGET BUTTON                                     */}
+      {/* 1. EYE-CATCHER FLOATING WIDGET BUTTON (Larger & Vibrant)                   */}
       {/* ========================================================================= */}
       <div className="suggestion-floating-container" aria-label="App Suggestions">
         {!hasDismissedCallout && !isOpen && (
@@ -170,7 +172,7 @@ export const SuggestionWidget: React.FC = () => {
         >
           <span className="suggestion-pulse-ring" />
           <span className="suggestion-btn-icon-wrap">
-            <Lightbulb size={20} className="suggestion-bulb-icon" />
+            <Lightbulb size={26} className="suggestion-bulb-icon" />
           </span>
           <span className="suggestion-btn-label">
             <span className="suggestion-btn-badge">✨ Idea</span>
@@ -180,7 +182,7 @@ export const SuggestionWidget: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MODERN EYE-CATCHER SUGGESTION MODAL                                    */}
+      {/* 2. SIMPLIFIED & STREAMLINED SUGGESTION MODAL                              */}
       {/* ========================================================================= */}
       {isOpen && (
         <div className="suggestion-modal-overlay" onClick={() => setIsOpen(false)}>
@@ -195,14 +197,14 @@ export const SuggestionWidget: React.FC = () => {
             <div className="suggestion-modal-header">
               <div className="suggestion-header-badge-row">
                 <div className="suggestion-header-icon-box">
-                  <Flame size={20} className="suggestion-header-flame" />
+                  <Lightbulb size={28} className="suggestion-header-flame" />
                 </div>
                 <div>
                   <h3 id="suggestion-modal-title" className="suggestion-modal-title">
                     💡 Got a Suggestion?
                   </h3>
                   <p className="suggestion-modal-subtitle">
-                    Your ideas shape FindLostPuppy. Tell us what you'd love to see!
+                    Share an idea, request a feature, or tell us what we can improve!
                   </p>
                 </div>
               </div>
@@ -212,7 +214,7 @@ export const SuggestionWidget: React.FC = () => {
                 onClick={() => setIsOpen(false)}
                 aria-label="Close dialog"
               >
-                <X size={19} />
+                <X size={20} />
               </button>
             </div>
 
@@ -222,27 +224,34 @@ export const SuggestionWidget: React.FC = () => {
                 <div className="suggestion-success-icon-wrap">
                   <CheckCircle2 size={54} className="text-success" />
                 </div>
-                <h4>Thank You So Much! 🎉</h4>
+                <h4>Thank You! 🎉</h4>
                 <p>
-                  Your suggestion has been captured in our backend system. Our team reviews every idea
-                  to make pet recovery faster and safer for our community!
+                  Your suggestion was captured directly into our backend system. Our team reviews
+                  every community idea to make pet reunions faster and smoother!
                 </p>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Close
-                </button>
+                <div className="suggestion-success-actions">
+                  <a
+                    href={PLAY_STORE_REVIEW_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-sm"
+                  >
+                    ⭐ Leave a Public Play Store Review <ExternalLink size={14} />
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="suggestion-form">
-                {/* 1. Category Chips */}
+                {/* 1. Simplified Category Chips */}
                 <div className="suggestion-field-group">
-                  <label className="suggestion-label">
-                    <span>What type of suggestion is this?</span>
-                  </label>
-                  <div className="suggestion-categories-grid">
+                  <div className="suggestion-categories-grid simplified-categories">
                     {categories.map((cat) => {
                       const isSelected = category === cat.key;
                       return (
@@ -266,105 +275,131 @@ export const SuggestionWidget: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2. Rating / Experience Vibe */}
-                <div className="suggestion-field-group">
-                  <label className="suggestion-label">
-                    <span>How would you rate your app experience today?</span>
+                {/* 2. Rating & Direct Review Link Row */}
+                <div className="suggestion-rating-review-card">
+                  <div className="rating-review-top">
+                    <span className="rating-question-label">Rate your app experience:</span>
                     <span className="suggestion-rating-desc">
                       {ratingDescriptions[hoverRating || rating]}
                     </span>
-                  </label>
-                  <div className="suggestion-stars-row">
-                    {[1, 2, 3, 4, 5].map((val) => {
-                      const active = (hoverRating || rating) >= val;
-                      return (
-                        <button
-                          key={val}
-                          type="button"
-                          className={`suggestion-star-btn ${active ? 'star-active' : ''}`}
-                          onClick={() => handleRatingClick(val)}
-                          onMouseEnter={() => setHoverRating(val)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          aria-label={`Rate ${val} out of 5 stars`}
-                        >
-                          <Star size={24} fill={active ? '#FFB800' : 'none'} stroke={active ? '#FFB800' : '#94a3b8'} />
-                        </button>
-                      );
-                    })}
                   </div>
+
+                  <div className="rating-review-row">
+                    {/* Stars */}
+                    <div className="suggestion-stars-row">
+                      {[1, 2, 3, 4, 5].map((val) => {
+                        const active = (hoverRating || rating) >= val;
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            className={`suggestion-star-btn ${active ? 'star-active' : ''}`}
+                            onClick={() => handleRatingClick(val)}
+                            onMouseEnter={() => setHoverRating(val)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            aria-label={`Rate ${val} out of 5 stars`}
+                          >
+                            <Star
+                              size={24}
+                              fill={active ? '#FFB800' : 'none'}
+                              stroke={active ? '#FFB800' : '#94a3b8'}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Direct Review Link Button */}
+                    <a
+                      href={PLAY_STORE_REVIEW_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="suggestion-playstore-link-btn"
+                      title="Rate or write a public review on Google Play"
+                    >
+                      <span>⭐ Review Page</span>
+                      <ExternalLink size={13} />
+                    </a>
+                  </div>
+
+                  {/* High Rating Callout */}
+                  {rating >= 4 && (
+                    <div className="rating-sweet-callout">
+                      <span>Loved the app? You can also share your public feedback on Google Play!</span>
+                      <a
+                        href={PLAY_STORE_REVIEW_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="callout-review-link"
+                      >
+                        Leave a Review ➔
+                      </a>
+                    </div>
+                  )}
                 </div>
 
-                {/* 3. Suggestion Title */}
+                {/* 3. Single Streamlined Suggestion Textarea */}
                 <div className="suggestion-field-group">
-                  <label htmlFor="suggestion-title-input" className="suggestion-label">
-                    <span>Title / Idea summary *</span>
-                  </label>
-                  <input
-                    id="suggestion-title-input"
-                    type="text"
-                    className="suggestion-input"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g., Add WhatsApp alert group, Dog birthday reminder, Sound alert..."
-                    required
-                    maxLength={120}
-                  />
-                </div>
-
-                {/* 4. Suggestion Description */}
-                <div className="suggestion-field-group">
-                  <label htmlFor="suggestion-desc-input" className="suggestion-label">
-                    <span>Your Details & Thoughts *</span>
-                  </label>
                   <textarea
                     id="suggestion-desc-input"
-                    rows={3}
-                    className="suggestion-textarea"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Explain what you have in mind or what could be improved. Any detail is super helpful!"
+                    rows={4}
+                    className="suggestion-textarea simplified-textarea"
+                    value={suggestionText}
+                    onChange={(e) => setSuggestionText(e.target.value)}
+                    placeholder="💡 What would make FindLostPuppy even better for you? Share any idea, feature request, or suggestion..."
                     required
                     maxLength={1500}
+                    autoFocus
                   />
                 </div>
 
-                {/* 5. Submitter Info (Optional) */}
-                <div className="suggestion-user-row">
-                  <div className="suggestion-user-col">
-                    <label htmlFor="suggestion-name-input" className="suggestion-sublabel">Your Name</label>
-                    <input
-                      id="suggestion-name-input"
-                      type="text"
-                      className="suggestion-subinput"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g., Jaya Krishna"
-                    />
-                  </div>
-                  <div className="suggestion-user-col">
-                    <label htmlFor="suggestion-contact-input" className="suggestion-sublabel">Email or Phone (Optional)</label>
-                    <input
-                      id="suggestion-contact-input"
-                      type="text"
-                      className="suggestion-subinput"
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      placeholder="For updates on your idea"
-                    />
-                  </div>
+                {/* 4. Subtle Submitter Identity (Compact & Non-intrusive) */}
+                <div className="suggestion-identity-subtle">
+                  {!isEditingContact ? (
+                    <div className="identity-display-row">
+                      <span className="identity-text">
+                        👤 Submitting as{' '}
+                        <strong>{name.trim() || user?.name || 'Pet Parent'}</strong>
+                        {contact ? ` (${contact})` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        className="identity-edit-btn"
+                        onClick={() => setIsEditingContact(true)}
+                        title="Change contact info"
+                      >
+                        <Edit2 size={12} /> Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="suggestion-user-row compact-user-row">
+                      <div className="suggestion-user-col">
+                        <input
+                          type="text"
+                          className="suggestion-subinput"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your Name (Optional)"
+                        />
+                      </div>
+                      <div className="suggestion-user-col">
+                        <input
+                          type="text"
+                          className="suggestion-subinput"
+                          value={contact}
+                          onChange={(e) => setContact(e.target.value)}
+                          placeholder="Email or Phone (Optional)"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Context Metadata Pill */}
-                <div className="suggestion-context-pill">
-                  <span>📍 Page: <code>{location.pathname}</code></span>
-                  <span>🔒 Captured securely in backend</span>
-                </div>
-
-                {/* Actions */}
+                {/* 5. Modal Footer Actions */}
                 <div className="suggestion-modal-footer">
                   <button
                     type="button"
-                    className="btn btn-outline btn-sm"
+                    className="btn btn-ghost btn-sm"
                     onClick={() => setIsOpen(false)}
                   >
                     Cancel
@@ -372,10 +407,10 @@ export const SuggestionWidget: React.FC = () => {
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm suggestion-submit-btn"
-                    disabled={isSubmitting || !title.trim() || !description.trim()}
+                    disabled={isSubmitting || !suggestionText.trim()}
                   >
                     <Send size={15} />
-                    {isSubmitting ? 'Submitting...' : 'Send Suggestion 🚀'}
+                    {isSubmitting ? 'Sending...' : 'Send Suggestion 🚀'}
                   </button>
                 </div>
               </form>
