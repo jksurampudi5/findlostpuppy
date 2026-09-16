@@ -182,6 +182,16 @@ export const SidebarNav: React.FC = () => {
 
                 <button
                   type="button"
+                  className="mobile-header-logout-btn"
+                  onClick={logout}
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                >
+                  <LogOut size={19} />
+                </button>
+
+                <button
+                  type="button"
                   className="mobile-menu-trigger-btn"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   aria-label="Toggle navigation menu"
@@ -690,6 +700,20 @@ export const SidebarNav: React.FC = () => {
                 )}
               </div>
               <span className="dock-label">Pet</span>
+            </button>
+
+            {/* 6. Logout */}
+            <button
+              type="button"
+              className="dock-tab-btn dock-logout-btn"
+              onClick={logout}
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <div className="dock-icon-wrap">
+                <LogOut size={19} />
+              </div>
+              <span className="dock-label">Logout</span>
             </button>
           </div>
         </nav>

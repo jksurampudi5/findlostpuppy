@@ -20,6 +20,54 @@ const localityModules = import.meta.glob<LocationLocality[] | { default: Locatio
   '../data/location/localities/*.json'
 );
 
+// Common Indian city/regional aliases mapping to official LGD districts
+const DISTRICT_ALIASES: Record<string, string> = {
+  vijayawada: 'Ntr',
+  bangalore: 'Bengaluru Urban',
+  bengaluru: 'Bengaluru Urban',
+  vizag: 'Visakhapatnam',
+  visakha: 'Visakhapatnam',
+  secunderabad: 'Hyderabad',
+  cyberabad: 'Hyderabad',
+  shaikpet: 'Hyderabad',
+  rajahmundry: 'East Godavari',
+  bhimavaram: 'West Godavari',
+  machilipatnam: 'Krishna',
+  tirupati: 'Tirupati',
+  kadapa: 'Y.S.R. Kadapa',
+  nellore: 'Sri Potti Sriramulu Nellore',
+  konaseema: 'Dr. B.R. Ambedkar Konaseema',
+  manyam: 'Parvathipuram Manyam',
+  alluri: 'Alluri Sitharama Raju',
+  puttaparthi: 'Sri Sathya Sai',
+  hanamkonda: 'Hanamkonda',
+  warangal: 'Warangal',
+  kukatpally: 'Medchal Malkajgiri',
+  malkajgiri: 'Medchal Malkajgiri',
+  gajuwaka: 'Visakhapatnam',
+  madhapur: 'Ranga Reddy',
+  serilingampally: 'Ranga Reddy',
+  serilingampalle: 'Ranga Reddy',
+  gachibowli: 'Ranga Reddy',
+  whitefield: 'Bengaluru Urban',
+  koramangala: 'Bengaluru Urban',
+  indiranagar: 'Bengaluru Urban',
+  jayanagar: 'Bengaluru Urban',
+};
+
+function normalizeStem(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/mandal|taluk|district|\(urban\)|\(rural\)|\(mdl\)/gi, '')
+    .trim()
+    .replace(/palle$/, 'pally')
+    .replace(/puram$/, 'pur')
+    .replace(/uru$/, 'ur')
+    .replace(/gudem$/, 'guda')
+    .replace(/peta$/, 'pet');
+}
+
 class LocationService {
   private states: LocationState[] = statesData as LocationState[];
   private districts: LocationDistrict[] = districtsData as LocationDistrict[];
@@ -63,7 +111,7 @@ class LocationService {
   }
 
   /**
-   * Find district by code or name
+   * Find district by code or name with aliases and subdistrict fallback
    */
   getDistrict(
     stateCodeOrName: number | string,
@@ -74,18 +122,45 @@ class LocationService {
       return districts.find((d) => d.districtCode === districtCodeOrName);
     }
     const clean = districtCodeOrName.trim().toLowerCase().replace(/\s*district/i, '');
-    // Exact match first
+    // 1. Exact match first
     const exact = districts.find(
       (d) => d.districtName.toLowerCase() === clean
     );
     if (exact) return exact;
 
-    // Substring / fuzzy match
-    return districts.find(
+    // 2. Substring / fuzzy match
+    const subMatch = districts.find(
       (d) =>
         d.districtName.toLowerCase().includes(clean) ||
         clean.includes(d.districtName.toLowerCase())
     );
+    if (subMatch) return subMatch;
+
+    // 3. Alias dictionary check
+    for (const [alias, targetDist] of Object.entries(DISTRICT_ALIASES)) {
+      if (clean.includes(alias) || alias.includes(clean)) {
+        const found = districts.find((d) => d.districtName.toLowerCase() === targetDist.toLowerCase());
+        if (found) return found;
+      }
+    }
+
+    // 4. Check subdistricts in this state to recover parent district
+    const state = this.getState(stateCodeOrName);
+    if (state) {
+      const stemClean = normalizeStem(clean);
+      const sub = this.subdistricts.find(
+        (s) =>
+          s.stateCode === state.code &&
+          (normalizeStem(s.subDistrictName) === stemClean ||
+            normalizeStem(s.subDistrictName).includes(stemClean) ||
+            stemClean.includes(normalizeStem(s.subDistrictName)))
+      );
+      if (sub) {
+        return districts.find((d) => d.districtCode === sub.districtCode);
+      }
+    }
+
+    return undefined;
   }
 
   /**
@@ -117,7 +192,7 @@ class LocationService {
   }
 
   /**
-   * Find subdistrict by code or name within a district
+   * Find subdistrict by code or name within a district with stem normalization
    */
   getSubDistrict(
     districtCode: number,
@@ -133,10 +208,19 @@ class LocationService {
       .replace(/\s*\(mdl\)/i, '')
       .replace(/\s*mandal/i, '')
       .replace(/\s*taluk/i, '')
+      .replace(/\s*\(urban\)/i, '')
+      .replace(/\s*\(rural\)/i, '')
       .trim();
 
     const exact = list.find((s) => s.subDistrictName.toLowerCase() === clean);
     if (exact) return exact;
+
+    const stemClean = normalizeStem(clean);
+    const stemMatch = list.find((s) => {
+      const sStem = normalizeStem(s.subDistrictName);
+      return sStem === stemClean || sStem.includes(stemClean) || stemClean.includes(sStem);
+    });
+    if (stemMatch) return stemMatch;
 
     return list.find(
       (s) =>
@@ -215,82 +299,68 @@ class LocationService {
     locality?: string;
     pinCode?: string;
   }): Promise<LocationMatchResult | null> {
-    const { state: rawState, district: rawDistrict, mandal: rawMandal, locality: rawLocality } = params;
-
-    if (!rawState && !rawDistrict) return null;
+    const { state: rawState, district: rawDistrict, mandal: rawMandal, locality: rawLocality, pinCode: rawPin } = params;
 
     // 1. Match State
-    const matchedState = this.getState(rawState || '');
+    let matchedState = this.getState(rawState || '');
+    if (!matchedState && rawPin && /^\d{6}$/.test(rawPin.trim())) {
+      const prefix = parseInt(rawPin.trim().slice(0, 2), 10);
+      if (prefix === 50) matchedState = this.getState(36); // Telangana
+      else if (prefix >= 51 && prefix <= 53) matchedState = this.getState(28); // Andhra Pradesh
+      else if (prefix >= 56 && prefix <= 59) matchedState = this.getState(29); // Karnataka
+    }
+    if (!matchedState && rawDistrict) {
+      const d = this.districts.find((item) => item.districtName.toLowerCase().includes(rawDistrict.toLowerCase()));
+      if (d) matchedState = this.getState(d.stateCode);
+    }
+    if (!matchedState) {
+      matchedState = this.getState('Andhra Pradesh');
+    }
     if (!matchedState) return null;
 
     // 2. Match District
     const districts = this.getDistricts(matchedState.code);
-    let matchedDistrict: LocationDistrict | undefined;
+    let matchedDistrict = rawDistrict ? this.getDistrict(matchedState.code, rawDistrict) : undefined;
 
-    if (rawDistrict) {
-      const cleanDist = rawDistrict.trim().toLowerCase().replace(/\s*district/i, '');
-      matchedDistrict = districts.find(
-        (d) =>
-          d.districtName.toLowerCase() === cleanDist ||
-          d.districtName.toLowerCase().includes(cleanDist) ||
-          cleanDist.includes(d.districtName.toLowerCase())
-      );
+    if (!matchedDistrict && rawMandal) {
+      matchedDistrict = this.getDistrict(matchedState.code, rawMandal);
     }
-
-    // Special recent reorganization heuristics (e.g. NTR, West Godavari, East Godavari)
+    if (!matchedDistrict && rawLocality) {
+      matchedDistrict = this.getDistrict(matchedState.code, rawLocality);
+    }
+    // Heuristic fallbacks for common areas
     if (!matchedDistrict && rawDistrict) {
       const hint = `${rawDistrict} ${rawMandal || ''} ${rawLocality || ''}`.toLowerCase();
-      if (hint.includes('undrajavaram')) {
+      if (hint.includes('undrajavaram') || hint.includes('rajahmundry')) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'east godavari');
       } else if (hint.includes('vikarabad')) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'vikarabad');
+      } else if (hint.includes('vijayawada')) {
+        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'ntr');
       }
     }
-
-    if (!matchedDistrict) {
-      // Return state only or first district fallback? Strict rule: return null if district can't be matched
-      return null;
+    if (!matchedDistrict && districts.length > 0) {
+      matchedDistrict = districts[0];
     }
+    if (!matchedDistrict) return null;
 
     // 3. Match Mandal
     const mandals = this.getSubDistricts(matchedDistrict.districtCode);
     let matchedSubDistrict: LocationSubDistrict | undefined;
 
     if (rawMandal) {
-      const cleanMandal = rawMandal
-        .trim()
-        .toLowerCase()
-        .replace(/\s*\(mdl\)/i, '')
-        .replace(/\s*mandal/i, '')
-        .replace(/\s*taluk/i, '')
-        .trim();
-
-      matchedSubDistrict = mandals.find(
-        (m) =>
-          m.subDistrictName.toLowerCase() === cleanMandal ||
-          m.subDistrictName.toLowerCase().includes(cleanMandal) ||
-          cleanMandal.includes(m.subDistrictName.toLowerCase())
-      );
+      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawMandal);
     }
-
-    // If mandal not matched yet, check if locality matches a mandal name
     if (!matchedSubDistrict && rawLocality) {
-      const cleanLoc = rawLocality.trim().toLowerCase();
-      matchedSubDistrict = mandals.find(
-        (m) =>
-          m.subDistrictName.toLowerCase() === cleanLoc ||
-          m.subDistrictName.toLowerCase().includes(cleanLoc) ||
-          cleanLoc.includes(m.subDistrictName.toLowerCase())
-      );
+      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawLocality);
     }
-
-    if (!matchedSubDistrict) {
+    if (!matchedSubDistrict && rawDistrict) {
+      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawDistrict);
+    }
+    if (!matchedSubDistrict && mandals.length > 0) {
       matchedSubDistrict = mandals[0];
     }
-
-    if (!matchedSubDistrict) {
-      return null;
-    }
+    if (!matchedSubDistrict) return null;
 
     // 4. Match Locality inside the matched SubDistrict
     let matchedLocality: LocationLocality | undefined;
@@ -309,15 +379,28 @@ class LocationService {
       );
     }
 
-    // If still no locality match, default to first locality in mandal (often mandal HQ / primary town)
     if (!matchedLocality && localities.length > 0) {
-      // Find locality named same as mandal if exists
       matchedLocality =
         localities.find(
           (l) =>
             l.localityName.toLowerCase() ===
             matchedSubDistrict?.subDistrictName.toLowerCase()
         ) || localities[0];
+    }
+
+    if (!matchedLocality && (rawLocality || matchedSubDistrict)) {
+      matchedLocality = {
+        localityCode: 999999,
+        localityName: rawLocality || matchedSubDistrict.subDistrictName,
+        localityType: 'URBAN_LOCALITY',
+        subDistrictCode: matchedSubDistrict.subDistrictCode,
+        subDistrictName: matchedSubDistrict.subDistrictName,
+        subDistrictType: (matchedSubDistrict.subDistrictType as any) || 'Mandal',
+        districtCode: matchedDistrict.districtCode,
+        districtName: matchedDistrict.districtName,
+        stateCode: matchedState.code,
+        stateName: matchedState.name,
+      };
     }
 
     return {

@@ -35,6 +35,12 @@ function getPositionWithConfig(options: PositionOptions): Promise<GeolocationPos
  * Tier B: BigDataCloud Reverse Geocoding
  */
 async function reverseGeocodeCoords(lat: number, lng: number): Promise<Partial<LocationGeoResult>> {
+  let state: string | undefined;
+  let district: string | undefined;
+  let mandal: string | undefined;
+  let city: string | undefined;
+  let pinCode: string | undefined;
+
   // 1. Try Nominatim
   try {
     const controller = new AbortController();
@@ -54,45 +60,68 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<Partial<L
     if (res.ok) {
       const data = await res.json();
       const addr = data.address || {};
-      const state = addr.state;
-      const district = addr.state_district || addr.county || addr.district;
-      const mandal = addr.subdistrict || addr.county || addr.city_district || addr.suburb;
-      const city = addr.city || addr.town || addr.village || addr.suburb || addr.residential;
-      const pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
-
-      if (state || district || city) {
-        return { state, district, mandal, city, pinCode };
-      }
+      state = addr.state;
+      district = addr.state_district || addr.county || addr.district;
+      mandal = addr.subdistrict || addr.county || addr.city_district || addr.suburb;
+      city = addr.city || addr.town || addr.village || addr.suburb || addr.residential;
+      pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
     }
   } catch (err) {
     console.warn('[geolocationHelper] Nominatim reverse geocode notice:', err);
   }
 
-  // 2. Fallback: BigDataCloud
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
+  // 2. Fallback / Augment: BigDataCloud
+  if (!state || !district || !city) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        state: data.principalSubdivision,
-        district: data.localityInfo?.administrative?.[2]?.name || data.city,
-        mandal: data.localityInfo?.administrative?.[3]?.name || data.locality,
-        city: data.city || data.locality,
-        pinCode: data.postcode ? data.postcode.replace(/\D/g, '').slice(0, 6) : undefined,
-      };
+      if (res.ok) {
+        const data = await res.json();
+        state = state || data.principalSubdivision;
+        district = district || data.localityInfo?.administrative?.[2]?.name || data.city;
+        mandal = mandal || data.localityInfo?.administrative?.[3]?.name || data.locality;
+        city = city || data.city || data.locality;
+        pinCode = pinCode || (data.postcode ? data.postcode.replace(/\D/g, '').slice(0, 6) : undefined);
+      }
+    } catch (err) {
+      console.warn('[geolocationHelper] BigDataCloud reverse geocode notice:', err);
     }
-  } catch (err) {
-    console.warn('[geolocationHelper] BigDataCloud reverse geocode notice:', err);
   }
 
-  return {};
+  // 3. If PIN code is present, verify/fill official District and Mandal via Indian Postal API
+  if (pinCode && /^\d{6}$/.test(pinCode) && (!district || !mandal)) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const postalRes = await fetch(`https://api.postalpincode.in/pincode/${pinCode}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (postalRes.ok) {
+        const pData = await postalRes.json();
+        if (Array.isArray(pData) && pData[0]?.Status === 'Success') {
+          const po = pData[0].PostOffice?.[0];
+          if (po) {
+            state = state || po.State;
+            district = district || po.District;
+            mandal = mandal || po.Block;
+            city = city || po.Name;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[geolocationHelper] Postal PIN enrich notice:', err);
+    }
+  }
+
+  return { state, district, mandal, city, pinCode };
 }
 
 /**
@@ -164,6 +193,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
   let lat: number | null = null;
   let lng: number | null = null;
   let source: 'gps' | 'network' | 'ip' = 'gps';
+  let initialAddress: Partial<LocationGeoResult> = {};
 
   // Tier 1: Try High Accuracy GPS (fast 5s timeout)
   try {
@@ -190,17 +220,25 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       // Tier 3: Fast IP-based fallback
       const ipResult = await fetchIpLocation();
       if (ipResult) {
-        return ipResult;
+        lat = ipResult.latitude;
+        lng = ipResult.longitude;
+        initialAddress = ipResult;
+        source = 'ip';
       }
     }
   }
 
+  // Reverse geocode whenever coordinates are found (including IP coordinates!)
   if (lat !== null && lng !== null) {
     const addressDetails = await reverseGeocodeCoords(lat, lng);
     return {
       latitude: lat,
       longitude: lng,
-      ...addressDetails,
+      state: addressDetails.state || initialAddress.state,
+      district: addressDetails.district || initialAddress.district,
+      mandal: addressDetails.mandal || initialAddress.mandal,
+      city: addressDetails.city || initialAddress.city,
+      pinCode: addressDetails.pinCode || initialAddress.pinCode,
       source,
     };
   }
