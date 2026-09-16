@@ -24,6 +24,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
+import { SuggestionWidget } from './components/SuggestionWidget';
 
 import './App.css';
 
@@ -274,6 +275,7 @@ export function App() {
               <Footer />
             </div>
           </div>
+          <SuggestionWidget />
         </AuthProvider>
       </ToastProvider>
     </Router>

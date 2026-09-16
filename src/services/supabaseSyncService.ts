@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { storageBucketService } from './storageBucketService';
-import type { OwnerProfile, DogProfile, LostReport, Sighting, User } from '../types';
+import type { OwnerProfile, DogProfile, LostReport, Sighting, User, AppSuggestion } from '../types';
 
 export interface SupabaseSyncStatus {
   isConfigured: boolean;
@@ -449,6 +449,41 @@ export const supabaseSyncService = {
       return true;
     } catch (err) {
       console.warn('[Supabase] deleteSightingAsAdmin error:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync an app suggestion to Supabase `app_suggestions` table
+   */
+  async syncSuggestion(suggestion: AppSuggestion): Promise<boolean> {
+    if (!supabase || !isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase.from('app_suggestions').upsert(
+        {
+          id: suggestion.id,
+          user_id: suggestion.userId || null,
+          user_name: suggestion.userName || null,
+          user_email: suggestion.userEmail || null,
+          user_phone: suggestion.userPhone || null,
+          category: suggestion.category,
+          title: suggestion.title,
+          description: suggestion.description,
+          rating: suggestion.rating || null,
+          page_url: suggestion.pageUrl,
+          device_info: suggestion.deviceInfo || null,
+          created_at: suggestion.createdAt,
+          status: suggestion.status,
+        },
+        { onConflict: 'id' }
+      );
+      if (error) {
+        console.info('[Supabase] syncSuggestion notice:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.info('[Supabase] syncSuggestion exception:', err);
       return false;
     }
   },
