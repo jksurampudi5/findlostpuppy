@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { PawPrint, Shield, Heart, MapPin, Compass, FileText } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { PawPrint, Shield, Heart, MapPin, Compass, FileText, Sparkles } from 'lucide-react';
 import { SettingsLegalModal } from './SettingsLegalModal';
 
 export const Footer: React.FC = () => {
+  const location = useLocation();
   const [legalModalOpen, setLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<'legal' | 'consent' | 'blocked' | 'delete'>('legal');
+
+  // STRICT REQUIREMENT: Only show footer on the public Dashboard tab.
+  // In tabs like Owner Profile, Location, Pet Profile, Pet Safety, and Admin Portal, footer is removed completely.
+  const isDashboard =
+    location.pathname === '/' ||
+    location.pathname === '/dashboard' ||
+    location.pathname === '/find';
+
+  if (!isDashboard) {
+    return null;
+  }
 
   const openLegal = (tab: 'legal' | 'consent' | 'blocked' | 'delete' = 'legal') => {
     setLegalModalTab(tab);
@@ -121,26 +133,18 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Dedicated Tribute Banner for Priyanka Sharma */}
-        <div className="footer-dedication-banner">
-          <div className="dedication-banner-header">
-            <div className="dedication-pill">
-              <span>🎨 A SPECIAL NOTE OF GRATITUDE 🐾</span>
-            </div>
-            <button
-              type="button"
-              className="dedication-interactive-trigger"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-tribute-modal'))}
-              title="Open full interactive dedication"
-            >
-              View Full Presentation ✨
-            </button>
-          </div>
-          <div className="dedication-banner-body">
-            <p className="dedication-quote-text">
-              "Welcome to the initial launch of <strong>findlostpuppy</strong>! 🐶✨ A very special note of gratitude to <strong>Priyanka Sharma</strong> — a gifted artist, inspiring educator, and devoted pet lover. Your boundless love for animals and creative perspective were a guiding light in shaping this app. Thank you for your warmth, insight, and faith in this journey to ensure no lost pet is ever forgotten and every puppy finds its way home."
-            </p>
-          </div>
+        {/* Compact, Non-intrusive Tribute Link (Opens Full Interactive Modal on Click) */}
+        <div className="footer-dedication-compact">
+          <button
+            type="button"
+            className="dedication-compact-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-tribute-modal'))}
+            title="Read Special Note of Gratitude & View Presentation"
+          >
+            <span className="dedication-pill-tag">🎨 A Special Note of Gratitude 🐾</span>
+            <span className="dedication-link-text">Read Note & View Presentation</span>
+            <Sparkles size={14} className="dedication-sparkle-icon" />
+          </button>
         </div>
 
         <div className="footer-bottom">

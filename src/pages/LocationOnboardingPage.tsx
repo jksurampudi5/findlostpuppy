@@ -36,7 +36,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onSuccess,
   onBack,
 }) => {
-  const { user, refreshProgress, setActiveOnboardingTab, petSafetyStatus } = useAuth();
+  const { user, hasCompletedLocation, refreshProgress, setActiveOnboardingTab, petSafetyStatus } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -85,10 +85,17 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
   const [loadingVillages, setLoadingVillages] = useState(false);
 
+  // Dynamic reactive check: Has location data been saved or loaded?
+  const hasSavedLocation = Boolean(
+    hasCompletedLocation ||
+    (existingProfile && (existingProfile.district || existingProfile.city)) ||
+    (district && (mandalOrMunicipality || city))
+  );
+
   // UI Flow States
-  const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData);
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(hasExistingData);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [userRequestedEdit, setUserRequestedEdit] = useState<boolean>(false);
+  const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
+  const isEditing = userRequestedEdit || !hasSavedLocation;
 
   const [detecting, setDetecting] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
@@ -308,6 +315,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         }
         if (detectedPin) setPinCode(detectedPin);
         setHasDetected(true);
+        setUserRequestedEdit(false);
         showToast(
           `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
           'success'
@@ -417,8 +425,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
     storageService.saveOwnerProfile(profile);
     refreshProgress();
-    setIsSubmitted(true);
-    setIsEditing(false);
+    setUserRequestedEdit(false);
 
     // Star celebration animation on saving location!
     triggerStarCelebration();
@@ -465,7 +472,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           {/* Direct native location flow - no redundant blocking modal */}
 
           {/* CASE 1: SUBMITTED STATE -> ULTRA PET-FRIENDLY SHOWCASE */}
-          {isSubmitted && !isEditing ? (
+          {hasSavedLocation && !userRequestedEdit ? (
             <div className={`location-preview-showcase pet-friendly-showcase ${isLost ? 'showcase-lost-active' : ''}`}>
               {/* TOP ACTION BAR: Verified Badge / Emergency Alert Badge & Re-Detect GPS */}
               <div className="showcase-top-bar">
@@ -593,7 +600,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 <div className="showcase-action-buttons">
                   <button
                     type="button"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => setUserRequestedEdit(true)}
                     className="btn btn-outline btn-md edit-details-btn showcase-center-edit-btn"
                   >
                     <Edit3 size={16} />
@@ -794,34 +801,30 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   </div>
 
                   {/* DIRECT SUBMIT ACTIONS FOOTER */}
-                  <div className="wizard-actions-footer">
-                    <div className="action-buttons-wrap">
-                      {isEditing ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(false)}
-                          className="btn btn-outline btn-lg"
-                        >
-                          <span>Cancel Edit</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleBackToOwner}
-                          className="btn btn-outline btn-lg"
-                        >
-                          <ArrowLeft size={16} />
-                          <span>Back to Owner Profile</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="action-buttons-wrap">
-                      <button type="submit" className="btn btn-primary btn-lg">
-                        <Check size={18} />
-                        <span>{isEditing ? '✓ Update Location' : '✓ Submit Location'}</span>
+                  <div className="wizard-actions-footer location-actions-centered">
+                    {hasSavedLocation ? (
+                      <button
+                        type="button"
+                        onClick={() => setUserRequestedEdit(false)}
+                        className="btn btn-outline btn-lg location-action-btn"
+                      >
+                        <span>Cancel Edit</span>
                       </button>
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleBackToOwner}
+                        className="btn btn-outline btn-lg location-action-btn"
+                      >
+                        <ArrowLeft size={16} />
+                        <span>Back to Owner Profile</span>
+                      </button>
+                    )}
+
+                    <button type="submit" className="btn btn-primary btn-lg submit-location-main-btn location-action-btn">
+                      <Check size={18} />
+                      <span>{hasSavedLocation ? 'Update Location' : 'Submit Location'}</span>
+                    </button>
                   </div>
                 </form>
               )}

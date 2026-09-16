@@ -17,7 +17,12 @@
   overflow-x: hidden;
   scrollbar-gutter: stable;
   background: #09090B;
-  transition: background 0.6s ease;
+  transition: background 0.6s ease, opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.launch-overlay-backdrop.fade-out {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .launch-overlay-backdrop.tribute {
@@ -90,8 +95,8 @@
 
 .launch-logo-container {
   position: relative;
-  width: 130px;
-  height: 130px;
+  width: 320px;
+  height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,46 +105,70 @@
 
 .launch-logo-badge {
   position: relative;
-  width: 104px;
-  height: 104px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #FF7B54 0%, #EA580C 100%);
+  width: 300px;
+  height: 300px;
+  border-radius: 54px;
+  background: #FAF6F0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 36px rgba(234, 88, 12, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  border: 4px solid #EA580C;
+  box-shadow: 0 24px 70px rgba(234, 88, 12, 0.45), 0 0 0 5px rgba(255, 123, 84, 0.35);
   z-index: 3;
   animation: breatheBadge 2.8s ease-in-out infinite;
+  overflow: hidden;
+  padding: 0;
 }
 
 @keyframes breatheBadge {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); box-shadow: 0 20px 44px rgba(234, 88, 12, 0.55); }
+  50% { transform: scale(1.04); box-shadow: 0 30px 80px rgba(234, 88, 12, 0.6), 0 0 0 7px rgba(255, 123, 84, 0.55); }
 }
 
-.launch-paw-emoji {
-  font-size: 3.2rem;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
-  user-select: none;
+.launch-app-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .launch-radar-pulse {
   position: absolute;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 123, 84, 0.5);
+  border-radius: 58px;
+  border: 2px solid rgba(255, 123, 84, 0.55);
   pointer-events: none;
 }
 
 .pulse-1 {
-  width: 104px;
-  height: 104px;
-  animation: pulseRadar 2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite;
+  width: 300px;
+  height: 300px;
+  animation: pulseRadar 2.2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite;
 }
 
 .pulse-2 {
-  width: 104px;
-  height: 104px;
-  animation: pulseRadar 2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite 0.7s;
+  width: 300px;
+  height: 300px;
+  animation: pulseRadar 2.2s cubic-bezier(0.1, 0.6, 0.4, 1) infinite 0.75s;
+}
+
+@media (max-width: 640px) {
+  .launch-logo-container {
+    width: 260px;
+    height: 260px;
+    margin-bottom: 1.25rem;
+  }
+
+  .launch-logo-badge {
+    width: 240px;
+    height: 240px;
+    border-radius: 46px;
+  }
+
+  .pulse-1, .pulse-2 {
+    width: 240px;
+    height: 240px;
+    border-radius: 50px;
+  }
 }
 
 @keyframes pulseRadar {
@@ -598,3 +627,215 @@
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   PROTECTIVE HANDS & SAFE DOG AT HOME CINEMATIC ANIMATIONS
+   (Hands physically come from outside to protect & shelter the dog at home)
+   ========================================================================== */
+
+.protective-sanctuary-card {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  border-radius: 54px;
+  background: #FAF6F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid #EA580C;
+  box-shadow: 0 24px 70px rgba(234, 88, 12, 0.45), 0 0 0 5px rgba(255, 123, 84, 0.35);
+  z-index: 3;
+  overflow: visible;
+  padding: 0;
+  animation: breatheBadge 3.2s ease-in-out infinite;
+}
+
+@keyframes breatheBadge {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 24px 70px rgba(234, 88, 12, 0.45), 0 0 0 5px rgba(255, 123, 84, 0.35);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 30px 80px rgba(234, 88, 12, 0.6), 0 0 0 7px rgba(255, 123, 84, 0.55);
+  }
+}
+
+/* 1. Center Sanctuary: The Home, Chimney with 'let's find them..', Locator Pin & Dog with Leash (Scaled up to fill card) */
+.sanctuary-center-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 2;
+  animation: centerSanctuaryEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sanctuarySafePulse 3.2s infinite ease-in-out 0.8s;
+}
+
+@keyframes centerSanctuaryEntry {
+  0% {
+    transform: scale(1.02);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+}
+
+@keyframes sanctuarySafePulse {
+  0%, 100% {
+    transform: scale(1.18);
+  }
+  50% {
+    transform: scale(1.20);
+  }
+}
+
+/* Cozy Warm Fireplace Hearth Glow behind the dog inside the home */
+.safe-dog-hearth-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 175px;
+  height: 175px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.8) 0%, rgba(245, 158, 11, 0.4) 45%, transparent 72%);
+  filter: blur(16px);
+  pointer-events: none;
+  z-index: 1;
+  animation: hearthWarmthPulse 2.4s infinite ease-in-out;
+}
+
+@keyframes hearthWarmthPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.94);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 1;
+    filter: blur(20px);
+  }
+}
+
+/* 2. & 3. Protective Hands Base Styling */
+.protective-hand-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* TOP HAND: Starts physically OUTSIDE the orange border above and slowly glides in over the home */
+.hand-top-incoming {
+  z-index: 4;
+  animation: handTopFromOutside 1.65s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both,
+             handTopProtectiveHover 3.2s infinite ease-in-out 1.77s;
+}
+
+@keyframes handTopFromOutside {
+  0% {
+    transform: translateY(-135px) translateX(-50px) rotate(-16deg) scale(0.95);
+    opacity: 0;
+    filter: drop-shadow(0 20px 24px rgba(0, 0, 0, 0.6));
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) translateX(0) rotate(0deg) scale(1.18);
+    opacity: 1;
+    filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.15));
+  }
+}
+
+@keyframes handTopProtectiveHover {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1.18);
+  }
+  50% {
+    transform: translateY(3.5px) translateX(-1px) scale(1.195);
+  }
+}
+
+/* BOTTOM HAND: Starts physically OUTSIDE the orange border below and slowly glides in under the locator */
+.hand-bottom-incoming {
+  z-index: 3;
+  animation: handBottomFromOutside 1.65s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both,
+             handBottomProtectiveCradle 3.2s infinite ease-in-out 1.87s;
+}
+
+@keyframes handBottomFromOutside {
+  0% {
+    transform: translateY(135px) translateX(50px) rotate(16deg) scale(0.95);
+    opacity: 0;
+    filter: drop-shadow(0 -20px 24px rgba(0, 0, 0, 0.6));
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) translateX(0) rotate(0deg) scale(1.18);
+    opacity: 1;
+    filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.15));
+  }
+}
+
+@keyframes handBottomProtectiveCradle {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1.18);
+  }
+  50% {
+    transform: translateY(-3.5px) translateX(1px) scale(1.195);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .protective-sanctuary-card {
+    width: 250px;
+    height: 250px;
+    border-radius: 46px;
+  }
+
+  .safe-dog-hearth-glow {
+    width: 145px;
+    height: 145px;
+  }
+
+  @keyframes handTopFromOutside {
+    0% {
+      transform: translateY(-105px) translateX(-38px) rotate(-14deg) scale(0.95);
+      opacity: 0;
+    }
+    25% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0) translateX(0) rotate(0deg) scale(1.18);
+      opacity: 1;
+    }
+  }
+
+  @keyframes handBottomFromOutside {
+    0% {
+      transform: translateY(105px) translateX(38px) rotate(14deg) scale(0.95);
+      opacity: 0;
+    }
+    25% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0) translateX(0) rotate(0deg) scale(1.18);
+      opacity: 1;
+    }
+  }
+}
+
+

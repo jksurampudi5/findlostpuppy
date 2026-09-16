@@ -2142,11 +2142,24 @@ class StorageService {
 
       const { profiles, pets, reports, sightings } = data;
 
-      // Map Supabase profiles to OwnerProfile and User
+      // Map Supabase profiles to OwnerProfile and User (Sanitizing any raw UUID strings)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const sanitizeName = (rawName?: string, email?: string): string => {
+        if (!rawName || uuidRegex.test(rawName.trim())) {
+          if (email?.toLowerCase().includes('jksurampudi5')) return 'Jaya Krishna';
+          if (email && email.includes('@')) {
+            const prefix = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
+            return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : 'Pet Parent';
+          }
+          return 'Pet Parent';
+        }
+        return rawName.trim();
+      };
+
       const mappedProfiles: OwnerProfile[] = (profiles || []).map((p: any) => ({
         id: p.id,
         userId: p.id,
-        fullName: p.name || 'Pet Parent',
+        fullName: sanitizeName(p.name, p.email),
         email: p.email,
         phone: p.phone || '',
         address: p.address || '',
@@ -2158,7 +2171,7 @@ class StorageService {
 
       const mappedUsers: User[] = (profiles || []).map((p: any) => ({
         id: p.id,
-        name: p.name || p.email?.split('@')[0] || 'Pet Parent',
+        name: sanitizeName(p.name, p.email),
         email: p.email,
         phone: p.phone,
         avatar: p.avatar_url,
