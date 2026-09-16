@@ -159,13 +159,21 @@ export const ReportWizardPage = () => {
       return;
     }
 
-    // Save profile to storage
+    // Save profile to storage with preserved photo
+    const existingOwner = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+    const ownerPhoto =
+      existingOwner?.photo ||
+      user?.avatar ||
+      (user?.email ? storageService.getOwnerProfileByEmail(user.email)?.photo : undefined);
+
     const ownerProfile: OwnerProfile = {
+      ...(existingOwner || {}),
       id: `owner-${user?.id || Date.now()}`,
       userId: user!.id,
       fullName: fullName.trim(),
       phone: phoneValidation.cleanDigits,
       email: email.trim(),
+      photo: ownerPhoto,
       address: privateAddress.trim(),
       state: state.trim(),
       district: district.trim(),

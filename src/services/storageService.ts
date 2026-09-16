@@ -1100,8 +1100,9 @@ class StorageService {
     const cleanEmail = email?.trim().toLowerCase();
 
     // 1. Direct ID match
+    let match: OwnerProfile | undefined;
     if (userId) {
-      const byId = this.profiles.find(
+      match = this.profiles.find(
         (p) =>
           p.userId === userId ||
           p.userId === rawUserId ||
@@ -1109,13 +1110,35 @@ class StorageService {
           p.id === `owner-${userId}` ||
           p.id === `owner-${rawUserId}`
       );
-      if (byId) return byId;
     }
 
     // 2. Email match
-    if (cleanEmail) {
-      const byEmail = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === cleanEmail);
-      if (byEmail) return byEmail;
+    if (!match && cleanEmail) {
+      match = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === cleanEmail);
+    }
+
+    if (match) {
+      // Auto-heal missing photo: If matched profile has no photo, locate photo across profiles or active auth user
+      if (!match.photo) {
+        const withPhoto = this.profiles.find(
+          (p) =>
+            p.photo &&
+            ((cleanEmail && p.email && p.email.trim().toLowerCase() === cleanEmail) ||
+              (rawUserId && (p.userId === rawUserId || p.id === rawUserId || p.id === `owner-${rawUserId}`)))
+        );
+        if (withPhoto?.photo) {
+          match.photo = withPhoto.photo;
+        } else {
+          const activeUser = authService.getCurrentUser();
+          if (
+            activeUser?.avatar &&
+            (activeUser.id === rawUserId || (cleanEmail && activeUser.email?.trim().toLowerCase() === cleanEmail))
+          ) {
+            match.photo = activeUser.avatar;
+          }
+        }
+      }
+      return match;
     }
 
     return undefined;
@@ -1125,7 +1148,22 @@ class StorageService {
     this.loadProfiles();
     if (!email) return undefined;
     const clean = email.trim().toLowerCase();
-    return this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean);
+    const match = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean);
+    if (match) {
+      if (!match.photo) {
+        const withPhoto = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean && p.photo);
+        if (withPhoto?.photo) {
+          match.photo = withPhoto.photo;
+        } else {
+          const activeUser = authService.getCurrentUser();
+          if (activeUser?.avatar && activeUser.email?.trim().toLowerCase() === clean) {
+            match.photo = activeUser.avatar;
+          }
+        }
+      }
+      return match;
+    }
+    return undefined;
   }
 
   hasCompletedOwnerProfile(userId: string, email?: string): boolean {
@@ -1615,21 +1653,56 @@ class StorageService {
 
   saveOwnerProfile(profile: OwnerProfile): OwnerProfile {
     return this.executeTransaction(() => {
-      const index = this.profiles.findIndex((p) => p.id === profile.id || p.userId === profile.userId);
+      const cleanEmail = profile.email?.trim().toLowerCase();
+      const rawUserId = (profile.userId || profile.id || '').replace(/^owner-/, '');
+      profile.userId = rawUserId;
+      profile.id = rawUserId;
+
+      const index = this.profiles.findIndex(
+        (p) =>
+          p.id === profile.id ||
+          p.userId === profile.userId ||
+          p.id === `owner-${rawUserId}` ||
+          p.userId === rawUserId ||
+          (cleanEmail && p.email && p.email.trim().toLowerCase() === cleanEmail)
+      );
+
+      // CRITICAL PRESERVATION: Never overwrite an existing photo with undefined or empty string!
+      const activeUser = authService.getCurrentUser();
+      let preservedPhoto = profile.photo?.trim();
+      if (!preservedPhoto) {
+        if (index >= 0 && this.profiles[index]?.photo) {
+          preservedPhoto = this.profiles[index].photo;
+        } else if (cleanEmail) {
+          const matchingByEmail = this.profiles.find(
+            (p) => p.email && p.email.trim().toLowerCase() === cleanEmail && p.photo
+          );
+          if (matchingByEmail?.photo) preservedPhoto = matchingByEmail.photo;
+        }
+        if (!preservedPhoto && activeUser?.avatar) {
+          preservedPhoto = activeUser.avatar;
+        }
+      }
+
       if (index >= 0) {
-        this.profiles[index] = { ...profile, updatedAt: new Date().toISOString() };
+        this.profiles[index] = {
+          ...this.profiles[index],
+          ...profile,
+          photo: preservedPhoto || this.profiles[index].photo || undefined,
+          updatedAt: new Date().toISOString(),
+        };
       } else {
-        this.profiles.push(profile);
+        this.profiles.push({
+          ...profile,
+          photo: preservedPhoto || undefined,
+          updatedAt: new Date().toISOString(),
+        });
       }
 
       const approxLoc =
         profile.approximateArea ||
         [profile.city, profile.district, profile.state].filter(Boolean).join(', ') ||
         'Local Neighborhood';
-
-      const rawUserId = (profile.userId || profile.id).replace(/^owner-/, '');
-      profile.userId = rawUserId;
-      profile.id = rawUserId;
 
       // Update location and contact details on any existing reports for this owner
       let hasReport = false;

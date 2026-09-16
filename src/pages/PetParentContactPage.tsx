@@ -9,6 +9,7 @@ import type { ContactMethod, OwnerProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
+import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 
 interface PetParentContactPageProps {
@@ -19,30 +20,6 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
-
-  const sanitizePersonName = (rawName?: string, email?: string): string => {
-    if (!rawName) {
-      if (email?.toLowerCase().includes('jksurampudi5')) return 'Jaya Krishna';
-      if (email && email.includes('@')) {
-        const prefix = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
-        return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : '';
-      }
-      return '';
-    }
-    const trimmed = rawName.trim();
-    if (
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ||
-      /^user-[0-9a-z-]+$/i.test(trimmed)
-    ) {
-      if (email?.toLowerCase().includes('jksurampudi5')) return 'Jaya Krishna';
-      if (email && email.includes('@')) {
-        const prefix = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
-        return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : '';
-      }
-      return '';
-    }
-    return trimmed;
-  };
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const initialCleanName = sanitizePersonName(existingProfile?.fullName || user?.name, user?.email || existingProfile?.email);
@@ -72,13 +49,14 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         const cleanedName = sanitizePersonName(p.fullName, user.email || p.email);
         setFullName(cleanedName);
         if (p.phone) setPhone(p.phone);
-        if (p.photo) setPhoto(p.photo);
+        const effectivePhoto = p.photo || user.avatar || '';
+        if (effectivePhoto) setPhoto(effectivePhoto);
         if (p.preferredContact) setPreferredContact(p.preferredContact);
 
         setSavedSnapshot({
           name: cleanedName,
           phone: p.phone || user.phone || '',
-          photo: p.photo || user.avatar || '',
+          photo: effectivePhoto,
           contact: p.preferredContact || 'phone',
         });
       } else {
@@ -154,6 +132,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         storageService.saveOwnerProfile(updated);
         refreshProgress();
       }
+      setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));
       showToast('✓ Photo updated!', 'success');
     } catch {
       showToast('Could not process photo. Please try another image.', 'error');
@@ -175,6 +154,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         refreshProgress();
       }
     }
+    setSavedSnapshot((prev) => ({ ...prev, photo: '' }));
     showToast('Photo removed.', 'info');
   };
 

@@ -139,3 +139,30 @@ export function isOwnerOfReport(
 
   return false;
 }
+
+/**
+ * Normalizes and sanitizes person display names to prevent raw UUIDs, user IDs, or empty names.
+ */
+export function sanitizePersonName(rawName?: string, email?: string): string {
+  if (!rawName) {
+    if (email?.toLowerCase().includes('jksurampudi5')) return 'Jaya Krishna';
+    if (email && email.includes('@')) {
+      const prefix = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
+      return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : '';
+    }
+    return '';
+  }
+  const trimmed = rawName.trim();
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ||
+    /^user-[0-9a-z-]+$/i.test(trimmed)
+  ) {
+    if (email?.toLowerCase().includes('jksurampudi5')) return 'Jaya Krishna';
+    if (email && email.includes('@')) {
+      const prefix = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
+      return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : '';
+    }
+    return '';
+  }
+  return trimmed;
+}
