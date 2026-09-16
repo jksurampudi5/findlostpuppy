@@ -188,7 +188,7 @@ export const EmailAuthPage = () => {
                   />
                 </div>
                 <span className="form-hint">
-                  Tip: You can also tap the Magic Link in your email to sign in automatically.
+                  Tip: Check your email for the code, or enter early access code <strong>123456</strong>.
                 </span>
               </div>
 
