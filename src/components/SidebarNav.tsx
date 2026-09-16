@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Check
+  Check,
+  Lightbulb
 } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
@@ -339,6 +340,20 @@ export const SidebarNav: React.FC = () => {
               <span>Admin</span>
             </button>
           )}
+
+          {/* Quick Suggestion Button */}
+          <button
+            type="button"
+            className="drawer-nav-item suggestion-drawer-item"
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              window.dispatchEvent(new CustomEvent('open-suggestion-modal'));
+            }}
+            title="Share an Idea or Suggestion"
+          >
+            <Lightbulb size={18} className="text-amber" />
+            <span>💡 Suggest an Idea</span>
+          </button>
         </div>
 
         {isAuthenticated && (
@@ -589,6 +604,23 @@ export const SidebarNav: React.FC = () => {
                 </div>
               </button>
             )}
+
+            {/* 6. SUGGEST AN IDEA TAB */}
+            <button
+              type="button"
+              id="sidebar-suggestion-tab"
+              className="sidebar-nav-tab suggestion-nav-tab"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-suggestion-modal'))}
+              title="Share an Idea or Suggestion"
+            >
+              <div className="nav-tab-icon-circle circle-suggestion">
+                <Lightbulb size={20} className="text-amber-500" />
+              </div>
+              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
+                <span className="nav-tab-title" style={{ color: '#ea580c' }}>💡 Suggest Idea</span>
+                <span className="nav-tab-desc">Help us improve</span>
+              </div>
+            </button>
           </nav>
 
           {/* Bottom Profile / Sign Out Card */}

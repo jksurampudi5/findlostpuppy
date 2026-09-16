@@ -10,6 +10,7 @@ import type {
   BlockedUserRecord,
   ListingReportCategory,
   UserReportCategory,
+  AppSuggestion,
 } from '../types';
 import { consentService } from './consentService';
 import { supabaseSyncService } from './supabaseSyncService';
@@ -32,6 +33,7 @@ const USERS_KEY = 'findlostpuppy_registered_users_v1';
 const SESSION_KEY = 'findlostpuppy_session_v1';
 const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
 const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
+const SUGGESTIONS_KEY = 'findlostpuppy_suggestions_v1';
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   {
@@ -241,6 +243,7 @@ class StorageService {
   private blockedUsers: BlockedUserRecord[] = [];
   private deletedReportIds: string[] = [];
   private deletedPetIds: string[] = [];
+  private suggestions: AppSuggestion[] = [];
   private isTransactionActive: boolean = false;
 
   constructor() {
@@ -293,6 +296,7 @@ class StorageService {
       blockedUsers: JSON.stringify(this.blockedUsers),
       deletedReportIds: JSON.stringify(this.deletedReportIds),
       deletedPetIds: JSON.stringify(this.deletedPetIds),
+      suggestions: JSON.stringify(this.suggestions),
     };
 
     try {
@@ -317,6 +321,7 @@ class StorageService {
       this.blockedUsers = JSON.parse(snapshot.blockedUsers);
       this.deletedReportIds = JSON.parse(snapshot.deletedReportIds);
       this.deletedPetIds = JSON.parse(snapshot.deletedPetIds);
+      this.suggestions = JSON.parse(snapshot.suggestions);
       throw err;
     } finally {
       this.isTransactionActive = false;
@@ -448,6 +453,7 @@ class StorageService {
     safeSet(BLOCKED_USERS_KEY, this.blockedUsers);
     safeSet(DELETED_REPORTS_KEY, this.deletedReportIds);
     safeSet(DELETED_PETS_KEY, this.deletedPetIds);
+    safeSet(SUGGESTIONS_KEY, this.suggestions);
   }
 
   private isReportOrPetDeleted(reportId?: string, dogId?: string, petId?: string): boolean {
@@ -615,6 +621,9 @@ class StorageService {
 
       const storedBlocked = localStorage.getItem(BLOCKED_USERS_KEY);
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : [];
+
+      const storedSuggestions = localStorage.getItem(SUGGESTIONS_KEY);
+      this.suggestions = storedSuggestions ? JSON.parse(storedSuggestions) : [];
 
       this.enforceIntegrityInvariants();
       this.commitAllStorage();
@@ -2438,6 +2447,77 @@ class StorageService {
 
       return { success: true };
     });
+  }
+
+  // =========================================================================
+  // APP SUGGESTIONS & FEEDBACK ENGINE
+  // =========================================================================
+
+  saveSuggestion(
+    suggestion: Omit<AppSuggestion, 'id' | 'createdAt' | 'status'> & Partial<AppSuggestion>
+  ): AppSuggestion {
+    const newRecord: AppSuggestion = {
+      id: suggestion.id || `sugg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      userId: suggestion.userId,
+      userName: suggestion.userName,
+      userEmail: suggestion.userEmail,
+      userPhone: suggestion.userPhone,
+      category: suggestion.category || 'feature',
+      title: (suggestion.title || '').trim(),
+      description: (suggestion.description || '').trim(),
+      rating: suggestion.rating,
+      pageUrl: suggestion.pageUrl || (typeof window !== 'undefined' ? window.location.pathname : '/'),
+      deviceInfo:
+        suggestion.deviceInfo ||
+        (typeof navigator !== 'undefined'
+          ? `${navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'} • ${window.innerWidth}x${window.innerHeight}`
+          : 'Web Client'),
+      createdAt: suggestion.createdAt || new Date().toISOString(),
+      status: suggestion.status || 'NEW',
+    };
+
+    const existingIndex = this.suggestions.findIndex((s) => s.id === newRecord.id);
+    if (existingIndex >= 0) {
+      this.suggestions[existingIndex] = newRecord;
+    } else {
+      this.suggestions.unshift(newRecord);
+    }
+
+    this.commitAllStorage();
+    this.notifyUpdate();
+
+    // Background sync to Supabase if configured
+    supabaseSyncService.syncSuggestion(newRecord).catch((err) => {
+      console.info('[StorageService] Suggestion sync notice:', err);
+    });
+
+    return newRecord;
+  }
+
+  getAllSuggestions(): AppSuggestion[] {
+    return [...this.suggestions];
+  }
+
+  deleteSuggestion(id: string): boolean {
+    const prevLen = this.suggestions.length;
+    this.suggestions = this.suggestions.filter((s) => s.id !== id);
+    if (this.suggestions.length !== prevLen) {
+      this.commitAllStorage();
+      this.notifyUpdate();
+      return true;
+    }
+    return false;
+  }
+
+  updateSuggestionStatus(id: string, status: AppSuggestion['status']): boolean {
+    const item = this.suggestions.find((s) => s.id === id);
+    if (item) {
+      item.status = status;
+      this.commitAllStorage();
+      this.notifyUpdate();
+      return true;
+    }
+    return false;
   }
 }
 

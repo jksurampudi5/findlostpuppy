@@ -24,13 +24,15 @@ import {
   Cloud,
   CheckCircle2,
   AlertCircle,
+  Lightbulb,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { cloudSyncService, type CloudSyncStatus } from '../services/cloudSyncService';
 import { StatusBadge } from '../components/StatusBadge';
-import type { User, DogProfile, LostReport, Sighting, ReportStatus } from '../types';
+import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion } from '../types';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
@@ -40,7 +42,9 @@ export const AdminDashboardPage: React.FC = () => {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'members' | 'pets' | 'alerts' | 'sightings' | 'backup'>('members');
+  const [activeTab, setActiveTab] = useState<
+    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup'
+  >('members');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Data states
@@ -48,6 +52,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [pets, setPets] = useState<DogProfile[]>([]);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
+  const [suggestions, setSuggestions] = useState<AppSuggestion[]>([]);
   const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>(cloudSyncService.getStatus());
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -57,6 +62,7 @@ export const AdminDashboardPage: React.FC = () => {
     setPets(storageService.getAllPets());
     setReports(storageService.getAllReports());
     setSightings(storageService.getAllSightings());
+    setSuggestions(storageService.getAllSuggestions());
   };
 
   useEffect(() => {
@@ -257,6 +263,34 @@ export const AdminDashboardPage: React.FC = () => {
         s.description?.toLowerCase().includes(q)
     );
   }, [sightings, searchQuery]);
+
+  const filteredSuggestions = useMemo(() => {
+    if (!searchQuery.trim()) return suggestions;
+    const q = searchQuery.toLowerCase();
+    return suggestions.filter(
+      (s) =>
+        s.title?.toLowerCase().includes(q) ||
+        s.description?.toLowerCase().includes(q) ||
+        s.userName?.toLowerCase().includes(q) ||
+        s.userEmail?.toLowerCase().includes(q) ||
+        s.category?.toLowerCase().includes(q) ||
+        s.status?.toLowerCase().includes(q)
+    );
+  }, [suggestions, searchQuery]);
+
+  const handleDeleteSuggestion = (id: string) => {
+    if (window.confirm('Delete this user suggestion?')) {
+      storageService.deleteSuggestion(id);
+      loadAllAdminData();
+      showToast('Suggestion removed.', 'info');
+    }
+  };
+
+  const handleUpdateSuggestionStatus = (id: string, newStatus: AppSuggestion['status']) => {
+    storageService.updateSuggestionStatus(id, newStatus);
+    loadAllAdminData();
+    showToast(`Status updated to ${newStatus}`, 'success');
+  };
 
   const missingReportsCount = useMemo(() => reports.filter((r) => r.status === 'LOST').length, [reports]);
   const safeReportsCount = useMemo(() => reports.filter((r) => r.status === 'SAFE').length, [reports]);
@@ -483,6 +517,16 @@ export const AdminDashboardPage: React.FC = () => {
               <Eye size={17} />
               <span>👁️ Sightings Log</span>
               <span className="admin-count-pill">{sightings.length}</span>
+            </button>
+
+            <button
+              className={`admin-tab-btn ${activeTab === 'suggestions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('suggestions')}
+              role="tab"
+            >
+              <Lightbulb size={17} />
+              <span>💡 Suggestions</span>
+              <span className="admin-count-pill amber-pill">{suggestions.length}</span>
             </button>
 
             <button
@@ -1088,7 +1132,175 @@ export const AdminDashboardPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: CLOUD SYNC & DATA BACKUP */}
+        {/* TAB 5: USER APP SUGGESTIONS & FEEDBACK */}
+        {/* ========================================================================= */}
+        {activeTab === 'suggestions' && (
+          <div className="admin-tab-content">
+            <div className="admin-section-header">
+              <div>
+                <h2 className="admin-section-title">💡 Community App Suggestions & Feedback</h2>
+                <p className="admin-section-desc">
+                  Real-time feature requests, UX improvements, and bug submissions submitted by users across the application.
+                </p>
+              </div>
+              <span className="admin-count-pill amber-pill">
+                {filteredSuggestions.length} {filteredSuggestions.length === 1 ? 'Suggestion' : 'Suggestions'}
+              </span>
+            </div>
+
+            {filteredSuggestions.length === 0 ? (
+              <div className="admin-empty-state card">
+                <Lightbulb size={48} className="text-gray-300 mx-auto mb-3" />
+                <h3>No Suggestions Found</h3>
+                <p>
+                  {searchQuery
+                    ? 'No suggestions matched your search filter.'
+                    : 'No suggestions submitted yet. When users submit ideas from the floating widget or navigation menu, they will show up here!'}
+                </p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper card">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Category</th>
+                      <th>Suggestion / Idea</th>
+                      <th>Rating</th>
+                      <th>Submitted By</th>
+                      <th>Page / Device</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSuggestions.map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <select
+                            value={s.status}
+                            onChange={(e) =>
+                              handleUpdateSuggestionStatus(s.id, e.target.value as AppSuggestion['status'])
+                            }
+                            className="select select-xs"
+                            style={{
+                              fontWeight: 700,
+                              color:
+                                s.status === 'COMPLETED'
+                                  ? '#16a34a'
+                                  : s.status === 'PLANNED'
+                                  ? '#2563eb'
+                                  : s.status === 'REVIEWED'
+                                  ? '#8b5cf6'
+                                  : '#ea580c',
+                            }}
+                          >
+                            <option value="NEW">NEW</option>
+                            <option value="REVIEWED">REVIEWED</option>
+                            <option value="PLANNED">PLANNED</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                          </select>
+                        </td>
+                        <td>
+                          <span
+                            className="admin-badge"
+                            style={{
+                              backgroundColor:
+                                s.category === 'feature'
+                                  ? '#ffedd5'
+                                  : s.category === 'improvement'
+                                  ? '#dbeafe'
+                                  : s.category === 'ui_ux'
+                                  ? '#f3e8ff'
+                                  : s.category === 'bug'
+                                  ? '#fee2e2'
+                                  : s.category === 'praise'
+                                  ? '#fce7f3'
+                                  : '#f1f5f9',
+                              color:
+                                s.category === 'feature'
+                                  ? '#c2410c'
+                                  : s.category === 'improvement'
+                                  ? '#1d4ed8'
+                                  : s.category === 'ui_ux'
+                                  ? '#6b21a8'
+                                  : s.category === 'bug'
+                                  ? '#b91c1c'
+                                  : s.category === 'praise'
+                                  ? '#be185d'
+                                  : '#475569',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              fontSize: '0.72rem',
+                            }}
+                          >
+                            {s.category}
+                          </span>
+                        </td>
+                        <td style={{ maxWidth: '300px' }}>
+                          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: '3px' }}>
+                            {s.title}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                            {s.description}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={14}
+                                fill={(s.rating || 0) >= star ? '#f59e0b' : 'none'}
+                                stroke={(s.rating || 0) >= star ? '#f59e0b' : '#cbd5e1'}
+                              />
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{s.userName || 'Anonymous'}</div>
+                          {s.userEmail && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{s.userEmail}</div>}
+                          {s.userPhone && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{s.userPhone}</div>}
+                        </td>
+                        <td>
+                          <code style={{ fontSize: '0.78rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
+                            {s.pageUrl}
+                          </code>
+                          {s.deviceInfo && (
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                              {s.deviceInfo}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                          {new Date(s.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSuggestion(s.id)}
+                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                            title="Delete suggestion"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 6: CLOUD SYNC & DATA BACKUP */}
         {/* ========================================================================= */}
         {activeTab === 'backup' && (
           <div className="admin-tab-content">

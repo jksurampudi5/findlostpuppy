@@ -200,3 +200,27 @@ export interface BlockedUserRecord {
   blockedAt: string;
 }
 
+export type SuggestionCategory =
+  | 'feature'
+  | 'improvement'
+  | 'ui_ux'
+  | 'bug'
+  | 'praise'
+  | 'other';
+
+export interface AppSuggestion {
+  id: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  category: SuggestionCategory;
+  title: string;
+  description: string;
+  rating?: number; // 1 to 5
+  pageUrl: string;
+  deviceInfo?: string;
+  createdAt: string;
+  status: 'NEW' | 'REVIEWED' | 'PLANNED' | 'COMPLETED';
+}
+
