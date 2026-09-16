@@ -17,9 +17,11 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ImageUploader } from '../components/ImageUploader';
 import { storageService } from '../services/storageService';
+import { authService } from '../services/authService';
 import { storageBucketService } from '../services/storageBucketService';
 import type { DogGender, DogSize, DogProfile } from '../types';
 import { handleDogImageError, getDogPhotoUrl } from '../utils/dogPhotoHelper';
+import { sanitizePersonName } from '../utils/privacyUtils';
 import {
   searchDogBreeds,
   DOG_AGE_OPTIONS,
@@ -208,6 +210,25 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               {(() => {
                 const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
                 if (!ownerProfile && !existingPet) return null;
+
+                // Multi-tier owner photo resolution:
+                // 1. ownerProfile.photo
+                // 2. user.avatar
+                // 3. storageService.getOwnerProfileByEmail(user?.email)?.photo
+                // 4. storageService.getOwnerProfileByUserId(existingPet?.ownerId)?.photo
+                // 5. authService.getCurrentUser()?.avatar
+                const ownerPhoto =
+                  ownerProfile?.photo ||
+                  user?.avatar ||
+                  (user?.email ? storageService.getOwnerProfileByEmail(user.email)?.photo : '') ||
+                  (existingPet?.ownerId ? storageService.getOwnerProfileByUserId(existingPet.ownerId)?.photo : '') ||
+                  authService.getCurrentUser()?.avatar ||
+                  '';
+
+                const ownerName =
+                  sanitizePersonName(ownerProfile?.fullName || user?.name, user?.email || ownerProfile?.email) ||
+                  'Pet Parent';
+
                 return (
                   <div className="owner-pet-family-banner">
                     <div className="family-banner-header">
@@ -218,15 +239,29 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                       {/* Owner Avatar */}
                       <div className="family-avatar-card owner-avatar-card">
                         <div className="family-avatar-img-wrap">
-                          {ownerProfile?.photo ? (
-                            <img src={ownerProfile.photo} alt={ownerProfile.fullName} className="family-avatar-img" />
+                          {ownerPhoto ? (
+                            <img
+                              src={ownerPhoto}
+                              alt={ownerName}
+                              className="family-avatar-img"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                const placeholder = e.currentTarget.parentElement?.querySelector('.family-avatar-placeholder');
+                                if (placeholder) (placeholder as HTMLElement).style.display = 'flex';
+                              }}
+                            />
                           ) : (
                             <div className="family-avatar-placeholder">🧑‍🦱</div>
+                          )}
+                          {ownerPhoto && (
+                            <div className="family-avatar-placeholder" style={{ display: 'none' }}>
+                              🧑‍🦱
+                            </div>
                           )}
                         </div>
                         <div className="family-avatar-info">
                           <span className="family-avatar-role">Pet Parent</span>
-                          <span className="family-avatar-name">{ownerProfile?.fullName || user?.name || 'Owner'}</span>
+                          <span className="family-avatar-name">{ownerName}</span>
                           {ownerProfile?.phone && (
                             <span className="family-avatar-detail">📞 {ownerProfile.phone}</span>
                           )}
