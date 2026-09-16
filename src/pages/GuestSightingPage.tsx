@@ -33,6 +33,7 @@ import {
 } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { maskPhoneNumber, maskEmail, validateIndianPhoneNumber, isOwnerOfReport } from '../utils/privacyUtils';
+import { detectResilientLocation } from '../utils/geolocationHelper';
 import { useAuth } from '../context/AuthContext';
 import { storageBucketService } from '../services/storageBucketService';
 import type { LostReport, Sighting } from '../types';
@@ -122,55 +123,27 @@ export const GuestSightingPage: React.FC = () => {
     abulluImg;
   const dogDisplayName = getDogDisplayName(report?.dog, report);
 
-  // 1-Click GPS Location Detector for Good Samaritan
-  const handleDetectGPS = () => {
-    if (!navigator.geolocation) {
-      showToast('Geolocation is not supported by your browser.', 'error');
-      return;
-    }
-
+  // 1-Click Resilient Location Detector for Good Samaritan
+  const handleDetectGPS = async () => {
     setGpsDetecting(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lng);
+    try {
+      const geo = await detectResilientLocation();
+      setLatitude(geo.latitude);
+      setLongitude(geo.longitude);
 
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            const street = addr.road || addr.suburb || addr.neighbourhood || '';
-            const locality = addr.city || addr.town || addr.village || addr.county || '';
-            const finalStr =
-              [street, locality].filter(Boolean).join(', ') ||
-              `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-            setLocationText(finalStr);
-            showToast('📍 Exact location locked via GPS!', 'success');
-          } else {
-            setLocationText(`GPS Locked: Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}`);
-          }
-        } catch {
-          setLocationText(`GPS Locked: Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}`);
-          showToast('GPS fix acquired!', 'info');
-        } finally {
-          setGpsDetecting(false);
-        }
-      },
-      (err) => {
-        setGpsDetecting(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          showToast('Location permission was denied. Please type the location manually.', 'info');
-        } else {
-          showToast('Could not acquire GPS location. Please enter details manually.', 'info');
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+      const street = geo.city || '';
+      const locality = geo.mandal || geo.district || geo.state || '';
+      const finalStr =
+        [street, locality].filter(Boolean).join(', ') ||
+        `GPS: ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)}`;
+
+      setLocationText(finalStr);
+      showToast('📍 Exact location locked!', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not acquire location. Please enter details manually.', 'warning');
+    } finally {
+      setGpsDetecting(false);
+    }
   };
 
   // Photo Upload Handler (Supports multiple photos)

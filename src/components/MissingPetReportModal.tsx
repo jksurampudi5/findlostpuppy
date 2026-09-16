@@ -12,6 +12,7 @@ import {
   Home,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { detectResilientLocation } from '../utils/geolocationHelper';
 import type { DogProfile, OwnerProfile } from '../types';
 
 interface MissingPetReportModalProps {
@@ -72,30 +73,24 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // 1-Click GPS Location Detection from the Place Where Pet is Lost
-  const autoDetectGPS = () => {
-    if (!('geolocation' in navigator)) {
-      showToast('GPS is not supported on this browser. Please type the lost landmark manually.', 'info');
-      return;
-    }
-
+  // 1-Click Resilient Location Detection from the Place Where Pet is Lost
+  const autoDetectGPS = async () => {
     setIsDetectingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const detected = `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+    try {
+      const geo = await detectResilientLocation();
+      const area = geo.city || geo.mandal || geo.district || '';
+      const detected = area
+        ? `${area} (GPS: ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`
+        : `GPS (${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`;
 
-        setLastKnownLocation(detected);
-        setIsDetectingLocation(false);
-        setDetectedSuccess(true);
-        showToast('📍 Current lost GPS location detected! You can edit or add landmark details in the box below.', 'success');
-      },
-      (_error) => {
-        setIsDetectingLocation(false);
-        showToast('Could not access GPS. Please type the lost landmark or area manually.', 'warning');
-      },
-      { timeout: 8000, enableHighAccuracy: true }
-    );
+      setLastKnownLocation(detected);
+      setDetectedSuccess(true);
+      showToast('📍 Current lost location detected! You can edit or add landmark details in the box below.', 'success');
+    } catch {
+      showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
+    } finally {
+      setIsDetectingLocation(false);
+    }
   };
 
   // Optional 1-Click Shortcut: Use Saved Home Location

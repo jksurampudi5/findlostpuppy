@@ -25,6 +25,7 @@ import { SearchableSelect, type SelectOption } from '../components/SearchableSel
 import type { OwnerProfile, LocationLocality } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogDisplayName } from '../utils/dogPhotoHelper';
+import { detectResilientLocation } from '../utils/geolocationHelper';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
 
@@ -267,85 +268,95 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   };
 
   // Hardware GPS Detection
-  const executeDetectLocation = () => {
+  // Resilient Multi-Tier Location Detection (Hardware GPS -> Network/Wi-Fi -> IP Fallback)
+  const executeDetectLocation = async () => {
     setShowPermissionModal(false);
-    if (!navigator.geolocation) {
-      showToast('Geolocation is not supported by your browser.', 'error');
-      setHasDetected(true);
-      return;
-    }
-
     setDetecting(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const exactLat = pos.coords.latitude;
-        const exactLng = pos.coords.longitude;
-        setLatitude(exactLat);
-        setLongitude(exactLng);
+    try {
+      const geo = await detectResilientLocation();
+      const exactLat = geo.latitude;
+      const exactLng = geo.longitude;
+      setLatitude(exactLat);
+      setLongitude(exactLng);
 
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${exactLat}&lon=${exactLng}&zoom=18&addressdetails=1`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            const detectedState = addr.state || state;
-            const rawDistrict = addr.state_district || addr.county || addr.district || district;
-            const detectedMandal = addr.subdistrict || addr.county || mandalOrMunicipality;
-            const detectedCity = addr.city || addr.town || addr.village || addr.suburb || city;
-            const detectedPin = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : pinCode;
+      const detectedState = geo.state || state;
+      const rawDistrict = geo.district || district;
+      const detectedMandal = geo.mandal || mandalOrMunicipality;
+      const detectedCity = geo.city || city;
+      const detectedPin = geo.pinCode || pinCode;
 
-            const match = await locationService.matchLocation({
-              state: detectedState,
-              district: rawDistrict,
-              mandal: detectedMandal,
-              locality: detectedCity,
-              pinCode: detectedPin,
-            });
+      const match = await locationService.matchLocation({
+        state: detectedState,
+        district: rawDistrict,
+        mandal: detectedMandal,
+        locality: detectedCity,
+        pinCode: detectedPin,
+      });
 
-            if (match) {
-              setState(match.state.name);
-              setDistrict(match.district.districtName);
-              setMandalOrMunicipality(match.subDistrict.subDistrictName);
-              if (match.locality) {
-                setCity(match.locality.localityName);
-              } else {
-                setCity(match.subDistrict.subDistrictName);
+      if (match) {
+        setState(match.state.name);
+        setDistrict(match.district.districtName);
+        setMandalOrMunicipality(match.subDistrict.subDistrictName);
+        if (match.locality) {
+          setCity(match.locality.localityName);
+        } else {
+          setCity(match.subDistrict.subDistrictName);
+        }
+        if (detectedPin) setPinCode(detectedPin);
+        setHasDetected(true);
+        showToast(
+          `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+          'success'
+        );
+      } else {
+        // Smart Partial Matching
+        let matchedSomething = false;
+        if (detectedState) {
+          const st = locationService.getState(detectedState);
+          if (st) {
+            setState(st.name);
+            matchedSomething = true;
+            if (rawDistrict) {
+              const d = locationService.getDistrict(st.name, rawDistrict);
+              if (d) {
+                setDistrict(d.districtName);
+                if (detectedMandal) {
+                  const m = locationService.getSubDistrict(d.districtCode, detectedMandal);
+                  if (m) setMandalOrMunicipality(m.subDistrictName);
+                }
               }
-              if (detectedPin) setPinCode(detectedPin);
-              setHasDetected(true);
-              showToast(
-                `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
-                'success'
-              );
-            } else {
-              setHasDetected(true);
-              showToast(
-                'Could not automatically match this location against official records. Please select below.',
-                'warning'
-              );
             }
           }
-        } catch {
-          setHasDetected(true);
-          showToast('GPS locked. Please confirm details below.', 'info');
-        } finally {
-          setDetecting(false);
         }
-      },
-      (err) => {
-        setDetecting(false);
+        if (detectedCity) {
+          setCity(detectedCity);
+          matchedSomething = true;
+        }
+        if (detectedPin) setPinCode(detectedPin);
+
         setHasDetected(true);
-        if (err.code === err.PERMISSION_DENIED) {
-          showToast('Location permission denied. Please enter details below.', 'info');
+        if (matchedSomething) {
+          showToast(
+            `📍 Location detected: ${detectedCity || rawDistrict || 'Current Area'}. Please confirm details below.`,
+            'info'
+          );
         } else {
-          showToast('Could not acquire GPS fix. Please enter details below.', 'info');
+          showToast(
+            'Location locked. Please choose your District and Mandal below.',
+            'info'
+          );
         }
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
+      }
+    } catch (err: any) {
+      setHasDetected(true);
+      showToast(
+        err?.message || 'Could not acquire location fix. Please select details below.',
+        'info'
+      );
+    } finally {
+      setDetecting(false);
+    }
   };
 
   // Direct Submission: Saves to background and transitions to preview

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { locationService } from '../services/locationService';
+import { detectResilientLocation } from '../utils/geolocationHelper';
 import { SearchableSelect, type SelectOption } from './SearchableSelect';
 import type { LocationLocality } from '../types';
 
@@ -295,92 +296,109 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   };
 
   // Hardware GPS detection
-  const executeDetectLocation = () => {
+  // Resilient Multi-Tier Location Detection (Hardware GPS -> Network/Wi-Fi -> IP Fallback)
+  const executeDetectLocation = async () => {
     setShowPermissionModal(false);
-    if (!navigator.geolocation) {
-      showToast('Geolocation is not supported by your browser.', 'error');
-      return;
-    }
-
     setDetecting(true);
     setGeoError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const exactLat = pos.coords.latitude;
-        const exactLng = pos.coords.longitude;
-        const acc = Math.round(pos.coords.accuracy);
-        setAccuracyRadius(acc);
+    try {
+      const geo = await detectResilientLocation();
+      const exactLat = geo.latitude;
+      const exactLng = geo.longitude;
+      setAccuracyRadius(geo.source === 'gps' ? 15 : geo.source === 'network' ? 50 : 500);
 
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${exactLat}&lon=${exactLng}&zoom=18&addressdetails=1`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            const detectedState = addr.state || currentState;
-            const rawDistrict = addr.state_district || addr.county || addr.district || currentDistrict;
-            const detectedMandal = addr.subdistrict || addr.county || currentMandal;
-            const detectedCity = addr.city || addr.town || addr.village || addr.suburb || currentCity;
-            const detectedPin = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : currentPin;
+      const detectedState = geo.state || currentState;
+      const rawDistrict = geo.district || currentDistrict;
+      const detectedMandal = geo.mandal || currentMandal;
+      const detectedCity = geo.city || currentCity;
+      const detectedPin = geo.pinCode || currentPin;
 
-            const match = await locationService.matchLocation({
-              state: detectedState,
-              district: rawDistrict,
-              mandal: detectedMandal,
-              locality: detectedCity,
-              pinCode: detectedPin,
-            });
+      const match = await locationService.matchLocation({
+        state: detectedState,
+        district: rawDistrict,
+        mandal: detectedMandal,
+        locality: detectedCity,
+        pinCode: detectedPin,
+      });
 
-            if (match) {
-              updateFields({
-                state: match.state.name,
-                district: match.district.districtName,
-                mandalOrMunicipality: match.subDistrict.subDistrictName,
-                city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
-                pinCode: detectedPin,
-                latitude: exactLat,
-                longitude: exactLng,
-              });
-              setIsEditing(false);
-              setIsConfirmed(false);
-              showToast(
-                `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
-                'success'
-              );
-            } else {
-              updateFields({
-                latitude: exactLat,
-                longitude: exactLng,
-              });
-              setIsEditing(true);
-              showToast(
-                'Could not automatically match this location against official records. Please select below.',
-                'warning'
-              );
+      if (match) {
+        updateFields({
+          state: match.state.name,
+          district: match.district.districtName,
+          mandalOrMunicipality: match.subDistrict.subDistrictName,
+          city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
+          pinCode: detectedPin,
+          latitude: exactLat,
+          longitude: exactLng,
+        });
+        setIsEditing(false);
+        setIsConfirmed(false);
+        showToast(
+          `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+          'success'
+        );
+      } else {
+        const partialUpdates: Partial<{
+          state: string;
+          district: string;
+          city: string;
+          mandalOrMunicipality: string;
+          streetOrLocality: string;
+          pinCode: string;
+          latitude: number;
+          longitude: number;
+        }> = {
+          latitude: exactLat,
+          longitude: exactLng,
+        };
+        let matchedSomething = false;
+
+        if (detectedState) {
+          const st = locationService.getState(detectedState);
+          if (st) {
+            partialUpdates.state = st.name;
+            matchedSomething = true;
+            if (rawDistrict) {
+              const d = locationService.getDistrict(st.name, rawDistrict);
+              if (d) {
+                partialUpdates.district = d.districtName;
+                if (detectedMandal) {
+                  const m = locationService.getSubDistrict(d.districtCode, detectedMandal);
+                  if (m) partialUpdates.mandalOrMunicipality = m.subDistrictName;
+                }
+              }
             }
           }
-        } catch {
-          updateFields({ latitude: exactLat, longitude: exactLng });
-          setIsEditing(true);
-          showToast('GPS locked. Please confirm details below.', 'info');
-        } finally {
-          setDetecting(false);
         }
-      },
-      (err) => {
-        setDetecting(false);
-        let message = 'Could not acquire GPS fix. Please select location manually.';
-        if (err.code === err.PERMISSION_DENIED) {
-          message = 'Location access was denied. Please select your location below.';
+        if (detectedCity) {
+          partialUpdates.city = detectedCity;
+          matchedSomething = true;
         }
-        setGeoError(message);
+        if (detectedPin) partialUpdates.pinCode = detectedPin;
+
+        updateFields(partialUpdates);
         setIsEditing(true);
-        showToast(message, 'info');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
+        if (matchedSomething) {
+          showToast(
+            `📍 Location detected: ${detectedCity || rawDistrict || 'Current area'}. Please confirm details below.`,
+            'info'
+          );
+        } else {
+          showToast(
+            'Location locked. Please choose your District and Mandal below.',
+            'info'
+          );
+        }
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Could not acquire location fix. Please select location manually.';
+      setGeoError(message);
+      setIsEditing(true);
+      showToast(message, 'info');
+    } finally {
+      setDetecting(false);
+    }
   };
 
   const handleConfirmLocation = () => {
