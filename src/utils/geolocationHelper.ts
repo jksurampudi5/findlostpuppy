@@ -5,6 +5,9 @@
  * Tier 3: Network IP-based Location Fallback (works indoors / GPS toggle disabled)
  */
 
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
+
 export interface LocationGeoResult {
   latitude: number;
   longitude: number;
@@ -16,16 +19,52 @@ export interface LocationGeoResult {
   source: 'gps' | 'network' | 'ip';
 }
 
+interface CoordsResult {
+  latitude: number;
+  longitude: number;
+}
+
 /**
- * Attempts to get position from browser/device geolocation with timeout
+ * Attempts to get position from native Capacitor plugin (on Android/iOS)
+ * or browser navigator.geolocation (on web), prompting the native OS/browser
+ * permission dialog directly ("While using the app" / "Only this time" / "Don't allow").
  */
-function getPositionWithConfig(options: PositionOptions): Promise<GeolocationPosition> {
+async function getPositionWithConfig(options: PositionOptions): Promise<CoordsResult> {
+  // 1. Native Mobile Device via Capacitor Geolocation
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const perm = await Geolocation.checkPermissions();
+      if (perm.location !== 'granted') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          throw new Error('Location permission denied');
+        }
+      }
+      const pos = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: options.enableHighAccuracy,
+        timeout: options.timeout,
+        maximumAge: options.maximumAge,
+      });
+      return {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      };
+    } catch (nativeErr) {
+      console.warn('[geolocationHelper] Native Capacitor Geolocation notice:', nativeErr);
+    }
+  }
+
+  // 2. Web Browser via navigator.geolocation
   return new Promise((resolve, reject) => {
     if (!navigator?.geolocation) {
       reject(new Error('Geolocation not supported'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      reject,
+      options
+    );
   });
 }
 
@@ -202,8 +241,8 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       timeout: 5000,
       maximumAge: 30000,
     });
-    lat = pos.coords.latitude;
-    lng = pos.coords.longitude;
+    lat = pos.latitude;
+    lng = pos.longitude;
     source = 'gps';
   } catch {
     // Tier 2: Try Network Wi-Fi / Cell Tower triangulation (reliable indoors)
@@ -213,8 +252,8 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
         timeout: 4000,
         maximumAge: 120000,
       });
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
+      lat = pos.latitude;
+      lng = pos.longitude;
       source = 'network';
     } catch {
       // Tier 3: Fast IP-based fallback

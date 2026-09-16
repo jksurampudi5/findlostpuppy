@@ -11,8 +11,6 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
-  X,
-  Compass,
   Edit3,
   ChevronRight,
   AlertTriangle,
@@ -93,7 +91,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
   const [detecting, setDetecting] = useState(false);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
 
   // 1. State Options
@@ -262,15 +259,21 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     }
   };
 
-  // Trigger permission popup before detecting GPS
+  // Direct native location detector (prompts OS/Browser permission directly: While using app / Only this time / Don't allow)
   const handleDetectClick = () => {
-    setShowPermissionModal(true);
+    executeDetectLocation();
   };
 
-  // Hardware GPS Detection
-  // Resilient Multi-Tier Location Detection (Hardware GPS -> Network/Wi-Fi -> IP Fallback)
+  // Auto-detect on first visit if location details are not yet saved
+  useEffect(() => {
+    if (!hasExistingData && !hasDetected) {
+      executeDetectLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hardware GPS & Native Geolocation Detection
   const executeDetectLocation = async () => {
-    setShowPermissionModal(false);
     setDetecting(true);
 
     try {
@@ -459,58 +462,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
             </div>
           </div>
 
-          {/* PERMISSION MODAL */}
-          {showPermissionModal && (
-            <div className="permission-modal-overlay" onClick={() => setShowPermissionModal(false)}>
-              <div className="permission-modal-card" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className="permission-modal-close"
-                  onClick={() => setShowPermissionModal(false)}
-                  aria-label="Close modal"
-                >
-                  <X size={18} />
-                </button>
-
-                <div className="permission-modal-icon-circle">
-                  <Compass size={32} className="compass-pulse" />
-                </div>
-
-                <h3 className="permission-modal-title">Allow Location Access?</h3>
-                <p className="permission-modal-desc">
-                  FindLostPuppy uses device GPS to automatically match your official State, District,
-                  Mandal, and City from the September 2026 directory so neighbors nearby can help search
-                  for your puppy.
-                </p>
-
-                <div className="permission-modal-privacy-box">
-                  <ShieldCheck size={16} className="privacy-shield-icon" />
-                  <span>
-                    <strong>100% Pet-Safe:</strong> Used only for community radius search filters.
-                  </span>
-                </div>
-
-                <div className="permission-modal-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-lg allow-gps-btn"
-                    onClick={executeDetectLocation}
-                  >
-                    <Navigation size={16} />
-                    <span>Allow & Detect Location</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm cancel-gps-btn"
-                    onClick={() => setShowPermissionModal(false)}
-                  >
-                    <span>Cancel</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Direct native location flow - no redundant blocking modal */}
 
           {/* CASE 1: SUBMITTED STATE -> ULTRA PET-FRIENDLY SHOWCASE */}
           {isSubmitted && !isEditing ? (
