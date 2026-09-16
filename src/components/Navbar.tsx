@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { PawPrint, LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield } from 'lucide-react';
+import { LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
+import appLogoImg from '../assets/app_logo.png';
 
 export const Navbar = () => {
   const {
@@ -102,7 +103,11 @@ export const Navbar = () => {
               }}
             >
               <div className="brand-icon-wrapper">
-                <PawPrint size={22} className="brand-icon" />
+                <img
+                  src={appLogoImg}
+                  alt="FindLostPuppy"
+                  className="navbar-brand-logo-img"
+                />
               </div>
               <div className="brand-text">
                 <span className="brand-title">FindLostPuppy</span>

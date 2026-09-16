@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
+import logoTopHandImg from '../assets/logo_top_hand.png';
+import logoBottomHandImg from '../assets/logo_bottom_hand.png';
+import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
 import './LaunchTributeOverlay.css';
 
 interface LaunchTributeOverlayProps {
@@ -27,6 +30,8 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
 
   const totalWords = paragraph1Words.length + paragraph2Words.length;
 
+  const [isFadingOut, setIsFadingOut] = useState(false);
+
   useEffect(() => {
     if (forceOpen) {
       setVisible(true);
@@ -36,17 +41,22 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       return;
     }
 
-    // Always show on initial page load / refresh
     setVisible(true);
     setPhase('logo');
+    setIsFadingOut(false);
 
-    // Logo stage for 2.6 seconds
+    // Splash animation runs smoothly for ~3.6s so user can clearly enjoy the hands coming in from outside the orange border
     const logoTimer = setTimeout(() => {
-      setPhase('tribute');
-    }, 2600);
+      setIsFadingOut(true);
+      setTimeout(() => {
+        setVisible(false);
+        setIsFadingOut(false);
+        if (onClose) onClose();
+      }, 400);
+    }, 3600);
 
     return () => clearTimeout(logoTimer);
-  }, [forceOpen]);
+  }, [forceOpen, onClose]);
 
   // Global event listener to re-open from footer button
   useEffect(() => {
@@ -111,29 +121,53 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
   if (!visible) return null;
 
   return (
-    <div className={`launch-overlay-backdrop ${phase}`} role="dialog" aria-modal="true" aria-label="Launch dedication">
+    <div className={`launch-overlay-backdrop ${phase} ${isFadingOut ? 'fade-out' : ''}`} role="dialog" aria-modal="true" aria-label="Launch dedication">
       {/* Background ambient orbs */}
       <div className="launch-ambient-glow glow-1" />
       <div className="launch-ambient-glow glow-2" />
       <div className="launch-ambient-glow glow-3" />
 
       {phase === 'logo' ? (
-        <div className="launch-logo-stage animate-fade-in">
+        <div className="launch-logo-stage animate-fade-in" onClick={handleDismiss} title="Click anywhere to enter app">
           <div className="launch-logo-container">
-            <div className="launch-radar-pulse pulse-1" />
-            <div className="launch-radar-pulse pulse-2" />
-            <div className="launch-logo-badge">
-              <span className="launch-paw-emoji">🐶</span>
+            {/* The Badge Container */}
+            <div className="launch-logo-badge protective-sanctuary-card">
+              {/* Warm Hearth Fire Glow behind dog inside home */}
+              <div className="safe-dog-hearth-glow" />
+
+              {/* 1. Center Sanctuary: Home, Locator Pin & Safe Dog with Leash */}
+              <img
+                src={logoCenterSanctuaryImg}
+                alt="Dog safe at home in locator"
+                className="sanctuary-center-img"
+              />
+
+              {/* 2. Top Hand: Comes in from outside above to shelter over home */}
+              <img
+                src={logoTopHandImg}
+                alt="Protective hand sheltering dog from above"
+                className="protective-hand-img hand-top-incoming"
+              />
+
+              {/* 3. Bottom Hand: Comes in from outside below to cradle under locator */}
+              <img
+                src={logoBottomHandImg}
+                alt="Protective hand cradling dog from below"
+                className="protective-hand-img hand-bottom-incoming"
+              />
             </div>
           </div>
+
           <h1 className="launch-brand-title">
             <span className="brand-find">find</span>
             <span className="brand-lost">lost</span>
             <span className="brand-puppy">puppy</span>
           </h1>
+
           <p className="launch-brand-tagline">
             Every puppy deserves to find its way home 🐾
           </p>
+
           <div className="launch-progress-bar-wrap">
             <div className="launch-progress-bar-fill" />
           </div>

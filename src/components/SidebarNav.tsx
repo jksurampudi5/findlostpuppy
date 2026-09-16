@@ -18,6 +18,7 @@ import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
+import appLogoImg from '../assets/app_logo.png';
 
 export const SidebarNav: React.FC = () => {
   const {
@@ -230,7 +231,11 @@ export const SidebarNav: React.FC = () => {
       >
         <div className="mobile-drawer-header">
           <div className="drawer-brand">
-            <PawPrint size={24} className="drawer-paw-icon" />
+            <img
+              src={appLogoImg}
+              alt="FindLostPuppy"
+              className="drawer-app-logo-img"
+            />
             <div className="drawer-brand-text">
               <h3 className="drawer-app-name">FindLostPuppy</h3>
               <p className="drawer-app-sub">Community Rescue Hub</p>
@@ -371,19 +376,11 @@ export const SidebarNav: React.FC = () => {
               }}
             >
               <div className="sidebar-brand-paw-animated" title="FindLostPuppy">
-                <svg viewBox="0 0 64 64" className="paw-logo-svg" fill="none">
-                  {/* 4 Toe Pads with subtle bounce */}
-                  <ellipse cx="20" cy="18" rx="6" ry="8.5" fill="#E06D44" className="paw-toe-1" />
-                  <ellipse cx="32" cy="14" rx="6.5" ry="9" fill="#F59E0B" className="paw-toe-2" />
-                  <ellipse cx="44" cy="18" rx="6" ry="8.5" fill="#E06D44" className="paw-toe-3" />
-                  <ellipse cx="52" cy="28" rx="5" ry="7" fill="#F59E0B" className="paw-toe-4" />
-                  {/* Main Paw Pad */}
-                  <path
-                    d="M18 42 C18 32, 28 26, 32 26 C36 26, 46 32, 46 42 C46 50, 38 54, 32 54 C26 54, 18 50, 18 42 Z"
-                    fill="#B45309"
-                    className="paw-pad-main"
-                  />
-                </svg>
+                <img
+                  src={appLogoImg}
+                  alt="FindLostPuppy"
+                  className="sidebar-brand-logo-img"
+                />
               </div>
               <div className={`sidebar-brand-text ${showLabels ? 'text-visible' : 'text-hidden'}`}>
                 <span className="sidebar-brand-title">FindLostPuppy</span>
