@@ -135,8 +135,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   return (
     <div className="image-uploader-component">
       <div className="uploader-header">
-        <label className="form-label">
-          <span>📸 Photos of {dogName} <span className="required-tag">*</span></span>
+        <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Camera size={16} style={{ color: 'var(--color-primary, #E05A47)' }} />
+            Photos of {dogName} <span className="required-tag">*</span>
+          </span>
           <span className="optional-tag">At least 1 clear photo required</span>
         </label>
         <p className="form-hint">

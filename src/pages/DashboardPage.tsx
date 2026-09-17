@@ -508,7 +508,7 @@ export const DashboardPage: React.FC = () => {
                                     title="Report a sighting to alert the owner"
                                   >
                                     <Eye size={13} />
-                                    <span>📸 Report Sighting</span>
+                                    <span>Report Sighting</span>
                                   </Link>
                                 </>
                               )
