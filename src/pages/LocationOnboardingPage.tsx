@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Navigation,
@@ -94,7 +94,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   // UI Flow States
   const [userRequestedEdit, setUserRequestedEdit] = useState<boolean>(false);
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
-  const [showFallbackManual, setShowFallbackManual] = useState<boolean>(false);
   const [locationSource, setLocationSource] = useState<'gps' | 'manual' | 'pin'>('manual');
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const isEditing = userRequestedEdit || !hasSavedLocation;
@@ -273,18 +272,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     }
   };
 
-  // Direct native location detector (prompts OS/Browser permission directly)
+  // Direct native location detector (prompts OS/Browser permission directly on button click)
   const handleDetectClick = () => {
     executeDetectLocation();
   };
-
-  // Auto-detect on first visit if location details are not yet saved
-  useEffect(() => {
-    if (!hasExistingData && !hasDetected && !isDetectingRef.current) {
-      executeDetectLocation();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Hardware GPS & Native Geolocation Detection (Single-pass, zero flash, prefill form for user verification)
   const executeDetectLocation = async () => {
@@ -300,7 +291,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
       // Low-confidence IP fallback requires manual verification
       if (geo.source === 'ip') {
-        setShowFallbackManual(true);
         setHasDetected(true);
         setUserRequestedEdit(true);
         showToast('Approximate location only. Please select your District and Mandal below.', 'info');
@@ -333,14 +323,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         setHasDetected(true);
         // Keep form visible so user can verify and adjust if ISP/Wi-Fi detected a neighboring mandal
         setUserRequestedEdit(true);
-        setShowFallbackManual(true);
 
         showToast(
           `🎯 Detected: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Confirm or adjust below!`,
           'success'
         );
       } else {
-        setShowFallbackManual(true);
         setHasDetected(true);
         setUserRequestedEdit(true);
         showToast(
@@ -349,7 +337,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         );
       }
     } catch (hardErr: any) {
-      setShowFallbackManual(true);
       setHasDetected(true);
       setUserRequestedEdit(true);
       showToast(
@@ -638,8 +625,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 </button>
               </div>
 
-              {/* FORM ONLY COMES DOWN ONCE DETECT LOCATION IS CLICKED AND EITHER MANUAL FALLBACK IS NEEDED OR USER REQUESTED EDIT */}
-              {(showFallbackManual || userRequestedEdit) && !detecting && (
+              {/* LOCATION DETAILS FORM — AUTO-FILLED VIA GPS OR SELECTABLE MANUALLY */}
+              {!detecting && (
                 <form
                   onSubmit={handleSaveLocation}
                   className="onboarding-form"
