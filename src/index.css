@@ -23,56 +23,78 @@
   --touch-target-min: 48px;
 
   /* ========================================================================
-     PREMIUM AUTOMOTIVE BLACK DESIGN SYSTEM TOKENS
+     "OBSIDIAN PERFORMANCE LUXURY" DESIGN SYSTEM TOKENS
      ======================================================================== */
-  --bg-main: #08090A;
-  --bg-secondary: #0D0F11;
-  --bg-surface: #121416;
-  --bg-elevated: #181B1E;
-  --bg-interactive: #1E2226;
-  --bg-interactive-hover: #252A2F;
 
-  --border-subtle: #292D31;
-  --border-highlight: #34393E;
-  --border-focus: #FF7900;
+  /* BLACK SYSTEM */
+  --black-absolute: #050505;
+  --black-primary: #090A0B;
+  --black-secondary: #0D0F10;
 
-  --text-primary: #F5F5F3;
-  --text-secondary: #A7AAAD;
-  --text-muted: #73777B;
+  /* SURFACES */
+  --surface-card: #101214;
+  --surface-elevated: #151719;
+  --surface-input: #191C1F;
 
-  --orange-primary: #FF7900;
-  --orange-hover: #FF8A1F;
-  --orange-pressed: #D95F00;
-  --orange-subtle: rgba(255, 121, 0, 0.12);
+  /* BORDERS */
+  --border-subtle: #24282C;
+  --border-highlight: #30353A;
 
-  --icon-primary: #E8E9EA;
-  --icon-secondary: #8D9195;
+  /* TEXT */
+  --text-primary: #F5F3EE;
+  --text-secondary: #A5A8AC;
+  --text-muted: #70757A;
 
-  /* Surface Subtle Gradients (near-black tonal separation) */
-  --bg-card-gradient: linear-gradient(180deg, #151719 0%, #0F1113 100%);
-  --bg-elevated-gradient: linear-gradient(180deg, #181A1D 0%, #101214 100%);
+  /* TITANIUM */
+  --titanium: #A9ADB1;
+  --titanium-muted: #7C8186;
+
+  /* PERFORMANCE ORANGE */
+  --orange-primary: #E86F18;
+  --orange-hover: #F47B20;
+  --orange-pressed: #C95B12;
+
+  /* CHAMPAGNE BRONZE */
+  --bronze-primary: #C6A15B;
+  --bronze-muted: #8D6B35;
+  --bronze-subtle: rgba(198, 161, 91, 0.30);
+
+  /* Surface Subtle Gradients (near-black luxury luminance separation) */
+  --bg-card-gradient: linear-gradient(180deg, #121416 0%, #0E1011 100%);
+  --bg-elevated-gradient: linear-gradient(180deg, #151719 0%, #111315 100%);
 
   /* Backward Compatibility Aliases for Core App Framework */
-  --bg-canvas: var(--bg-main);
-  --bg-subtle: var(--bg-secondary);
-  --bg-warm-accent: var(--bg-interactive);
-  --surface-card: var(--bg-surface);
-  --surface-elevated: var(--bg-elevated);
-  --surface-interactive: var(--bg-interactive);
+  --bg-main: var(--black-absolute);
+  --bg-secondary: var(--black-primary);
+  --bg-surface: var(--surface-card);
+  --bg-elevated: var(--surface-elevated);
+  --bg-interactive: var(--surface-input);
+  --bg-interactive-hover: #22262A;
+
+  --border-focus: rgba(232, 111, 24, 0.50);
+
+  --icon-primary: var(--titanium);
+  --icon-secondary: var(--titanium-muted);
+  --icon-action: var(--orange-primary);
+  --icon-bronze: var(--bronze-primary);
+
+  --bg-canvas: var(--black-absolute);
+  --bg-subtle: var(--black-primary);
+  --bg-warm-accent: var(--surface-input);
 
   --color-primary: var(--orange-primary);
   --color-primary-hover: var(--orange-hover);
   --color-primary-dark: var(--orange-pressed);
-  --color-primary-light: rgba(255, 121, 0, 0.14);
+  --color-primary-light: rgba(232, 111, 24, 0.12);
 
-  --color-amber-gold: var(--orange-primary);
-  --color-amber-light: rgba(255, 121, 0, 0.14);
-  --color-amber-dark: var(--orange-pressed);
+  --color-amber-gold: var(--bronze-primary);
+  --color-amber-light: var(--bronze-subtle);
+  --color-amber-dark: var(--bronze-muted);
 
-  --color-sage: #1E2226;
-  --color-sage-hover: #252A2F;
-  --color-sage-light: rgba(30, 34, 38, 0.75);
-  --color-sage-accent: #292D31;
+  --color-sage: var(--surface-input);
+  --color-sage-hover: #22262A;
+  --color-sage-light: rgba(25, 28, 31, 0.75);
+  --color-sage-accent: var(--border-subtle);
 
   --color-lost: #DC2626;
   --color-lost-light: rgba(220, 38, 38, 0.16);
@@ -102,13 +124,13 @@
   --radius-pill: 9999px;
   --radius-bone-tab: 14px 20px 20px 14px;
 
-  /* Precision Automotive Controlled Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 6px 18px -2px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.7), 0 4px 10px -2px rgba(0, 0, 0, 0.5);
-  --shadow-float: 0 18px 42px -6px rgba(0, 0, 0, 0.85), 0 6px 14px -3px rgba(0, 0, 0, 0.6);
-  --shadow-glow-amber: 0 4px 16px rgba(255, 121, 0, 0.25);
-  --shadow-glow-red: 0 4px 16px rgba(220, 38, 38, 0.25);
+  /* Controlled Non-Glowing Luxury Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.75);
+  --shadow-float: 0 16px 36px rgba(0, 0, 0, 0.85);
+  --shadow-glow-amber: 0 2px 8px rgba(232, 111, 24, 0.2);
+  --shadow-glow-red: 0 2px 8px rgba(220, 38, 38, 0.25);
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -145,12 +167,12 @@ body {
   overflow-x: hidden;
   max-width: 100vw;
   width: 100%;
-  background-color: var(--bg-main);
+  background-color: var(--black-absolute, #050505);
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(255, 121, 0, 0.03) 0%, transparent 60%),
-    radial-gradient(circle at 85% 15%, rgba(41, 45, 49, 0.15) 0%, transparent 40%);
+    radial-gradient(circle at 50% 0%, rgba(232, 111, 24, 0.02) 0%, transparent 60%),
+    radial-gradient(circle at 85% 15%, rgba(36, 40, 44, 0.12) 0%, transparent 40%);
   background-attachment: fixed;
-  color: var(--text-primary);
+  color: var(--text-primary, #F5F3EE);
 }
 
 #root {
@@ -263,59 +285,59 @@ input, select, textarea {
 }
 
 .btn-primary {
-  background-color: var(--orange-primary);
-  color: #0A0A0A;
-  box-shadow: 0 3px 12px rgba(255, 121, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background-color: var(--orange-primary, #E86F18);
+  color: #080808;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-primary:hover {
-  background-color: var(--orange-hover);
-  color: #0A0A0A;
+  background-color: var(--orange-hover, #F47B20);
+  color: #080808;
   transform: translateY(-1px);
-  box-shadow: 0 5px 16px rgba(255, 121, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(232, 111, 24, 0.2);
 }
 
 .btn-primary:active {
-  background-color: var(--orange-pressed);
-  color: #0A0A0A;
+  background-color: var(--orange-pressed, #C95B12);
+  color: #080808;
   transform: translateY(0);
 }
 
 .btn-secondary {
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
+  border: 1px solid var(--border-subtle, #24282C);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .btn-secondary:hover {
-  background-color: var(--bg-interactive-hover);
-  border-color: var(--border-highlight);
-  color: var(--text-primary);
+  background-color: #22262A;
+  border-color: var(--border-highlight, #30353A);
+  color: var(--text-primary, #F5F3EE);
   transform: translateY(-1px);
 }
 
 .btn-outline {
   background-color: transparent;
-  color: var(--text-primary);
-  border: 1.5px solid var(--border-subtle);
+  color: var(--text-primary, #F5F3EE);
+  border: 1px solid var(--border-subtle, #24282C);
 }
 
 .btn-outline:hover {
-  border-color: var(--border-highlight);
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
+  border-color: var(--border-highlight, #30353A);
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
 }
 
 .btn-ghost {
   background-color: transparent;
-  color: var(--text-secondary);
+  color: var(--titanium, #A9ADB1);
 }
 
 .btn-ghost:hover {
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
 }
 
 .btn-danger {
@@ -466,40 +488,40 @@ input, select, textarea {
   min-height: var(--input-min-height, 48px);
   max-height: var(--input-max-height, 52px);
   padding: 0 var(--input-padding-x, 14px);
-  border: 1.5px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle, #24282C);
   border-radius: var(--input-radius, 14px);
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
   font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 
 .form-textarea {
   width: 100%;
   min-height: 96px;
   padding: 12px var(--input-padding-x, 14px);
-  border: 1.5px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle, #24282C);
   border-radius: var(--input-radius, 14px);
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
   font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 
 .form-input::placeholder, .form-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--text-muted, #70757A);
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
-  border-color: var(--orange-primary);
-  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.2);
-  background-color: var(--bg-interactive);
-  color: var(--text-primary);
+  border-color: rgba(232, 111, 24, 0.50);
+  box-shadow: none;
+  background-color: var(--surface-input, #191C1F);
+  color: var(--text-primary, #F5F3EE);
 }
 
 .form-hint {
