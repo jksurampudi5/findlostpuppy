@@ -285,10 +285,19 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
     try {
       const geo = await detectResilientLocation();
-      const exactLat = geo.latitude;
-      const exactLng = geo.longitude;
-      setLatitude(exactLat);
-      setLongitude(exactLng);
+      setLatitude(geo.latitude);
+      setLongitude(geo.longitude);
+
+      if (geo.source === 'ip') {
+        // Low-confidence: never trust IP-tier district/mandal — this is what caused
+        // the Guntur bug. Show approximate pin only, force manual district/mandal selection.
+        setHasDetected(true);
+        showToast(
+          '📶 Only approximate location available (GPS unavailable). Please select your District and Mandal manually for accuracy.',
+          'warning'
+        );
+        return;
+      }
 
       const detectedState = geo.state || state;
       const rawDistrict = geo.district || district;
