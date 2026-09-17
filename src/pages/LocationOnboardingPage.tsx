@@ -4,6 +4,8 @@ import {
   Navigation,
   RefreshCw,
   Building,
+  Building2,
+  Home,
   MapPin,
   Landmark,
   Sparkles,
@@ -508,7 +510,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 {/* 1. State */}
                 <div className="journey-card">
                   <div className="journey-card-icon-wrap journey-icon-state">
-                    <span className="journey-emoji">🏛️</span>
+                    <Landmark size={20} className="journey-icon" />
                   </div>
                   <div className="journey-card-content">
                     <span className="journey-step-label">State</span>
@@ -523,7 +525,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 {/* 2. District */}
                 <div className="journey-card">
                   <div className="journey-card-icon-wrap journey-icon-district">
-                    <span className="journey-emoji">🏙️</span>
+                    <Building2 size={20} className="journey-icon" />
                   </div>
                   <div className="journey-card-content">
                     <span className="journey-step-label">District</span>
@@ -538,7 +540,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 {/* 3. Mandal */}
                 <div className="journey-card">
                   <div className="journey-card-icon-wrap journey-icon-mandal">
-                    <span className="journey-emoji">📍</span>
+                    <MapPin size={20} className="journey-icon" />
                   </div>
                   <div className="journey-card-content">
                     <span className="journey-step-label">Mandal</span>
@@ -553,14 +555,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 {/* 4. Home Base (Locality) */}
                 <div className="journey-card journey-card-home-base">
                   <div className="journey-card-icon-wrap journey-icon-locality">
-                    <span className="journey-emoji">🏡</span>
+                    <Home size={20} className="journey-icon" />
                   </div>
                   <div className="journey-card-content">
                     <span className="journey-step-label home-base-label">Home Base</span>
                     <strong className="journey-step-value home-base-value">{city || 'Not set'}</strong>
                     {pinCode && (
                       <span className="journey-pin-badge home-base-pin">
-                        📮 PIN {pinCode}
+                        PIN {pinCode}
                       </span>
                     )}
                   </div>
@@ -589,7 +591,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     onClick={handleProceedToPup}
                     className="btn btn-primary btn-lg continue-to-pup-btn"
                   >
-                    <span>Continue to Pup Profile 🐕</span>
+                    <span>Continue to Pup Profile</span>
                     <ArrowRight size={18} />
                   </button>
                 </div>
@@ -614,12 +616,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   ) : hasDetected ? (
                     <>
                       <RefreshCw size={18} />
-                      <span>🔄 Re-Detect Location</span>
+                      <span>Re-Detect Location</span>
                     </>
                   ) : (
                     <>
                       <Navigation size={18} />
-                      <span>🎯 Detect Location</span>
+                      <span>Detect Location</span>
                     </>
                   )}
                 </button>
@@ -634,7 +636,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 >
                   <div className="form-section-card cute-section-card">
                     <h3 className="section-title-sm cute-section-title">
-                      <span className="cute-title-icon">📍</span>
+                      <MapPin size={18} className="cute-title-icon text-primary" />
                       <span>{isEditing ? 'Update Pet Location' : 'Select Pet Location'}</span>
                     </h3>
 

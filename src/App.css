@@ -2568,6 +2568,12 @@
 
 .mobile-nav-item.active {
   color: var(--color-primary);
+  font-weight: 700;
+}
+
+.mobile-nav-item.active .mobile-nav-icon-wrap {
+  background: var(--color-primary-light, #FFF5EE);
+  border-radius: 10px;
 }
 
 .mobile-nav-icon-wrap {
@@ -5343,7 +5349,7 @@
 
 @media (max-width: 640px) {
   .onboarding-page {
-    padding: 1.15rem 0.5rem calc(78px + env(safe-area-inset-bottom, 20px) + 1.25rem);
+    padding: 1rem 1rem calc(78px + env(safe-area-inset-bottom, 20px) + 1rem);
   }
 }
 
@@ -15223,24 +15229,27 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.65rem !important;
+  gap: 0.5rem !important;
+  min-height: 48px !important;
+  height: 50px !important;
   background: linear-gradient(135deg, #EA580C 0%, #D96B43 100%) !important;
   color: #FFFFFF !important;
   border: none !important;
-  border-radius: 9999px !important;
-  padding: 0.85rem 1.85rem !important;
-  font-size: 1.02rem !important;
+  border-radius: 14px !important;
+  padding: 0 1.5rem !important;
+  font-size: 0.98rem !important;
   font-weight: 700 !important;
   letter-spacing: -0.01em !important;
-  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3) !important;
   cursor: pointer !important;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   text-decoration: none !important;
+  box-sizing: border-box !important;
 }
 
 .continue-to-location-orange-btn:hover {
   background: linear-gradient(135deg, #C2410C 0%, #EA580C 100%) !important;
-  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.45) !important;
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.4) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -15250,24 +15259,25 @@
 
 @media (max-width: 640px) {
   .owner-combined-card {
-    padding: 1.65rem 1.15rem 1.5rem !important;
-    border-radius: 24px !important;
-    margin: 0.75rem auto 1.5rem !important;
+    padding: 1.25rem 1rem 1.25rem !important;
+    border-radius: 16px !important;
+    margin: 0.5rem auto 1.5rem !important;
     width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .owner-unified-avatar-hero {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
   .owner-center-avatar-ring {
-    width: 128px;
-    height: 128px;
+    width: 108px;
+    height: 108px;
   }
 
   .owner-center-camera-btn {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     bottom: 2px;
     right: 2px;
   }
@@ -15280,18 +15290,20 @@
 
   .continue-to-location-orange-btn {
     width: 100% !important;
-    padding: 0.85rem 1.25rem !important;
-    font-size: 0.98rem !important;
+    padding: 0 1.25rem !important;
+    font-size: 0.95rem !important;
   }
 
   .update-profile-btn {
     width: 100%;
-    padding: 0.75rem 1rem;
+    min-height: 48px;
+    padding: 0 1rem;
     font-size: 0.92rem;
   }
 
   .synced-status-btn {
     width: 100%;
+    min-height: 48px;
     justify-content: center;
   }
 }
@@ -15301,22 +15313,25 @@
    ========================================================================== */
 .owner-modern-form-card {
   background: #FFFFFF;
-  border: 1.5px solid #F1F5F9;
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
 
 .owner-modern-form-group {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .owner-modern-label {
   display: flex;
   align-items: center;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #1E293B;
   letter-spacing: -0.01em;
@@ -15327,12 +15342,16 @@
   position: relative;
   display: flex;
   align-items: center;
+  height: 50px;
+  min-height: 48px;
+  max-height: 52px;
   background: #F8FAFC;
   border: 1.5px solid #E2E8F0;
   border-radius: 14px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .owner-modern-input-wrapper:hover {
@@ -15343,7 +15362,7 @@
 .owner-modern-input-wrapper:focus-within {
   border-color: #EA580C;
   background: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.01);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.14), inset 0 1px 2px rgba(0, 0, 0, 0.01);
 }
 
 .owner-modern-input-wrapper.input-error {
@@ -15353,14 +15372,14 @@
 
 .owner-modern-input-wrapper.input-error:focus-within {
   border-color: #DC2626;
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
 }
 
 .owner-input-icon-prefix {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-left: 1rem;
+  padding-left: 0.85rem;
   padding-right: 0.25rem;
   color: #94A3B8;
   pointer-events: none;
@@ -15393,16 +15412,17 @@
 
 .owner-modern-input {
   width: 100%;
-  height: 50px;
+  height: 100%;
   border: none;
   background: transparent;
-  padding: 0.75rem 1rem;
-  font-size: 0.98rem;
+  padding: 0 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #0F172A;
   outline: none;
   font-family: inherit;
   box-shadow: none !important;
+  box-sizing: border-box;
 }
 
 .owner-modern-input::placeholder {
@@ -15416,12 +15436,12 @@
 .pet-combined-card {
   width: 100% !important;
   max-width: 580px !important;
-  margin: 1.5rem auto 2.5rem !important;
-  padding: 2.25rem 2rem 2rem !important;
+  margin: 1rem auto 2rem !important;
+  padding: 1.5rem 1.25rem !important;
   background: #FFFFFF !important;
-  border: 2px solid #FED7AA !important;
-  border-radius: 28px !important;
-  box-shadow: 0 12px 36px -4px rgba(234, 88, 12, 0.08), 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+  border: 1px solid #FED7AA !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-sm) !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
 }

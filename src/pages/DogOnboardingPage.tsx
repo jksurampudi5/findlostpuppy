@@ -502,7 +502,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 1. Pet Name */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="pet-name">
-                    <span>🐶 1. Pet Name</span>
+                    <span>Pet Name</span>
                     <span className="optional-tag">Optional</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -523,7 +523,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 2. Photos */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label">
-                    <span>📸 2. Pet Photos</span>
+                    <span>Pet Photos</span>
                     <span className="optional-tag">Optional</span>
                   </label>
                   <ImageUploader
@@ -542,7 +542,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 3. Breed (Interactive Autocomplete Dropdown, Sorted A to Z, Includes Street Dog) */}
                 <div className="owner-modern-form-group" ref={breedRef} style={{ position: 'relative' }}>
                   <label className="owner-modern-label" htmlFor="pet-breed">
-                    <span>🏷️ 3. Breed</span>
+                    <span>Breed</span>
                     <span className="optional-tag">Search or select</span>
                   </label>
                   <div
@@ -602,7 +602,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                                 setIsBreedOpen(false);
                               }}
                             >
-                              <span className="breed-item-icon">🐕</span>
+                              <PawPrint size={14} className="breed-item-icon" />
                               <span className="breed-item-name">{b}</span>
                               {breed === b && <Check size={14} className="breed-check-icon" />}
                             </button>
@@ -620,7 +620,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 4. Gender (Modern Segmented Button) */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label">
-                    <span>⚧ 4. Gender</span>
+                    <span>Gender</span>
                     <span className="optional-tag">Optional</span>
                   </label>
                   <div className="pet-segmented-row">
@@ -646,7 +646,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 5. Age Dropdown (1 to 30) */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="pet-age-select">
-                    <span>🎂 5. Age</span>
+                    <span>Age</span>
                     <span className="optional-tag">1 to 30 years</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -674,7 +674,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 6. Size Category Dropdown */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="pet-size-select">
-                    <span>📏 6. Size Category</span>
+                    <span>Size Category</span>
                     <span className="optional-tag">Weight class</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -702,7 +702,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 7. Color & Distinctive Markings (Dropdown + Custom Input) */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="pet-color-select">
-                    <span>🎨 7. Color & Distinctive Markings</span>
+                    <span>Color & Distinctive Markings</span>
                     <span className="optional-tag">Coat & pattern</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -730,7 +730,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 8. Special Traits & Personality */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="pet-marks">
-                    <span>✨ 8. Special Traits & Identifying Marks</span>
+                    <span>Special Traits & Identifying Marks</span>
                     <span className="optional-tag">Optional details</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -751,7 +751,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 {/* 9. Collar, Tag, or Microchip (Yes/No Toggle + Custom Input to Side) */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label">
-                    <span>🔖 9. Collar, Tag, or Microchip</span>
+                    <span>Collar, Tag, or Microchip</span>
                     <span className="optional-tag">Yes or No</span>
                   </label>
                   <div className="collar-chip-control-row">

@@ -285,7 +285,10 @@ export const DashboardPage: React.FC = () => {
               tabIndex={0}
             >
               <span className="metric-number text-red-600">{missingDogs.length}</span>
-              <span className="metric-label">🚨 Not Safe (Missing Dogs)</span>
+              <span className="metric-label">
+                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
+                Not Safe (Missing Dogs)
+              </span>
             </div>
             <div
               className={`metric-box ${activeTab === 'safe' ? 'active-metric' : ''}`}
@@ -294,7 +297,10 @@ export const DashboardPage: React.FC = () => {
               tabIndex={0}
             >
               <span className="metric-number text-emerald-600">{safeDogs.length}</span>
-              <span className="metric-label">🏡 Safe (Safe at Home)</span>
+              <span className="metric-label">
+                <ShieldCheck size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
+                Safe (Safe at Home)
+              </span>
             </div>
           </div>
         </div>
@@ -373,9 +379,9 @@ export const DashboardPage: React.FC = () => {
             {displayedMissing.length === 0 ? (
               <div className="empty-state-card card cozy-empty-state">
                 <div className="cozy-empty-icon-circle">
-                  <span style={{ fontSize: '2.5rem' }}>🏡</span>
+                  <ShieldCheck size={40} className="text-emerald-600" />
                 </div>
-                <h3>All Furry Friends Are Safe at Home! 💚</h3>
+                <h3>All Furry Friends Are Safe at Home</h3>
                 <p>
                   {searchQuery
                     ? `No missing dogs match "${searchQuery}". Try searching with a different name or area.`
@@ -390,7 +396,7 @@ export const DashboardPage: React.FC = () => {
                     }}
                     className="btn btn-outline btn-sm"
                   >
-                    <span>Check or Update Pet Safety Status 🐾</span>
+                    <span>Check or Update Pet Safety Status</span>
                   </button>
                 </div>
               </div>

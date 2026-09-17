@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield } from 'lucide-react';
+import { LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield, LayoutDashboard, User, MapPin, PawPrint } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
@@ -404,7 +404,7 @@ export const Navbar = () => {
               onClick={() => handleTabClick('dashboard', '/dashboard')}
             >
               <div className="mobile-nav-icon-wrap">
-                <span className="mobile-nav-icon">📊</span>
+                <LayoutDashboard size={20} className="mobile-nav-icon" />
               </div>
               <span className="mobile-nav-label">Dashboard</span>
             </button>
@@ -419,7 +419,7 @@ export const Navbar = () => {
                 {ownerPhoto ? (
                   <img src={ownerPhoto} alt={ownerDisplayName || 'Owner'} className="mobile-nav-avatar" />
                 ) : (
-                  <span className="mobile-nav-icon">🧑‍🦱</span>
+                  <User size={20} className="mobile-nav-icon" />
                 )}
                 {hasCompletedOwner && <span className="mobile-nav-check-badge">✓</span>}
               </div>
@@ -435,7 +435,7 @@ export const Navbar = () => {
               onClick={() => handleTabClick('location', '/location')}
             >
               <div className="mobile-nav-icon-wrap">
-                <span className="mobile-nav-icon">📍</span>
+                <MapPin size={20} className="mobile-nav-icon" />
                 {hasCompletedLocation && <span className="mobile-nav-check-badge">✓</span>}
               </div>
               <span className="mobile-nav-label">Location</span>
@@ -451,7 +451,7 @@ export const Navbar = () => {
                 {existingPet?.primaryPhoto ? (
                   <img src={existingPet.primaryPhoto} alt="Pet" className="mobile-nav-avatar" />
                 ) : (
-                  <span className="mobile-nav-icon">🐶</span>
+                  <PawPrint size={20} className="mobile-nav-icon" />
                 )}
                 {hasCompletedDog && <span className="mobile-nav-check-badge">✓</span>}
               </div>
@@ -471,9 +471,13 @@ export const Navbar = () => {
               onClick={() => handleTabClick('report', '/alert')}
             >
               <div className="mobile-nav-icon-wrap alert-beacon-wrap">
-                <span className="mobile-nav-icon">
-                  {petSafetyStatus === 'LOST' ? '🚨' : petSafetyStatus === 'SAFE' ? '🏡' : '🐾'}
-                </span>
+                {petSafetyStatus === 'LOST' ? (
+                  <AlertTriangle size={20} className="mobile-nav-icon text-red-500" />
+                ) : petSafetyStatus === 'SAFE' ? (
+                  <ShieldCheck size={20} className="mobile-nav-icon text-emerald-500" />
+                ) : (
+                  <PawPrint size={20} className="mobile-nav-icon" />
+                )}
                 {petSafetyStatus === 'LOST' && <span className="mobile-nav-pulse-beacon" />}
               </div>
               <span className="mobile-nav-label">
@@ -489,7 +493,7 @@ export const Navbar = () => {
                 onClick={() => navigate('/admin')}
               >
                 <div className="mobile-nav-icon-wrap">
-                  <span className="mobile-nav-icon">🛡️</span>
+                  <Shield size={20} className="mobile-nav-icon" />
                 </div>
                 <span className="mobile-nav-label">Admin</span>
               </button>

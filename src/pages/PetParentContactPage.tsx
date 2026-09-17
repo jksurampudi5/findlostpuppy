@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3 } from 'lucide-react';
+import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
@@ -303,8 +303,8 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
               {/* Full Name input */}
               <div className="owner-modern-form-group">
                 <label className="owner-modern-label" htmlFor="owner-full-name">
-                  <span>👤 Your Full Name</span>
-                  <span className="required-tag" style={{ color: '#EA580C', marginLeft: '3px' }}>*</span>
+                  <span>Full Name</span>
+                  <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
                 </label>
                 <div className="owner-modern-input-wrapper">
                   <div className="owner-input-icon-prefix">
@@ -325,12 +325,12 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
               {/* 10-Digit Indian Phone Number */}
               <div className="owner-modern-form-group">
                 <label className="owner-modern-label" htmlFor="owner-phone">
-                  <span>📱 10-Digit Indian Phone Number</span>
-                  <span className="required-tag" style={{ color: '#EA580C', marginLeft: '3px' }}>*</span>
+                  <span>Mobile Phone Number</span>
+                  <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
                 </label>
                 <div className={`owner-modern-input-wrapper ${phoneError ? 'input-error' : ''}`}>
                   <div className="owner-input-badge-prefix">
-                    <span>🇮🇳 +91</span>
+                    <span>+91</span>
                   </div>
                   <input
                     id="owner-phone"
@@ -347,15 +347,17 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                   />
                 </div>
                 {phoneError ? (
-                  <span className="form-hint input-error-text" style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.82rem', marginTop: '0.25rem' }}>
-                    ⚠️ {phoneError}
+                  <span className="form-hint input-error-text" style={{ color: 'var(--color-lost)', fontWeight: 600, fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <AlertCircle size={14} />
+                    <span>{phoneError}</span>
                   </span>
                 ) : phone.trim() && validateIndianPhoneNumber(phone).isValid ? (
-                  <span className="phone-validation-success" style={{ color: '#16A34A', fontSize: '0.82rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
-                    ✓ Valid 10-digit Indian Mobile: {validateIndianPhoneNumber(phone).formatted}
+                  <span className="phone-validation-success" style={{ color: 'var(--color-reunited)', fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                    <CheckCircle2 size={14} />
+                    <span>Valid 10-digit Indian Mobile: {validateIndianPhoneNumber(phone).formatted}</span>
                   </span>
                 ) : (
-                  <span className="form-hint" style={{ marginTop: '0.25rem', display: 'block', fontSize: '0.78rem', color: '#64748B' }}>
+                  <span className="form-hint" style={{ marginTop: '0.35rem', display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     Protected with owner privacy masking on public dashboards.
                   </span>
                 )}
@@ -388,7 +390,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                 onClick={handleContinueToLocation}
                 className="btn btn-primary btn-lg continue-to-location-orange-btn"
               >
-                <span>Continue to Location 📍</span>
+                <span>Continue to Location</span>
                 <ArrowRight size={18} />
               </button>
             </div>

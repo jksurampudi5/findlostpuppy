@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Check,
-  Lightbulb
+  Lightbulb,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
@@ -179,7 +180,13 @@ export const SidebarNav: React.FC = () => {
                   title="View Pet Alert Status"
                 >
                   <span className="safety-badge-emoji">
-                    {isLost ? '🚨' : isSafe ? '🏡' : '🐾'}
+                    {isLost ? (
+                      <AlertTriangle size={13} className="text-red-600" />
+                    ) : isSafe ? (
+                      <ShieldCheck size={13} className="text-emerald-600" />
+                    ) : (
+                      <PawPrint size={13} />
+                    )}
                   </span>
                   <span className="safety-badge-text">
                     {isLost ? 'MISSING!' : isSafe ? 'Safe' : 'Status'}
@@ -266,11 +273,14 @@ export const SidebarNav: React.FC = () => {
               <div className="drawer-pet-name-row">
                 <h4 className="drawer-pet-name">{previewDogName}</h4>
                 <span className="drawer-status-pill">
-                  {isLost ? '🚨 MISSING' : '💚 SAFE'}
+                  {isLost ? 'MISSING' : 'SAFE'}
                 </span>
               </div>
               <p className="drawer-pet-breed">{previewBreed}</p>
-              <p className="drawer-pet-location">📍 {previewArea}</p>
+              <p className="drawer-pet-location">
+                <MapPin size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
+                {previewArea}
+              </p>
             </div>
           </div>
         )}
@@ -326,7 +336,7 @@ export const SidebarNav: React.FC = () => {
             onClick={() => handleTabClick('report', '/alert')}
           >
             <AlertTriangle size={18} />
-            <span>{isLost ? '🔴 Pet is MISSING' : 'Missing Alert & Status'}</span>
+            <span>{isLost ? 'Pet is MISSING' : 'Missing Alert & Status'}</span>
             {isLost && <span className="drawer-pulse-dot" />}
           </button>
 
@@ -356,7 +366,7 @@ export const SidebarNav: React.FC = () => {
             title="Share an Idea or Suggestion"
           >
             <Lightbulb size={18} className="text-amber" />
-            <span>💡 Suggest an Idea</span>
+            <span>Suggest an Idea</span>
           </button>
         </div>
 
