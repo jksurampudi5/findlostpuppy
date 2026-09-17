@@ -67,7 +67,6 @@ async function captureScreenshots() {
       email: email,
       name: 'Jksurampudi',
       phone: '8639452948',
-      avatar: '/src/assets/sonu.jpg',
       isAdmin: true,
       createdAt: '2026-09-08T00:00:00.000Z',
     };
@@ -82,7 +81,6 @@ async function captureScreenshots() {
       fullName: 'Jksurampudi',
       phone: '8639452948',
       email: email,
-      photo: '/src/assets/sonu.jpg',
       state: 'Andhra Pradesh',
       district: 'West Godavari',
       mandalOrMunicipality: 'Undrajavaram',
@@ -147,6 +145,15 @@ async function captureScreenshots() {
         await page.evaluate(() => {
           const splash = document.querySelector('.launch-overlay-backdrop, .launch-logo-stage');
           if (splash) splash.remove();
+          // Ensure Pet Parent avatar displays the human avatar, NOT the dog photo
+          const ownerImg = document.querySelector('.family-avatar-card.owner-avatar-card .family-avatar-img');
+          const placeholder = document.querySelector('.family-avatar-card.owner-avatar-card .family-avatar-placeholder');
+          if (ownerImg) {
+            ownerImg.remove();
+          }
+          if (placeholder) {
+            placeholder.style.display = 'flex';
+          }
         });
         await new Promise((r) => setTimeout(r, 1500));
       },
