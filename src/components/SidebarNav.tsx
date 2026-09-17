@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   PawPrint,
@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Shield,
   LogOut,
-  ChevronLeft,
   ChevronRight,
   Menu,
   X,
@@ -21,6 +20,19 @@ import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
 import appLogoImg from '../assets/app_logo.png';
+
+interface NavigationItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  isActive: boolean;
+  isCompleted?: boolean;
+  isEmergency?: boolean;
+  circleClass: string;
+  icon: React.ReactNode;
+  drawerIcon: React.ReactNode;
+  onClick: () => void;
+}
 
 export const SidebarNav: React.FC = () => {
   const {
@@ -40,23 +52,28 @@ export const SidebarNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Sidebar collapse state (Desktop) - defaults to true so dashboard starts wide and clean
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    const saved = localStorage.getItem('findlostpuppy_sidebar_collapsed');
-    return saved !== null ? saved === 'true' : true;
+  // 1. Pinned Open State (Desktop user explicit pin)
+  const [pinnedOpen, setPinnedOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('findlostpuppy_sidebar_pinned');
+    if (saved !== null) return saved === 'true';
+    const oldCollapsed = localStorage.getItem('findlostpuppy_sidebar_collapsed');
+    if (oldCollapsed !== null) return oldCollapsed === 'false';
+    return false; // Default: collapsed
   });
 
-  // Hover state for auto-expanding sidebar on hover when collapsed
+  // 2. Hover State (Desktop mouse enter/leave)
   const [isHovered, setIsHovered] = useState<boolean>(false);
 
-  // Mobile drawer state
+  // 3. Clear State Model: expanded = hovered || pinnedOpen
+  const isExpanded = isHovered || pinnedOpen;
+
+  // 4. Mobile Drawer State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const showLabels = !isCollapsed || isHovered;
-
   useEffect(() => {
-    localStorage.setItem('findlostpuppy_sidebar_collapsed', String(isCollapsed));
-  }, [isCollapsed]);
+    localStorage.setItem('findlostpuppy_sidebar_pinned', String(pinnedOpen));
+    localStorage.setItem('findlostpuppy_sidebar_collapsed', String(!pinnedOpen));
+  }, [pinnedOpen]);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -67,7 +84,7 @@ export const SidebarNav: React.FC = () => {
   useEffect(() => {
     const handleUpdate = () => {
       setForceUpdate(n => n + 1);
-      refreshProgress(); // also sync AuthContext petSafetyStatus
+      refreshProgress();
     };
     window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
@@ -81,8 +98,7 @@ export const SidebarNav: React.FC = () => {
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
-  // ACID compliance: derive effective status from AuthContext (reactive) + direct report check (fallback)
-  // This ensures the sidebar ALWAYS reflects the true state with LOST taking strict precedence
+  // ACID compliance: derive effective status
   const effectiveStatus: 'LOST' | 'SAFE' | 'UNDECIDED' = (() => {
     if (petSafetyStatus === 'LOST' || existingReport?.status === 'LOST') return 'LOST';
     if (petSafetyStatus === 'SAFE' || existingReport?.status === 'SAFE' || (existingReport?.status as any) === 'REUNITED') return 'SAFE';
@@ -114,6 +130,11 @@ export const SidebarNav: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
+  const handleToggleChevron = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPinnedOpen(prev => !prev);
+  };
+
   const isOwnerActive =
     location.pathname === '/owner' ||
     (location.pathname === '/' && activeOnboardingTab === 'owner');
@@ -140,6 +161,175 @@ export const SidebarNav: React.FC = () => {
     (location.pathname === '/' && (activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed'));
 
   const isAdminActive = location.pathname === '/admin';
+
+  // =========================================================================
+  // SINGLE SOURCE OF TRUTH: NAVIGATION ITEMS CONFIGURATION
+  // Used identically in both Desktop Sidebar and Mobile Drawer
+  // =========================================================================
+  const navigationItems: NavigationItem[] = useMemo(() => [
+    // 1. Dashboard
+    {
+      id: 'dashboard',
+      title: 'Dashboard',
+      subtitle: 'Recovery Network',
+      isActive: isDashboardActive,
+      circleClass: 'circle-dashboard',
+      icon: (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg radar-scanner-svg" fill="none">
+          <circle cx="24" cy="24" r="16" stroke="#22C55E" strokeWidth="2.5" fill="#DCFCE7" />
+          <circle cx="24" cy="24" r="10" stroke="#16A34A" strokeWidth="1.8" strokeDasharray="3 3" />
+          <circle cx="24" cy="24" r="3.5" fill="#15803D" />
+          <line x1="24" y1="24" x2="38" y2="14" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" className="scanner-line" />
+        </svg>
+      ),
+      drawerIcon: <Radio size={18} />,
+      onClick: () => handleTabClick('dashboard', '/dashboard'),
+    },
+    // 2. Owner Profile
+    {
+      id: 'owner',
+      title: 'Owner Profile',
+      subtitle: existingProfile?.fullName ? existingProfile.fullName : 'Pet Parent Info',
+      isActive: isOwnerActive,
+      isCompleted: hasCompletedOwner,
+      circleClass: 'circle-owner',
+      icon: (existingProfile?.photo || user?.avatar) ? (
+        <img src={existingProfile?.photo || user?.avatar} alt="Owner" className="nav-tab-avatar-img" />
+      ) : (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg owner-avatar-svg" fill="none">
+          <circle cx="24" cy="24" r="16" fill="#FEF3C7" stroke="#F59E0B" strokeWidth="2" />
+          <circle cx="24" cy="18" r="7" fill="#D97706" />
+          <path d="M14 36 C14 28, 34 28, 34 36 Z" fill="#B45309" />
+        </svg>
+      ),
+      drawerIcon: <User size={18} />,
+      onClick: () => handleTabClick('owner', '/owner'),
+    },
+    // 3. Location
+    {
+      id: 'location',
+      title: 'Location',
+      subtitle: existingProfile?.city || existingProfile?.district || 'Safe Zone Area',
+      isActive: isLocationActive,
+      isCompleted: hasCompletedLocation,
+      circleClass: 'circle-location',
+      icon: (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg location-pin-svg" fill="none">
+          <circle cx="24" cy="24" r="16" fill="#EDF5F1" stroke="#2D6A4F" strokeWidth="2" />
+          <path
+            d="M24 12 C19 12, 16 16, 16 21 C16 27, 24 36, 24 36 C24 36, 32 27, 32 21 C32 16, 29 12, 24 12 Z"
+            fill="#2D6A4F"
+            className="animated-map-pin"
+          />
+          <circle cx="24" cy="21" r="3.5" fill="#FFFFFF" />
+        </svg>
+      ),
+      drawerIcon: <MapPin size={18} />,
+      onClick: () => handleTabClick('location', '/location'),
+    },
+    // 4. Pet Profile
+    {
+      id: 'pet',
+      title: 'Pet Profile',
+      subtitle: existingPet?.name ? existingPet.name : 'Add Dog Info',
+      isActive: isPetActive,
+      isCompleted: hasCompletedDog,
+      circleClass: 'circle-pet',
+      icon: existingPet?.primaryPhoto ? (
+        <img src={existingPet.primaryPhoto} alt={existingPet.name} className="nav-tab-avatar-img" />
+      ) : (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg dog-collar-svg" fill="none">
+          <circle cx="24" cy="24" r="16" fill="#FFF7ED" stroke="#E06D44" strokeWidth="2" />
+          <ellipse cx="24" cy="23" rx="10" ry="8" fill="#FBBF24" />
+          <ellipse cx="15" cy="18" rx="3.5" ry="6" fill="#D97706" className="anim-left-ear" />
+          <ellipse cx="33" cy="18" rx="3.5" ry="6" fill="#D97706" className="anim-right-ear" />
+          <circle cx="20" cy="21" r="1.5" fill="#1F2937" />
+          <circle cx="28" cy="21" r="1.5" fill="#1F2937" />
+          <ellipse cx="24" cy="26" rx="3" ry="2" fill="#1F2937" />
+        </svg>
+      ),
+      drawerIcon: <PawPrint size={18} />,
+      onClick: () => handleTabClick('dog', '/pet'),
+    },
+    // 5. Pet Safety / Missing Alert
+    {
+      id: 'alert',
+      title: isLost ? '🔴 PET IS MISSING' : isSafe ? 'Pet Safety' : 'Pet Safety',
+      subtitle: isLost
+        ? `🚨 Searching for ${previewDogName}...`
+        : isSafe
+        ? '🏡 Safe at Home 💚'
+        : 'Safe at Home',
+      isActive: isAlertActive,
+      isEmergency: true,
+      circleClass: `circle-alert ${isLost ? 'pulse-beacon-red' : isSafe ? 'safe-glow-green' : ''}`,
+      icon: isLost ? (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg siren-beacon-svg" fill="none">
+          <circle cx="24" cy="24" r="16" fill="#FEE2E2" stroke="#EF4444" strokeWidth="2" />
+          <path d="M16 28 C16 18, 32 18, 32 28 Z" fill="#DC2626" className="anim-siren-dome" />
+          <rect x="14" y="28" width="20" height="5" rx="2" fill="#374151" />
+          <line x1="24" y1="14" x2="24" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="14" y1="16" x2="10" y2="12" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+          <line x1="34" y1="16" x2="38" y2="12" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg home-safe-svg" fill="none">
+          <circle cx="24" cy="24" r="16" fill="#DCFCE7" stroke="#16A34A" strokeWidth="2" />
+          <path d="M15 24 L24 16 L33 24 L33 32 L15 32 Z" fill="#16A34A" />
+          <rect x="21" y="25" width="6" height="7" fill="#DCFCE7" />
+        </svg>
+      ),
+      drawerIcon: <AlertTriangle size={18} />,
+      onClick: () => handleTabClick('report', '/alert'),
+    },
+    // 6. Admin Portal (rendered if user is Admin)
+    ...(isUserAdmin ? [{
+      id: 'admin',
+      title: 'Admin Portal',
+      subtitle: 'Database & Sync',
+      isActive: isAdminActive,
+      circleClass: 'circle-admin',
+      icon: <Shield size={20} className="text-amber-700" />,
+      drawerIcon: <Shield size={18} />,
+      onClick: () => {
+        navigate('/admin');
+        setIsMobileMenuOpen(false);
+      },
+    }] : []),
+    // 7. Suggest Idea
+    {
+      id: 'suggest',
+      title: 'Suggest Idea',
+      subtitle: 'Help us improve',
+      isActive: false,
+      circleClass: 'circle-suggestion',
+      icon: <Lightbulb size={20} className="text-amber-500" />,
+      drawerIcon: <Lightbulb size={18} className="text-amber-500" />,
+      onClick: () => {
+        setIsMobileMenuOpen(false);
+        window.dispatchEvent(new CustomEvent('open-suggestion-modal'));
+      },
+    },
+  ], [
+    isDashboardActive,
+    isOwnerActive,
+    isLocationActive,
+    isPetActive,
+    isAlertActive,
+    isAdminActive,
+    hasCompletedOwner,
+    hasCompletedLocation,
+    hasCompletedDog,
+    existingProfile,
+    existingPet,
+    isUserAdmin,
+    isLost,
+    isSafe,
+    previewDogName,
+    user,
+    navigate,
+    setActiveOnboardingTab,
+  ]);
 
   return (
     <>
@@ -257,6 +447,7 @@ export const SidebarNav: React.FC = () => {
             type="button"
             className="drawer-close-btn"
             onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Close navigation drawer"
           >
             <X size={20} />
           </button>
@@ -285,89 +476,28 @@ export const SidebarNav: React.FC = () => {
           </div>
         )}
 
+        {/* Shared navigation array rendering in mobile drawer */}
         <div className="drawer-nav-links">
-          {/* 1. Dashboard */}
-          <button
-            type="button"
-            className={`drawer-nav-item ${isDashboardActive ? 'active' : ''}`}
-            onClick={() => handleTabClick('dashboard', '/dashboard')}
-          >
-            <Radio size={18} />
-            <span>Dashboard</span>
-          </button>
-
-          {/* 2. Owner Profile */}
-          <button
-            type="button"
-            className={`drawer-nav-item ${isOwnerActive ? 'active' : ''}`}
-            onClick={() => handleTabClick('owner', '/owner')}
-          >
-            <User size={18} />
-            <span>Owner Profile</span>
-            {hasCompletedOwner && <Check size={14} className="text-emerald-500 ml-auto" />}
-          </button>
-
-          {/* 3. Location */}
-          <button
-            type="button"
-            className={`drawer-nav-item ${isLocationActive ? 'active' : ''}`}
-            onClick={() => handleTabClick('location', '/location')}
-          >
-            <MapPin size={18} />
-            <span>Location</span>
-            {hasCompletedLocation && <Check size={14} className="text-emerald-500 ml-auto" />}
-          </button>
-
-          {/* 4. Pet Profile */}
-          <button
-            type="button"
-            className={`drawer-nav-item ${isPetActive ? 'active' : ''}`}
-            onClick={() => handleTabClick('dog', '/pet')}
-          >
-            <PawPrint size={18} />
-            <span>Pet Profile</span>
-            {hasCompletedDog && <Check size={14} className="text-emerald-500 ml-auto" />}
-          </button>
-
-          {/* 5. Missing Alert */}
-          <button
-            type="button"
-            className={`drawer-nav-item emergency-item ${isAlertActive ? 'active' : ''} ${isLost ? 'drawer-lost-item' : ''}`}
-            onClick={() => handleTabClick('report', '/alert')}
-          >
-            <AlertTriangle size={18} />
-            <span>{isLost ? 'Pet is MISSING' : 'Missing Alert & Status'}</span>
-            {isLost && <span className="drawer-pulse-dot" />}
-          </button>
-
-          {/* 6. Admin Portal */}
-          {isUserAdmin && (
+          {navigationItems.map(item => (
             <button
+              key={item.id}
               type="button"
-              className={`drawer-nav-item admin-item ${isAdminActive ? 'active' : ''}`}
+              className={`drawer-nav-item ${item.isActive ? 'active' : ''} ${
+                item.isEmergency && isLost ? 'drawer-lost-item' : ''
+              }`}
               onClick={() => {
-                navigate('/admin');
+                item.onClick();
                 setIsMobileMenuOpen(false);
               }}
             >
-              <Shield size={18} />
-              <span>Admin</span>
+              <div className="drawer-nav-icon-slot">
+                {item.drawerIcon}
+              </div>
+              <span>{item.title}</span>
+              {item.isCompleted && <Check size={14} className="text-emerald-500 ml-auto" />}
+              {item.isEmergency && isLost && <span className="drawer-pulse-dot ml-auto" />}
             </button>
-          )}
-
-          {/* Quick Suggestion Button */}
-          <button
-            type="button"
-            className="drawer-nav-item suggestion-drawer-item"
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              window.dispatchEvent(new CustomEvent('open-suggestion-modal'));
-            }}
-            title="Share an Idea or Suggestion"
-          >
-            <Lightbulb size={18} className="text-amber" />
-            <span>Suggest an Idea</span>
-          </button>
+          ))}
         </div>
 
         {isAuthenticated && (
@@ -381,18 +511,18 @@ export const SidebarNav: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. DESKTOP CONSTANT LEFT SIDEBAR (Fixed / Sticky & Non-Scrolling) */}
+      {/* 3. DESKTOP CONSTANT LEFT SIDEBAR (Anchored Vertical Axis & Precision Right Expand) */}
       {/* ========================================================================= */}
       <aside
-        className={`constant-left-sidebar ${isCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'} ${
-          isHovered ? 'sidebar-is-hovered' : ''
+        className={`constant-left-sidebar ${pinnedOpen ? 'sidebar-pinned' : 'sidebar-unpinned'} ${
+          isExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'
         }`}
-        onMouseEnter={() => isCollapsed && setIsHovered(true)}
+        onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-label="Main Navigation"
       >
         <div className="constant-sidebar-container">
-          {/* Logo Header */}
+          {/* Logo Header: 100% same slot geometry as nav items */}
           <div className="sidebar-logo-header">
             <Link
               to={isAuthenticated ? '/dashboard' : '/'}
@@ -403,252 +533,93 @@ export const SidebarNav: React.FC = () => {
                   navigate('/dashboard');
                 }
               }}
+              title="FindLostPuppy"
             >
-              <div className="sidebar-brand-paw-animated" title="FindLostPuppy">
+              <div className="nav-icon-slot logo-slot" title="FindLostPuppy">
                 <img
                   src={appLogoImg}
                   alt="FindLostPuppy"
                   className="sidebar-brand-logo-img"
                 />
               </div>
-              <div className={`sidebar-brand-text ${showLabels ? 'text-visible' : 'text-hidden'}`}>
+              <div className={`sidebar-brand-text ${isExpanded ? 'text-visible' : 'text-hidden'}`}>
                 <span className="sidebar-brand-title">FindLostPuppy</span>
                 <span className="sidebar-brand-sub">Community Rescue</span>
               </div>
             </Link>
 
+            {/* Chevron toggle button: rotates smoothly between > (collapsed) and < (expanded) */}
             <button
               type="button"
-              className={`sidebar-toggle-btn ${showLabels ? 'toggle-visible' : 'toggle-hidden'}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCollapsed(!isCollapsed);
-                if (!isCollapsed) setIsHovered(false);
-              }}
-              title={isCollapsed ? 'Pin Sidebar Open' : 'Collapse to Icons (Auto-expand on hover)'}
-              aria-label={isCollapsed ? 'Pin Sidebar Open' : 'Collapse to Icons'}
+              className="sidebar-toggle-btn"
+              onClick={handleToggleChevron}
+              title={pinnedOpen ? 'Collapse to Icons (Auto-expand on hover)' : 'Pin Sidebar Open'}
+              aria-label={pinnedOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
             >
-              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              <span className={`toggle-icon-wrap ${isExpanded ? 'icon-rotated' : ''}`}>
+                <ChevronRight size={16} />
+              </span>
             </button>
           </div>
 
-          {/* Navigation Items (Only the 5 core components + Admin) */}
+          {/* Navigation Items List: Single source of truth */}
           <nav className="sidebar-items-list" aria-label="Main Navigation">
-            {/* 1. DASHBOARD */}
-            <button
-              type="button"
-              className={`sidebar-nav-tab ${isDashboardActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('dashboard', '/dashboard')}
-              title="Community Recovery Dashboard"
-            >
-              <div className="nav-tab-icon-circle circle-dashboard">
-                <svg viewBox="0 0 48 48" className="nav-animated-svg radar-scanner-svg" fill="none">
-                  <circle cx="24" cy="24" r="16" stroke="#22C55E" strokeWidth="2.5" fill="#DCFCE7" />
-                  <circle cx="24" cy="24" r="10" stroke="#16A34A" strokeWidth="1.8" strokeDasharray="3 3" />
-                  <circle cx="24" cy="24" r="3.5" fill="#15803D" />
-                  <line x1="24" y1="24" x2="38" y2="14" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" className="scanner-line" />
-                </svg>
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title">Dashboard</span>
-                <span className="nav-tab-desc">Recovery Network</span>
-              </div>
-            </button>
-
-            {/* 2. OWNER PROFILE */}
-            <button
-              type="button"
-              className={`sidebar-nav-tab ${isOwnerActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('owner', '/owner')}
-              title="Owner Profile & Contact"
-            >
-              <div className="nav-tab-icon-circle circle-owner">
-                {existingProfile?.photo || user?.avatar ? (
-                  <img src={existingProfile?.photo || user?.avatar} alt="Owner" className="nav-tab-avatar-img" />
-                ) : (
-                  <svg viewBox="0 0 48 48" className="nav-animated-svg owner-avatar-svg" fill="none">
-                    <circle cx="24" cy="24" r="16" fill="#FEF3C7" stroke="#F59E0B" strokeWidth="2" />
-                    {/* Head */}
-                    <circle cx="24" cy="18" r="7" fill="#D97706" />
-                    {/* Torso */}
-                    <path d="M14 36 C14 28, 34 28, 34 36 Z" fill="#B45309" />
-                  </svg>
-                )}
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title">Owner Profile</span>
-                <span className="nav-tab-desc">
-                  {existingProfile?.fullName ? existingProfile.fullName : 'Pet Parent Info'}
-                </span>
-              </div>
-              {hasCompletedOwner && (
-                <Check size={14} className={`nav-tab-check ${showLabels ? 'text-visible' : 'text-hidden'}`} />
-              )}
-            </button>
-
-            {/* 3. LOCATION */}
-            <button
-              type="button"
-              className={`sidebar-nav-tab ${isLocationActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('location', '/location')}
-              title="Home Location & Safe Zone"
-            >
-              <div className="nav-tab-icon-circle circle-location">
-                <svg viewBox="0 0 48 48" className="nav-animated-svg location-pin-svg" fill="none">
-                  <circle cx="24" cy="24" r="16" fill="#EDF5F1" stroke="#2D6A4F" strokeWidth="2" />
-                  {/* Pin */}
-                  <path
-                    d="M24 12 C19 12, 16 16, 16 21 C16 27, 24 36, 24 36 C24 36, 32 27, 32 21 C32 16, 29 12, 24 12 Z"
-                    fill="#2D6A4F"
-                    className="animated-map-pin"
-                  />
-                  <circle cx="24" cy="21" r="3.5" fill="#FFFFFF" />
-                </svg>
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title">Location</span>
-                <span className="nav-tab-desc">
-                  {existingProfile?.city || existingProfile?.district || 'Safe Zone Area'}
-                </span>
-              </div>
-              {hasCompletedLocation && (
-                <Check size={14} className={`nav-tab-check ${showLabels ? 'text-visible' : 'text-hidden'}`} />
-              )}
-            </button>
-
-            {/* 4. PET PROFILE */}
-            <button
-              type="button"
-              className={`sidebar-nav-tab ${isPetActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('dog', '/pet')}
-              title="Dog Profile"
-            >
-              <div className="nav-tab-icon-circle circle-pet">
-                {existingPet?.primaryPhoto ? (
-                  <img src={existingPet.primaryPhoto} alt={existingPet.name} className="nav-tab-avatar-img" />
-                ) : (
-                  <svg viewBox="0 0 48 48" className="nav-animated-svg dog-collar-svg" fill="none">
-                    <circle cx="24" cy="24" r="16" fill="#FFF7ED" stroke="#E06D44" strokeWidth="2" />
-                    {/* Dog Face */}
-                    <ellipse cx="24" cy="23" rx="10" ry="8" fill="#FBBF24" />
-                    {/* Ears */}
-                    <ellipse cx="15" cy="18" rx="3.5" ry="6" fill="#D97706" className="anim-left-ear" />
-                    <ellipse cx="33" cy="18" rx="3.5" ry="6" fill="#D97706" className="anim-right-ear" />
-                    {/* Snout & Eyes */}
-                    <circle cx="20" cy="21" r="1.5" fill="#1F2937" />
-                    <circle cx="28" cy="21" r="1.5" fill="#1F2937" />
-                    <ellipse cx="24" cy="26" rx="3" ry="2" fill="#1F2937" />
-                  </svg>
-                )}
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title">Pet Profile</span>
-                <span className="nav-tab-desc">
-                  {existingPet?.name ? existingPet.name : 'Add Dog Info'}
-                </span>
-              </div>
-              {hasCompletedDog && (
-                <Check size={14} className={`nav-tab-check ${showLabels ? 'text-visible' : 'text-hidden'}`} />
-              )}
-            </button>
-
-            {/* 5. MISSING ALERT / PET SAFETY */}
-            <button
-              type="button"
-              id="sidebar-missing-alert-tab"
-              className={`sidebar-nav-tab emergency-nav-tab ${
-                isLost ? 'status-lost' : isSafe ? 'status-safe' : ''
-              } ${isAlertActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('report', '/alert')}
-              title={isLost ? 'PET IS MISSING — Manage Alert' : 'Missing Dog Alert & Safety Status'}
-            >
-              <div
-                className={`nav-tab-icon-circle circle-alert ${
-                  isLost ? 'pulse-beacon-red' : isSafe ? 'safe-glow-green' : ''
-                }`}
-              >
-                {isLost ? (
-                  <svg viewBox="0 0 48 48" className="nav-animated-svg siren-beacon-svg" fill="none">
-                    <circle cx="24" cy="24" r="16" fill="#FEE2E2" stroke="#EF4444" strokeWidth="2" />
-                    <path d="M16 28 C16 18, 32 18, 32 28 Z" fill="#DC2626" className="anim-siren-dome" />
-                    <rect x="14" y="28" width="20" height="5" rx="2" fill="#374151" />
-                    <line x1="24" y1="14" x2="24" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
-                    <line x1="14" y1="16" x2="10" y2="12" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="34" y1="16" x2="38" y2="12" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 48 48" className="nav-animated-svg home-safe-svg" fill="none">
-                    <circle cx="24" cy="24" r="16" fill="#DCFCE7" stroke="#16A34A" strokeWidth="2" />
-                    <path d="M15 24 L24 16 L33 24 L33 32 L15 32 Z" fill="#16A34A" />
-                    <rect x="21" y="25" width="6" height="7" fill="#DCFCE7" />
-                  </svg>
-                )}
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title" style={isLost ? { color: '#DC2626', fontWeight: 800 } : {}}>
-                  {isLost ? '🔴 PET IS MISSING' : isSafe ? 'Pet Safety' : 'Pet Safety'}
-                </span>
-                <span className="nav-tab-desc" style={isLost ? { color: '#EF4444' } : {}}>
-                  {isLost
-                    ? `🚨 Searching for ${previewDogName}...`
-                    : isSafe
-                    ? '🏡 Safe at Home 💚'
-                    : 'Set Safety Status'}
-                </span>
-              </div>
-              {isLost && showLabels && (
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', animation: 'beaconPulse 1.2s infinite', flexShrink: 0 }} />
-              )}
-            </button>
-
-            {/* 6. ADMIN (Rendered if user is Admin) */}
-            {isUserAdmin && (
+            {navigationItems.map(item => (
               <button
+                key={item.id}
                 type="button"
-                className={`sidebar-nav-tab admin-nav-tab ${isAdminActive ? 'active' : ''}`}
-                onClick={() => navigate('/admin')}
-                title="Master Admin Portal"
+                id={`sidebar-${item.id}-tab`}
+                className={`sidebar-nav-tab ${item.id}-tab ${item.isActive ? 'active' : ''} ${
+                  item.isEmergency ? (isLost ? 'status-lost' : isSafe ? 'status-safe' : '') : ''
+                }`}
+                onClick={item.onClick}
+                title={`${item.title} — ${item.subtitle}`}
               >
-                <div className="nav-tab-icon-circle circle-admin">
-                  <Shield size={20} className="text-amber-700" />
+                {/* Fixed, invariant 44px icon slot */}
+                <div className="nav-icon-slot">
+                  <div className={`nav-tab-icon-circle ${item.circleClass}`}>
+                    {item.icon}
+                  </div>
                 </div>
-                <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                  <span className="nav-tab-title">Admin Portal</span>
-                  <span className="nav-tab-desc">Database & Sync</span>
+                {/* Labels reveal only to the right */}
+                <div className={`nav-tab-text-group ${isExpanded ? 'text-visible' : 'text-hidden'}`}>
+                  <span
+                    className="nav-tab-title"
+                    style={item.isEmergency && isLost ? { color: '#DC2626', fontWeight: 800 } : {}}
+                  >
+                    {item.title}
+                  </span>
+                  <span
+                    className="nav-tab-desc"
+                    style={item.isEmergency && isLost ? { color: '#EF4444' } : {}}
+                  >
+                    {item.subtitle}
+                  </span>
                 </div>
+                {item.isCompleted && (
+                  <Check size={14} className={`nav-tab-check ${isExpanded ? 'text-visible' : 'text-hidden'}`} />
+                )}
+                {item.isEmergency && isLost && isExpanded && (
+                  <span className="sidebar-lost-beacon-dot" />
+                )}
               </button>
-            )}
-
-            {/* 6. SUGGEST AN IDEA TAB */}
-            <button
-              type="button"
-              id="sidebar-suggestion-tab"
-              className="sidebar-nav-tab suggestion-nav-tab"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-suggestion-modal'))}
-              title="Share an Idea or Suggestion"
-            >
-              <div className="nav-tab-icon-circle circle-suggestion">
-                <Lightbulb size={20} className="text-amber-500" />
-              </div>
-              <div className={`nav-tab-text-group ${showLabels ? 'text-visible' : 'text-hidden'}`}>
-                <span className="nav-tab-title" style={{ color: '#ea580c' }}>💡 Suggest Idea</span>
-                <span className="nav-tab-desc">Help us improve</span>
-              </div>
-            </button>
+            ))}
           </nav>
 
           {/* Bottom Profile / Sign Out Card */}
           {isAuthenticated && (
             <div className="sidebar-footer-profile">
               <div className="footer-user-row">
-                {existingProfile?.photo || user?.avatar ? (
-                  <img src={existingProfile?.photo || user?.avatar} alt="User" className="footer-avatar-img" />
-                ) : (
-                  <div className="footer-avatar-initials">
-                    {user?.name?.charAt(0).toUpperCase() || '🐾'}
-                  </div>
-                )}
-                <div className={`footer-user-meta ${showLabels ? 'text-visible' : 'text-hidden'}`}>
+                <div className="nav-icon-slot footer-slot">
+                  {existingProfile?.photo || user?.avatar ? (
+                    <img src={existingProfile?.photo || user?.avatar} alt="User" className="footer-avatar-img" />
+                  ) : (
+                    <div className="footer-avatar-initials">
+                      {user?.name?.charAt(0).toUpperCase() || '🐾'}
+                    </div>
+                  )}
+                </div>
+                <div className={`footer-user-meta ${isExpanded ? 'text-visible' : 'text-hidden'}`}>
                   <span className="footer-user-name">
                     {existingProfile?.fullName || user?.name || user?.email?.split('@')[0] || 'Pet Parent'}
                   </span>
@@ -657,8 +628,9 @@ export const SidebarNav: React.FC = () => {
                 <button
                   type="button"
                   onClick={logout}
-                  className={`footer-logout-btn ${showLabels ? 'toggle-visible' : 'toggle-hidden'}`}
+                  className={`footer-logout-btn ${isExpanded ? 'toggle-visible' : 'toggle-hidden'}`}
                   title="Sign Out"
+                  aria-label="Sign Out"
                 >
                   <LogOut size={16} />
                 </button>
