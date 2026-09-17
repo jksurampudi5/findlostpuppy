@@ -158,7 +158,11 @@ export const SidebarNav: React.FC = () => {
             }}
           >
             <div className="mobile-brand-icon-wrap">
-              <PawPrint size={20} className="mobile-brand-paw" />
+              <img
+                src={appLogoImg}
+                alt="FindLostPuppy"
+                className="mobile-brand-logo-img"
+              />
             </div>
             <span className="mobile-brand-title">FindLostPuppy</span>
           </Link>
