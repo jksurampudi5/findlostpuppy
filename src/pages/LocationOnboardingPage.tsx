@@ -98,6 +98,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
   const [locationSource, setLocationSource] = useState<'gps' | 'manual' | 'pin'>('manual');
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
+  const [accuracyRadius, setAccuracyRadius] = useState<number | undefined>();
+  const [detectionConfidence, setDetectionConfidence] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(null);
+  const [confidenceReason, setConfidenceReason] = useState<string>('');
   const isEditing = userRequestedEdit || !hasSavedLocation;
 
   const [detecting, setDetecting] = useState(false);
@@ -288,16 +291,21 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
     try {
       const geo = await detectResilientLocation();
-      setLatitude(geo.latitude);
-      setLongitude(geo.longitude);
+      setAccuracyRadius(geo.accuracyMeters);
+      setDetectionConfidence(geo.confidence);
+      setConfidenceReason(geo.confidenceReason);
 
       // Low-confidence IP fallback requires manual verification
       if (geo.source === 'ip') {
         setHasDetected(true);
         setUserRequestedEdit(true);
-        showToast('Approximate location only. Please select your District and Mandal below.', 'info');
+        setLocationSource('manual');
+        showToast('Approximate location only (IP network). Please select your District and Mandal below.', 'info');
         return;
       }
+
+      setLatitude(geo.latitude);
+      setLongitude(geo.longitude);
 
       const detectedState = geo.state || state;
       const rawDistrict = geo.district || district;
@@ -311,6 +319,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         mandal: detectedMandal,
         locality: detectedCity,
         pinCode: detectedPin,
+        stateCode: geo.stateCode,
+        districtCode: geo.districtCode,
+        subDistrictCode: geo.subDistrictCode,
       });
 
       if (match && match.state && match.district && match.subDistrict) {
@@ -323,13 +334,26 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
         setLocationSource('gps');
         setHasDetected(true);
-        // Keep form visible so user can verify and adjust if ISP/Wi-Fi detected a neighboring mandal
+        // Keep form visible so user can verify and adjust if needed
         setUserRequestedEdit(true);
 
-        showToast(
-          `🎯 Detected: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Confirm or adjust below!`,
-          'success'
-        );
+        const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
+        if (geo.confidence === 'HIGH') {
+          showToast(
+            `🎯 Detected${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Confirm or adjust below!`,
+            'success'
+          );
+        } else if (geo.confidence === 'MEDIUM') {
+          showToast(
+            `📍 Detected${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Please confirm your Mandal below.`,
+            'info'
+          );
+        } else {
+          showToast(
+            `⚠️ Coarse location${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Please verify details below.`,
+            'warning'
+          );
+        }
       } else {
         setHasDetected(true);
         setUserRequestedEdit(true);
@@ -626,6 +650,47 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   )}
                 </button>
               </div>
+
+              {/* LOCATION ACCURACY & CONFIDENCE STATUS BADGE */}
+              {detectionConfidence && !detecting && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  style={{
+                    margin: '0.75rem auto 0 auto',
+                    maxWidth: '480px',
+                    padding: '0.65rem 0.95rem',
+                    borderRadius: '12px',
+                    fontSize: '0.82rem',
+                    lineHeight: '1.4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    backgroundColor:
+                      detectionConfidence === 'HIGH' ? '#F0FDF4' : detectionConfidence === 'MEDIUM' ? '#EFF6FF' : '#FFFBEB',
+                    border: `1.5px solid ${
+                      detectionConfidence === 'HIGH' ? '#86EFAC' : detectionConfidence === 'MEDIUM' ? '#93C5FD' : '#FCD34D'
+                    }`,
+                    color:
+                      detectionConfidence === 'HIGH' ? '#166534' : detectionConfidence === 'MEDIUM' ? '#1E40AF' : '#92400E',
+                  }}
+                >
+                  <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+                  <div>
+                    <span style={{ fontWeight: 700 }}>
+                      {detectionConfidence === 'HIGH'
+                        ? 'High-Accuracy Boundary Verified'
+                        : detectionConfidence === 'MEDIUM'
+                        ? 'Detected Location'
+                        : 'Approximate Location'}
+                      {accuracyRadius ? ` (±${Math.round(accuracyRadius)}m)` : ''}
+                    </span>
+                    <div style={{ fontSize: '0.76rem', opacity: 0.9, marginTop: '2px' }}>
+                      {confidenceReason}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* LOCATION DETAILS FORM — AUTO-FILLED VIA GPS OR SELECTABLE MANUALLY */}
               {!detecting && (

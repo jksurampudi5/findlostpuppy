@@ -302,7 +302,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       const geo = await detectResilientLocation();
       const exactLat = geo.latitude;
       const exactLng = geo.longitude;
-      setAccuracyRadius(geo.source === 'gps' ? 15 : geo.source === 'network' ? 50 : 500);
+      setAccuracyRadius(geo.accuracyMeters || (geo.source === 'gps' ? 20 : 100));
 
       const detectedState = geo.state || currentState;
       const rawDistrict = geo.district || currentDistrict;
@@ -316,6 +316,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         mandal: detectedMandal,
         locality: detectedCity,
         pinCode: detectedPin,
+        stateCode: geo.stateCode,
+        districtCode: geo.districtCode,
+        subDistrictCode: geo.subDistrictCode,
       });
 
       if (match) {

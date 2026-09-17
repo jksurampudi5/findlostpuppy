@@ -298,11 +298,29 @@ class LocationService {
     mandal?: string;
     locality?: string;
     pinCode?: string;
+    stateCode?: number;
+    districtCode?: number;
+    subDistrictCode?: number;
   }): Promise<LocationMatchResult | null> {
-    const { state: rawState, district: rawDistrict, mandal: rawMandal, locality: rawLocality, pinCode: rawPin } = params;
+    const {
+      state: rawState,
+      district: rawDistrict,
+      mandal: rawMandal,
+      locality: rawLocality,
+      pinCode: rawPin,
+      stateCode: explicitStateCode,
+      districtCode: explicitDistrictCode,
+      subDistrictCode: explicitSubDistrictCode,
+    } = params;
 
-    // 1. Match State
-    let matchedState = this.getState(rawState || '');
+    // 1. Match State (explicit code takes precedence)
+    let matchedState: LocationState | undefined;
+    if (explicitStateCode) {
+      matchedState = this.getState(explicitStateCode);
+    }
+    if (!matchedState) {
+      matchedState = this.getState(rawState || '');
+    }
     if (!matchedState && rawPin && /^\d{6}$/.test(rawPin.trim())) {
       const prefix = parseInt(rawPin.trim().slice(0, 2), 10);
       if (prefix === 50) matchedState = this.getState(36); // Telangana
@@ -314,23 +332,27 @@ class LocationService {
       if (d) matchedState = this.getState(d.stateCode);
     }
     if (!matchedState) {
-      matchedState = this.getState('Andhra Pradesh');
+      return null;
     }
-    if (!matchedState) return null;
 
-    // 2. Match District
-    const districts = this.getDistricts(matchedState.code);
-    let matchedDistrict = rawDistrict ? this.getDistrict(matchedState.code, rawDistrict) : undefined;
-
+    // 2. Match District (explicit code takes precedence)
+    let matchedDistrict: LocationDistrict | undefined;
+    if (explicitDistrictCode) {
+      matchedDistrict = this.getDistrict(matchedState.code, explicitDistrictCode);
+    }
+    if (!matchedDistrict && rawDistrict) {
+      matchedDistrict = this.getDistrict(matchedState.code, rawDistrict);
+    }
     if (!matchedDistrict && rawMandal) {
       matchedDistrict = this.getDistrict(matchedState.code, rawMandal);
     }
     if (!matchedDistrict && rawLocality) {
       matchedDistrict = this.getDistrict(matchedState.code, rawLocality);
     }
-    // Heuristic fallbacks for common areas
+    // Heuristic fallbacks for well-known aliases
     if (!matchedDistrict && rawDistrict) {
       const hint = `${rawDistrict} ${rawMandal || ''} ${rawLocality || ''}`.toLowerCase();
+      const districts = this.getDistricts(matchedState.code);
       if (hint.includes('undrajavaram') || hint.includes('rajahmundry')) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'east godavari');
       } else if (hint.includes('vikarabad')) {
@@ -339,16 +361,16 @@ class LocationService {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'ntr');
       }
     }
-    if (!matchedDistrict && districts.length > 0) {
-      matchedDistrict = districts[0];
-    }
+
+    // CRITICAL: NEVER silently pick districts[0] if district could not be matched!
     if (!matchedDistrict) return null;
 
-    // 3. Match Mandal
-    const mandals = this.getSubDistricts(matchedDistrict.districtCode);
+    // 3. Match Mandal (explicit subdistrict code takes precedence)
     let matchedSubDistrict: LocationSubDistrict | undefined;
-
-    if (rawMandal) {
+    if (explicitSubDistrictCode) {
+      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, explicitSubDistrictCode);
+    }
+    if (!matchedSubDistrict && rawMandal) {
       matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawMandal);
     }
     if (!matchedSubDistrict && rawLocality) {
@@ -357,9 +379,8 @@ class LocationService {
     if (!matchedSubDistrict && rawDistrict) {
       matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawDistrict);
     }
-    if (!matchedSubDistrict && mandals.length > 0) {
-      matchedSubDistrict = mandals[0];
-    }
+
+    // CRITICAL: NEVER silently pick mandals[0] if mandal could not be matched!
     if (!matchedSubDistrict) return null;
 
     // 4. Match Locality inside the matched SubDistrict
