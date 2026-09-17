@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Shield,
   LogOut,
-  ChevronRight,
   Menu,
   X,
   Check,
@@ -52,28 +51,12 @@ export const SidebarNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 1. Pinned Open State (Desktop user explicit pin)
-  const [pinnedOpen, setPinnedOpen] = useState<boolean>(() => {
-    const saved = localStorage.getItem('findlostpuppy_sidebar_pinned');
-    if (saved !== null) return saved === 'true';
-    const oldCollapsed = localStorage.getItem('findlostpuppy_sidebar_collapsed');
-    if (oldCollapsed !== null) return oldCollapsed === 'false';
-    return false; // Default: collapsed
-  });
-
-  // 2. Hover State (Desktop mouse enter/leave)
+  // 1. Hover State (Desktop mouse enter/leave)
   const [isHovered, setIsHovered] = useState<boolean>(false);
+  const isExpanded = isHovered;
 
-  // 3. Clear State Model: expanded = hovered || pinnedOpen
-  const isExpanded = isHovered || pinnedOpen;
-
-  // 4. Mobile Drawer State
+  // 2. Mobile Drawer State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('findlostpuppy_sidebar_pinned', String(pinnedOpen));
-    localStorage.setItem('findlostpuppy_sidebar_collapsed', String(!pinnedOpen));
-  }, [pinnedOpen]);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -128,11 +111,6 @@ export const SidebarNav: React.FC = () => {
     setActiveOnboardingTab(tab);
     navigate(routePath);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleToggleChevron = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPinnedOpen(prev => !prev);
   };
 
   const isOwnerActive =
@@ -514,9 +492,7 @@ export const SidebarNav: React.FC = () => {
       {/* 3. DESKTOP CONSTANT LEFT SIDEBAR (Anchored Vertical Axis & Precision Right Expand) */}
       {/* ========================================================================= */}
       <aside
-        className={`constant-left-sidebar ${pinnedOpen ? 'sidebar-pinned' : 'sidebar-unpinned'} ${
-          isExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'
-        }`}
+        className={`constant-left-sidebar ${isExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-label="Main Navigation"
@@ -547,19 +523,6 @@ export const SidebarNav: React.FC = () => {
                 <span className="sidebar-brand-sub">Community Rescue</span>
               </div>
             </Link>
-
-            {/* Chevron toggle button: rotates smoothly between > (collapsed) and < (expanded) */}
-            <button
-              type="button"
-              className="sidebar-toggle-btn"
-              onClick={handleToggleChevron}
-              title={pinnedOpen ? 'Collapse to Icons (Auto-expand on hover)' : 'Pin Sidebar Open'}
-              aria-label={pinnedOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
-            >
-              <span className={`toggle-icon-wrap ${isExpanded ? 'icon-rotated' : ''}`}>
-                <ChevronRight size={16} />
-              </span>
-            </button>
           </div>
 
           {/* Navigation Items List: Single source of truth */}

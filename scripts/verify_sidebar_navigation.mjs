@@ -163,62 +163,29 @@ async function run() {
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'sidebar_3_hover_leave_collapsed_desktop.png') });
   console.log('Saved screenshot: sidebar_3_hover_leave_collapsed_desktop.png');
 
-  console.log('\n--- TEST 4: CHEVRON CLICK PINNING & UNPINNING ---');
-  // Hover over sidebar to reveal branding & chevron button
-  await page.hover('.constant-left-sidebar');
-  await page.waitForFunction(() => {
-    const c = document.querySelector('.constant-sidebar-container');
-    return c && c.getBoundingClientRect().width >= 260;
-  }, { timeout: 3000 });
-
-  // Click chevron button to pin open
-  await page.click('.sidebar-toggle-btn');
-  await new Promise(r => setTimeout(r, 200));
-
-  // Move mouse away to center of screen
-  await page.mouse.move(800, 400);
-  await new Promise(r => setTimeout(r, 400));
-
-  const pinnedMetrics = await page.evaluate(() => {
-    const sidebar = document.querySelector('.constant-left-sidebar');
-    const container = document.querySelector('.constant-sidebar-container');
-    const mainViewport = document.querySelector('.app-main-viewport');
-    const isPinned = sidebar.classList.contains('sidebar-pinned');
-    const width = container.getBoundingClientRect().width;
-    const viewportLeft = mainViewport ? mainViewport.getBoundingClientRect().left : 0;
-    const toggleIconRotated = !!document.querySelector('.toggle-icon-wrap.icon-rotated');
-    return { isPinned, width, viewportLeft, toggleIconRotated };
+  console.log('\n--- TEST 4: TOGGLE BUTTON REMOVED & LOGO CLEAN ---');
+  const toggleBtnRemoved = await page.evaluate(() => {
+    const btn = document.querySelector('.sidebar-toggle-btn');
+    const logoImg = document.querySelector('.sidebar-brand-logo-img');
+    const slot = document.querySelector('.nav-icon-slot.logo-slot');
+    return {
+      hasBtn: !!btn,
+      hasLogo: !!logoImg,
+      slotGeometry: slot ? { w: slot.getBoundingClientRect().width, h: slot.getBoundingClientRect().height } : null
+    };
   });
 
-  console.log(`Pinned state: isPinned=${pinnedMetrics.isPinned}, containerWidth=${pinnedMetrics.width}px, viewportLeft=${pinnedMetrics.viewportLeft}px, arrowRotated=${pinnedMetrics.toggleIconRotated}`);
-  if (!pinnedMetrics.isPinned || pinnedMetrics.width < 255) {
-    throw new Error('FAIL: Sidebar container failed to remain pinned open after chevron click');
+  console.log('Toggle button check:', toggleBtnRemoved);
+  if (toggleBtnRemoved.hasBtn) {
+    throw new Error('FAIL: sidebar-toggle-btn is still present in DOM');
   }
-  if (!pinnedMetrics.toggleIconRotated) {
-    throw new Error('FAIL: Chevron arrow failed to rotate to close indicator (<)');
+  if (!toggleBtnRemoved.hasLogo) {
+    throw new Error('FAIL: App logo image missing');
   }
-  console.log('✅ TEST 4 PASSED: Chevron pinned sidebar open, arrow rotated to (<), and adjacent viewport did NOT move!');
+  console.log('✅ TEST 4 PASSED: Left/right toggle button is completely removed and logo slot is clean and unobstructed!');
 
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'sidebar_4_pinned_expanded_desktop.png') });
-  console.log('Saved screenshot: sidebar_4_pinned_expanded_desktop.png');
-
-  // Click chevron again to unpin and collapse
-  await page.click('.sidebar-toggle-btn');
-  await page.mouse.move(800, 400);
-  await page.waitForFunction(() => {
-    const c = document.querySelector('.constant-sidebar-container');
-    return c && c.getBoundingClientRect().width <= 80;
-  }, { timeout: 3000 });
-  await new Promise(r => setTimeout(r, 200));
-
-  const unpinnedWidth = await page.evaluate(() => {
-    const container = document.querySelector('.constant-sidebar-container');
-    return container.getBoundingClientRect().width;
-  });
-  console.log(`Container width after clicking chevron to collapse: ${unpinnedWidth}px`);
-  if (unpinnedWidth > 80) {
-    throw new Error('FAIL: Sidebar did not collapse after clicking chevron close');
-  }
+  await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'sidebar_4_unobstructed_clean_logo.png') });
+  console.log('Saved screenshot: sidebar_4_unobstructed_clean_logo.png');
 
   console.log('\n--- TEST 5: MOBILE TOUCH VIEWPORT & DRAWER ---');
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
