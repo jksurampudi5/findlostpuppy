@@ -6,6 +6,7 @@
  */
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
+import { findMandalByCoordinates } from './boundaryLookup';
 
 export interface LocationGeoResult {
   latitude: number;
@@ -278,15 +279,44 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
   }
 
   if (lat !== null && lng !== null) {
+    let state: string | undefined;
+    let district: string | undefined;
+    let mandal: string | undefined;
+    let city: string | undefined;
+    let pinCode: string | undefined;
+
+    // High-accuracy point-in-polygon boundary lookup (Tier 1 GPS & Tier 2 Network)
+    // Runs mathematical containment check against authoritative state mandal polygons
+    if (source !== 'ip') {
+      try {
+        const boundaryResult = await findMandalByCoordinates(lat, lng);
+        if (boundaryResult) {
+          state = boundaryResult.stateName;
+          district = boundaryResult.districtName;
+          mandal = boundaryResult.subDistrictName;
+        }
+      } catch (boundaryErr) {
+        console.warn('[geolocationHelper] Boundary lookup notice:', boundaryErr);
+      }
+    }
+
+    // Fall back to reverse geocode if boundary lookup returned null or outside known polygons
+    // Also enriches city and pinCode from Nominatim / BigDataCloud
     const addressDetails = await reverseGeocodeCoords(lat, lng);
+    state = state || addressDetails.state;
+    district = district || addressDetails.district;
+    mandal = mandal || addressDetails.mandal;
+    city = addressDetails.city || mandal;
+    pinCode = addressDetails.pinCode;
+
     return {
       latitude: lat,
       longitude: lng,
-      state: addressDetails.state,
-      district: addressDetails.district,
-      mandal: addressDetails.mandal,
-      city: addressDetails.city,
-      pinCode: addressDetails.pinCode,
+      state,
+      district,
+      mandal,
+      city,
+      pinCode,
       source,
       accuracyMeters,
     };
