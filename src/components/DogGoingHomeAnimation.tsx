@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Sparkles, ShieldCheck, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 
 interface DogGoingHomeAnimationProps {
   dogName?: string;
@@ -34,8 +33,6 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
   const chimneySmokeRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
-    triggerStarCelebration();
-
     const ctx = gsap.context(() => {
       // 1. Continuous organic micro-animations
       // Tail Wagging
@@ -195,7 +192,6 @@ export const DogGoingHomeAnimation: React.FC<DogGoingHomeAnimationProps> = ({ do
   }, [dogName]);
 
   const handleReplay = () => {
-    triggerStarCelebration();
     if (masterTimeline.current) {
       masterTimeline.current.restart();
     }

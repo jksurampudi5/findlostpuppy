@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 import { compressImage } from '../utils/imageCompressor';
 import abulluImg from '../assets/abullu.jpg';
 import {
@@ -244,7 +243,6 @@ export const GuestSightingPage: React.FC = () => {
     };
 
     storageService.addSighting(sighting);
-    triggerStarCelebration();
     setIsSubmitted(true);
     setSubmitting(false);
     loadData();

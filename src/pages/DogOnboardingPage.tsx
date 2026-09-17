@@ -13,7 +13,6 @@ import {
   ChevronDown,
   Trash2,
 } from 'lucide-react';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ImageUploader } from '../components/ImageUploader';
@@ -184,9 +183,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       setIsSubmitted(true);
       setIsEditing(false);
       setSubmitting(false);
-
-      // Star celebration animation
-      triggerStarCelebration();
 
       showToast(`🐾 ${profile.name}'s profile saved!`, 'success');
     } catch {

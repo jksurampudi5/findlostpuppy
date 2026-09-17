@@ -21,7 +21,6 @@ import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
 import type { OwnerProfile, LocationLocality } from '../types';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 import { getDogDisplayName } from '../utils/dogPhotoHelper';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import safePuppyImg from '../assets/safe_puppy.jpg';
@@ -372,7 +371,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
               storageService.saveOwnerProfile(profile);
               refreshProgress();
-              triggerStarCelebration();
             }
 
             showToast(
@@ -466,9 +464,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     storageService.saveOwnerProfile(profile);
     refreshProgress();
     setUserRequestedEdit(false);
-
-    // Star celebration animation on saving location!
-    triggerStarCelebration();
 
     showToast('✓ Location details saved to your profile!', 'success');
     handleProceedToPup();

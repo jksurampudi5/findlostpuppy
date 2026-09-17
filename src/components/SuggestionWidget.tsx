@@ -16,7 +16,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 import type { SuggestionCategory } from '../types';
 
 const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
@@ -149,7 +148,6 @@ export const SuggestionWidget: React.FC = () => {
         pageUrl: location.pathname,
       });
 
-      triggerStarCelebration();
       setIsSuccess(true);
       showToast('🎉 Thank you! Your suggestion was recorded.', 'success');
 

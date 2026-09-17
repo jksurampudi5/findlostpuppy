@@ -6,7 +6,6 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { authService } from '../services/authService';
 import type { ContactMethod, OwnerProfile } from '../types';
-import { triggerStarCelebration } from '../utils/confettiHelper';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
@@ -211,7 +210,6 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       photo: photo.trim(),
       contact: preferredContact,
     });
-    triggerStarCelebration();
     if (showNotification) {
       showToast('🐾 Pet Parent profile updated successfully!', 'success');
     }
