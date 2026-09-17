@@ -1,4 +1,6 @@
-/* SearchableSelect Component Styles */
+/* ==========================================================================
+   SearchableSelect Component — Premium Automotive Black Styling
+   ========================================================================== */
 
 .searchable-select-container {
   position: relative;
@@ -13,10 +15,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.6rem 0.85rem;
-  background-color: var(--surface-card, #ffffff);
-  border: 1.5px solid var(--border-color, #e5e7eb);
+  background-color: var(--bg-interactive, #1E2226);
+  border: 1.5px solid var(--border-subtle, #292D31);
   border-radius: var(--radius-md, 12px);
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, #F5F5F3);
   font-size: 0.95rem;
   font-family: inherit;
   cursor: pointer;
@@ -26,27 +28,29 @@
 }
 
 .searchable-select-trigger:hover:not(:disabled) {
-  border-color: var(--terracotta, #e05d38);
-  box-shadow: 0 2px 8px rgba(224, 93, 56, 0.08);
+  border-color: var(--border-highlight, #34393E);
+  background-color: var(--bg-interactive-hover, #252A2F);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .searchable-select-trigger:focus-visible {
   outline: none;
-  border-color: var(--terracotta, #e05d38);
-  box-shadow: 0 0 0 3px rgba(224, 93, 56, 0.2);
+  border-color: var(--orange-primary, #FF7900);
+  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.2);
 }
 
 .searchable-select-trigger.is-open {
-  border-color: var(--terracotta, #e05d38);
-  box-shadow: 0 0 0 3px rgba(224, 93, 56, 0.15);
+  border-color: var(--orange-primary, #FF7900);
+  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.18);
+  background-color: var(--bg-interactive-hover, #252A2F);
 }
 
 .searchable-select-trigger:disabled {
-  background-color: var(--surface-muted, #f3f4f6);
-  border-color: var(--border-color, #e5e7eb);
-  color: var(--text-muted, #9ca3af);
+  background-color: var(--bg-surface, #121416);
+  border-color: var(--border-subtle, #292D31);
+  color: var(--text-muted, #73777B);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .searchable-select-trigger-content {
@@ -61,7 +65,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  color: var(--terracotta, #e05d38);
+  color: var(--orange-primary, #FF7900);
 }
 
 .searchable-select-value {
@@ -69,11 +73,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, #F5F5F3);
 }
 
 .searchable-select-placeholder {
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-muted, #73777B);
   font-weight: 400;
 }
 
@@ -90,7 +94,7 @@
   border: none;
   padding: 4px;
   border-radius: 50%;
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-muted, #73777B);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -99,12 +103,12 @@
 }
 
 .searchable-select-clear-btn:hover {
-  background-color: var(--surface-muted, #f3f4f6);
-  color: var(--text-primary, #1f2937);
+  background-color: var(--bg-surface, #121416);
+  color: var(--text-primary, #F5F5F3);
 }
 
 .searchable-select-chevron {
-  color: var(--text-muted, #6b7280);
+  color: var(--icon-secondary, #8D9195);
   transition: transform 0.2s ease;
   display: flex;
   align-items: center;
@@ -112,7 +116,7 @@
 
 .searchable-select-trigger.is-open .searchable-select-chevron {
   transform: rotate(180deg);
-  color: var(--terracotta, #e05d38);
+  color: var(--orange-primary, #FF7900);
 }
 
 /* Dropdown Menu / Popover */
@@ -122,10 +126,11 @@
   left: 0;
   right: 0;
   z-index: 999;
-  background-color: var(--surface-card, #ffffff);
-  border: 1.5px solid var(--border-color, #e5e7eb);
+  background: var(--bg-elevated-gradient, linear-gradient(180deg, #181A1D 0%, #101214 100%));
+  background-color: var(--bg-elevated, #181B1E);
+  border: 1.5px solid var(--border-highlight, #34393E);
   border-radius: var(--radius-md, 12px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
   animation: selectMenuFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
@@ -146,15 +151,15 @@
 
 .searchable-select-search-wrap {
   padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--border-color, #f3f4f6);
-  background-color: var(--surface-subtle, #f9fafb);
+  border-bottom: 1px solid var(--border-subtle, #292D31);
+  background-color: var(--bg-surface, #121416);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .searchable-select-search-icon {
-  color: var(--text-muted, #9ca3af);
+  color: var(--icon-secondary, #8D9195);
   flex-shrink: 0;
 }
 
@@ -164,14 +169,14 @@
   background: transparent;
   font-size: 0.9rem;
   font-family: inherit;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, #F5F5F3);
   outline: none;
   padding: 4px 0;
   box-sizing: border-box;
 }
 
 .searchable-select-search-input::placeholder {
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-muted, #73777B);
 }
 
 .searchable-select-list {
@@ -192,20 +197,20 @@
   justify-content: space-between;
   cursor: pointer;
   font-size: 0.92rem;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, #F5F5F3);
   transition: background-color 0.12s ease;
   box-sizing: border-box;
 }
 
 .searchable-select-item:hover,
 .searchable-select-item.is-focused {
-  background-color: var(--terracotta-bg, #fff5f2);
-  color: var(--terracotta, #e05d38);
+  background-color: var(--bg-interactive, #1E2226);
+  color: var(--text-primary, #F5F5F3);
 }
 
 .searchable-select-item.is-selected {
-  background-color: var(--terracotta-subtle, #fef2ee);
-  color: var(--terracotta, #e05d38);
+  background-color: var(--bg-interactive-hover, #252A2F);
+  color: var(--orange-primary, #FF7900);
   font-weight: 600;
 }
 
@@ -224,12 +229,12 @@
 
 .searchable-select-item-sub {
   font-size: 0.76rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-secondary, #A7AAAD);
   font-weight: 400;
 }
 
 .searchable-select-item-check {
-  color: var(--terracotta, #e05d38);
+  color: var(--orange-primary, #FF7900);
   flex-shrink: 0;
   margin-left: 0.5rem;
 }
@@ -238,7 +243,7 @@
 .searchable-select-loading {
   padding: 1.25rem 1rem;
   text-align: center;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #73777B);
   font-size: 0.88rem;
   display: flex;
   flex-direction: column;
@@ -249,16 +254,16 @@
 .searchable-select-count-hint {
   padding: 0.35rem 0.85rem;
   font-size: 0.75rem;
-  color: var(--text-muted, #6b7280);
-  background-color: var(--surface-subtle, #f9fafb);
-  border-top: 1px solid var(--border-color, #f3f4f6);
+  color: var(--text-muted, #73777B);
+  background-color: var(--bg-surface, #121416);
+  border-top: 1px solid var(--border-subtle, #292D31);
   text-align: center;
 }
 
 .searchable-select-custom-footer {
   padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--border-color, #f3f4f6);
-  background-color: var(--surface-subtle, #f9fafb);
+  border-top: 1px solid var(--border-subtle, #292D31);
+  background-color: var(--bg-surface, #121416);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -268,7 +273,7 @@
 .searchable-select-custom-btn {
   background: none;
   border: none;
-  color: var(--terracotta, #e05d38);
+  color: var(--orange-primary, #FF7900);
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
@@ -279,7 +284,7 @@
 }
 
 .searchable-select-custom-btn:hover {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* Mobile Friendly Optimization */
@@ -298,7 +303,7 @@
     right: 0;
     max-height: 80vh;
     border-radius: 20px 20px 0 0;
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
     z-index: 10000;
     animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -306,9 +311,9 @@
   .searchable-select-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.45);
+    background-color: rgba(0, 0, 0, 0.75);
     z-index: 9999;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(4px);
   }
 
   @keyframes slideUpModal {

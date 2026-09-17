@@ -47,10 +47,10 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: #FFFFFF;
+  background: var(--bg-secondary);
   border-radius: 26px;
-  box-shadow: 0 8px 24px rgba(36, 32, 29, 0.06), 0 2px 6px rgba(36, 32, 29, 0.03);
-  border: 1px solid rgba(235, 227, 213, 0.85);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
   padding: 1.15rem 0.5rem 1rem;
   overflow-y: auto;
   overflow-x: hidden;
@@ -62,7 +62,7 @@
 }
 
 .constant-sidebar-container::-webkit-scrollbar-thumb {
-  background: #EBE3D5;
+  background: var(--border-subtle);
   border-radius: 4px;
 }
 
@@ -76,9 +76,9 @@
   height: calc(100vh - 2rem);
   z-index: 500;
   padding: 1.15rem 0.85rem 1rem;
-  box-shadow: 0 20px 48px rgba(36, 32, 29, 0.2), 0 4px 16px rgba(36, 32, 29, 0.08);
-  border-color: rgba(224, 109, 68, 0.45);
-  background: #FFFFFF;
+  box-shadow: var(--shadow-float);
+  border-color: var(--border-highlight);
+  background: var(--bg-secondary);
 }
 
 /* Sidebar Logo Header */
@@ -590,9 +590,9 @@
   position: sticky;
   top: 0;
   z-index: 95;
-  background: rgba(255, 253, 249, 0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
+  background: rgba(13, 15, 17, 0.94);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
   padding: 0.75rem 1rem;
 }
 
@@ -880,11 +880,11 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 253, 249, 0.96);
+  background: rgba(13, 15, 17, 0.96);
   backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-subtle);
   padding: 0.4rem 0.75rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -4px 20px rgba(36, 32, 29, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .mobile-dock-inner {
@@ -904,7 +904,7 @@
   background: transparent;
   border: none;
   padding: 0.4rem 0;
-  color: var(--text-muted);
+  color: var(--icon-secondary, #8D9195);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -915,7 +915,7 @@
 
 .dock-logout-btn:hover,
 .dock-logout-btn:active {
-  color: #B91C1C;
+  color: #EF4444;
 }
 
 .dock-logout-btn .dock-icon-wrap {
@@ -929,26 +929,26 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
-  color: #DC2626;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #F87171;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .mobile-header-logout-btn:hover,
 .mobile-header-logout-btn:active {
-  background: #FEE2E2;
+  background: rgba(220, 38, 38, 0.25);
   transform: scale(0.95);
 }
 
 .dock-tab-btn.active {
-  color: var(--color-primary);
+  color: var(--orange-primary, #FF7900);
 }
 
 .dock-tab-btn.active .dock-icon-wrap {
   transform: translateY(-2px);
-  color: var(--color-primary);
+  color: var(--orange-primary, #FF7900);
 }
 
 .dock-pet-mini-avatar {
@@ -16781,4 +16781,718 @@ button, a.btn, input, select, textarea {
     width: 100% !important;
     justify-content: center !important;
   }
+}
+
+/* ==========================================================================
+   PREMIUM AUTOMOTIVE BLACK DESIGN SYSTEM — CONSOLIDATED OVERRIDES
+   "Obsidian surfaces, graphite materials, precision controls & intentional orange"
+   ========================================================================== */
+
+/* 1. Global Viewport & Canvas */
+.app-layout-sidebar,
+.app-main-viewport,
+.app-layout,
+.main-content,
+.dashboard-container,
+.onboarding-container {
+  background-color: var(--bg-main, #08090A) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+/* 2. Unified Dark Obsidian Surface Cards */
+.card,
+.onboarding-card,
+.location-onboarding-card,
+.owner-combined-card,
+.pet-combined-card,
+.dog-details-card,
+.dog-card,
+.cute-section-card,
+.form-section-card,
+.empty-state-card,
+.discovery-card,
+.sighting-card,
+.owner-report-card,
+.pet-friendly-showcase,
+.location-preview-showcase,
+.pet-profile-showcase {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  border-radius: var(--radius-lg, 16px) !important;
+  box-shadow: var(--shadow-md, 0 6px 18px -2px rgba(0, 0, 0, 0.55)), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.card-hoverable:hover,
+.dog-card:hover {
+  border-color: var(--border-highlight, #34393E) !important;
+  box-shadow: var(--shadow-lg, 0 12px 28px -4px rgba(0, 0, 0, 0.7)), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 3. Section Dividers & Separators */
+.pet-unified-header,
+.onboarding-header,
+.tab-header-strip,
+.report-card-top-row,
+.dashboard-tabs-container {
+  border-color: var(--border-subtle, #292D31) !important;
+}
+
+/* 4. Precision Dark Interactive Inputs */
+.owner-modern-input-wrapper,
+.dashboard-search-input,
+.form-input,
+.form-select,
+.form-textarea {
+  background-color: var(--bg-interactive, #1E2226) !important;
+  border: 1.5px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  border-radius: 14px !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+.owner-modern-input-wrapper:hover,
+.dashboard-search-input:hover,
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--border-highlight, #34393E) !important;
+  background-color: var(--bg-interactive-hover, #252A2F) !important;
+}
+
+.owner-modern-input-wrapper:focus-within,
+.dashboard-search-input:focus,
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--orange-primary, #FF7900) !important;
+  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.2) !important;
+  background-color: var(--bg-interactive, #1E2226) !important;
+  outline: none !important;
+}
+
+.owner-modern-input {
+  color: var(--text-primary, #F5F5F3) !important;
+  background: transparent !important;
+}
+
+.owner-modern-input::placeholder,
+.dashboard-search-input::placeholder,
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--text-muted, #73777B) !important;
+}
+
+.owner-input-icon-prefix,
+.search-box-icon {
+  color: var(--icon-secondary, #8D9195) !important;
+}
+
+.owner-modern-input-wrapper:focus-within .owner-input-icon-prefix,
+.search-input-box:focus-within .search-box-icon {
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+/* 5. Metrics Grid in Dashboard */
+.dashboard-header-banner {
+  background-color: var(--bg-surface, #121416) !important;
+  border-bottom: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.metric-box {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  border-radius: var(--radius-md, 12px) !important;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.4)) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.metric-box:hover {
+  border-color: var(--border-highlight, #34393E) !important;
+  transform: translateY(-1px);
+}
+
+.metric-box.active-metric {
+  border-color: var(--border-highlight, #34393E) !important;
+  box-shadow: 0 0 0 1px var(--border-highlight, #34393E), var(--shadow-md) !important;
+}
+
+.metric-label {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+/* 6. Dashboard Tabs */
+.dashboard-tab-btn {
+  background-color: var(--bg-interactive, #1E2226) !important;
+  border: 1.5px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.dashboard-tab-btn:hover {
+  border-color: var(--border-highlight, #34393E) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.dashboard-tab-btn.tab-not-safe {
+  border-color: var(--border-subtle, #292D31) !important;
+}
+
+.dashboard-tab-btn.tab-not-safe.active {
+  background-color: rgba(220, 38, 38, 0.2) !important;
+  border-color: #DC2626 !important;
+  color: #FCA5A5 !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25) !important;
+}
+
+.dashboard-tab-btn.tab-safe {
+  border-color: var(--border-subtle, #292D31) !important;
+}
+
+.dashboard-tab-btn.tab-safe.active {
+  background-color: rgba(22, 163, 74, 0.2) !important;
+  border-color: #16A34A !important;
+  color: #86EFAC !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25) !important;
+}
+
+/* 7. Action Buttons (Primary Orange & Graphite Secondary) */
+.btn-primary,
+button.btn-primary,
+a.btn-primary {
+  background-color: var(--orange-primary, #FF7900) !important;
+  color: #0A0A0A !important;
+  box-shadow: 0 3px 12px rgba(255, 121, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+}
+
+.btn-primary:hover,
+button.btn-primary:hover,
+a.btn-primary:hover {
+  background-color: var(--orange-hover, #FF8A1F) !important;
+  color: #0A0A0A !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 5px 16px rgba(255, 121, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+.btn-primary:active,
+button.btn-primary:active,
+a.btn-primary:active {
+  background-color: var(--orange-pressed, #D95F00) !important;
+  color: #0A0A0A !important;
+  transform: translateY(0) !important;
+}
+
+.btn-secondary,
+button.btn-secondary,
+a.btn-secondary {
+  background-color: var(--bg-interactive, #1E2226) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.btn-secondary:hover,
+button.btn-secondary:hover,
+a.btn-secondary:hover {
+  background-color: var(--bg-interactive-hover, #252A2F) !important;
+  border-color: var(--border-highlight, #34393E) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-outline,
+button.btn-outline,
+a.btn-outline {
+  background-color: transparent !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  border: 1.5px solid var(--border-subtle, #292D31) !important;
+}
+
+.btn-outline:hover,
+button.btn-outline:hover,
+a.btn-outline:hover {
+  border-color: var(--border-highlight, #34393E) !important;
+  background-color: var(--bg-interactive, #1E2226) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.btn:disabled,
+button:disabled {
+  background-color: var(--bg-interactive, #1E2226) !important;
+  color: var(--text-muted, #73777B) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  opacity: 0.55 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
+
+/* 8. Text Readability & Hierarchy */
+.dashboard-title,
+.tab-section-title,
+.dog-card-title,
+.onboarding-title,
+.report-pup-name,
+.hero-title,
+.section-title,
+h1, h2, h3, h4 {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.dashboard-subtitle,
+.tab-section-desc,
+.dog-card-breed,
+.meta-text,
+.onboarding-desc,
+p {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.form-hint,
+.text-muted,
+.caption,
+small {
+  color: var(--text-muted, #73777B) !important;
+}
+
+.form-label {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+/* 9. Header & Navigation Blur */
+.site-header,
+.app-header {
+  background: rgba(13, 15, 17, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.mobile-top-header {
+  background: rgba(13, 15, 17, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.mobile-dog-dock-nav {
+  background: rgba(13, 15, 17, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  border-top: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+/* 10. Modals & Dialogs & Toasts */
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.modal-dialog {
+  background: var(--bg-elevated-gradient, linear-gradient(180deg, #181A1D 0%, #101214 100%)) !important;
+  background-color: var(--bg-elevated, #181B1E) !important;
+  border: 1px solid var(--border-highlight, #34393E) !important;
+  box-shadow: var(--shadow-float, 0 18px 42px -6px rgba(0, 0, 0, 0.85)), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.modal-header,
+.modal-footer {
+  background-color: var(--bg-surface, #121416) !important;
+  border-color: var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.toast-card {
+  background-color: var(--bg-elevated, #181B1E) !important;
+  border: 1px solid var(--border-highlight, #34393E) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 11. Consent & Legal Agreement Automotive Styling */
+.consent-badge-pill {
+  background: var(--bg-interactive, #1E2226) !important;
+  color: var(--orange-primary, #FF7900) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.declaration-summary-box {
+  background: rgba(220, 38, 38, 0.12) !important;
+  border: 1px solid rgba(220, 38, 38, 0.3) !important;
+  border-left: 4px solid #DC2626 !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.declaration-summary-header h3 {
+  color: #F87171 !important;
+}
+
+.declaration-point-item {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.declaration-point-item strong {
+  color: #FCA5A5 !important;
+}
+
+.point-badge {
+  background: rgba(220, 38, 38, 0.25) !important;
+  color: #FCA5A5 !important;
+  border: 1px solid rgba(220, 38, 38, 0.4) !important;
+}
+
+.forms-section-title {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.forms-section-desc {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.select-all-forms-btn {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.select-all-forms-btn:hover {
+  background: var(--bg-interactive-hover, #252A2F) !important;
+  border-color: var(--border-highlight, #34393E) !important;
+  color: var(--orange-hover, #FF8A1F) !important;
+}
+
+.form-row-card {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1.5px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.form-row-card:hover {
+  background: var(--bg-interactive-hover, #252A2F) !important;
+  border-color: var(--border-highlight, #34393E) !important;
+}
+
+.form-row-card.is-consented {
+  background: rgba(22, 163, 74, 0.14) !important;
+  border-color: rgba(22, 163, 74, 0.4) !important;
+}
+
+.form-icon-bubble {
+  background: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.form-row-card.is-consented .form-icon-bubble {
+  color: #4ADE80 !important;
+  border-color: rgba(22, 163, 74, 0.4) !important;
+}
+
+.form-name {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.form-desc {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+/* 12. Animation Details Banner */
+.animation-details-banner {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  border-radius: var(--radius-md, 12px) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.animation-hero-title {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.animation-hero-desc {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.safe-home-glow-badge {
+  background: rgba(22, 163, 74, 0.16) !important;
+  border: 1px solid rgba(22, 163, 74, 0.35) !important;
+  color: #4ADE80 !important;
+}
+
+.happiness-stars {
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+/* ==========================================================================
+   13. COMPREHENSIVE AUTOMOTIVE BLACK LUXURY OVERRIDES
+   ========================================================================== */
+
+/* Mobile Top Header & Controls */
+.mobile-top-header {
+  background: rgba(13, 15, 17, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.mobile-brand-title {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.badge-neutral {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.mobile-menu-trigger-btn {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.mobile-menu-trigger-btn:hover {
+  background: var(--bg-interactive-hover, #252A2F) !important;
+  border-color: var(--border-highlight, #34393E) !important;
+}
+
+/* Mobile Slide-out Drawer */
+.mobile-drawer-panel {
+  background: var(--bg-secondary, #0D0F11) !important;
+  border-left: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.85) !important;
+}
+
+.mobile-drawer-header {
+  border-bottom: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.drawer-app-name {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.drawer-app-sub {
+  color: var(--text-muted, #73777B) !important;
+}
+
+.drawer-close-btn {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.drawer-close-btn:hover {
+  background: var(--bg-interactive-hover, #252A2F) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.drawer-pet-card {
+  background: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.drawer-pet-card.pet-card-safe {
+  background: rgba(22, 163, 74, 0.12) !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+}
+
+.drawer-pet-name {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.drawer-pet-breed,
+.drawer-pet-location {
+  color: var(--text-muted, #73777B) !important;
+}
+
+.drawer-nav-item {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.drawer-nav-item:hover,
+.drawer-nav-item.active {
+  background: var(--bg-interactive, #1E2226) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.drawer-divider,
+.drawer-footer {
+  border-color: var(--border-subtle, #292D31) !important;
+}
+
+/* Location Onboarding Banners & Buttons */
+.cute-welcome-banner {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.cute-welcome-icon {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-highlight, #34393E) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.cute-page-title {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.cute-page-sub {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.cute-section-card {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.single-detect-action-wrap {
+  background: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+
+.single-detect-action-wrap .auto-locate-main-btn {
+  background: var(--orange-primary, #FF7900) !important;
+  color: #0A0A0A !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 16px rgba(255, 121, 0, 0.25) !important;
+}
+
+.single-detect-action-wrap .auto-locate-main-btn:hover:not(:disabled) {
+  background: var(--orange-hover, #FF8A1F) !important;
+  box-shadow: 0 6px 20px rgba(255, 121, 0, 0.35) !important;
+}
+
+/* Pet Profile & Form Styling */
+.pet-header-icon {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.pet-header-title {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.pet-header-subtitle {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.optional-tag {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-muted, #73777B) !important;
+}
+
+.optional-step-banner {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.optional-banner-text {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.optional-icon {
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.owner-modern-label {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.owner-modern-label span {
+  color: inherit !important;
+}
+
+.form-label {
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.form-hint {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+/* Owner Profile Country Code & Actions */
+.owner-input-badge-prefix {
+  background: var(--bg-interactive, #1E2226) !important;
+  border-right: 1px solid var(--border-subtle, #292D31) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.owner-modern-input-wrapper:focus-within .owner-input-badge-prefix {
+  background: var(--bg-interactive-hover, #252A2F) !important;
+  border-right-color: var(--border-highlight, #34393E) !important;
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.synced-status-btn {
+  background: rgba(22, 163, 74, 0.15) !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+  color: #4ADE80 !important;
+}
+
+.continue-to-location-orange-btn {
+  background: var(--orange-primary, #FF7900) !important;
+  color: #0A0A0A !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 16px rgba(255, 121, 0, 0.25) !important;
+}
+
+.continue-to-location-orange-btn:hover {
+  background: var(--orange-hover, #FF8A1F) !important;
+  box-shadow: 0 6px 20px rgba(255, 121, 0, 0.35) !important;
+}
+
+/* Dog Going Home Animation Hero Card */
+.dog-home-animation-card {
+  background: var(--bg-card-gradient, linear-gradient(180deg, #151719 0%, #0F1113 100%)) !important;
+  background-color: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Sidebar Elements */
+.bone-tab {
+  color: var(--text-secondary, #A7AAAD) !important;
+}
+
+.bone-tab:hover {
+  background: var(--bg-interactive, #1E2226) !important;
+  color: var(--text-primary, #F5F5F3) !important;
+}
+
+.bone-tab.active {
+  background: var(--bg-interactive, #1E2226) !important;
+  border: 1px solid var(--border-highlight, #34393E) !important;
+  color: var(--orange-primary, #FF7900) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
+}
+
+.bone-tab.active .nav-item-icon {
+  color: var(--orange-primary, #FF7900) !important;
+}
+
+.sidebar-pet-spotlight-card {
+  background: var(--bg-surface, #121416) !important;
+  border: 1px solid var(--border-subtle, #292D31) !important;
+}
+
+.sidebar-pet-spotlight-card:hover {
+  background: var(--bg-interactive, #1E2226) !important;
+  border-color: var(--border-highlight, #34393E) !important;
+}
+
+.spotlight-avatar-wrapper {
+  border-color: var(--border-highlight, #34393E) !important;
 }
