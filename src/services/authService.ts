@@ -89,9 +89,17 @@ class AuthService {
   }
 
   /**
-   * Synchronously returns the currently cached user from the active Supabase session.
+   * Synchronously returns the currently cached user from the active Supabase session or localStorage.
    */
   getCurrentUser(): User | null {
+    if (!this.currentUser && typeof localStorage !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('findlostpuppy_active_user');
+        if (saved) {
+          this.currentUser = JSON.parse(saved);
+        }
+      } catch (e) {}
+    }
     return this.currentUser;
   }
 
