@@ -226,18 +226,36 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
   let accuracyMeters: number | undefined;
   let source: 'gps' | 'network' | 'ip' = 'gps';
 
-  try {
-    const pos = await getPositionWithConfig({
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0,
-    });
-    lat = pos.latitude;
-    lng = pos.longitude;
-    accuracyMeters = pos.accuracyMeters;
-    source = 'gps';
-  } catch (gpsErr) {
-    console.warn('[geolocationHelper] Tier 1 GPS failed, trying Tier 2:', gpsErr);
+  // Tier 1: Hardware High-Accuracy GPS (30s timeout, up to 2 retries on timeout/unavailable)
+  let gpsAttempts = 0;
+  const maxGpsAttempts = 3; // 1 initial attempt + 2 retries = ~90s total GPS budget for accuracy
+
+  while (gpsAttempts < maxGpsAttempts && lat === null) {
+    gpsAttempts++;
+    try {
+      const pos = await getPositionWithConfig({
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0,
+      });
+      lat = pos.latitude;
+      lng = pos.longitude;
+      accuracyMeters = pos.accuracyMeters;
+      source = 'gps';
+      break;
+    } catch (gpsErr: any) {
+      console.warn(`[geolocationHelper] Tier 1 GPS attempt ${gpsAttempts}/${maxGpsAttempts} failed:`, gpsErr);
+      // PERMISSION_DENIED must not retry — throw immediately
+      if (gpsErr?.code === 'PERMISSION_DENIED') {
+        throw gpsErr;
+      }
+      // If attempts exhausted, loop finishes and code falls to Tier 2
+    }
+  }
+
+  // Tier 2: Network/coarse (only after GPS retries exhausted)
+  if (lat === null) {
+    console.warn('[geolocationHelper] GPS retries exhausted, trying Tier 2 network location...');
     try {
       const pos = await getPositionWithConfig({
         enableHighAccuracy: false,

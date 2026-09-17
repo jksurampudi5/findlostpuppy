@@ -11,7 +11,7 @@ interface LaunchTributeOverlayProps {
 }
 
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
   const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [showProceedBtn, setShowProceedBtn] = useState(false);
@@ -45,7 +45,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     setPhase('logo');
     setIsFadingOut(false);
 
-    // Splash animation runs smoothly for ~3.6s so user can clearly enjoy the hands coming in from outside the orange border
+    // Splash animation runs smoothly for ~7.0s so user can clearly enjoy the hands coming in from outside the orange border
     const logoTimer = setTimeout(() => {
       setIsFadingOut(true);
       setTimeout(() => {
@@ -53,7 +53,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
         setIsFadingOut(false);
         if (onClose) onClose();
       }, 400);
-    }, 3600);
+    }, 7000);
 
     return () => clearTimeout(logoTimer);
   }, [forceOpen, onClose]);

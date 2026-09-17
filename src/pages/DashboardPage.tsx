@@ -5,13 +5,11 @@ import {
   AlertTriangle,
   Heart,
   Eye,
-  Calendar,
   MapPin,
   Search,
   PlusCircle,
   Clock,
   Sparkles,
-  Edit3,
   Share2,
   Trash2,
   Check,
@@ -34,15 +32,13 @@ import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { maskPhoneNumber, maskEmail, isOwnerOfReport } from '../utils/privacyUtils';
 
 export const DashboardPage: React.FC = () => {
-  const { user, setActiveOnboardingTab, petSafetyStatus } = useAuth();
+  const { user, setActiveOnboardingTab, petSafetyStatus, refreshProgress } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-
   const [reports, setReports] = useState<LostReport[]>([]);
-  const initialTab = searchParams.get('tab') === 'browse' ? 'browse' : 'missing';
-  const [activeTab, setActiveTab] = useState<'missing' | 'safe' | 'browse' | 'my_pups'>(initialTab);
+  const initialTab = searchParams.get('tab') === 'safe' ? 'safe' : 'missing';
+  const [activeTab, setActiveTab] = useState<'missing' | 'safe'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Sighting Modal State
@@ -58,21 +54,54 @@ export const DashboardPage: React.FC = () => {
       const cleanOwnerId = r.ownerId ? r.ownerId.replace('owner-', '') : '';
       return !blockedIds.includes(r.ownerId) && !blockedIds.includes(cleanOwnerId);
     });
-    setReports(filtered);
+
+    // Enforce strictly 1 dog reflected per owner profile
+    const seenOwnerIds = new Set<string>();
+    const seenEmails = new Set<string>();
+    const seenDogIds = new Set<string>();
+    const deduplicatedByOwner: LostReport[] = [];
+
+    for (const report of filtered) {
+      const ownerEmail = (report.contactMechanism?.safeContactEmail || '').toLowerCase().trim();
+      const rawOwnerId = (report.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
+      const dogId = (report.dogId || report.dog?.id || '').toLowerCase().trim();
+
+      const matchesOwnerId = Boolean(rawOwnerId && rawOwnerId !== 'unknown-owner' && seenOwnerIds.has(rawOwnerId));
+      const matchesEmail = Boolean(ownerEmail && ownerEmail.includes('@') && seenEmails.has(ownerEmail));
+      const matchesDogId = Boolean(dogId && seenDogIds.has(dogId));
+
+      if (matchesOwnerId || matchesEmail || matchesDogId) {
+        continue;
+      }
+
+      if (rawOwnerId && rawOwnerId !== 'unknown-owner') seenOwnerIds.add(rawOwnerId);
+      if (ownerEmail && ownerEmail.includes('@')) seenEmails.add(ownerEmail);
+      if (dogId) seenDogIds.add(dogId);
+      deduplicatedByOwner.push(report);
+    }
+
+    setReports(deduplicatedByOwner);
   };
 
   useEffect(() => {
     reloadData();
+
+    // Pull directly from Supabase to guarantee single source of truth across localhost, GitHub deployment, and real Android app
+    storageService.pullFromSupabase().then(() => {
+      reloadData();
+    }).catch(() => {});
 
     const handleReportsUpdate = () => {
       reloadData();
     };
 
     window.addEventListener('findlostpuppy_reports_updated', handleReportsUpdate);
+    window.addEventListener('findlostpuppy_data_synced', handleReportsUpdate);
     window.addEventListener('storage', handleReportsUpdate);
 
     return () => {
       window.removeEventListener('findlostpuppy_reports_updated', handleReportsUpdate);
+      window.removeEventListener('findlostpuppy_data_synced', handleReportsUpdate);
       window.removeEventListener('storage', handleReportsUpdate);
     };
   }, []);
@@ -131,13 +160,6 @@ export const DashboardPage: React.FC = () => {
   const displayedMissing = useMemo(() => applySearch(missingDogs), [missingDogs, applySearch]);
   const displayedSafe = useMemo(() => applySearch(safeDogs), [safeDogs, applySearch]);
 
-  // Filter for Browse All Dogs directory (shows all community dogs, sorted newest first)
-  const displayedBrowse = useMemo(() => {
-    return applySearch(reports).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [reports, applySearch]);
-
   // Action: Atomically change report status with mutual exclusivity
   const handleStatusChange = (reportId: string, newStatus: ReportStatus) => {
     storageService.updateReportStatus(reportId, newStatus);
@@ -181,6 +203,7 @@ export const DashboardPage: React.FC = () => {
 
     const success = storageService.deleteReport(reportId);
     if (success) {
+      refreshProgress();
       showToast(`🗑️ Listing for ${dogName || 'dog'} permanently deleted forever.`, 'info');
       reloadData();
     }
@@ -195,46 +218,8 @@ export const DashboardPage: React.FC = () => {
     return 'UNDECIDED';
   })();
 
-  const ownerMissingReport = user ? (myReports.find(r => r.status === 'LOST') || (userReport?.status === 'LOST' ? userReport : null)) : null;
-  const missingDogBannerName = ownerMissingReport
-    ? getDogDisplayName(ownerMissingReport.dog, ownerMissingReport)
-    : myPet ? getDogDisplayName(myPet) : 'Your Dog';
-  const showOwnerMissingBanner = effectiveSafetyStatus === 'LOST' && user && !bannerDismissed;
-
   return (
     <div className="dashboard-page">
-
-      {/* ACID COMPLIANCE: Global Missing Pet Alert Banner — persists across entire dashboard when pet is LOST */}
-      {showOwnerMissingBanner && (
-        <div className="global-missing-banner" role="alert" aria-live="assertive">
-          <div className="global-missing-banner-left">
-            <span className="banner-pulse-dot" aria-hidden="true" />
-            <span className="banner-sos-text">🚨 SOS ACTIVE</span>
-            <span>
-              <span className="banner-dog-name">{missingDogBannerName}</span> is MISSING — Community is searching!
-            </span>
-          </div>
-          <div className="global-missing-banner-actions">
-            <button
-              type="button"
-              className="banner-action-btn"
-              onClick={() => { setActiveOnboardingTab('report'); navigate('/alert'); }}
-            >
-              📋 View Alert
-            </button>
-            <button
-              type="button"
-              className="banner-dismiss-btn"
-              onClick={() => setBannerDismissed(true)}
-              title="Dismiss banner (alert remains active)"
-              aria-label="Dismiss missing banner"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Dashboard Top Banner */}
       <div className="dashboard-header-banner">
         <div className="app-container">
@@ -251,17 +236,25 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="dashboard-header-actions">
+            <div className="dashboard-header-actions dashboard-header-actions-row">
               <button
                 type="button"
                 onClick={() => {
                   setActiveOnboardingTab('report');
                   navigate('/alert');
                 }}
-                className="btn btn-primary"
+                className="btn btn-primary header-action-btn"
               >
-                <PlusCircle size={18} />
+                <PlusCircle size={17} />
                 <span>Pet Safety Alert Check</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/find')}
+                className="btn btn-outline header-action-btn"
+              >
+                <Search size={17} />
+                <span>Search Community Dogs</span>
               </button>
             </div>
           </div>
@@ -292,7 +285,7 @@ export const DashboardPage: React.FC = () => {
               tabIndex={0}
             >
               <span className="metric-number text-red-600">{missingDogs.length}</span>
-              <span className="metric-label">🚨 Missing Dogs</span>
+              <span className="metric-label">🚨 Not Safe (Missing Dogs)</span>
             </div>
             <div
               className={`metric-box ${activeTab === 'safe' ? 'active-metric' : ''}`}
@@ -301,109 +294,63 @@ export const DashboardPage: React.FC = () => {
               tabIndex={0}
             >
               <span className="metric-number text-emerald-600">{safeDogs.length}</span>
-              <span className="metric-label">🏡 Safe at Home</span>
-            </div>
-            <div
-              className={`metric-box ${activeTab === 'browse' ? 'active-metric' : ''}`}
-              onClick={() => setActiveTab('browse')}
-              role="button"
-              tabIndex={0}
-            >
-              <span className="metric-number text-amber-600">{reports.length}</span>
-              <span className="metric-label">🔍 Browse All Dogs</span>
-            </div>
-            <div
-              className={`metric-box ${activeTab === 'my_pups' ? 'active-metric' : ''}`}
-              onClick={() => setActiveTab('my_pups')}
-              role="button"
-              tabIndex={0}
-            >
-              <span className="metric-number text-indigo-600">
-                {myPet ? myPet.name : myReports.length}
-              </span>
-              <span className="metric-label">🐾 My Registered Pup</span>
+              <span className="metric-label">🏡 Safe (Safe at Home)</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="app-container dashboard-main-content">
-        {/* Navigation Tabs Header */}
+        {/* Navigation Tabs Header — Exactly 2 Prominent Tabs: Not Safe & Safe */}
         <div className="dashboard-tabs-container">
           <div className="dashboard-tabs" role="tablist">
-            {/* TAB 1: MISSING DOGS */}
+            {/* TAB 1: NOT SAFE (MISSING DOGS) */}
             <button
-              className={`dashboard-tab-btn ${activeTab === 'missing' ? 'active' : ''}`}
+              className={`dashboard-tab-btn tab-not-safe ${activeTab === 'missing' ? 'active' : ''}`}
               onClick={() => setActiveTab('missing')}
               role="tab"
               aria-selected={activeTab === 'missing'}
             >
               <AlertTriangle size={18} className="text-red-500" />
-              <span>Missing Dogs</span>
+              <span className="tab-main-text">Not Safe</span>
               <span className="tab-counter-pill red-pill">{missingDogs.length}</span>
             </button>
 
-            {/* TAB 2: SAFE AT HOME */}
+            {/* TAB 2: SAFE (SAFE AT HOME) */}
             <button
-              className={`dashboard-tab-btn ${activeTab === 'safe' ? 'active' : ''}`}
+              className={`dashboard-tab-btn tab-safe ${activeTab === 'safe' ? 'active' : ''}`}
               onClick={() => setActiveTab('safe')}
               role="tab"
               aria-selected={activeTab === 'safe'}
             >
               <Heart size={18} className="text-emerald-500" />
-              <span>Safe at Home</span>
+              <span className="tab-main-text">Safe</span>
               <span className="tab-counter-pill green-pill">{safeDogs.length}</span>
-            </button>
-
-            {/* TAB 3: BROWSE ALL COMMUNITY DOGS */}
-            <button
-              className={`dashboard-tab-btn ${activeTab === 'browse' ? 'active' : ''}`}
-              onClick={() => setActiveTab('browse')}
-              role="tab"
-              aria-selected={activeTab === 'browse'}
-            >
-              <Search size={18} className="text-amber-500" />
-              <span>Browse Dogs</span>
-              <span className="tab-counter-pill amber-pill">{reports.length}</span>
-            </button>
-
-            {/* TAB 4: MY PUPS & REPORTS */}
-            <button
-              className={`dashboard-tab-btn ${activeTab === 'my_pups' ? 'active' : ''}`}
-              onClick={() => setActiveTab('my_pups')}
-              role="tab"
-              aria-selected={activeTab === 'my_pups'}
-            >
-              <PawPrint size={18} className="text-indigo-500" />
-              <span>My Pup & Alerts</span>
-              {myPet && <span className="tab-counter-pill purple-pill">{myPet.name}</span>}
             </button>
           </div>
 
           {/* Quick Search Bar */}
-          {activeTab !== 'my_pups' && (
-            <div className="dashboard-search-wrap">
-              <div className="search-input-box">
-                <Search size={16} className="search-box-icon" />
-                <input
-                  type="text"
-                  placeholder={`Search by dog name, breed, or location...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="dashboard-search-input"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="search-clear-btn"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+          <div className="dashboard-search-wrap">
+            <div className="search-input-box">
+              <Search size={16} className="search-box-icon" />
+              <input
+                type="text"
+                placeholder={`Search by dog name, breed, or location...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="dashboard-search-input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="search-clear-btn"
+                >
+                  ×
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -482,11 +429,11 @@ export const DashboardPage: React.FC = () => {
                         </div>
 
                         <div className="dog-meta-tags">
-                          <span className="meta-tag">🐕 {report.dog.breed}</span>
+                          <span className="meta-tag">🐕 {report.dog?.breed || 'Companion Pet'}</span>
                           <span className="meta-tag">
-                            {report.dog.gender === 'Male' ? '♂ Male' : '♀ Female'}
+                            {(report.dog?.gender || 'Male') === 'Male' ? '♂ Male' : '♀ Female'}
                           </span>
-                          <span className="meta-tag">🎂 {report.dog.age}</span>
+                          <span className="meta-tag">🎂 {report.dog?.age || '2 years'}</span>
                         </div>
 
                         <div className="dog-incident-details">
@@ -504,7 +451,7 @@ export const DashboardPage: React.FC = () => {
                             </span>
                           </div>
 
-                          {report.dog.distinguishingMarks && (
+                          {report.dog?.distinguishingMarks && (
                             <div className="incident-line">
                               <Sparkles size={14} className="incident-icon text-amber-500" />
                               <span>
@@ -738,7 +685,7 @@ export const DashboardPage: React.FC = () => {
                         </div>
 
                         <div className="dog-meta-tags">
-                          <span className="meta-tag">🐕 {report.dog.breed}</span>
+                          <span className="meta-tag">🐕 {report.dog?.breed || 'Companion Pet'}</span>
                           <span className="meta-tag">{report.ownerApproximateLocation}</span>
                         </div>
 
@@ -845,494 +792,6 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 3 CONTENT: BROWSE ALL COMMUNITY DOGS */}
-        {/* ========================================================================= */}
-        {activeTab === 'browse' && (
-          <div className="dashboard-tab-pane">
-            <div className="tab-header-strip">
-              <div>
-                <h2 className="tab-section-title text-amber-700">🔍 Browse Community Dogs Directory</h2>
-                <p className="tab-section-desc">
-                  Complete directory of all registered and recovered community dogs across neighborhoods.
-                </p>
-              </div>
-              <span className="results-count-badge amber-badge">
-                Showing {displayedBrowse.length} community dogs
-              </span>
-            </div>
-
-            {displayedBrowse.length === 0 ? (
-              <div className="empty-state-card card">
-                <Search size={44} className="empty-icon text-amber-500" />
-                <h3>No Dogs Found</h3>
-                <p>
-                  No community dogs match your current search query.
-                </p>
-              </div>
-            ) : (
-              <div className="dog-profiles-grid">
-                {displayedBrowse.map((report) => {
-                  const ownerPhone = report.contactMechanism?.safeContactPhone;
-                  const ownerEmail = report.contactMechanism?.safeContactEmail;
-                  const displayName = getDogDisplayName(report.dog, report);
-                  const photoUrl = getDogPhotoUrl(report.dog, report);
-
-                  return (
-                    <div key={report.id} className="dog-profile-dashboard-card card">
-                      <div className="dog-profile-photo-container">
-                        <img
-                          src={photoUrl}
-                          alt={displayName}
-                          className="dog-profile-photo"
-                          onError={handleDogImageError}
-                        />
-                        <div className="dog-profile-floating-badge">
-                          <StatusBadge status={report.status} size="sm" />
-                        </div>
-                        {report.sightingCount > 0 && report.status !== 'SAFE' && report.status !== 'REUNITED' && (
-                          <div className="sighting-count-tag">
-                            <Eye size={12} />
-                            <span>{report.sightingCount} sighting{report.sightingCount > 1 ? 's' : ''}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="dog-profile-content">
-                        <div className="dog-name-row">
-                          <h3 className="dog-card-name">{displayName}</h3>
-                          <span className="dog-id-code">#{report.id.split('-').pop()}</span>
-                        </div>
-
-                        <div className="dog-meta-tags">
-                          <span className="meta-tag">🐕 {report.dog.breed}</span>
-                          <span className="meta-tag">{report.dog.gender}</span>
-                          <span className="meta-tag">{report.dog.color}</span>
-                        </div>
-
-                        <div className="dog-area-snippet">
-                          <MapPin size={14} className="text-terracotta flex-shrink-0" />
-                          <span>{report.ownerApproximateLocation || report.lastKnownLocation}</span>
-                        </div>
-
-                        {/* PRIVACY PROTECTED OWNER CONTACT */}
-                        <div className="emergency-owner-contact-box" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.75rem', marginTop: '0.5rem' }}>
-                          <div className="emergency-contact-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              <ShieldCheck size={14} className="text-emerald-600" />
-                              <span className="emergency-contact-label font-bold text-gray-800" style={{ fontSize: '0.78rem' }}>
-                                {isOwnerOfReport(report, user) ? '👤 Your Pet Listing (Verified Owner)' : '🛡️ Verified Owner Contact (Protected)'}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '0.68rem', backgroundColor: isOwnerOfReport(report, user) ? '#DCFCE7' : '#EFF6FF', color: isOwnerOfReport(report, user) ? '#15803D' : '#1D4ED8', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-                              {isOwnerOfReport(report, user) ? 'Owner View' : 'Privacy Shield'}
-                            </span>
-                          </div>
-
-                          <div className="emergency-contact-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                            {ownerPhone ? (
-                              <div
-                                className="btn-emergency-contact btn-emergency-phone"
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.78rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.3rem',
-                                  backgroundColor: '#F1F5F9',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '6px',
-                                  color: '#334155',
-                                }}
-                                title="Direct phone is masked to protect owner family privacy from spam and scrapers"
-                              >
-                                <Phone size={12} className="text-emerald-600" />
-                                <span>
-                                  Phone: {maskPhoneNumber(ownerPhone)} (Protected)
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">Phone not shared</span>
-                            )}
-
-                            {ownerEmail && (
-                              <div
-                                className="btn-emergency-contact btn-emergency-email"
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.78rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.3rem',
-                                  backgroundColor: '#F1F5F9',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '6px',
-                                  color: '#334155',
-                                }}
-                                title="Email is masked to protect owner family privacy from spam"
-                              >
-                                <Mail size={12} className="text-sky-600" />
-                                <span>
-                                  Email: {maskEmail(ownerEmail)} (Protected)
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.4rem', lineHeight: '1.25' }}>
-                            🔒 <strong>Privacy Shield Active:</strong> Contact details are protected.
-                          </p>
-                        </div>
-
-                        <div className="dog-card-actions">
-                          {report.status !== 'SAFE' && report.status !== 'REUNITED' && (
-                            <button
-                              type="button"
-                              onClick={() => setSightingReport(report)}
-                              className="btn btn-secondary btn-sm sighting-trigger-btn"
-                            >
-                              <Eye size={15} />
-                              <span>I Spotted This Dog</span>
-                            </button>
-                          )}
-
-                          {report.status === 'LOST' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(report.id, 'SAFE')}
-                              className="btn btn-sm"
-                              style={{
-                                backgroundColor: '#ECFDF5',
-                                color: '#059669',
-                                borderColor: '#A7F3D0',
-                                fontWeight: 700,
-                              }}
-                              title="Mark Safe at Home 🏡"
-                            >
-                              <Check size={14} />
-                              <span>Safe at Home 🏡</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(report.id, 'LOST')}
-                              className="btn btn-sm btn-ghost text-amber-600"
-                              title="Report missing if needed"
-                            >
-                              <span>Report Missing 🚨</span>
-                            </button>
-                          )}
-
-                          {report.status === 'LOST' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const { whatsappUrl, dashboardUrl } = generateWhatsAppSosMessage(
-                                  report,
-                                  report.dog,
-                                  report.contactMechanism?.safeContactPhone
-                                );
-                                try {
-                                  if (navigator.clipboard) {
-                                    navigator.clipboard.writeText(dashboardUrl);
-                                  }
-                                } catch {}
-                                showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
-                                window.open(whatsappUrl, '_blank');
-                              }}
-                              className="btn btn-whatsapp btn-sm"
-                              style={{
-                                backgroundColor: '#25D366',
-                                color: '#FFFFFF',
-                                borderColor: '#25D366',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.3rem',
-                                fontWeight: 700,
-                              }}
-                              title="Share Alert on WhatsApp"
-                            >
-                              <Share2 size={13} />
-                              <span>WhatsApp</span>
-                            </button>
-                          )}
-
-                          <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                            <span>View Details →</span>
-                          </Link>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteReport(report.id, displayName)}
-                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                            title="Remove this listing"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 4 CONTENT: MY PUPS & REPORTS */}
-        {/* ========================================================================= */}
-        {activeTab === 'my_pups' && (
-          <div className="dashboard-tab-pane">
-            <div className="tab-header-strip">
-              <div>
-                <h2 className="tab-section-title">🐾 My Pet Profile & Safety Overview</h2>
-                <p className="tab-section-desc">
-                  Your registered pet, home location, and current alert status.
-                </p>
-              </div>
-            </div>
-
-            {/* User Pet Profile Card */}
-            {myPet ? (
-              <div className="my-pet-dashboard-card card">
-                <div className="my-pet-card-grid">
-                  <div className="my-pet-photo-frame">
-                    <img
-                      src={getDogPhotoUrl(myPet)}
-                      alt={getDogDisplayName(myPet)}
-                      className="my-pet-photo"
-                      onError={handleDogImageError}
-                    />
-                  </div>
-
-                  <div className="my-pet-info">
-                    <div className="my-pet-header-row">
-                      <div>
-                        <h2 className="my-pet-name">{getDogDisplayName(myPet)}</h2>
-                        <span className="my-pet-breed-tag">🐕 {myPet.breed} • {myPet.gender}</span>
-                      </div>
-
-                      <div className="my-pet-status-pill">
-                        {effectiveSafetyStatus === 'SAFE' ? (
-                          <span className="safe-pill-tag">
-                            <Heart size={13} />
-                            <span>Safe at Home 🏠</span>
-                          </span>
-                        ) : effectiveSafetyStatus === 'LOST' ? (
-                          <span className="missing-pill-tag">
-                            <AlertTriangle size={13} />
-                            <span>Active Alert 🚨</span>
-                          </span>
-                        ) : myReports.length > 0 && myReports.some(r => r.status === 'LOST') ? (
-                          <span className="missing-pill-tag">
-                            <AlertTriangle size={13} />
-                            <span>Active Alert 🚨</span>
-                          </span>
-                        ) : (
-                          <span className="safe-pill-tag">
-                            <Heart size={13} />
-                            <span>Safe at Home 🏠</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="my-pet-details-chips">
-                      <span className="chip">🎂 {myPet.age || '2 years'}</span>
-                      <span className="chip">📏 {myPet.size}</span>
-                      {myPet.color && <span className="chip">🎨 {myPet.color}</span>}
-                      {myPet.collarInfo && <span className="chip">🏷️ {myPet.collarInfo}</span>}
-                    </div>
-
-                    <div className="my-pet-actions-row">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveOnboardingTab('dog');
-                          navigate('/pet');
-                        }}
-                        className="btn btn-outline btn-sm"
-                      >
-                        <Edit3 size={14} />
-                        <span>Edit Pet Profile</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveOnboardingTab('report');
-                          navigate('/alert');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        <AlertTriangle size={14} />
-                        <span>Manage Safety Alert</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : !user ? (
-              <div className="empty-state-card card">
-                <PawPrint size={40} className="empty-icon text-indigo-500" />
-                <h3>Welcome, Neighbor! 🐾</h3>
-                <p>
-                  You are viewing real-time community recovery alerts across your area. Sign in or create a profile to register your own puppy and broadcast instant alerts.
-                </p>
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
-                  <Link to="/" className="btn btn-primary btn-md">
-                    <PlusCircle size={16} />
-                    <span>Sign In / Register Pet</span>
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state-card card">
-                <PawPrint size={40} className="empty-icon text-indigo-500" />
-                <h3>No Pet Registered Yet</h3>
-                <p>Register your pet’s details so neighbors can recognize them if they ever wander.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveOnboardingTab('dog');
-                    navigate('/pet');
-                  }}
-                  className="btn btn-primary btn-md"
-                >
-                  <PlusCircle size={16} />
-                  <span>Add Pet Profile Now</span>
-                </button>
-              </div>
-            )}
-
-            {/* My Filed Reports Section */}
-            {myReports.length > 0 && (
-              <div className="my-reports-section mt-6">
-                <h3 className="section-title-sm mb-3">📢 My Broadcasted Alerts</h3>
-                <div className="owner-reports-list">
-                  {myReports.map((report) => (
-                    <div key={report.id} className="owner-report-card card">
-                      <div className="report-card-media">
-                        <img
-                          src={getDogPhotoUrl(report.dog, report)}
-                          alt={getDogDisplayName(report.dog, report)}
-                          onError={handleDogImageError}
-                        />
-                      </div>
-
-                      <div className="report-card-info">
-                        <div className="report-card-top-row">
-                          <div>
-                            <div className="report-id-pill">{report.id}</div>
-                            <h3 className="report-pup-name">{getDogDisplayName(report.dog, report)}</h3>
-                            <span className="report-pup-breed">
-                              {report.dog?.breed || 'Companion Pet'} • {report.dog?.gender || 'Male'}
-                            </span>
-                          </div>
-                          <StatusBadge status={report.status} size="md" />
-                        </div>
-
-                        <div className="report-card-meta">
-                          <div className="meta-line">
-                            <MapPin size={15} />
-                            <span>Last seen: {report.lastKnownLocation}</span>
-                          </div>
-                          <div className="meta-line">
-                            <Calendar size={15} />
-                            <span>Lost on: {report.dateLost} at {report.timeLost}</span>
-                          </div>
-                        </div>
-
-                        {/* Status Management Actions */}
-                        <div className="report-card-actions-bar">
-                          <div className="status-toggle-wrapper">
-                            <span className="toggle-label">Change Status:</span>
-                            <select
-                              className="form-select status-select-dropdown"
-                              value={report.status}
-                              onChange={(e) =>
-                                handleStatusChange(report.id, e.target.value as ReportStatus)
-                              }
-                            >
-                              <option value="LOST">🔴 MISSING (Active Alert)</option>
-                              <option value="SAFE">🏡 SAFE AT HOME (In Home)</option>
-                              <option value="CLOSED">⚪ CLOSED</option>
-                            </select>
-                          </div>
-
-                          <div className="button-group-actions">
-                            <Link to={`/dog/${report.id}`} className="btn btn-outline btn-sm">
-                              <Eye size={15} />
-                              <span>View Public Page</span>
-                            </Link>
-
-                            {report.status === 'LOST' ? (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm reunite-btn"
-                                onClick={() => handleStatusChange(report.id, 'SAFE')}
-                              >
-                                <Heart size={15} />
-                                <span>Mark Safe at Home 🏡</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm text-amber-600"
-                                onClick={() => handleStatusChange(report.id, 'LOST')}
-                              >
-                                <span>Report Missing 🚨</span>
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteReport(report.id, getDogDisplayName(report.dog, report))}
-                              title="Delete this alert"
-                            >
-                              <Trash2 size={15} />
-                              <span>Remove Alert</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Owner Location & Contact Card */}
-            {myProfile && (
-              <div className="profile-display-card card mt-6">
-                <h3 className="profile-heading">Pet Parent Contact Profile</h3>
-                <div className="profile-info-grid">
-                  <div className="info-item">
-                    <span className="info-label">Full Name</span>
-                    <span className="info-value">{myProfile.fullName}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Phone</span>
-                    <span className="info-value">{myProfile.phone}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Preferred Contact</span>
-                    <span className="info-value">{myProfile.preferredContact}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Approximate Area</span>
-                    <span className="info-value">
-                      {myProfile.approximateArea || `${myProfile.city}, ${myProfile.state}`}
-                    </span>
-                  </div>
-                </div>
               </div>
             )}
           </div>

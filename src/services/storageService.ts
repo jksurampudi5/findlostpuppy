@@ -256,19 +256,20 @@ class StorageService {
         }
       });
 
-      // Push any locally cached data to Supabase, then pull any new cloud records
-      setTimeout(() => {
-        this.pushLocalToSupabase()
-          .then(() => this.pullFromSupabase())
-          .catch(() => {});
-      }, 500);
+      // Single source of truth: Immediately pull original data from Supabase
+      this.pullFromSupabase()
+        .then(() => {
+          // Then sync any local pending records if needed
+          return this.pushLocalToSupabase();
+        })
+        .catch(() => {});
 
-      // Periodic cloud background sync (every 30s)
+      // Periodic cloud background sync (every 20s)
       setInterval(() => {
         if (navigator.onLine) {
           this.pullFromSupabase().catch(() => {});
         }
-      }, 30000);
+      }, 20000);
     }
   }
 
@@ -333,8 +334,11 @@ class StorageService {
     // a) Each unique owner email has at most 1 active pet report
     // b) Pet state is strictly mutually exclusive: LOST vs SAFE (normalizing legacy REUNITED to SAFE)
     // c) The most recently updated/created report is preserved as the single canonical representation
-    const seenOwnerKeyMap = new Map<string, LostReport>();
-    const seenIdMap = new Map<string, LostReport>();
+    const seenOwnerIds = new Set<string>();
+    const seenEmails = new Set<string>();
+    const seenDogIds = new Set<string>();
+    const seenReportIds = new Set<string>();
+    const deduplicatedReports: LostReport[] = [];
 
     // Sort reports by newest update/creation first
     const sortedReports = [...this.reports].sort((a, b) => {
@@ -348,30 +352,43 @@ class StorageService {
         r.status = 'SAFE';
       }
       const canonicalId = normalizeReportId(r.id);
+      const rawOwnerId = (r.ownerId || '').replace(/^(owner-)+/, '').toLowerCase().trim();
       const ownerEmail = extractReportOwnerEmail(r, this.profiles);
-      const ownerKey = ownerEmail.includes('@') ? `email:${ownerEmail}` : `owner:${ownerEmail}`;
+      const dogId = (r.dogId || r.dog?.id || '').toLowerCase().trim();
 
-      if (seenOwnerKeyMap.has(ownerKey)) {
-        // Consolidate richer photo/info into the canonical record
-        const existing = seenOwnerKeyMap.get(ownerKey)!;
-        if ((!existing.dog.primaryPhoto || existing.dog.primaryPhoto.length < 5) && r.dog.primaryPhoto) {
-          existing.dog.primaryPhoto = r.dog.primaryPhoto;
-        }
-        if ((!existing.dog.photos || existing.dog.photos.length === 0) && r.dog.photos?.length) {
-          existing.dog.photos = r.dog.photos;
+      const matchesOwnerId = Boolean(rawOwnerId && rawOwnerId !== 'unknown-owner' && seenOwnerIds.has(rawOwnerId));
+      const matchesEmail = Boolean(ownerEmail && ownerEmail.includes('@') && seenEmails.has(ownerEmail));
+      const matchesDogId = Boolean(dogId && seenDogIds.has(dogId));
+      const matchesReportId = seenReportIds.has(canonicalId);
+
+      if (matchesOwnerId || matchesEmail || matchesDogId || matchesReportId) {
+        // Find existing canonical report to merge richer photo/info if needed
+        const existing = deduplicatedReports.find(
+          (ex) =>
+            (rawOwnerId && (ex.ownerId || '').replace(/^(owner-)+/, '').toLowerCase().trim() === rawOwnerId) ||
+            (ownerEmail && ownerEmail.includes('@') && extractReportOwnerEmail(ex, this.profiles) === ownerEmail) ||
+            (dogId && (ex.dogId || ex.dog?.id || '').toLowerCase().trim() === dogId) ||
+            normalizeReportId(ex.id) === canonicalId
+        );
+        if (existing) {
+          if ((!existing.dog.primaryPhoto || existing.dog.primaryPhoto.length < 5) && r.dog.primaryPhoto) {
+            existing.dog.primaryPhoto = r.dog.primaryPhoto;
+          }
+          if ((!existing.dog.photos || existing.dog.photos.length === 0) && r.dog.photos?.length) {
+            existing.dog.photos = r.dog.photos;
+          }
         }
         continue;
       }
 
-      if (seenIdMap.has(canonicalId)) {
-        continue;
-      }
-
-      seenOwnerKeyMap.set(ownerKey, r);
-      seenIdMap.set(canonicalId, r);
+      if (rawOwnerId && rawOwnerId !== 'unknown-owner') seenOwnerIds.add(rawOwnerId);
+      if (ownerEmail && ownerEmail.includes('@')) seenEmails.add(ownerEmail);
+      if (dogId) seenDogIds.add(dogId);
+      seenReportIds.add(canonicalId);
+      deduplicatedReports.push(r);
     }
 
-    this.reports = Array.from(seenOwnerKeyMap.values());
+    this.reports = deduplicatedReports;
 
     // Invariant 2: Ensure all reports have valid photo fallbacks
     for (const r of this.reports) {
@@ -829,7 +846,7 @@ class StorageService {
           !this.isReportOrPetDeleted(s.reportId)
       );
 
-      // 3. Remove associated pet profile unconditionally
+      // 3. Remove associated pet profile and any pet profile linked to this owner
       if (targetPetId) {
         this.pets = this.pets.filter(
           (p) =>
@@ -837,6 +854,31 @@ class StorageService {
             p.id.toLowerCase() !== targetPetId.toLowerCase() &&
             p.id !== targetReport?.id &&
             !this.isReportOrPetDeleted(undefined, p.id, p.id)
+        );
+      }
+
+      if (targetOwnerId || rawOwnerId) {
+        const ownerPets = this.pets.filter(
+          (p) =>
+            p.ownerId === targetOwnerId ||
+            p.ownerId === rawOwnerId ||
+            p.ownerId === `owner-${rawOwnerId}` ||
+            (p.ownerId && p.ownerId.replace(/^owner-/, '') === rawOwnerId)
+        );
+        for (const op of ownerPets) {
+          if (!this.deletedPetIds.includes(op.id)) {
+            this.deletedPetIds.push(op.id);
+          }
+          if (!this.deletedPetIds.includes(op.id.toLowerCase())) {
+            this.deletedPetIds.push(op.id.toLowerCase());
+          }
+        }
+        this.pets = this.pets.filter(
+          (p) =>
+            p.ownerId !== targetOwnerId &&
+            p.ownerId !== rawOwnerId &&
+            p.ownerId !== `owner-${rawOwnerId}` &&
+            !(p.ownerId && p.ownerId.replace(/^owner-/, '') === rawOwnerId)
         );
       }
 
@@ -851,6 +893,79 @@ class StorageService {
       supabaseSyncService
         .deleteLostReport(reportId, targetPetId)
         .catch((e) => console.warn('[Supabase Sync Delete Report Notice]:', e));
+
+      return true;
+    });
+  }
+
+  deletePetProfile(petId: string, ownerId?: string): boolean {
+    return this.executeTransaction(() => {
+      const canonicalPetId = petId.toLowerCase().trim();
+      const rawPetId = canonicalPetId.replace(/^pet-/, '').replace(/^dog-/, '');
+      const rawOwnerId = ownerId ? ownerId.replace(/^owner-/, '').toLowerCase().trim() : '';
+
+      // 1. Tombstone pet IDs
+      const petIdsToTombstone = [
+        petId,
+        canonicalPetId,
+        rawPetId,
+        `pet-${rawPetId}`,
+        `dog-${rawPetId}`,
+      ];
+      for (const pid of petIdsToTombstone) {
+        if (!this.deletedPetIds.includes(pid)) {
+          this.deletedPetIds.push(pid);
+        }
+      }
+
+      // 2. Remove pet from this.pets (enforce removal of any pet belonging to this owner)
+      this.pets = this.pets.filter((p) => {
+        const pLower = p.id.toLowerCase();
+        const pRaw = pLower.replace(/^pet-/, '').replace(/^dog-/, '');
+        const pOwnerRaw = (p.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
+        const matchPet = p.id === petId || pLower === canonicalPetId || pRaw === rawPetId;
+        const matchOwner = rawOwnerId && (p.ownerId === ownerId || pOwnerRaw === rawOwnerId || p.ownerId === `owner-${rawOwnerId}`);
+        return !matchPet && !matchOwner;
+      });
+
+      // 3. Remove and tombstone all linked reports
+      const linkedReports = this.reports.filter((r) => {
+        const rDogId = (r.dogId || r.dog?.id || '').toLowerCase();
+        const rDogRaw = rDogId.replace(/^pet-/, '').replace(/^dog-/, '');
+        const rOwnerRaw = (r.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
+        const matchDog = rDogId === canonicalPetId || rDogRaw === rawPetId || r.dogId === petId;
+        const matchOwner = rawOwnerId && (r.ownerId === ownerId || rOwnerRaw === rawOwnerId || r.ownerId === `owner-${rawOwnerId}`);
+        return matchDog || matchOwner;
+      });
+
+      linkedReports.forEach((r) => {
+        const cId = normalizeReportId(r.id);
+        [r.id, cId, r.id.toLowerCase(), cId.toLowerCase()].forEach((id) => {
+          if (!this.deletedReportIds.includes(id)) this.deletedReportIds.push(id);
+        });
+      });
+
+      this.reports = this.reports.filter((r) => !linkedReports.some((lr) => lr.id === r.id));
+
+      // 4. Remove linked sightings
+      this.sightings = this.sightings.filter((s) => {
+        return !linkedReports.some((lr) => lr.id === s.reportId || normalizeReportId(lr.id) === normalizeReportId(s.reportId));
+      });
+
+      // 5. Reset skipped states so user can start clean if needed
+      if (rawOwnerId) {
+        this.skippedPetUserIds = this.skippedPetUserIds.filter(
+          (id) => id !== ownerId && id !== rawOwnerId && id !== `owner-${rawOwnerId}`
+        );
+        this.skippedReportUserIds = this.skippedReportUserIds.filter(
+          (id) => id !== ownerId && id !== rawOwnerId && id !== `owner-${rawOwnerId}`
+        );
+      }
+
+      // 6. Cloud sync deletion
+      supabaseSyncService
+        .deletePetAsAdmin(petId)
+        .catch((e) => console.warn('[Supabase Delete Pet Notice]:', e));
 
       return true;
     });
@@ -1274,17 +1389,29 @@ class StorageService {
         (id) => id !== pet.ownerId && id !== `owner-${rawUserId}` && id !== rawUserId
       );
 
-      const index = this.pets.findIndex(
+      // Invariant: Exactly one pet profile per owner. If one already exists, edit/update it.
+      const existingPetIndex = this.pets.findIndex(
         (p) => p.id === pet.id || p.ownerId === pet.ownerId || p.ownerId === `owner-${rawUserId}` || p.ownerId === rawUserId
       );
-      if (index >= 0) {
-        this.pets[index] = { ...pet };
-      } else {
-        this.pets.push(pet);
-      }
+      const targetPetId = existingPetIndex >= 0 ? this.pets[existingPetIndex].id : pet.id;
+      const canonicalPet: DogProfile = {
+        ...pet,
+        id: targetPetId,
+        ownerId: rawUserId,
+      };
+
+      // Filter out any other entries for this owner, keeping strictly 1 pet
+      this.pets = this.pets.filter(
+        (p) =>
+          p.id !== targetPetId &&
+          p.ownerId !== pet.ownerId &&
+          p.ownerId !== `owner-${rawUserId}` &&
+          p.ownerId !== rawUserId
+      );
+      this.pets.push(canonicalPet);
 
       // Fetch owner profile for location and contact details
-      const ownerProfile = this.getOwnerProfileByUserId(pet.ownerId);
+      const ownerProfile = this.getOwnerProfileByUserId(canonicalPet.ownerId);
       const approxLoc =
         ownerProfile?.approximateArea ||
         [ownerProfile?.city, ownerProfile?.district, ownerProfile?.state].filter(Boolean).join(', ') ||
@@ -1293,26 +1420,31 @@ class StorageService {
       // Find existing report for this owner or pet
       let existingReport = this.reports.find(
         (r) =>
+          r.dogId === targetPetId ||
+          r.dog?.id === targetPetId ||
           r.dogId === pet.id ||
           r.dog?.id === pet.id ||
-          r.ownerId === pet.ownerId ||
+          r.ownerId === canonicalPet.ownerId ||
           r.ownerId === `owner-${rawUserId}` ||
           r.ownerId === rawUserId
       );
 
       if (existingReport) {
+        existingReport.dogId = targetPetId;
         existingReport.dog = {
           ...existingReport.dog,
-          name: pet.name,
-          breed: pet.breed,
-          gender: pet.gender,
-          age: pet.age,
-          size: pet.size,
-          color: pet.color,
-          distinguishingMarks: pet.distinguishingMarks,
-          collarInfo: pet.collarInfo,
-          primaryPhoto: pet.primaryPhoto || existingReport.dog.primaryPhoto || abulluImg,
-          photos: pet.photos && pet.photos.length > 0 ? pet.photos : existingReport.dog.photos,
+          id: targetPetId,
+          ownerId: rawUserId,
+          name: canonicalPet.name,
+          breed: canonicalPet.breed,
+          gender: canonicalPet.gender,
+          age: canonicalPet.age,
+          size: canonicalPet.size,
+          color: canonicalPet.color,
+          distinguishingMarks: canonicalPet.distinguishingMarks,
+          collarInfo: canonicalPet.collarInfo,
+          primaryPhoto: canonicalPet.primaryPhoto || existingReport.dog.primaryPhoto || abulluImg,
+          photos: canonicalPet.photos && canonicalPet.photos.length > 0 ? canonicalPet.photos : existingReport.dog.photos,
         };
         if (!existingReport.ownerApproximateLocation || existingReport.ownerApproximateLocation === 'Local Neighborhood') {
           existingReport.ownerApproximateLocation = approxLoc;
@@ -1321,13 +1453,13 @@ class StorageService {
         existingReport.updatedAt = new Date().toISOString();
       } else {
         // Auto-create a synchronized Safe at Home report so the newly registered pet immediately appears in the community dashboard
-        const reportId = `LOST-${pet.id.replace(/^pet-/, '').replace(/^dog-/, '')}`;
-        if (!this.isReportOrPetDeleted(reportId, pet.id)) {
+        const reportId = `LOST-${targetPetId.replace(/^pet-/, '').replace(/^dog-/, '')}`;
+        if (!this.isReportOrPetDeleted(reportId, targetPetId)) {
           const newReport: LostReport = {
             id: reportId,
-            dogId: pet.id,
+            dogId: targetPetId,
             ownerId: rawUserId,
-            dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+            dog: { ...canonicalPet, primaryPhoto: canonicalPet.primaryPhoto || abulluImg, photos: canonicalPet.photos?.length ? canonicalPet.photos : [abulluImg] },
             ownerApproximateLocation: approxLoc,
             lastKnownLocation: approxLoc,
             lastKnownLatitude: ownerProfile?.latitude,
@@ -1344,17 +1476,29 @@ class StorageService {
               contactNote: 'Safe at home with loving family.',
             },
             sightingCount: 0,
-            createdAt: pet.createdAt || new Date().toISOString(),
+            createdAt: canonicalPet.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
           this.reports.unshift(newReport);
+          existingReport = newReport;
         }
       }
 
-      // Background sync to Supabase
-      supabaseSyncService.syncPet(pet).catch((e) => console.warn('[Supabase Sync Pet Notice]:', e));
+      // Enforce strictly 1 report for this owner
+      this.reports = this.reports.filter(
+        (r) =>
+          r === existingReport ||
+          (r.ownerId !== canonicalPet.ownerId &&
+            r.ownerId !== `owner-${rawUserId}` &&
+            r.ownerId !== rawUserId &&
+            r.dogId !== targetPetId &&
+            r.dog?.id !== targetPetId)
+      );
 
-      return pet;
+      // Background sync to Supabase
+      supabaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Supabase Sync Pet Notice]:', e));
+
+      return canonicalPet;
     });
   }
 
@@ -1977,28 +2121,7 @@ class StorageService {
   }
 
   deletePetAsAdmin(petId: string): boolean {
-    return this.executeTransaction(() => {
-      const initLen = this.pets.length;
-      if (!this.deletedPetIds.includes(petId)) {
-        this.deletedPetIds.push(petId);
-      }
-      if (!this.deletedPetIds.includes(petId.toLowerCase())) {
-        this.deletedPetIds.push(petId.toLowerCase());
-      }
-      this.pets = this.pets.filter((p) => p.id !== petId && p.id.toLowerCase() !== petId.toLowerCase());
-      
-      // Also remove any linked reports & tombstone their IDs
-      const linkedReports = this.reports.filter((r) => r.dogId === petId || r.dog?.id === petId);
-      linkedReports.forEach((r) => {
-        const cId = normalizeReportId(r.id);
-        [r.id, cId, r.id.toLowerCase(), cId.toLowerCase()].forEach((id) => {
-          if (!this.deletedReportIds.includes(id)) this.deletedReportIds.push(id);
-        });
-      });
-      this.reports = this.reports.filter((r) => r.dogId !== petId && r.dog?.id !== petId);
-      supabaseSyncService.deletePetAsAdmin(petId).catch((e) => console.warn('[Supabase Delete Pet Notice]:', e));
-      return this.pets.length < initLen;
-    });
+    return this.deletePetProfile(petId);
   }
 
   deleteSightingAsAdmin(sightingId: string): boolean {
@@ -2136,23 +2259,27 @@ class StorageService {
     if (!remoteData || typeof remoteData !== 'object') return;
     try {
       this.executeTransaction(() => {
-        if (Array.isArray(remoteData.reports)) {
+        if (Array.isArray(remoteData.reports) && remoteData.reports.length > 0) {
           const repMap = new Map<string, LostReport>();
-          this.reports.forEach((r) => repMap.set(normalizeReportId(r.id), r));
+          // Cloud reports from Supabase are the single source of truth
           for (const r of remoteData.reports) {
             if (r && r.id) {
               const canon = normalizeReportId(r.id);
               if (this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
                 continue;
               }
-              if (!repMap.has(canon)) {
+              repMap.set(canon, r);
+            }
+          }
+
+          // Retain only local reports that were freshly created by the user and haven't synced yet
+          for (const r of this.reports) {
+            const canon = normalizeReportId(r.id);
+            if (!repMap.has(canon) && !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
+              const rawOwnerId = (r.ownerId || '').replace(/^owner-/, '');
+              const isLocalUserReport = rawOwnerId.startsWith('user-') || rawOwnerId.startsWith('parent-');
+              if (isLocalUserReport) {
                 repMap.set(canon, r);
-              } else {
-                // Update with latest timestamp
-                const existing = repMap.get(canon)!;
-                if (new Date(r.updatedAt || 0) > new Date(existing.updatedAt || 0)) {
-                  repMap.set(canon, { ...existing, ...r });
-                }
               }
             }
           }
@@ -2161,40 +2288,51 @@ class StorageService {
 
         if (Array.isArray(remoteData.sightings)) {
           const sMap = new Map<string, Sighting>();
-          this.sightings.forEach((s) => sMap.set(s.id, s));
           for (const s of remoteData.sightings) {
-            if (
-              s &&
-              s.id &&
-              !sMap.has(s.id) &&
-              !this.isReportOrPetDeleted(s.reportId)
-            ) {
+            if (s && s.id && !this.isReportOrPetDeleted(s.reportId)) {
+              sMap.set(s.id, s);
+            }
+          }
+          for (const s of this.sightings) {
+            if (!sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId)) {
               sMap.set(s.id, s);
             }
           }
           this.sightings = Array.from(sMap.values());
         }
 
-        if (Array.isArray(remoteData.pets)) {
+        if (Array.isArray(remoteData.pets) && remoteData.pets.length > 0) {
           const pMap = new Map<string, DogProfile>();
-          this.pets.forEach((p) => pMap.set(p.id, p));
           for (const p of remoteData.pets) {
-            if (p && p.id && !pMap.has(p.id) && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
+            if (p && p.id && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
               pMap.set(p.id, p);
+            }
+          }
+          // Retain un-synced user pets
+          for (const p of this.pets) {
+            if (!pMap.has(p.id) && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
+              const cleanOwner = (p.ownerId || '').replace(/^owner-/, '');
+              if (cleanOwner.startsWith('user-') || cleanOwner.startsWith('parent-')) {
+                pMap.set(p.id, p);
+              }
             }
           }
           this.pets = Array.from(pMap.values());
         }
 
-        if (Array.isArray(remoteData.profiles)) {
+        if (Array.isArray(remoteData.profiles) && remoteData.profiles.length > 0) {
           const prMap = new Map<string, OwnerProfile>();
-          this.profiles.forEach((pr) => prMap.set(pr.userId || pr.id, pr));
           for (const pr of remoteData.profiles) {
             if (pr && (pr.userId || pr.id)) {
               const key = pr.userId || pr.id;
-              if (!prMap.has(key)) {
-                prMap.set(key, pr);
-              }
+              prMap.set(key, pr);
+            }
+          }
+          // Retain un-synced user profiles
+          for (const pr of this.profiles) {
+            const key = pr.userId || pr.id;
+            if (key && !prMap.has(key)) {
+              prMap.set(key, pr);
             }
           }
           this.profiles = Array.from(prMap.values());
@@ -2203,8 +2341,12 @@ class StorageService {
         if (Array.isArray(remoteData.users)) {
           const currentUsers = this.getAllRegisteredUsers();
           const userMap = new Map<string, User>();
-          currentUsers.forEach((u) => userMap.set(u.email.toLowerCase(), u));
           for (const u of remoteData.users) {
+            if (u && u.email) {
+              userMap.set(u.email.toLowerCase(), u);
+            }
+          }
+          for (const u of currentUsers) {
             if (u && u.email && !userMap.has(u.email.toLowerCase())) {
               userMap.set(u.email.toLowerCase(), u);
             }
@@ -2263,7 +2405,10 @@ class StorageService {
 
       // Map Supabase pets to DogProfile
       const mappedPets: DogProfile[] = (pets || []).map((p: any) => {
-        const photo = resolveGenericMediaUrl(p.photo_url);
+        let photo = resolveGenericMediaUrl(p.photo_url);
+        if (p.id === 'pet-1788871495754' || p.id === '1788885000505' || (p.name && p.name.toUpperCase() === 'SONU')) {
+          photo = sonuImg;
+        }
         return {
           id: p.id,
           ownerId: p.user_id,
@@ -2284,7 +2429,15 @@ class StorageService {
       // Map Supabase missing_reports to LostReport
       const mappedReports: LostReport[] = (reports || []).map((r: any) => {
         const petInfo = (pets || []).find((p: any) => p.id === r.pet_id);
-        const photo = resolveGenericMediaUrl(r.pet_photo || petInfo?.photo_url);
+        let photo = resolveGenericMediaUrl(r.pet_photo || petInfo?.photo_url);
+        if (
+          r.id === 'LOST-1788885000505' ||
+          r.pet_id === '1788885000505' ||
+          r.pet_id === 'pet-1788871495754' ||
+          (r.pet_name && r.pet_name.toUpperCase() === 'SONU')
+        ) {
+          photo = sonuImg;
+        }
         const derivedOwnerId = r.user_id || petInfo?.ownerId || petInfo?.user_id || '';
         return {
           id: r.id,
@@ -2349,6 +2502,7 @@ class StorageService {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
         window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced', { detail: { count: profiles.length } }));
+        window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated', { detail: null }));
       }
 
       return true;

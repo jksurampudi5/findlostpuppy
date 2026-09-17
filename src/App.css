@@ -4482,7 +4482,7 @@
 
 .dashboard-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
 }
 
@@ -4539,9 +4539,31 @@
     width: 100%;
   }
 
-  .dashboard-header-actions .btn {
+  .dashboard-header-actions:not(.dashboard-header-actions-row) .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .dashboard-header-actions.dashboard-header-actions-row {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100%;
+    gap: 0.45rem;
+  }
+
+  .dashboard-header-actions.dashboard-header-actions-row .header-action-btn {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.55rem 0.35rem;
+    font-size: clamp(0.68rem, 2.7vw, 0.8rem);
+    gap: 0.3rem;
+  }
+
+  .dashboard-header-actions.dashboard-header-actions-row .header-action-btn svg {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
   }
 
   .dashboard-metrics-grid {
@@ -4574,12 +4596,9 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
   flex-wrap: nowrap;
 }
 
@@ -4601,16 +4620,69 @@
   flex-shrink: 0;
 }
 
+.dashboard-tab-btn.tab-not-safe {
+  border: 1.5px solid #FCA5A5;
+  background-color: #FEF2F2;
+  color: #991B1B;
+}
+
+.dashboard-tab-btn.tab-not-safe.active {
+  background-color: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.dashboard-tab-btn.tab-not-safe.active .text-red-500 {
+  color: #FFFFFF !important;
+}
+
+.dashboard-tab-btn.tab-not-safe.active .tab-counter-pill {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+.dashboard-tab-btn.tab-safe {
+  border: 1.5px solid #86EFAC;
+  background-color: #F0FDF4;
+  color: #166534;
+}
+
+.dashboard-tab-btn.tab-safe.active {
+  background-color: #16A34A;
+  border-color: #16A34A;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+
+.dashboard-tab-btn.tab-safe.active .text-emerald-500 {
+  color: #FFFFFF !important;
+}
+
+.dashboard-tab-btn.tab-safe.active .tab-counter-pill {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
 @media (max-width: 640px) {
   .dashboard-tabs {
-    gap: 0.45rem;
-    margin-bottom: 1.25rem;
+    display: flex;
+    width: 100%;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0;
+    border-bottom: none;
+    overflow-x: visible;
   }
 
   .dashboard-tab-btn {
-    padding: 0.55rem 0.9rem;
-    font-size: 0.82rem;
-    gap: 0.35rem;
+    flex: 1 1 0;
+    min-height: 48px;
+    padding: 0.65rem 0.5rem;
+    font-size: clamp(0.78rem, 3.2vw, 0.9rem);
+    justify-content: center;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
   }
 }
 
@@ -10794,6 +10866,39 @@
   margin: 0;
 }
 
+@media (max-width: 640px) {
+  .dog-away-animation-card,
+  .dog-home-animation-card {
+    padding: 0.85rem 0.65rem;
+    margin-bottom: 1.25rem;
+    border-radius: var(--radius-md);
+  }
+
+  .animation-hero-title {
+    font-size: clamp(0.95rem, 3.8vw, 1.15rem);
+    margin-bottom: 0.25rem;
+  }
+
+  .animation-hero-desc {
+    font-size: clamp(0.72rem, 2.9vw, 0.82rem);
+    line-height: 1.4;
+  }
+
+  .home-badge-row {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .home-status-badge,
+  .missing-radar-badge,
+  .search-range-tag,
+  .safe-home-glow-badge,
+  .happiness-stars {
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
 /* --------------------------------------------------------------------------
    DOG AWAY FROM HOME ANIMATION & SEARCH RADAR
    -------------------------------------------------------------------------- */
@@ -15309,6 +15414,7 @@
    UNIFIED PET PROFILE MODERN FORM & SMART DROPDOWNS
    ========================================================================== */
 .pet-combined-card {
+  width: 100% !important;
   max-width: 580px !important;
   margin: 1.5rem auto 2.5rem !important;
   padding: 2.25rem 2rem 2rem !important;
@@ -15316,6 +15422,8 @@
   border: 2px solid #FED7AA !important;
   border-radius: 28px !important;
   box-shadow: 0 12px 36px -4px rgba(234, 88, 12, 0.08), 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .pet-unified-header {
@@ -15786,12 +15894,46 @@
 
 .pet-showcase-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px dashed #FED7AA;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pet-showcase-actions .pet-primary-cta-btn,
+.pet-showcase-actions .continue-to-location-orange-btn {
+  width: 100% !important;
+  max-width: 100% !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: normal !important;
+  padding: 0.85rem 1.25rem !important;
+  box-sizing: border-box !important;
+}
+
+.pet-showcase-actions-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pet-showcase-actions-secondary .pet-secondary-action-btn,
+.pet-showcase-actions-secondary button {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0.65rem 0.85rem;
 }
 
 @media (max-width: 640px) {
@@ -15807,14 +15949,21 @@
   }
 
   .pet-showcase-actions {
-    flex-direction: column;
     width: 100%;
     gap: 0.75rem;
   }
+}
 
-  .pet-showcase-actions button {
+@media (max-width: 480px) {
+  .pet-showcase-actions-secondary {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .pet-showcase-actions-secondary .pet-secondary-action-btn,
+  .pet-showcase-actions-secondary button {
     width: 100%;
-    justify-content: center;
+    flex: none;
   }
 }
 
@@ -15976,6 +16125,111 @@
   font-size: 0.95rem;
   font-weight: 800;
   letter-spacing: -0.01em;
+}
+
+/* Dismissible Suggestion Popup Prompt (Appears after ~3m active app time on allowed routes) */
+.suggestion-popup-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.suggestion-popup-card {
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 20px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 8px 16px -4px rgba(234, 88, 12, 0.12);
+  border: 1.5px solid #FED7AA;
+  animation: modalPopUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suggestion-popup-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #F1F5F9;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.suggestion-popup-close:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.suggestion-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.suggestion-popup-icon-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.suggestion-popup-bulb {
+  color: #EA580C;
+}
+
+.suggestion-popup-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0;
+}
+
+.suggestion-popup-subtitle {
+  font-size: 0.78rem;
+  color: #EA580C;
+  font-weight: 600;
+  margin: 0.15rem 0 0;
+}
+
+.suggestion-popup-body {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.suggestion-popup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.suggestion-popup-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
 }
 
 /* Modal Dialog */
@@ -16467,5 +16721,44 @@
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE CONTAINER CONFINEMENT
+   Guarantee elements, buttons, and cards never overflow on mobile or desktop
+   ========================================================================== */
+.app-container,
+.onboarding-container,
+.card,
+.onboarding-card,
+.owner-combined-card,
+.location-onboarding-card,
+.pet-combined-card,
+.pet-friendly-showcase,
+.location-preview-showcase,
+.pet-profile-showcase,
+.dog-details-card,
+.dashboard-container {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+button, a.btn, input, select, textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .action-buttons-wrap {
+    flex-direction: column !important;
+    width: 100% !important;
+    align-items: stretch !important;
+  }
+
+  .action-buttons-wrap button,
+  .action-buttons-wrap a {
+    width: 100% !important;
+    justify-content: center !important;
   }
 }

@@ -220,7 +220,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveProfileInternal(true);
+    const ok = saveProfileInternal(true);
+    if (ok) {
+      handleContinueToLocation();
+    }
   };
 
   const handleContinueToLocation = () => {

@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { SidebarNav } from './components/SidebarNav';
 import { Footer } from './components/Footer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { storageService } from './services/storageService';
 import { getDogDisplayName } from './utils/dogPhotoHelper';
 
@@ -259,6 +259,11 @@ function GlobalMissingBanner() {
 
 export function App() {
   const basename = import.meta.env.BASE_URL;
+
+  // Single source of truth: Pull authentic Supabase cloud records on application boot
+  useEffect(() => {
+    storageService.pullFromSupabase().catch(() => {});
+  }, []);
 
   return (
     <Router basename={basename}>

@@ -11,6 +11,7 @@ import {
   Smile,
   Search,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { useAuth } from '../context/AuthContext';
@@ -83,6 +84,31 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const [isSubmitted, setIsSubmitted] = useState<boolean>(isInitiallyComplete);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Synchronize form fields whenever existing pet updates
+  useEffect(() => {
+    if (existingPet) {
+      setDogName(existingPet.name || '');
+      setBreed(existingPet.breed || '');
+      setGender(existingPet.gender || 'Male');
+      setAge(existingPet.age || '2 years');
+      setSize(existingPet.size || 'Medium (10-25kg)');
+      setColor(existingPet.color || 'Golden / Fawn');
+      setDistinguishingMarks(existingPet.distinguishingMarks || '');
+      setPrimaryPhoto(existingPet.primaryPhoto || '');
+      setAdditionalPhotos(existingPet.photos || []);
+      if (existingPet.collarInfo) {
+        const lower = existingPet.collarInfo.toLowerCase().trim();
+        const hasCollar = lower !== 'no' && lower !== 'none' && lower !== 'no collar';
+        setHasCollarOrChip(hasCollar);
+        setCollarDetails(existingPet.collarInfo);
+      } else {
+        setHasCollarOrChip(false);
+        setCollarDetails('');
+      }
+      setIsSubmitted(true);
+    }
+  }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
 
   // Search & filter dog breeds
   const filteredBreeds = useMemo(() => {
@@ -177,6 +203,37 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     setIsSubmitted(true);
     setIsEditing(false);
     showToast('Skipped pet details. You can add a pet anytime!', 'info');
+  };
+
+  // Handle Delete Pet Profile immediately
+  const handleDeletePetProfile = () => {
+    if (!user) return;
+    const petNameToDelete = existingPet?.name || dogName || 'your pet';
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete ${petNameToDelete}'s pet profile? All pet details and community dashboard listings will be removed immediately.`
+    );
+    if (!confirmed) return;
+
+    const targetId = existingPet?.id || petId;
+    storageService.deletePetProfile(targetId, user.id);
+
+    // Reset local form states
+    setDogName('');
+    setBreed('');
+    setGender('Male');
+    setAge('2 years');
+    setSize('Medium (10-25kg)');
+    setColor('Golden / Fawn');
+    setDistinguishingMarks('');
+    setHasCollarOrChip(false);
+    setCollarDetails('');
+    setPrimaryPhoto('');
+    setAdditionalPhotos([]);
+    setIsSubmitted(false);
+    setIsEditing(false);
+
+    refreshProgress();
+    showToast(`🗑️ ${petNameToDelete}'s pet profile was deleted immediately.`, 'info');
   };
 
   const handleBack = () => {
@@ -365,19 +422,30 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   <div className="pet-showcase-actions">
                     <button
                       type="button"
-                      onClick={() => setIsEditing(true)}
-                      className="btn btn-outline btn-md"
-                    >
-                      <Edit3 size={16} />
-                      <span>Edit Pet Details</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={handleProceedToAlert}
-                      className="btn btn-primary btn-md continue-to-location-orange-btn"
+                      className="btn btn-primary btn-md continue-to-location-orange-btn pet-primary-cta-btn"
                     >
                       <span>Proceed to Pet Safety Check 🐾 →</span>
                     </button>
+                    <div className="pet-showcase-actions-secondary">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="btn btn-outline btn-md pet-secondary-action-btn"
+                      >
+                        <Edit3 size={16} />
+                        <span>Edit Pet Details</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeletePetProfile}
+                        className="btn btn-ghost btn-md text-red-600 hover:bg-red-50 pet-secondary-action-btn"
+                        title="Permanently remove pet profile"
+                      >
+                        <Trash2 size={16} />
+                        <span>Delete Pet Details</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -735,13 +803,26 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               <div className="owner-actions-bottom-row" style={{ marginTop: '2.5rem' }}>
                 <div className="pet-actions-left">
                   {isEditing ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="btn btn-outline btn-md"
-                    >
-                      <span>Cancel</span>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="btn btn-outline btn-md"
+                      >
+                        <span>Cancel</span>
+                      </button>
+                      {existingPet && (
+                        <button
+                          type="button"
+                          onClick={handleDeletePetProfile}
+                          className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                          title="Permanently remove pet profile"
+                        >
+                          <Trash2 size={15} />
+                          <span>Delete Pet Details</span>
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <button
                       type="button"

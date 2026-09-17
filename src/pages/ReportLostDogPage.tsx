@@ -39,6 +39,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     petSafetyStatus,
     markPetSafe,
     markPetLost,
+    refreshProgress,
   } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -215,6 +216,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
       storageService.deleteReport(targetId);
     }
     markPetSafe();
+    refreshProgress();
     setUserSelectedChoice('safe');
     setIsMissingModalOpen(false);
     showToast(`🗑️ Missing alert for ${dogName} removed. Pet is marked safe at home.`, 'info');

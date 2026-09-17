@@ -27,9 +27,57 @@ export const SuggestionWidget: React.FC = () => {
   const { showToast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [hasDismissedCallout, setHasDismissedCallout] = useState(() => {
-    return localStorage.getItem('findlostpuppy_suggestion_callout_dismissed') === 'true';
+
+  // Route whitelist: Only allowed on post-onboarding routes
+  const pathname = location.pathname;
+  const isAllowedRoute =
+    pathname === '/dashboard' ||
+    pathname === '/find' ||
+    pathname === '/admin' ||
+    /^\/dog\/[^/]+$/.test(pathname);
+
+  const isBlockedRoute = [
+    '/',
+    '/consent',
+    '/login',
+    '/owner',
+    '/location',
+    '/pet',
+    '/alert',
+    '/edit-parent',
+    '/edit-location',
+    '/dog',
+    '/dog-profile',
+    '/report-another',
+    '/report',
+    '/report-lost',
+  ].includes(pathname);
+
+  const canShowOnRoute = isAllowedRoute && !isBlockedRoute;
+
+  // Active app-time tracking (pauses when tab/app is hidden or in background)
+  const [hasDismissedPrompt, setHasDismissedPrompt] = useState(() => {
+    return localStorage.getItem('findlostpuppy_suggestion_prompt_dismissed') === 'true';
   });
+  const [showPopupPrompt, setShowPopupPrompt] = useState(false);
+
+  useEffect(() => {
+    if (hasDismissedPrompt) return;
+
+    const interval = setInterval(() => {
+      // Only increment active seconds when app is visibly active (not in background/hidden)
+      if (document.visibilityState === 'visible') {
+        const currentSeconds = parseInt(sessionStorage.getItem('findlostpuppy_active_seconds') || '0', 10) + 1;
+        sessionStorage.setItem('findlostpuppy_active_seconds', currentSeconds.toString());
+        // ~3 minutes (180s) of active app time
+        if (currentSeconds >= 180 && !hasDismissedPrompt) {
+          setShowPopupPrompt(true);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [hasDismissedPrompt]);
 
   // Simplified form states
   const [category, setCategory] = useState<SuggestionCategory>('feature');
@@ -63,10 +111,10 @@ export const SuggestionWidget: React.FC = () => {
     return () => window.removeEventListener('open-suggestion-modal', handleOpen);
   }, []);
 
-  const handleDismissCallout = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setHasDismissedCallout(true);
-    localStorage.setItem('findlostpuppy_suggestion_callout_dismissed', 'true');
+  const handleDismissPrompt = () => {
+    setShowPopupPrompt(false);
+    setHasDismissedPrompt(true);
+    localStorage.setItem('findlostpuppy_suggestion_prompt_dismissed', 'true');
   };
 
   const handleRatingClick = (val: number) => {
@@ -135,51 +183,63 @@ export const SuggestionWidget: React.FC = () => {
     'Loved it! ❤️',
   ];
 
+  // If user is on an onboarding or unallowed route, do not render unless modal is explicitly opened
+  if (!canShowOnRoute && !isOpen) {
+    return null;
+  }
+
   return (
     <>
       {/* ========================================================================= */}
-      {/* 1. EYE-CATCHER FLOATING WIDGET BUTTON (Larger & Vibrant)                   */}
+      {/* 1. DISMISSIBLE MODAL POPUP (Appears after ~3 min active app time on allowed routes) */}
       {/* ========================================================================= */}
-      <div className="suggestion-floating-container" aria-label="App Suggestions">
-        {!hasDismissedCallout && !isOpen && (
-          <div className="suggestion-floating-callout" onClick={() => setIsOpen(true)}>
-            <span className="callout-sparkle">✨</span>
-            <div className="callout-text">
-              <strong>Have an idea?</strong>
-              <span>Help us shape FindLostPuppy!</span>
-            </div>
+      {canShowOnRoute && showPopupPrompt && !isOpen && (
+        <div className="suggestion-popup-prompt-overlay" onClick={handleDismissPrompt} role="dialog" aria-modal="true" aria-labelledby="popup-suggest-title">
+          <div className="suggestion-popup-card" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className="callout-close-btn"
-              onClick={handleDismissCallout}
+              className="suggestion-popup-close"
+              onClick={handleDismissPrompt}
               title="Dismiss note"
               aria-label="Dismiss note"
             >
-              ✕
+              <X size={16} />
             </button>
+            <div className="suggestion-popup-header">
+              <div className="suggestion-popup-icon-badge">
+                <Lightbulb size={22} className="suggestion-popup-bulb" />
+              </div>
+              <div>
+                <h4 id="popup-suggest-title" className="suggestion-popup-title">💡 Have an Idea for Us?</h4>
+                <p className="suggestion-popup-subtitle">Help us shape FindLostPuppy!</p>
+              </div>
+            </div>
+            <p className="suggestion-popup-body">
+              You've been exploring the app! We'd love your thoughts, feature requests, or suggestions to make pet reunions faster and smoother.
+            </p>
+            <div className="suggestion-popup-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleDismissPrompt}
+              >
+                Maybe Later
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm suggestion-popup-action-btn"
+                onClick={() => {
+                  setShowPopupPrompt(false);
+                  setIsOpen(true);
+                }}
+              >
+                <Sparkles size={14} />
+                <span>Share Suggestion ✨</span>
+              </button>
+            </div>
           </div>
-        )}
-
-        <button
-          type="button"
-          className="suggestion-floating-btn"
-          onClick={() => {
-            setIsOpen(true);
-            setIsSuccess(false);
-          }}
-          title="Share an idea, feature request, or suggestion"
-          aria-label="Open suggestion dialog"
-        >
-          <span className="suggestion-pulse-ring" />
-          <span className="suggestion-btn-icon-wrap">
-            <Lightbulb size={26} className="suggestion-bulb-icon" />
-          </span>
-          <span className="suggestion-btn-label">
-            <span className="suggestion-btn-badge">✨ Idea</span>
-            <span className="suggestion-btn-text">Suggest</span>
-          </span>
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 2. SIMPLIFIED & STREAMLINED SUGGESTION MODAL                              */}

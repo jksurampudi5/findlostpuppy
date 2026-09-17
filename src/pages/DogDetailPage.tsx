@@ -32,7 +32,7 @@ export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshProgress } = useAuth();
 
   const [report, setReport] = useState<LostReport | null>(null);
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -93,6 +93,7 @@ export const DogDetailPage: React.FC = () => {
 
     const success = storageService.deleteReport(report.id);
     if (success) {
+      refreshProgress();
       showToast(`🗑️ Alert for ${dogName} permanently deleted forever.`, 'info');
       navigate('/dashboard');
     }

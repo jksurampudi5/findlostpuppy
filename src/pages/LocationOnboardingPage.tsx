@@ -95,6 +95,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   // UI Flow States
   const [userRequestedEdit, setUserRequestedEdit] = useState<boolean>(false);
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
+  const [showFallbackManual, setShowFallbackManual] = useState<boolean>(false);
+  const [locationSource, setLocationSource] = useState<'gps' | 'manual' | 'pin'>('manual');
+  const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const isEditing = userRequestedEdit || !hasSavedLocation;
 
   const [detecting, setDetecting] = useState(false);
@@ -211,9 +214,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   };
 
-  // 6-digit PIN code auto lookup
+  // 6-digit PIN code auto lookup with GPS priority preservation
   const handlePinChange = async (pinValue: string) => {
     setPinCode(pinValue);
+    setPinConflictNote('');
+
     if (pinValue.trim().length === 6 && /^\d{6}$/.test(pinValue.trim())) {
       setLookingUpPin(true);
       try {
@@ -228,6 +233,16 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
               const detectedMandal = po.Block || mandalOrMunicipality;
               const detectedLocality = po.Name;
 
+              // If location was populated via GPS detection, do NOT silently overwrite!
+              if (locationSource === 'gps' && district.trim()) {
+                if (rawDistrict && district.toLowerCase() !== rawDistrict.toLowerCase()) {
+                  setPinConflictNote(
+                    `PIN ${pinValue.trim()} maps to ${rawDistrict}, while GPS verified ${district}. Keeping GPS location.`
+                  );
+                }
+                return;
+              }
+
               const match = await locationService.matchLocation({
                 state: detectedState,
                 district: rawDistrict,
@@ -237,6 +252,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
               });
 
               if (match) {
+                setLocationSource('pin');
                 setState(match.state.name);
                 setDistrict(match.district.districtName);
                 setMandalOrMunicipality(match.subDistrict.subDistrictName);
@@ -245,15 +261,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 } else {
                   setCity(match.subDistrict.subDistrictName);
                 }
-                showToast(
-                  `✨ Auto-detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
-                  'success'
-                );
-              } else {
-                showToast(
-                  'PIN code found, but could not match official sub-district. Please select below.',
-                  'info'
-                );
               }
             }
           }
@@ -266,7 +273,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     }
   };
 
-  // Direct native location detector (prompts OS/Browser permission directly: While using app / Only this time / Don't allow)
+  // Direct native location detector (prompts OS/Browser permission directly)
   const handleDetectClick = () => {
     executeDetectLocation();
   };
@@ -279,100 +286,124 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hardware GPS & Native Geolocation Detection
+  // Hardware GPS & Native Geolocation Detection (Full auto-accuracy, no intermediate toasts, quiet state)
   const executeDetectLocation = async () => {
     setDetecting(true);
+    setPinConflictNote('');
+
+    let matchSucceeded = false;
+    let attempts = 0;
+    const maxAttempts = 3; // 1 initial attempt + up to 2 retries on non-confident match
 
     try {
-      const geo = await detectResilientLocation();
-      setLatitude(geo.latitude);
-      setLongitude(geo.longitude);
+      while (attempts < maxAttempts && !matchSucceeded) {
+        attempts++;
+        try {
+          const geo = await detectResilientLocation();
+          setLatitude(geo.latitude);
+          setLongitude(geo.longitude);
 
-      if (geo.source === 'ip') {
-        // Low-confidence: never trust IP-tier district/mandal — this is what caused
-        // the Guntur bug. Show approximate pin only, force manual district/mandal selection.
-        setHasDetected(true);
-        showToast(
-          '📶 Only approximate location available (GPS unavailable). Please select your District and Mandal manually for accuracy.',
-          'warning'
-        );
-        return;
-      }
-
-      const detectedState = geo.state || state;
-      const rawDistrict = geo.district || district;
-      const detectedMandal = geo.mandal || mandalOrMunicipality;
-      const detectedCity = geo.city || city;
-      const detectedPin = geo.pinCode || pinCode;
-
-      const match = await locationService.matchLocation({
-        state: detectedState,
-        district: rawDistrict,
-        mandal: detectedMandal,
-        locality: detectedCity,
-        pinCode: detectedPin,
-      });
-
-      if (match) {
-        setState(match.state.name);
-        setDistrict(match.district.districtName);
-        setMandalOrMunicipality(match.subDistrict.subDistrictName);
-        if (match.locality) {
-          setCity(match.locality.localityName);
-        } else {
-          setCity(match.subDistrict.subDistrictName);
-        }
-        if (detectedPin) setPinCode(detectedPin);
-        setHasDetected(true);
-        setUserRequestedEdit(false);
-        showToast(
-          `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
-          'success'
-        );
-      } else {
-        // Smart Partial Matching
-        let matchedSomething = false;
-        if (detectedState) {
-          const st = locationService.getState(detectedState);
-          if (st) {
-            setState(st.name);
-            matchedSomething = true;
-            if (rawDistrict) {
-              const d = locationService.getDistrict(st.name, rawDistrict);
-              if (d) {
-                setDistrict(d.districtName);
-                if (detectedMandal) {
-                  const m = locationService.getSubDistrict(d.districtCode, detectedMandal);
-                  if (m) setMandalOrMunicipality(m.subDistrictName);
-                }
-              }
-            }
+          // IP fallback cannot be trusted for auto-filling subdistrict
+          if (geo.source === 'ip') {
+            continue;
           }
-        }
-        if (detectedCity) {
-          setCity(detectedCity);
-          matchedSomething = true;
-        }
-        if (detectedPin) setPinCode(detectedPin);
 
-        setHasDetected(true);
-        if (matchedSomething) {
-          showToast(
-            `📍 Location detected: ${detectedCity || rawDistrict || 'Current Area'}. Please confirm details below.`,
-            'info'
-          );
-        } else {
-          showToast(
-            'Location locked. Please choose your District and Mandal below.',
-            'info'
-          );
+          const detectedState = geo.state || state;
+          const rawDistrict = geo.district || district;
+          const detectedMandal = geo.mandal || mandalOrMunicipality;
+          const detectedCity = geo.city || city;
+          const detectedPin = geo.pinCode || pinCode;
+
+          const match = await locationService.matchLocation({
+            state: detectedState,
+            district: rawDistrict,
+            mandal: detectedMandal,
+            locality: detectedCity,
+            pinCode: detectedPin,
+          });
+
+          // Require full confident match (state, district, subDistrict)
+          if (match && match.state && match.district && match.subDistrict) {
+            const finalCity = match.locality ? match.locality.localityName : match.subDistrict.subDistrictName;
+            setState(match.state.name);
+            setDistrict(match.district.districtName);
+            setMandalOrMunicipality(match.subDistrict.subDistrictName);
+            setCity(finalCity);
+            if (detectedPin) setPinCode(detectedPin);
+
+            setLocationSource('gps');
+            setHasDetected(true);
+            setUserRequestedEdit(false);
+            setShowFallbackManual(false);
+
+            // Auto-persist confident GPS profile to transition immediately into safe showcase
+            if (user) {
+              const distObj = locationService.getDistrict(match.state.name, match.district.districtName);
+              const subObj = distObj
+                ? locationService.getSubDistrict(distObj.districtCode, match.subDistrict.subDistrictName)
+                : undefined;
+              const locObj = match.locality;
+
+              const profile: OwnerProfile = {
+                ...(existingProfile || {}),
+                id: user.id,
+                userId: user.id,
+                fullName: existingProfile?.fullName || user.name || 'Pet Parent',
+                phone: existingProfile?.phone || user.phone || '',
+                photo: existingProfile?.photo || user.avatar || undefined,
+                email: user.email,
+                state: match.state.name,
+                district: match.district.districtName,
+                mandalOrMunicipality: match.subDistrict.subDistrictName,
+                city: finalCity,
+                pinCode: detectedPin || existingProfile?.pinCode || '',
+                stateCode: distObj?.stateCode,
+                districtCode: distObj?.districtCode,
+                subDistrictCode: subObj?.subDistrictCode,
+                localityCode: locObj?.localityCode,
+                localityType: locObj?.localityType || 'VILLAGE',
+                latitude: geo.latitude,
+                longitude: geo.longitude,
+                approximateArea: `${finalCity}, ${match.subDistrict.subDistrictName} (Mandal), ${match.district.districtName}, ${match.state.name}`,
+                preferredContact: existingProfile?.preferredContact || 'phone',
+                hasLocationConsent: true,
+                updatedAt: new Date().toISOString(),
+              };
+
+              storageService.saveOwnerProfile(profile);
+              refreshProgress();
+              triggerStarCelebration();
+            }
+
+            showToast(
+              `🎯 Location detected: ${finalCity}, ${match.district.districtName}`,
+              'success'
+            );
+            matchSucceeded = true;
+            break;
+          }
+        } catch (attemptErr: any) {
+          if (attemptErr?.code === 'PERMISSION_DENIED') {
+            throw attemptErr;
+          }
+          console.warn(`[LocationOnboardingPage] GPS attempt ${attempts} failed:`, attemptErr);
         }
       }
-    } catch (err: any) {
+
+      if (!matchSucceeded) {
+        setShowFallbackManual(true);
+        setHasDetected(true);
+        showToast(
+          'Could not lock full location via GPS. Please select your district and mandal below.',
+          'error'
+        );
+      }
+    } catch (hardErr: any) {
+      setShowFallbackManual(true);
       setHasDetected(true);
       showToast(
-        err?.message || 'Could not acquire location fix. Please select details below.',
-        'info'
+        hardErr?.message || 'Location permission denied or unavailable. Please select details below.',
+        'error'
       );
     } finally {
       setDetecting(false);
@@ -440,6 +471,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     triggerStarCelebration();
 
     showToast('✓ Location details saved to your profile!', 'success');
+    handleProceedToPup();
   };
 
   const handleProceedToPup = () => {
@@ -657,8 +689,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                 </button>
               </div>
 
-              {/* FORM ONLY COMES DOWN ONCE DETECT LOCATION IS CLICKED (hasDetected is true) */}
-              {hasDetected && (
+              {/* FORM ONLY COMES DOWN ONCE DETECT LOCATION IS CLICKED AND EITHER MANUAL FALLBACK IS NEEDED OR USER REQUESTED EDIT */}
+              {(showFallbackManual || userRequestedEdit) && !detecting && (
                 <form
                   onSubmit={handleSaveLocation}
                   className="onboarding-form"
@@ -805,6 +837,22 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                         <span className="form-hint">
                           Type 6 digits to automatically select State, District, Mandal, and Locality.
                         </span>
+                        {pinConflictNote && (
+                          <div
+                            className="pin-conflict-inline-note"
+                            style={{
+                              marginTop: '0.5rem',
+                              fontSize: '0.8rem',
+                              color: '#B45309',
+                              background: '#FEF3C7',
+                              padding: '0.45rem 0.75rem',
+                              borderRadius: '8px',
+                              border: '1px solid #FDE68A',
+                            }}
+                          >
+                            ℹ️ {pinConflictNote}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
