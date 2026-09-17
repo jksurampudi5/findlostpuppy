@@ -37,30 +37,24 @@
   height: 100vh;
   z-index: 100;
   padding: 1rem 0 1rem 1rem;
-  transition: width var(--sidebar-transition-duration) var(--sidebar-transition-curve),
-              min-width var(--sidebar-transition-duration) var(--sidebar-transition-curve);
+  /* Document flow invariant: outer sidebar footprint NEVER changes width */
+  width: calc(var(--sidebar-collapsed-w) + 1rem);
+  min-width: calc(var(--sidebar-collapsed-w) + 1rem);
+  max-width: calc(var(--sidebar-collapsed-w) + 1rem);
+  flex-shrink: 0;
   overflow: visible;
 }
 
-/* Width in normal document flow */
-.constant-left-sidebar.sidebar-collapsed,
-.constant-left-sidebar.sidebar-unpinned {
-  width: calc(var(--sidebar-collapsed-w) + 1rem);
-  min-width: calc(var(--sidebar-collapsed-w) + 1rem);
-}
-
-.constant-left-sidebar.sidebar-pinned.sidebar-expanded {
-  width: calc(var(--sidebar-expanded-w) + 1rem);
-  min-width: calc(var(--sidebar-expanded-w) + 1rem);
-}
-
-/* The actual sidebar card container */
+/* The actual sidebar card container: positioned as an anchored card that expands toward the right */
 .constant-sidebar-container {
   display: flex;
   flex-direction: column;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
   width: var(--sidebar-collapsed-w);
   min-width: var(--sidebar-collapsed-w);
-  height: 100%;
+  height: calc(100vh - 2rem);
   background: var(--bg-secondary, #0D0F11);
   border-radius: 26px;
   box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.5));
@@ -70,9 +64,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   transition: width var(--sidebar-transition-duration) var(--sidebar-transition-curve),
-              box-shadow 0.2s ease,
-              border-color 0.2s ease;
-  position: relative;
+              box-shadow 0.22s ease,
+              border-color 0.22s ease;
+  z-index: 100;
   box-sizing: border-box;
 }
 
@@ -85,24 +79,14 @@
   border-radius: 4px;
 }
 
-/* Hover-Expansion Overlay: When unpinned and expanded (via hover), overlay toward the right */
-.constant-left-sidebar.sidebar-unpinned.sidebar-expanded .constant-sidebar-container {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
+/* Expanded state (BOTH hover and pinned chevron click): expands smoothly toward the right as an overlay */
+.constant-left-sidebar.sidebar-expanded .constant-sidebar-container {
   width: var(--sidebar-expanded-w);
   min-width: var(--sidebar-expanded-w);
-  height: calc(100vh - 2rem);
   z-index: 500;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--border-highlight, #34393E);
   border-color: var(--border-highlight, #34393E);
   background: var(--bg-secondary, #0D0F11);
-}
-
-/* Pinned expanded container width */
-.constant-left-sidebar.sidebar-pinned.sidebar-expanded .constant-sidebar-container {
-  width: var(--sidebar-expanded-w);
-  min-width: var(--sidebar-expanded-w);
 }
 
 /* Sidebar Logo Header */
@@ -191,25 +175,26 @@
 
 /* Chevron Toggle Button with smooth rotation */
 .sidebar-toggle-btn {
-  background: var(--bg-interactive, #1E2226);
-  border: 1px solid var(--border-subtle, #292D31);
-  color: var(--text-secondary, #A7AAAD);
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #374151;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
+  z-index: 25;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transition: all 0.2s ease;
 }
 
 .sidebar-toggle-btn:hover {
-  background: #252A2F;
-  border-color: var(--border-highlight, #34393E);
-  color: var(--orange-primary, #FF7900);
+  background: #F9FAFB;
+  border-color: rgba(0, 0, 0, 0.28);
+  color: #111827;
   transform: scale(1.08);
 }
 
@@ -229,8 +214,8 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  right: -10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  right: -8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .sidebar-collapsed .sidebar-toggle-btn:hover {
@@ -240,6 +225,7 @@
 .sidebar-expanded .sidebar-toggle-btn {
   position: relative;
   margin-left: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Visibility classes for text labels: smooth fade and subtle slide */

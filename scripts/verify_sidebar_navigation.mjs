@@ -181,20 +181,23 @@ async function run() {
 
   const pinnedMetrics = await page.evaluate(() => {
     const sidebar = document.querySelector('.constant-left-sidebar');
+    const container = document.querySelector('.constant-sidebar-container');
+    const mainViewport = document.querySelector('.app-main-viewport');
     const isPinned = sidebar.classList.contains('sidebar-pinned');
-    const width = sidebar.getBoundingClientRect().width;
+    const width = container.getBoundingClientRect().width;
+    const viewportLeft = mainViewport ? mainViewport.getBoundingClientRect().left : 0;
     const toggleIconRotated = !!document.querySelector('.toggle-icon-wrap.icon-rotated');
-    return { isPinned, width, toggleIconRotated };
+    return { isPinned, width, viewportLeft, toggleIconRotated };
   });
 
-  console.log(`Pinned state: isPinned=${pinnedMetrics.isPinned}, width=${pinnedMetrics.width}px, arrowRotated=${pinnedMetrics.toggleIconRotated}`);
-  if (!pinnedMetrics.isPinned || pinnedMetrics.width < 250) {
-    throw new Error('FAIL: Sidebar failed to remain pinned open after chevron click');
+  console.log(`Pinned state: isPinned=${pinnedMetrics.isPinned}, containerWidth=${pinnedMetrics.width}px, viewportLeft=${pinnedMetrics.viewportLeft}px, arrowRotated=${pinnedMetrics.toggleIconRotated}`);
+  if (!pinnedMetrics.isPinned || pinnedMetrics.width < 255) {
+    throw new Error('FAIL: Sidebar container failed to remain pinned open after chevron click');
   }
   if (!pinnedMetrics.toggleIconRotated) {
     throw new Error('FAIL: Chevron arrow failed to rotate to close indicator (<)');
   }
-  console.log('✅ TEST 4 PASSED: Chevron pinned sidebar open and arrow rotated to (<)!');
+  console.log('✅ TEST 4 PASSED: Chevron pinned sidebar open, arrow rotated to (<), and adjacent viewport did NOT move!');
 
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'sidebar_4_pinned_expanded_desktop.png') });
   console.log('Saved screenshot: sidebar_4_pinned_expanded_desktop.png');
