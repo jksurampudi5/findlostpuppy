@@ -11,6 +11,7 @@
  */
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
+import { NativeGeocoder } from '@capgo/capacitor-nativegeocoder';
 import { findMandalByCoordinates } from './boundaryLookup';
 
 export interface LocationDiagnostic {
@@ -372,6 +373,65 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
 }
 
 /**
+ * Native Android On-Device Reverse Geocoder (Tier 1 — no API key, uses android.location.Geocoder)
+ * Only runs on native Android; returns null on web/iOS or if the OS geocoding backend is unavailable.
+ * This is a best-effort call — any failure resolves to null so the pipeline falls through to web geocoders.
+ *
+ * Address field mapping (Android Geocoder → LocationGeoResult):
+ *   administrativeArea    → state    (e.g. "Telangana")
+ *   subAdministrativeArea → district (e.g. "Hyderabad")
+ *   subLocality           → mandal   (unreliable on some OEM ROMs — boundary lookup overrides this)
+ *   locality              → city
+ *   postalCode            → pinCode  (stripped to 6 digits)
+ */
+async function getNativeGeocodedAddress(
+  lat: number,
+  lng: number
+): Promise<Partial<LocationGeoResult> | null> {
+  // Only attempt on native Android — this plugin has no web/iOS key-free equivalent
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    return null;
+  }
+
+  try {
+    const result = await NativeGeocoder.reverseGeocode({
+      latitude: lat,
+      longitude: lng,
+      useLocale: false,
+      defaultLocale: 'en_IN',
+      maxResults: 1,
+    });
+
+    if (!result?.addresses || result.addresses.length === 0) {
+      console.log('[geolocationHelper] Native geocoder: no addresses returned, falling through to web tier.');
+      return null;
+    }
+
+    const addr = result.addresses[0];
+
+    const state = addr.administrativeArea?.trim() || undefined;
+    const district = addr.subAdministrativeArea?.trim() || undefined;
+    const mandal = addr.subLocality?.trim() || undefined;
+    const city = addr.locality?.trim() || undefined;
+    const rawPin = addr.postalCode?.replace(/\D/g, '').slice(0, 6);
+    const pinCode = rawPin && rawPin.length === 6 ? rawPin : undefined;
+
+    console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, pinCode });
+
+    // Return null if we got absolutely nothing useful
+    if (!state && !district && !city && !pinCode) {
+      return null;
+    }
+
+    return { state, district, mandal, city, pinCode };
+  } catch (err) {
+    // Native backend unavailable (custom ROM, no Google Play Services, etc.) — fail gracefully
+    console.warn('[geolocationHelper] Native geocoder unavailable, falling through to web tier:', err);
+    return null;
+  }
+}
+
+/**
  * IP Location Fallback (STRICT: Never pretend IP is GPS)
  */
 async function fetchIpLocation(): Promise<CoordsResult | null> {
@@ -530,17 +590,37 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       }
     }
 
-    // Reverse Geocode for Village/Locality and PIN
-    const revGeo = await reverseGeocodeCoords(lat, lng);
+    // ── Reverse Geocoding Pipeline ──────────────────────────────────────────
+    // Tier 1 (native): Android on-device Geocoder — free, no API key, fast
+    const nativeGeo = await getNativeGeocodedAddress(lat, lng);
 
-    // AUTHORITY RULE: Boundary polygon results have HIGHER authority than reverse-geocoder strings
+    // Tier 2 (web): Nominatim + BigDataCloud — called only if native is missing
+    // or returned partial data (no district or no city)
+    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.city;
+    const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
+
+    // Merged geocoder result: native fills first, web fills any gaps
+    const mergedState = nativeGeo?.state || webGeo?.state;
+    const mergedDistrict = nativeGeo?.district || webGeo?.district;
+    const mergedMandal = nativeGeo?.mandal || webGeo?.mandal;
+    const mergedCity = nativeGeo?.city || webGeo?.city;
+    const mergedPin = nativeGeo?.pinCode || webGeo?.pinCode;
+    const mergedProvider = nativeGeo
+      ? 'nativegeocoder' + (webGeo ? `+${webGeo.provider}` : '')
+      : (webGeo?.provider || 'none');
+
+    // AUTHORITY RULE for District + Mandal:
+    //   1. Point-in-polygon boundary lookup (authoritative, deterministic)
+    //   2. Native Android Geocoder text result (if boundary returned null)
+    //   3. Nominatim/BigDataCloud text result (if both above fail)
     if (!boundaryMatched) {
-      state = revGeo.state;
-      district = revGeo.district;
-      mandal = revGeo.mandal;
+      state = mergedState;
+      district = mergedDistrict;
+      mandal = mergedMandal;
     }
-    city = revGeo.city || mandal;
-    pinCode = revGeo.pinCode;
+    // Village/city and pinCode always come from whichever geocoding tier returned them
+    city = mergedCity || mandal;
+    pinCode = mergedPin;
 
     // Smart Postal PIN Validation (score candidate post offices)
     let postalValidationMsg = 'None';
@@ -608,12 +688,12 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
         matched: boundaryMatched,
       },
       reverseGeocoder: {
-        state: revGeo.state,
-        district: revGeo.district,
-        mandal: revGeo.mandal,
-        village: revGeo.city,
-        pin: revGeo.pinCode,
-        provider: revGeo.provider,
+        state: mergedState,
+        district: mergedDistrict,
+        mandal: mergedMandal,
+        village: mergedCity,
+        pin: mergedPin,
+        provider: mergedProvider,
       },
       postalValidation: postalValidationMsg,
       matchLocationInput: {

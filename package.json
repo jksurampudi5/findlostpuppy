@@ -13,6 +13,7 @@
   "dependencies": {
     "@capacitor/core": "^8.5.2",
     "@capacitor/geolocation": "^8.2.2",
+    "@capgo/capacitor-nativegeocoder": "^8.0.48",
     "@supabase/supabase-js": "^2.116.0",
     "@turf/boolean-point-in-polygon": "^7.4.0",
     "@turf/helpers": "^7.4.0",
