@@ -13,7 +13,7 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
-  Edit3,
+
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -593,17 +593,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <Landmark size={20} />
                     </div>
                     <span className="loc-gsq-label">State</span>
-                    <button
-                      type="button"
-                      className="loc-gsq-edit-hint"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingField(editingField === 'state' ? null : 'state');
-                      }}
-                      aria-label="Edit State"
-                    >
-                      {editingField === 'state' ? <Check size={13} /> : <Edit3 size={13} />}
-                    </button>
                   </div>
 
                   {editingField === 'state' ? (
@@ -641,17 +630,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <Building2 size={20} />
                     </div>
                     <span className="loc-gsq-label">District</span>
-                    <button
-                      type="button"
-                      className="loc-gsq-edit-hint"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingField(editingField === 'district' ? null : 'district');
-                      }}
-                      aria-label="Edit District"
-                    >
-                      {editingField === 'district' ? <Check size={13} /> : <Edit3 size={13} />}
-                    </button>
                   </div>
 
                   {editingField === 'district' ? (
@@ -690,17 +668,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <MapPin size={20} />
                     </div>
                     <span className="loc-gsq-label">Mandal</span>
-                    <button
-                      type="button"
-                      className="loc-gsq-edit-hint"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingField(editingField === 'mandal' ? null : 'mandal');
-                      }}
-                      aria-label="Edit Mandal"
-                    >
-                      {editingField === 'mandal' ? <Check size={13} /> : <Edit3 size={13} />}
-                    </button>
                   </div>
 
                   {editingField === 'mandal' ? (
@@ -745,17 +712,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <Home size={20} />
                     </div>
                     <span className="loc-gsq-label">Home Base</span>
-                    <button
-                      type="button"
-                      className="loc-gsq-edit-hint"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingField(editingField === 'city' ? null : 'city');
-                      }}
-                      aria-label="Edit Home Base"
-                    >
-                      {editingField === 'city' ? <Check size={13} /> : <Edit3 size={13} />}
-                    </button>
                   </div>
 
                   {editingField === 'city' ? (
@@ -820,7 +776,6 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                           title="Click to edit PIN code"
                         >
                           <span>{pinCode ? `PIN ${pinCode}` : '+ Add PIN'}</span>
-                          <Edit3 size={10} style={{ opacity: 0.6 }} />
                         </button>
                       )}
                       {lookingUpPin && (
