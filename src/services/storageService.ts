@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import { consentService } from './consentService';
 import { supabaseSyncService } from './supabaseSyncService';
+import { firebaseSyncService } from './firebaseSyncService';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
@@ -1385,8 +1386,11 @@ class StorageService {
             r.dog?.id !== targetPetId)
       );
 
-      // Background sync to Supabase
+      // Background sync to Supabase and Firebase
       supabaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Supabase Sync Pet Notice]:', e));
+      if (firebaseSyncService.isConfigured()) {
+        firebaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
+      }
 
       return canonicalPet;
     });
@@ -1814,10 +1818,15 @@ class StorageService {
         }
       }
 
-      // Background sync to Supabase
+      // Background sync to Supabase and Firebase
       supabaseSyncService
         .syncOwnerProfile(profile, profile.userId || profile.id)
         .catch((e) => console.warn('[Supabase Sync Owner Notice]:', e));
+      if (firebaseSyncService.isConfigured()) {
+        firebaseSyncService
+          .syncOwnerProfile(profile, profile.userId || profile.id)
+          .catch((e) => console.warn('[Firebase Sync Owner Notice]:', e));
+      }
 
       return profile;
     });
