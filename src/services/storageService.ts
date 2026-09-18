@@ -15,7 +15,7 @@ import type {
 import { consentService } from './consentService';
 import { supabaseSyncService } from './supabaseSyncService';
 import { authService } from './authService';
-import { resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
+import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
 import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
@@ -70,116 +70,6 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     },
     sightingCount: 1,
     createdAt: '2026-09-08T16:30:00.505Z',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'LOST-1788807276098',
-    dogId: 'dog-abullu-01',
-    ownerId: 'owner-krishna-abullu',
-    dog: {
-      id: 'dog-abullu-01',
-      ownerId: 'owner-krishna-abullu',
-      name: 'abullu',
-      breed: 'street dog • Companion Pet',
-      gender: 'Male',
-      age: '2 years',
-      size: 'Medium (10-25kg)',
-      color: 'Brown & White with tan spots',
-      distinguishingMarks: 'Friendly village companion dog, responsive to whistling, tan spots on back',
-      collarInfo: 'None',
-      primaryPhoto: abulluImg,
-      photos: [abulluImg],
-      createdAt: '2026-09-07T18:00:00.000Z',
-    },
-    ownerApproximateLocation: 'Palangi, Undrajavaram, West Godavari',
-    lastKnownLocation: 'Near Palangi, Undrajavaram (Mandal), West Godavari, Andhra Pradesh',
-    lastKnownLatitude: 16.8123,
-    lastKnownLongitude: 81.6543,
-    dateLost: '2026-09-07',
-    timeLost: '06:00 PM',
-    additionalNotes: 'Very friendly and calm companion dog. Please inform Krishna immediately if spotted anywhere nearby!',
-    status: 'LOST',
-    contactMechanism: {
-      showPhone: true,
-      showEmail: true,
-      safeContactPhone: '8639452948',
-      safeContactEmail: 'krishna.owner@findlostpuppy.org',
-      contactNote: 'Please reach out immediately if spotted!',
-    },
-    sightingCount: 1,
-    createdAt: '2026-09-07T18:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'LOST-CHARLIE-01',
-    dogId: 'dog-charlie-01',
-    ownerId: 'owner-charlie-rescuers',
-    dog: {
-      id: 'dog-charlie-01',
-      ownerId: 'owner-charlie-rescuers',
-      name: 'charlie',
-      breed: 'Indian Pariah Dog • Rescued Pup',
-      gender: 'Male',
-      age: '1.5 years',
-      size: 'Medium (10-25kg)',
-      color: 'Light Tan & White',
-      distinguishingMarks: 'Dark patch over left ear, active and energetic',
-      collarInfo: 'Red collar',
-      primaryPhoto: abulluImg,
-      photos: [abulluImg],
-      createdAt: '2026-09-07T14:00:00.000Z',
-    },
-    ownerApproximateLocation: 'Tanuku Road, Undrajavaram, West Godavari',
-    lastKnownLocation: 'Near Undrajavaram Main Junction, West Godavari',
-    dateLost: '2026-09-07',
-    timeLost: '02:00 PM',
-    additionalNotes: 'Neighbors reported sighting Charlie near the junction. Volunteers actively monitoring area.',
-    status: 'LOST',
-    contactMechanism: {
-      showPhone: true,
-      showEmail: true,
-      safeContactPhone: '8639452948',
-      safeContactEmail: 'community.care@findlostpuppy.org',
-      contactNote: 'Volunteer search team on site.',
-    },
-    sightingCount: 3,
-    createdAt: '2026-09-07T14:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'LOST-BRUNO-WESTGODAVARI',
-    dogId: 'dog-bruno-01',
-    ownerId: 'owner-bruno-family',
-    dog: {
-      id: 'dog-bruno-01',
-      ownerId: 'owner-bruno-family',
-      name: 'Bruno',
-      breed: 'Golden Labrador • Companion Pet',
-      gender: 'Male',
-      age: '3 years',
-      size: 'Large (25-45kg)',
-      color: 'Golden Cream',
-      distinguishingMarks: 'Friendly, playful, golden coat with white chest patch',
-      collarInfo: 'Green reflective collar',
-      primaryPhoto: abulluImg,
-      photos: [abulluImg],
-      createdAt: '2026-09-05T12:00:00.000Z',
-    },
-    ownerApproximateLocation: 'Undrajavaram, West Godavari, Andhra Pradesh',
-    lastKnownLocation: 'Palangi Village, West Godavari',
-    dateLost: '2026-09-05',
-    timeLost: '04:30 PM',
-    additionalNotes: 'Safe with loving family through neighborhood vigilance and community care!',
-    status: 'SAFE',
-    contactMechanism: {
-      showPhone: true,
-      showEmail: true,
-      safeContactPhone: '8639452948',
-      safeContactEmail: 'bruno.family@findlostpuppy.org',
-      contactNote: 'Safe at home with family in West Godavari.',
-    },
-    sightingCount: 2,
-    createdAt: '2026-09-05T16:30:00.000Z',
     updatedAt: new Date().toISOString(),
   },
 ];
@@ -1804,7 +1694,7 @@ class StorageService {
     return !!this.getLatestReportByUserId(userId, email) || this.hasSkippedReport(userId);
   }
 
-  saveOwnerProfile(profile: OwnerProfile): OwnerProfile {
+  saveOwnerProfile(profile: OwnerProfile, forceRemovePhoto = false): OwnerProfile {
     return this.executeTransaction(() => {
       const cleanEmail = profile.email?.trim().toLowerCase();
       const rawUserId = (profile.userId || profile.id || '').replace(/^owner-/, '');
@@ -1820,20 +1710,29 @@ class StorageService {
           (cleanEmail && p.email && p.email.trim().toLowerCase() === cleanEmail)
       );
 
-      // CRITICAL PRESERVATION: Never overwrite an existing photo with undefined or empty string!
-      const activeUser = authService.getCurrentUser();
-      let preservedPhoto = profile.photo?.trim();
-      if (!preservedPhoto) {
-        if (index >= 0 && this.profiles[index]?.photo) {
-          preservedPhoto = this.profiles[index].photo;
-        } else if (cleanEmail) {
-          const matchingByEmail = this.profiles.find(
-            (p) => p.email && p.email.trim().toLowerCase() === cleanEmail && p.photo
-          );
-          if (matchingByEmail?.photo) preservedPhoto = matchingByEmail.photo;
-        }
-        if (!preservedPhoto && activeUser?.avatar) {
-          preservedPhoto = activeUser.avatar;
+      // Cleanse any pet photo from owner profile
+      if (isPetPhotoUrl(profile.photo)) {
+        profile.photo = undefined;
+      }
+
+      let finalPhoto: string | undefined;
+      if (forceRemovePhoto) {
+        finalPhoto = undefined;
+      } else if (profile.photo && !isPetPhotoUrl(profile.photo)) {
+        finalPhoto = profile.photo.trim();
+      } else if (index >= 0 && this.profiles[index]?.photo && !isPetPhotoUrl(this.profiles[index]?.photo)) {
+        finalPhoto = this.profiles[index].photo;
+      } else if (cleanEmail) {
+        const matchingByEmail = this.profiles.find(
+          (p) => p.email && p.email.trim().toLowerCase() === cleanEmail && p.photo && !isPetPhotoUrl(p.photo)
+        );
+        if (matchingByEmail?.photo) finalPhoto = matchingByEmail.photo;
+      }
+
+      if (!finalPhoto && !forceRemovePhoto) {
+        const activeUser = authService.getCurrentUser();
+        if (activeUser?.avatar && !isPetPhotoUrl(activeUser.avatar)) {
+          finalPhoto = activeUser.avatar;
         }
       }
 
@@ -1841,13 +1740,13 @@ class StorageService {
         this.profiles[index] = {
           ...this.profiles[index],
           ...profile,
-          photo: preservedPhoto || this.profiles[index].photo || undefined,
+          photo: finalPhoto,
           updatedAt: new Date().toISOString(),
         };
       } else {
         this.profiles.push({
           ...profile,
-          photo: preservedPhoto || undefined,
+          photo: finalPhoto,
           updatedAt: new Date().toISOString(),
         });
       }
@@ -2322,17 +2221,40 @@ class StorageService {
 
         if (Array.isArray(remoteData.profiles) && remoteData.profiles.length > 0) {
           const prMap = new Map<string, OwnerProfile>();
+          // Deep non-destructive merge: retain local rich structured location data
+          for (const localPr of this.profiles) {
+            const key = localPr.userId || localPr.id;
+            if (key) prMap.set(key, { ...localPr });
+          }
           for (const pr of remoteData.profiles) {
             if (pr && (pr.userId || pr.id)) {
               const key = pr.userId || pr.id;
-              prMap.set(key, pr);
-            }
-          }
-          // Retain un-synced user profiles
-          for (const pr of this.profiles) {
-            const key = pr.userId || pr.id;
-            if (key && !prMap.has(key)) {
-              prMap.set(key, pr);
+              const existing = prMap.get(key);
+              if (existing) {
+                prMap.set(key, {
+                  ...existing,
+                  ...pr,
+                  fullName: pr.fullName || existing.fullName,
+                  phone: pr.phone || existing.phone,
+                  state: existing.state || pr.state,
+                  district: existing.district || pr.district,
+                  mandalOrMunicipality: existing.mandalOrMunicipality || pr.mandalOrMunicipality,
+                  city: existing.city || pr.city,
+                  pinCode: existing.pinCode || pr.pinCode,
+                  stateCode: existing.stateCode || pr.stateCode,
+                  districtCode: existing.districtCode || pr.districtCode,
+                  subDistrictCode: existing.subDistrictCode || pr.subDistrictCode,
+                  latitude: existing.latitude || pr.latitude,
+                  longitude: existing.longitude || pr.longitude,
+                  approximateArea: existing.approximateArea || pr.approximateArea,
+                  photo: (!isPetPhotoUrl(pr.photo) && pr.photo) || (!isPetPhotoUrl(existing.photo) && existing.photo) || undefined,
+                });
+              } else {
+                prMap.set(key, {
+                  ...pr,
+                  photo: isPetPhotoUrl(pr.photo) ? undefined : pr.photo,
+                });
+              }
             }
           }
           this.profiles = Array.from(prMap.values());
@@ -2387,7 +2309,7 @@ class StorageService {
         email: p.email,
         phone: p.phone || '',
         address: p.address || '',
-        photo: p.avatar_url,
+        photo: isPetPhotoUrl(p.avatar_url) ? undefined : p.avatar_url,
         preferredContact: 'phone',
         hasLocationConsent: true,
         updatedAt: p.created_at || new Date().toISOString(),
@@ -2398,7 +2320,7 @@ class StorageService {
         name: sanitizeName(p.name, p.email),
         email: p.email,
         phone: p.phone,
-        avatar: p.avatar_url,
+        avatar: isPetPhotoUrl(p.avatar_url) ? undefined : p.avatar_url,
         isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
         createdAt: p.created_at || new Date().toISOString(),
       }));
@@ -2510,6 +2432,67 @@ class StorageService {
       console.warn('Failed to pull from Supabase:', e);
       return false;
     }
+  }
+
+  /**
+   * Resets all mock/test community records and starts completely fresh with 0 stale data.
+   * Retains only the memorial/tribute dog Sonu (#1788885000505) as mandated by repo invariant.
+   */
+  async clearAllAdminTestData(): Promise<boolean> {
+    this.executeTransaction(() => {
+      // 1. Keep only memorial dog Sonu
+      const sonuReport = COMMUNITY_BASELINE_REPORTS.find((r) => r.id === 'LOST-1788885000505');
+      this.reports = sonuReport ? [sonuReport] : [];
+      this.pets = sonuReport ? [sonuReport.dog] : [];
+      this.sightings = [];
+      this.profiles = [];
+      this.userReports = [];
+      this.listingReports = [];
+      this.skippedPetUserIds = [];
+      this.skippedReportUserIds = [];
+      this.suggestions = [];
+
+      // Clean local storage keys
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(REPORTS_KEY, JSON.stringify(this.reports));
+        localStorage.setItem(PETS_KEY, JSON.stringify(this.pets));
+        localStorage.setItem(SIGHTINGS_KEY, JSON.stringify([]));
+        localStorage.setItem(PROFILES_KEY, JSON.stringify([]));
+        localStorage.setItem(USER_REPORTS_KEY, JSON.stringify([]));
+        localStorage.setItem(LISTING_REPORTS_KEY, JSON.stringify([]));
+        localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify([]));
+        localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify([]));
+        localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify([]));
+
+        // Clean user avatar if it's a pet photo
+        try {
+          const rawUser = localStorage.getItem('findlostpuppy_active_user');
+          if (rawUser) {
+            const u = JSON.parse(rawUser);
+            if (isPetPhotoUrl(u.avatar)) {
+              delete u.avatar;
+              localStorage.setItem('findlostpuppy_active_user', JSON.stringify(u));
+            }
+          }
+        } catch {}
+      }
+
+      this.commitAllStorage();
+    });
+
+    // Wipe Supabase cloud tables to ensure 0 stale test records
+    try {
+      await Promise.allSettled([
+        supabaseSyncService.deletePetAsAdmin('*'),
+      ]);
+    } catch {}
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+      window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated'));
+    }
+
+    return true;
   }
 
   /**

@@ -23,7 +23,7 @@ import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
 import type { OwnerProfile, LocationLocality } from '../types';
-import { getDogDisplayName } from '../utils/dogPhotoHelper';
+import { getDogDisplayName, isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
@@ -408,7 +408,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       userId: user.id,
       fullName: existingProfile?.fullName || user.name || 'Pet Parent',
       phone: existingProfile?.phone || user.phone || '',
-      photo: existingProfile?.photo || user.avatar || undefined,
+      photo: (!isPetPhotoUrl(existingProfile?.photo) ? existingProfile?.photo : undefined) || (!isPetPhotoUrl(user.avatar) ? user.avatar : undefined),
       email: user.email,
       state: state.trim(),
       district: district.trim(),
@@ -667,12 +667,19 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     alignItems: 'center',
                     gap: '10px',
                     backgroundColor:
-                      detectionConfidence === 'HIGH' ? '#F0FDF4' : detectionConfidence === 'MEDIUM' ? '#EFF6FF' : '#FFFBEB',
+                      detectionConfidence === 'HIGH'
+                        ? 'rgba(34, 197, 94, 0.14)'
+                        : detectionConfidence === 'MEDIUM'
+                        ? 'rgba(59, 130, 246, 0.14)'
+                        : 'rgba(255, 121, 0, 0.14)',
                     border: `1.5px solid ${
-                      detectionConfidence === 'HIGH' ? '#86EFAC' : detectionConfidence === 'MEDIUM' ? '#93C5FD' : '#FCD34D'
+                      detectionConfidence === 'HIGH'
+                        ? 'rgba(34, 197, 94, 0.65)'
+                        : detectionConfidence === 'MEDIUM'
+                        ? 'rgba(59, 130, 246, 0.65)'
+                        : 'rgba(255, 121, 0, 0.65)'
                     }`,
-                    color:
-                      detectionConfidence === 'HIGH' ? '#166534' : detectionConfidence === 'MEDIUM' ? '#1E40AF' : '#92400E',
+                    color: '#FFFFFF',
                   }}
                 >
                   <ShieldCheck size={18} style={{ flexShrink: 0 }} />

@@ -20,7 +20,7 @@ import { storageService } from '../services/storageService';
 import { authService } from '../services/authService';
 import { storageBucketService } from '../services/storageBucketService';
 import type { DogGender, DogSize, DogProfile } from '../types';
-import { handleDogImageError, getDogPhotoUrl } from '../utils/dogPhotoHelper';
+import { handleDogImageError, getDogPhotoUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import {
   searchDogBreeds,
@@ -269,14 +269,14 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 // 2. user.avatar
                 // 3. storageService.getOwnerProfileByEmail(user?.email)?.photo
                 // 4. storageService.getOwnerProfileByUserId(existingPet?.ownerId)?.photo
-                // 5. authService.getCurrentUser()?.avatar
-                const ownerPhoto =
+                const rawOwnerPhoto =
                   ownerProfile?.photo ||
                   user?.avatar ||
                   (user?.email ? storageService.getOwnerProfileByEmail(user.email)?.photo : '') ||
                   (existingPet?.ownerId ? storageService.getOwnerProfileByUserId(existingPet.ownerId)?.photo : '') ||
                   authService.getCurrentUser()?.avatar ||
                   '';
+                const ownerPhoto = isPetPhotoUrl(rawOwnerPhoto) ? '' : rawOwnerPhoto;
 
                 const ownerName =
                   sanitizePersonName(ownerProfile?.fullName || user?.name, user?.email || ownerProfile?.email) ||

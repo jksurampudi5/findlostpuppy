@@ -17508,14 +17508,27 @@ button:disabled {
 }
 
 /* ==========================================================================
-   15. OWNER PROFILE: AMBIENT ORANGE LIGHT & SHINY GLOWING CONTAINER
-   Adds luminous halo around the form and a glowing shiny orange border
+   15. OBSIDIAN TITANIUM: AMBIENT ORANGE LIGHT & SHINY GLOWING CONTAINERS
+   Adds luminous halo around the canvas and glowing shiny orange borders
+   across Owner, Location, Pet, Emergency Alert, and Admin components
    ========================================================================== */
 
 /* Ambient light aura around the form canvas & entire viewport */
 .app-main-viewport:has(.owner-profile-page),
+.app-main-viewport:has(.location-onboarding-card),
+.app-main-viewport:has(.pet-combined-card),
+.app-main-viewport:has(.wizard-container),
+.app-main-viewport:has(.admin-dashboard-container),
+.app-main-viewport:has(.consent-page-shell),
+.app-main-viewport:has(.auth-landing-page),
 .owner-profile-page,
-.onboarding-page:has(.owner-combined-card) {
+.location-onboarding-card,
+.onboarding-page-container,
+.onboarding-page,
+.report-wizard-page,
+.admin-dashboard-page,
+.auth-landing-page,
+.consent-page-shell {
   position: relative !important;
   min-height: calc(100vh - 60px) !important;
   background: 
@@ -17524,7 +17537,11 @@ button:disabled {
 }
 
 .owner-profile-page::before,
-.onboarding-page:has(.owner-combined-card)::before {
+.onboarding-page-container::before,
+.onboarding-page:has(.owner-combined-card)::before,
+.onboarding-page:has(.location-onboarding-card)::before,
+.onboarding-page:has(.pet-combined-card)::before,
+.report-wizard-page::before {
   content: '' !important;
   position: absolute !important;
   top: 8% !important;
@@ -17539,13 +17556,26 @@ button:disabled {
   z-index: 0 !important;
 }
 
-/* Shiny Luminous Glowing Container */
-.owner-combined-card {
+/* Shiny Luminous Glowing Container for ALL Onboarding & Admin Cards */
+.owner-combined-card,
+.location-onboarding-card,
+.location-preview-showcase,
+.pet-combined-card,
+.pet-profile-showcase,
+.auth-card,
+.consent-form-card,
+.wizard-card,
+.wizard-container .card,
+.report-wizard-page .card,
+.admin-table-card,
+.admin-stat-card,
+.admin-sync-card,
+.admin-header-card {
   position: relative !important;
   z-index: 1 !important;
-  max-width: 580px !important;
+  max-width: 680px !important;
   margin: 1.75rem auto 2.5rem !important;
-  padding: 2.75rem 2.25rem 2.25rem !important;
+  padding: 2.5rem 2.25rem 2.25rem !important;
   background: linear-gradient(
     155deg,
     rgba(36, 30, 25, 0.97) 0%,
@@ -17568,7 +17598,17 @@ button:disabled {
   transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, transform 0.3s ease !important;
 }
 
-.owner-combined-card:hover {
+.owner-combined-card:hover,
+.location-onboarding-card:hover,
+.location-preview-showcase:hover,
+.pet-combined-card:hover,
+.pet-profile-showcase:hover,
+.auth-card:hover,
+.consent-form-card:hover,
+.wizard-card:hover,
+.wizard-container .card:hover,
+.admin-table-card:hover,
+.admin-stat-card:hover {
   border-color: rgba(255, 140, 30, 0.90) !important;
   box-shadow: 
     0 0 80px -4px rgba(255, 121, 0, 0.55),
@@ -17579,8 +17619,16 @@ button:disabled {
     0 28px 76px rgba(0, 0, 0, 0.88) !important;
 }
 
-/* Polished metallic gleam across the top edge of the card */
-.owner-combined-card::before {
+/* Polished metallic gleam across the top edge of the cards */
+.owner-combined-card::before,
+.location-onboarding-card::before,
+.location-preview-showcase::before,
+.pet-combined-card::before,
+.pet-profile-showcase::before,
+.auth-card::before,
+.consent-form-card::before,
+.wizard-card::before,
+.admin-table-card::before {
   content: '' !important;
   position: absolute !important;
   top: 0 !important;
@@ -17598,9 +17646,8 @@ button:disabled {
 }
 
 /* Enhanced Glowing Avatar Ring */
-.owner-combined-card .owner-center-avatar-ring {
-  width: 148px !important;
-  height: 148px !important;
+.owner-combined-card .owner-center-avatar-ring,
+.family-avatar-card .family-avatar-img-wrap {
   border-radius: 50% !important;
   padding: 4px !important;
   background: linear-gradient(135deg, #FF9432 0%, #FF7900 50%, #D95D00 100%) !important;
@@ -17608,6 +17655,11 @@ button:disabled {
     0 0 30px rgba(255, 121, 0, 0.50),
     0 8px 24px rgba(0, 0, 0, 0.6) !important;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+}
+
+.owner-combined-card .owner-center-avatar-ring {
+  width: 148px !important;
+  height: 148px !important;
 }
 
 .owner-combined-card .owner-center-avatar-ring:hover {
@@ -17624,8 +17676,13 @@ button:disabled {
   box-shadow: 0 4px 16px rgba(255, 121, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
 }
 
-/* Input boxes with shiny orange subtle rim inside the card */
-.owner-combined-card .owner-modern-input-wrapper {
+/* Input boxes & Searchable Selects with shiny orange subtle rim */
+.owner-combined-card .owner-modern-input-wrapper,
+.location-onboarding-card .form-input-wrapper,
+.location-onboarding-card .searchable-select-trigger,
+.pet-combined-card .form-input-wrapper,
+.auth-card .form-input-wrapper,
+.wizard-container .form-input-wrapper {
   background: #0E1013 !important;
   border: 1.5px solid rgba(255, 121, 0, 0.28) !important;
   border-radius: 12px !important;
@@ -17634,24 +17691,47 @@ button:disabled {
 }
 
 .owner-combined-card .owner-modern-input-wrapper:focus-within,
-.owner-combined-card .owner-modern-input-wrapper:hover {
+.owner-combined-card .owner-modern-input-wrapper:hover,
+.location-onboarding-card .form-input-wrapper:focus-within,
+.location-onboarding-card .form-input-wrapper:hover,
+.location-onboarding-card .searchable-select-trigger:focus,
+.location-onboarding-card .searchable-select-trigger:hover,
+.pet-combined-card .form-input-wrapper:focus-within,
+.pet-combined-card .form-input-wrapper:hover,
+.auth-card .form-input-wrapper:focus-within,
+.auth-card .form-input-wrapper:hover,
+.wizard-container .form-input-wrapper:focus-within,
+.wizard-container .form-input-wrapper:hover {
   border-color: #FF7900 !important;
   box-shadow: 
     0 0 16px rgba(255, 121, 0, 0.32),
     inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
 }
 
-.owner-combined-card .owner-modern-input {
+.owner-combined-card .owner-modern-input,
+.location-onboarding-card input,
+.pet-combined-card input,
+.auth-card input,
+.wizard-container input {
   color: #FFFFFF !important;
   font-weight: 600 !important;
 }
 
 .owner-combined-card .owner-input-icon-prefix,
-.owner-combined-card .owner-input-badge-prefix {
+.owner-combined-card .owner-input-badge-prefix,
+.location-onboarding-card .form-input-prefix,
+.pet-combined-card .form-input-prefix {
   color: #FF9432 !important;
 }
 
 .owner-combined-card .owner-input-badge-prefix {
   background: rgba(255, 121, 0, 0.12) !important;
   border-right: 1px solid rgba(255, 121, 0, 0.25) !important;
+}
+
+/* GPS Detection Button Wrapper Glowing Accent */
+.location-onboarding-card .single-detect-action-wrap {
+  border: 1.5px solid rgba(255, 121, 0, 0.45) !important;
+  box-shadow: 0 0 20px rgba(255, 121, 0, 0.18), inset 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+  background: #111316 !important;
 }

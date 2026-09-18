@@ -58,6 +58,25 @@ export const resolveGenericMediaUrl = (url?: string | null): string => {
 };
 
 /**
+ * Detects whether a photo URL represents a pet image (bundled assets, pet bucket, dog IDs)
+ * Used to ensure pet images are NEVER accidentally assigned to human owner profiles.
+ */
+export const isPetPhotoUrl = (url?: string | null): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase();
+  return (
+    clean === sonuImg.toLowerCase() ||
+    clean === abulluImg.toLowerCase() ||
+    clean.includes('abullu') ||
+    clean.includes('sonu') ||
+    clean.includes('/pets/') ||
+    clean.includes('dog-') ||
+    clean.includes('missing-reports') ||
+    clean.includes('sightings')
+  );
+};
+
+/**
  * Dynamically resolves the dog's display name from pet profile or report
  */
 export const getDogDisplayName = (

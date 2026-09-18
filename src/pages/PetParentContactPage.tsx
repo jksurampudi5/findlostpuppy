@@ -10,6 +10,7 @@ import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
+import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -23,10 +24,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const initialCleanName = sanitizePersonName(existingProfile?.fullName || user?.name, user?.email || existingProfile?.email);
 
+  const rawInitialPhoto = existingProfile?.photo || user?.avatar || '';
+  const initialPhoto = isPetPhotoUrl(rawInitialPhoto) ? '' : rawInitialPhoto;
+
   const [fullName, setFullName] = useState(initialCleanName);
   const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<string>(existingProfile?.photo || user?.avatar || '');
+  const [photo, setPhoto] = useState<string>(initialPhoto);
   const [preferredContact, setPreferredContact] = useState<ContactMethod>(
     existingProfile?.preferredContact || 'phone'
   );
@@ -34,7 +38,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   const [savedSnapshot, setSavedSnapshot] = useState({
     name: initialCleanName,
     phone: existingProfile?.phone || user?.phone || '',
-    photo: existingProfile?.photo || user?.avatar || '',
+    photo: initialPhoto,
     contact: existingProfile?.preferredContact || 'phone',
   });
 
@@ -43,13 +47,19 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   // Sync when user or profile loads
   useEffect(() => {
     if (user) {
+      if (user.avatar && isPetPhotoUrl(user.avatar)) {
+        authService.updateCurrentUser({ avatar: undefined });
+      }
+
       const p = storageService.getOwnerProfileByUserId(user.id, user.email);
       if (p) {
         const cleanedName = sanitizePersonName(p.fullName, user.email || p.email);
         setFullName(cleanedName);
         if (p.phone) setPhone(p.phone);
-        const effectivePhoto = p.photo || user.avatar || '';
-        if (effectivePhoto) setPhoto(effectivePhoto);
+        const effectivePhoto = isPetPhotoUrl(p.photo)
+          ? ''
+          : p.photo || (!isPetPhotoUrl(user.avatar) ? user.avatar : '') || '';
+        setPhoto(effectivePhoto);
         if (p.preferredContact) setPreferredContact(p.preferredContact);
 
         setSavedSnapshot({
@@ -62,12 +72,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         const cleanedName = sanitizePersonName(user.name, user.email);
         setFullName(cleanedName);
         if (user.phone) setPhone(user.phone);
-        if (user.avatar) setPhoto(user.avatar);
+        const userAvatar = !isPetPhotoUrl(user.avatar) ? user.avatar : '';
+        if (userAvatar) setPhoto(userAvatar);
 
         setSavedSnapshot({
           name: cleanedName,
           phone: user.phone || '',
-          photo: user.avatar || '',
+          photo: userAvatar || '',
           contact: 'phone',
         });
       }
@@ -149,7 +160,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           photo: undefined,
           updatedAt: new Date().toISOString(),
         };
-        storageService.saveOwnerProfile(updated);
+        storageService.saveOwnerProfile(updated, true);
         refreshProgress();
       }
     }
@@ -197,7 +208,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       updatedAt: new Date().toISOString(),
     };
 
-    storageService.saveOwnerProfile(profile);
+    storageService.saveOwnerProfile(profile, !photo.trim());
     authService.updateCurrentUser({
       name: fullName.trim(),
       phone: cleanPhoneNumber,
