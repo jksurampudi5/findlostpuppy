@@ -23,88 +23,164 @@
   --touch-target-min: 48px;
 
   /* ========================================================================
-     "OBSIDIAN PERFORMANCE LUXURY" DESIGN SYSTEM TOKENS
+     "OBSIDIAN TITANIUM" PRODUCTION DESIGN SYSTEM
+     Materials: Obsidian Black + Dark Titanium + Platinum + Champagne Accent
      ======================================================================== */
 
-  /* BLACK SYSTEM */
-  --black-absolute: #050505;
-  --black-primary: #090A0B;
-  --black-secondary: #0D0F10;
+  /* 1. APP BACKGROUND (OBSIDIAN) */
+  --obsidian-950: #050506;
+  --obsidian-900: #08090A;
+  --obsidian-850: #0B0C0E;
 
-  /* SURFACES */
-  --surface-card: #101214;
-  --surface-elevated: #151719;
-  --surface-input: #191C1F;
+  /* 2. NORMAL SURFACES (DARK GRAPHITE) */
+  --surface-primary: #0D0F11;
+  --surface-secondary: #111316;
+  --surface-elevated: #15181B;
 
-  /* BORDERS */
-  --border-subtle: #24282C;
-  --border-highlight: #30353A;
+  /* 3. TITANIUM (FORMS & EDITABLE DATA-ENTRY) */
+  --titanium-deep: #181B1F;
+  --titanium: #20242A;
+  --titanium-elevated: #292E34;
+  --titanium-edge: #555C64;
+  --titanium-light: #AEB4BA;
+  --platinum: #D3D6D8;
 
-  /* TEXT */
-  --text-primary: #F5F3EE;
-  --text-secondary: #A5A8AC;
-  --text-muted: #70757A;
+  /* 4. BRAND ORANGE (SIGNATURE ACCENT & PRIMARY CTA) */
+  --orange-primary: #FF7900;
+  --orange-hover: #FF8A1E;
+  --orange-pressed: #E86500;
+  --orange-light: #FFA048;
+  --orange-subtle: rgba(255, 121, 0, 0.15);
+  --orange-gradient: linear-gradient(135deg, #FF9432 0%, #FF7900 50%, #E86500 100%);
 
-  /* TITANIUM */
-  --titanium: #A9ADB1;
-  --titanium-muted: #7C8186;
+  /* Backward Compatibility Aliases for Champagne Tokens */
+  --champagne: #FF7900;
+  --champagne-light: #FFA048;
+  --champagne-dark: #E86500;
 
-  /* PERFORMANCE ORANGE */
-  --orange-primary: #E86F18;
-  --orange-hover: #F47B20;
-  --orange-pressed: #C95B12;
+  /* 5. HIGH-CONTRAST READABLE TEXT (PREVENT BLURRY/DARK LABELS) */
+  --text-primary: #FFFFFF;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
 
-  /* CHAMPAGNE BRONZE */
-  --bronze-primary: #C6A15B;
-  --bronze-muted: #8D6B35;
-  --bronze-subtle: rgba(198, 161, 91, 0.30);
+  /* 6. BORDERS */
+  --border-subtle: #25292D;
+  --border-elevated: #34393F;
 
-  /* Surface Subtle Gradients (near-black luxury luminance separation) */
-  --bg-card-gradient: linear-gradient(180deg, #121416 0%, #0E1011 100%);
-  --bg-elevated-gradient: linear-gradient(180deg, #151719 0%, #111315 100%);
+  /* 7. SEMANTIC STATUS SYSTEM */
+  --color-safe: #16A34A;
+  --color-safe-bg: rgba(22, 163, 74, 0.15);
+  --color-safe-border: rgba(34, 197, 94, 0.35);
+  --color-safe-text: #86EFAC;
 
-  /* Backward Compatibility Aliases for Core App Framework */
-  --bg-main: var(--black-absolute);
-  --bg-secondary: var(--black-primary);
-  --bg-surface: var(--surface-card);
-  --bg-elevated: var(--surface-elevated);
-  --bg-interactive: var(--surface-input);
-  --bg-interactive-hover: #22262A;
+  --color-lost: #DC2626;
+  --color-lost-bg: rgba(220, 38, 38, 0.15);
+  --color-lost-border: rgba(239, 68, 68, 0.35);
+  --color-lost-text: #FCA5A5;
 
-  --border-focus: rgba(232, 111, 24, 0.50);
+  --color-amber: #F59E0B;
+  --color-amber-bg: rgba(245, 158, 11, 0.15);
+  --color-amber-border: rgba(245, 158, 11, 0.35);
+  --color-amber-text: #FDE68A;
 
-  --icon-primary: var(--titanium);
-  --icon-secondary: var(--titanium-muted);
-  --icon-action: var(--orange-primary);
-  --icon-bronze: var(--bronze-primary);
+  /* 8. MATERIAL COMPOSITIONS */
+  /* FORM CONTAINER: Dark Satin Titanium */
+  --bg-titanium-form: linear-gradient(
+    145deg,
+    #292D32 0%,
+    #202328 28%,
+    #181B1F 62%,
+    #111315 100%
+  );
+  --border-titanium-form: 1px solid rgba(174, 180, 186, 0.30);
+  --shadow-titanium-form:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.40),
+    0 16px 40px rgba(0, 0, 0, 0.30);
 
-  --bg-canvas: var(--black-absolute);
-  --bg-subtle: var(--black-primary);
-  --bg-warm-accent: var(--surface-input);
+  /* NORMAL CONTENT CARDS: Dark Graphite */
+  --bg-card-gradient: linear-gradient(
+    145deg,
+    #121416 0%,
+    #0C0E10 100%
+  );
+  --border-card: 1px solid #25292D;
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.22);
+
+  /* RECESSED INPUT MATERIAL */
+  --bg-input-recessed: #101214;
+  --border-input: 1px solid #3A3F45;
+  --shadow-input-recessed: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  --border-input-focus: #FF7900;
+  --shadow-input-focus: 0 0 0 3px rgba(255, 121, 0, 0.18), inset 0 2px 4px rgba(0, 0, 0, 0.35);
+
+  /* PRIMARY ACTION CTA: Signature Brand Orange */
+  --btn-primary-bg: linear-gradient(135deg, #FF9432 0%, #FF7900 50%, #E86500 100%);
+  --btn-primary-text: #FFFFFF;
+  --btn-primary-border: 1px solid rgba(255, 255, 255, 0.25);
+  --btn-primary-shadow: 0 4px 18px rgba(255, 121, 0, 0.35);
+
+  /* SECONDARY ACTION: Dark Graphite / Titanium */
+  --btn-secondary-bg: #171A1D;
+  --btn-secondary-border: 1px solid #353A3F;
+  --btn-secondary-text: #F8FAFC;
+
+  /* 9. BACKWARD COMPATIBILITY / FRAMEWORK BRIDGES */
+  --black-base: var(--obsidian-950);
+  --black-primary: var(--obsidian-900);
+  --black-secondary: var(--obsidian-850);
+  --black-absolute: var(--obsidian-950);
+  --bg-main: var(--obsidian-950);
+  --bg-secondary: var(--obsidian-900);
+  --bg-surface: var(--surface-primary);
+  --bg-elevated: var(--surface-secondary);
+  --bg-interactive: var(--bg-input-recessed);
+  --bg-canvas: var(--obsidian-950);
+  --bg-subtle: var(--obsidian-900);
+
+  --surface-card: var(--surface-primary);
+  --surface-input: var(--bg-input-recessed);
+
+  --titanium-input: var(--bg-input-recessed);
+  --titanium-surface: var(--titanium);
+  --titanium-highlight: var(--titanium-light);
+
+  --label-primary: #FFFFFF;
+  --label-helper: var(--text-muted);
+  --required-indicator: #FF7900;
+
+  --violet-primary: var(--orange-primary);
+  --violet-hover: var(--orange-hover);
+  --violet-pressed: var(--orange-pressed);
+  --violet-soft: var(--orange-light);
+  --violet-surface: var(--surface-secondary);
 
   --color-primary: var(--orange-primary);
   --color-primary-hover: var(--orange-hover);
   --color-primary-dark: var(--orange-pressed);
-  --color-primary-light: rgba(232, 111, 24, 0.12);
+  --color-primary-light: rgba(255, 121, 0, 0.15);
 
-  --color-amber-gold: var(--bronze-primary);
-  --color-amber-light: var(--bronze-subtle);
-  --color-amber-dark: var(--bronze-muted);
+  --color-amber-gold: var(--orange-primary);
+  --color-amber-light: rgba(245, 158, 11, 0.15);
+  --color-amber-dark: #B45309;
 
-  --color-sage: var(--surface-input);
-  --color-sage-hover: #22262A;
-  --color-sage-light: rgba(25, 28, 31, 0.75);
-  --color-sage-accent: var(--border-subtle);
+  --color-reunited: var(--color-safe);
+  --color-reunited-light: var(--color-safe-bg);
 
-  --color-lost: #DC2626;
-  --color-lost-light: rgba(220, 38, 38, 0.16);
-  --color-lost-glow: rgba(220, 38, 38, 0.25);
+  --icon-primary: var(--platinum);
+  --icon-secondary: var(--text-muted);
+  --icon-action: var(--orange-primary);
 
-  --color-sighted: #3B82F6;
-  --color-sighted-light: rgba(59, 130, 246, 0.16);
+  --color-amber-gold: var(--champagne);
+  --color-amber-light: rgba(245, 158, 11, 0.15);
+  --color-amber-dark: #B45309;
 
-  --color-reunited: #16A34A;
-  --color-reunited-light: rgba(22, 163, 74, 0.16);
+  --color-reunited: var(--color-safe);
+  --color-reunited-light: var(--color-safe-bg);
+
+  --icon-primary: var(--platinum);
+  --icon-secondary: var(--text-muted);
+  --icon-action: var(--champagne);
 
   --text-main: var(--text-primary);
   --text-light: #FFFFFF;
@@ -118,18 +194,18 @@
   /* Spacing & Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
   --radius-pill: 9999px;
-  --radius-bone-tab: 14px 20px 20px 14px;
+  --radius-bone-tab: 14px;
 
-  /* Controlled Non-Glowing Luxury Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.75);
-  --shadow-float: 0 16px 36px rgba(0, 0, 0, 0.85);
-  --shadow-glow-amber: 0 2px 8px rgba(232, 111, 24, 0.2);
+  /* Controlled Neutral Black Luxury Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 16px 36px rgba(0, 0, 0, 0.7);
+  --shadow-glow-amber: 0 2px 8px rgba(245, 158, 11, 0.2);
   --shadow-glow-red: 0 2px 8px rgba(220, 38, 38, 0.25);
 
   /* Transitions */
@@ -147,8 +223,8 @@
 
 html {
   font-family: var(--font-body);
-  color: var(--text-main);
-  background-color: var(--bg-canvas);
+  color: var(--text-primary, #F4F3EF);
+  background-color: var(--obsidian-950, #050506);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -167,12 +243,8 @@ body {
   overflow-x: hidden;
   max-width: 100vw;
   width: 100%;
-  background-color: var(--black-absolute, #050505);
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(232, 111, 24, 0.02) 0%, transparent 60%),
-    radial-gradient(circle at 85% 15%, rgba(36, 40, 44, 0.12) 0%, transparent 40%);
-  background-attachment: fixed;
-  color: var(--text-primary, #F5F3EE);
+  background-color: var(--obsidian-950, #050506);
+  color: var(--text-primary, #F4F3EF);
 }
 
 #root {
@@ -285,49 +357,54 @@ input, select, textarea {
 }
 
 .btn-primary {
-  background-color: var(--orange-primary, #E86F18);
-  color: #080808;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, #8B70FF 0%, #7453F5 52%, #6845E8 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 7px 20px rgba(108, 72, 232, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  font-weight: 700;
+  transition: all 180ms ease;
 }
 
 .btn-primary:hover {
-  background-color: var(--orange-hover, #F47B20);
-  color: #080808;
+  background: linear-gradient(135deg, #967EFF 0%, #7C5CFC 100%);
+  color: #FFFFFF;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(232, 111, 24, 0.2);
+  box-shadow: 0 9px 24px rgba(124, 92, 252, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .btn-primary:active {
-  background-color: var(--orange-pressed, #C95B12);
-  color: #080808;
+  background: #6847E8;
+  color: #FFFFFF;
   transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(108, 72, 232, 0.20);
 }
 
 .btn-secondary {
-  background-color: var(--surface-input, #191C1F);
-  color: var(--text-primary, #F5F3EE);
-  border: 1px solid var(--border-subtle, #24282C);
+  background-color: #17141C;
+  color: #DDD9E1;
+  border: 1px solid #34303B;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 180ms ease;
 }
 
 .btn-secondary:hover {
-  background-color: #22262A;
-  border-color: var(--border-highlight, #30353A);
-  color: var(--text-primary, #F5F3EE);
+  background-color: #1D1826;
+  border-color: rgba(124, 92, 252, 0.32);
+  color: #F5F3F7;
   transform: translateY(-1px);
 }
 
 .btn-outline {
   background-color: transparent;
-  color: var(--text-primary, #F5F3EE);
-  border: 1px solid var(--border-subtle, #24282C);
+  color: var(--text-primary, #F5F3F7);
+  border: 1px solid #34303B;
+  transition: all 180ms ease;
 }
 
 .btn-outline:hover {
-  border-color: var(--border-highlight, #30353A);
-  background-color: var(--surface-input, #191C1F);
-  color: var(--text-primary, #F5F3EE);
+  border-color: rgba(124, 92, 252, 0.40);
+  background-color: #17141C;
+  color: var(--text-primary, #F5F3F7);
 }
 
 .btn-ghost {
@@ -464,7 +541,7 @@ input, select, textarea {
 .form-label {
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--label-primary, #D5D2D8);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -472,13 +549,13 @@ input, select, textarea {
 }
 
 .form-label .required-tag {
-  color: var(--color-lost);
+  color: var(--required-indicator, #A892FF);
   margin-left: 0.25rem;
 }
 
 .form-label .optional-tag {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--label-helper, #85818A);
   font-weight: 500;
 }
 
@@ -488,45 +565,47 @@ input, select, textarea {
   min-height: var(--input-min-height, 48px);
   max-height: var(--input-max-height, 52px);
   padding: 0 var(--input-padding-x, 14px);
-  border: 1px solid var(--border-subtle, #24282C);
+  border: 1px solid #343941;
   border-radius: var(--input-radius, 14px);
-  background-color: var(--surface-input, #191C1F);
-  color: var(--text-primary, #F5F3EE);
+  background-color: var(--titanium-input, #111317);
+  color: var(--text-primary, #F5F3F7);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.38), 0 1px 0 rgba(255, 255, 255, 0.025);
   font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-textarea {
   width: 100%;
   min-height: 96px;
   padding: 12px var(--input-padding-x, 14px);
-  border: 1px solid var(--border-subtle, #24282C);
+  border: 1px solid #343941;
   border-radius: var(--input-radius, 14px);
-  background-color: var(--surface-input, #191C1F);
-  color: var(--text-primary, #F5F3EE);
+  background-color: var(--titanium-input, #111317);
+  color: var(--text-primary, #F5F3F7);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.38), 0 1px 0 rgba(255, 255, 255, 0.025);
   font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-input::placeholder, .form-textarea::placeholder {
-  color: var(--text-muted, #70757A);
+  color: var(--titanium-muted, #747B84);
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
-  border-color: rgba(232, 111, 24, 0.50);
-  box-shadow: none;
-  background-color: var(--surface-input, #191C1F);
-  color: var(--text-primary, #F5F3EE);
+  border-color: rgba(124, 92, 252, 0.70);
+  box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.09), inset 0 1px 3px rgba(0, 0, 0, 0.35);
+  background-color: var(--titanium-input, #111317);
+  color: var(--text-primary, #F5F3F7);
 }
 
 .form-hint {
   font-size: 0.825rem;
-  color: var(--text-muted);
+  color: var(--label-helper, #85818A);
   margin-top: 0.2rem;
 }
 
