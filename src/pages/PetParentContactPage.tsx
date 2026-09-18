@@ -239,8 +239,8 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   };
 
   return (
-    <div className="onboarding-page">
-      <div className="app-container onboarding-container">
+    <div className="onboarding-page owner-profile-page">
+      <div className="app-container onboarding-container owner-onboarding-container">
         <div className="onboarding-card card owner-theme-card owner-combined-card">
           <form onSubmit={handleSubmit} className="onboarding-form owner-combined-form">
             {/* 1. ENLARGED PROFILE PICTURE HERO (Unified, No Split Box) */}

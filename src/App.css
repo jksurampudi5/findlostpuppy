@@ -17506,3 +17506,152 @@ button:disabled {
   border: 1px solid rgba(220, 38, 38, 0.25) !important;
   box-shadow: 0 10px 30px rgba(220, 38, 38, 0.15) !important;
 }
+
+/* ==========================================================================
+   15. OWNER PROFILE: AMBIENT ORANGE LIGHT & SHINY GLOWING CONTAINER
+   Adds luminous halo around the form and a glowing shiny orange border
+   ========================================================================== */
+
+/* Ambient light aura around the form canvas & entire viewport */
+.app-main-viewport:has(.owner-profile-page),
+.owner-profile-page,
+.onboarding-page:has(.owner-combined-card) {
+  position: relative !important;
+  min-height: calc(100vh - 60px) !important;
+  background: 
+    radial-gradient(ellipse 1500px 950px at 50% 36%, rgba(255, 121, 0, 0.24) 0%, rgba(255, 121, 0, 0.10) 38%, rgba(26, 23, 22, 0.8) 68%, #0A0C0E 100%) !important;
+  overflow-x: hidden !important;
+}
+
+.owner-profile-page::before,
+.onboarding-page:has(.owner-combined-card)::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 8% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 820px !important;
+  max-width: 96vw !important;
+  height: 680px !important;
+  background: radial-gradient(circle, rgba(255, 121, 0, 0.32) 0%, rgba(255, 148, 50, 0.14) 45%, transparent 75%) !important;
+  filter: blur(65px) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* Shiny Luminous Glowing Container */
+.owner-combined-card {
+  position: relative !important;
+  z-index: 1 !important;
+  max-width: 580px !important;
+  margin: 1.75rem auto 2.5rem !important;
+  padding: 2.75rem 2.25rem 2.25rem !important;
+  background: linear-gradient(
+    155deg,
+    rgba(36, 30, 25, 0.97) 0%,
+    rgba(27, 28, 32, 0.98) 28%,
+    rgba(18, 20, 24, 0.99) 65%,
+    rgba(12, 13, 16, 1) 100%
+  ) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1.5px solid rgba(255, 121, 0, 0.65) !important;
+  border-radius: 26px !important;
+  /* Multi-layered shiny orange outer glow & polished rim */
+  box-shadow: 
+    0 0 60px -4px rgba(255, 121, 0, 0.45),
+    0 0 26px 1px rgba(255, 121, 0, 0.30),
+    inset 0 2px 0 rgba(255, 190, 100, 0.70),
+    inset 0 0 24px rgba(255, 121, 0, 0.08),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.6),
+    0 24px 64px rgba(0, 0, 0, 0.8) !important;
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, transform 0.3s ease !important;
+}
+
+.owner-combined-card:hover {
+  border-color: rgba(255, 140, 30, 0.90) !important;
+  box-shadow: 
+    0 0 80px -4px rgba(255, 121, 0, 0.55),
+    0 0 34px 2px rgba(255, 121, 0, 0.38),
+    inset 0 2px 0 rgba(255, 210, 130, 0.85),
+    inset 0 0 30px rgba(255, 121, 0, 0.12),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.6),
+    0 28px 76px rgba(0, 0, 0, 0.88) !important;
+}
+
+/* Polished metallic gleam across the top edge of the card */
+.owner-combined-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 8% !important;
+  right: 8% !important;
+  height: 2px !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 180, 80, 0.85) 50%,
+    transparent 100%
+  ) !important;
+  border-radius: 2px !important;
+  pointer-events: none !important;
+}
+
+/* Enhanced Glowing Avatar Ring */
+.owner-combined-card .owner-center-avatar-ring {
+  width: 148px !important;
+  height: 148px !important;
+  border-radius: 50% !important;
+  padding: 4px !important;
+  background: linear-gradient(135deg, #FF9432 0%, #FF7900 50%, #D95D00 100%) !important;
+  box-shadow: 
+    0 0 30px rgba(255, 121, 0, 0.50),
+    0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+}
+
+.owner-combined-card .owner-center-avatar-ring:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 
+    0 0 42px rgba(255, 121, 0, 0.70),
+    0 12px 30px rgba(0, 0, 0, 0.7) !important;
+}
+
+.owner-combined-card .owner-center-camera-btn {
+  background: linear-gradient(135deg, #FF9432 0%, #FF7900 60%, #E86500 100%) !important;
+  color: #FFFFFF !important;
+  border: 2.5px solid rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 4px 16px rgba(255, 121, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Input boxes with shiny orange subtle rim inside the card */
+.owner-combined-card .owner-modern-input-wrapper {
+  background: #0E1013 !important;
+  border: 1.5px solid rgba(255, 121, 0, 0.28) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.owner-combined-card .owner-modern-input-wrapper:focus-within,
+.owner-combined-card .owner-modern-input-wrapper:hover {
+  border-color: #FF7900 !important;
+  box-shadow: 
+    0 0 16px rgba(255, 121, 0, 0.32),
+    inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.owner-combined-card .owner-modern-input {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+.owner-combined-card .owner-input-icon-prefix,
+.owner-combined-card .owner-input-badge-prefix {
+  color: #FF9432 !important;
+}
+
+.owner-combined-card .owner-input-badge-prefix {
+  background: rgba(255, 121, 0, 0.12) !important;
+  border-right: 1px solid rgba(255, 121, 0, 0.25) !important;
+}
