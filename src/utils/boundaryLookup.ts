@@ -112,18 +112,41 @@ export async function findMandalByCoordinates(
         const rawSubDistrictName = props.subDistrictName || '';
         const matchedStateCode = props.stateCode || sCode;
 
-        // Cross-reference with canonical LGD hierarchy
-        const canonicalDistrict = locationService.getDistrict(matchedStateCode, rawDistrictName);
-        const finalDistrictName = canonicalDistrict?.districtName || rawDistrictName;
-        const finalDistrictCode = canonicalDistrict?.districtCode || props.districtCode || 0;
+        // Cross-reference with canonical LGD hierarchy using NAME-based lookup.
+        // Raw GeoJSON numeric codes are intentionally NEVER used as a fallback because
+        // they may belong to a different (legacy/pre-reorganisation) numbering scheme
+        // and will cause matchLocation() to silently return null on a code mismatch.
+        let canonicalDistrict = locationService.getDistrict(matchedStateCode, rawDistrictName);
 
         let canonicalSubDistrict;
         if (canonicalDistrict) {
           canonicalSubDistrict = locationService.getSubDistrict(canonicalDistrict.districtCode, rawSubDistrictName);
         }
 
+        // Cross-district fallback: handle state boundary reorganisations where the
+        // GeoJSON boundary still maps a mandal under the OLD district, but our LGD
+        // dataset already moved it to a NEW district (e.g. AP 2022 reorg: Vijayawada
+        // moved from Krishna → NTR). Search ALL districts in the state by name.
+        if (!canonicalSubDistrict) {
+          const allDistricts = locationService.getDistricts(matchedStateCode);
+          for (const dist of allDistricts) {
+            // Skip the district we already checked above
+            if (canonicalDistrict && dist.districtCode === canonicalDistrict.districtCode) continue;
+            const sub = locationService.getSubDistrict(dist.districtCode, rawSubDistrictName);
+            if (sub) {
+              canonicalSubDistrict = sub;
+              canonicalDistrict = dist; // authoritative owner in our LGD data
+              break;
+            }
+          }
+        }
+
+        const finalDistrictName = canonicalDistrict?.districtName || rawDistrictName;
+        const finalDistrictCode = canonicalDistrict?.districtCode ?? 0;
         const finalSubDistrictName = canonicalSubDistrict?.subDistrictName || rawSubDistrictName;
-        const finalSubDistrictCode = canonicalSubDistrict?.subDistrictCode || props.subDistrictCode || 0;
+        // Use 0 as sentinel (not raw GeoJSON code) so matchLocation() falls through
+        // to string-based matching if numeric lookup is somehow still needed.
+        const finalSubDistrictCode = canonicalSubDistrict?.subDistrictCode ?? 0;
 
         const stateName =
           canonicalDistrict?.stateName ||
