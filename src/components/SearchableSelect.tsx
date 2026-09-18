@@ -23,6 +23,8 @@ interface SearchableSelectProps {
   onCustomLocation?: (customName: string) => void;
   required?: boolean;
   className?: string;
+  autoOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -39,14 +41,33 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   onCustomLocation,
   required = false,
   className = '',
+  autoOpen = false,
+  onClose,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(autoOpen);
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  const closeDropdown = () => {
+    setIsOpen(false);
+    onClose?.();
+  };
+
+  useEffect(() => {
+    if (autoOpen) {
+      setIsOpen(true);
+      setSearch('');
+      setHighlightedIndex(0);
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoOpen]);
 
   // Selected Option
   const selectedOption = useMemo(() => {
@@ -76,8 +97,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
+      setIsOpen(true);
+    } else {
+      closeDropdown();
     }
-    setIsOpen(!isOpen);
   };
 
   // Click outside to close
@@ -87,7 +110,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
-        setIsOpen(false);
+        closeDropdown();
       }
     };
     if (isOpen) {
@@ -127,12 +150,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           handleSelect(filteredOptions[highlightedIndex]);
         } else if (allowCustom && search.trim() && onCustomLocation) {
           onCustomLocation(search.trim());
-          setIsOpen(false);
+          closeDropdown();
         }
         break;
       case 'Escape':
         e.preventDefault();
-        setIsOpen(false);
+        closeDropdown();
         break;
       default:
         break;
@@ -140,8 +163,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const handleSelect = (option: SelectOption) => {
-    onChange(option.value, option);
     setIsOpen(false);
+    onChange(option.value, option);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -206,7 +229,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {isOpen && (
         <div
           className="searchable-select-backdrop"
-          onClick={() => setIsOpen(false)}
+          onClick={closeDropdown}
         />
       )}
 

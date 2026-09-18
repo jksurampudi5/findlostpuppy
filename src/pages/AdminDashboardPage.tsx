@@ -156,6 +156,26 @@ export const AdminDashboardPage: React.FC = () => {
     reader.readAsText(file);
   };
 
+  // Reset all test data from Supabase & Local to start fresh
+  const [isWiping, setIsWiping] = useState(false);
+  const handleClearAllTestData = async () => {
+    const confirmed = window.confirm(
+      '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Supabase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
+    );
+    if (!confirmed) return;
+
+    setIsWiping(true);
+    try {
+      await storageService.clearAllAdminTestData();
+      loadAllAdminData();
+      showToast('🧹 Clean Slate Active! All test data wiped from Admin Portal & Supabase.', 'success');
+    } catch {
+      showToast('Failed to complete clean slate wipe.', 'error');
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
   // Actions on Pet & Report Status
   const handleToggleReportStatus = (reportId: string, currentStatus: ReportStatus) => {
     const nextStatus = currentStatus === 'LOST' ? 'SAFE' : 'LOST';
@@ -391,6 +411,22 @@ export const AdminDashboardPage: React.FC = () => {
                   style={{ display: 'none' }}
                 />
               </label>
+
+              <button
+                type="button"
+                onClick={handleClearAllTestData}
+                disabled={isWiping}
+                className="btn btn-outline btn-sm admin-wipe-btn"
+                style={{
+                  borderColor: 'rgba(239, 68, 68, 0.65)',
+                  color: '#EF4444',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                }}
+                title="Wipe all stale/test records from Supabase and Local Storage to start fresh"
+              >
+                <Trash2 size={15} />
+                <span>{isWiping ? 'Wiping...' : 'Start Fresh (Clear Stale Data)'}</span>
+              </button>
             </div>
           </div>
 
