@@ -34,10 +34,10 @@ cd android
 ./gradlew assembleDebug
 cd ..
 adb -s emulator-5554 install -r android/app/build/outputs/apk/debug/app-debug.apk
-adb -s emulator-5554 shell am start -n com.findlostpuppy.app.debug/com.findlostpuppy.app.MainActivity
+adb -s emulator-5554 shell am start -n om.findlostpuppy.app.debug/com.findlostpuppy.app.MainActivity
 ```
 
-Debug uses `com.findlostpuppy.app.debug`; the Play Store application keeps `com.findlostpuppy.app`. They have separate local data and can coexist. The emulator runs bundled files, so rebuild and reinstall to see later changes. Localhost updates automatically.
+Debug uses `om.findlostpuppy.app.debug`; the Play Store application keeps `om.findlostpuppy.app`. They have separate local data and can coexist. The emulator runs bundled files, so rebuild and reinstall to see later changes. Localhost updates automatically.
 
 Before release, also test the signed build on a physical phone and Android 15/16: system bars, keyboard visibility, back navigation, camera/photo selection, location permission denial and approval, sign-in, account deletion, and owner/pet/sighting flows. These are not covered by the local layout audit. Never use real public pet reports as test fixtures.
 
