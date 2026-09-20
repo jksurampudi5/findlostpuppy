@@ -134,6 +134,11 @@ export interface Sighting {
   date: string;
   time: string;
   location: string;
+  state?: string;
+  district?: string;
+  mandal?: string;
+  village?: string;
+  pinCode?: string;
   latitude?: number;
   longitude?: number;
   photo?: string;
@@ -223,4 +228,3 @@ export interface AppSuggestion {
   createdAt: string;
   status: 'NEW' | 'REVIEWED' | 'PLANNED' | 'COMPLETED';
 }
-
