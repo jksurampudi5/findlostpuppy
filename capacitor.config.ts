@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'om.findlostpuppy.app',
+  appId: 'com.findlostpuppy.app',
   appName: 'findlostpuppy',
   webDir: 'dist',
   server: {

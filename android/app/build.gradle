@@ -10,7 +10,7 @@ android {
     namespace = "com.findlostpuppy.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "om.findlostpuppy.app"
+        applicationId "com.findlostpuppy.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 10
