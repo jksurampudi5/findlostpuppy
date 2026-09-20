@@ -15,6 +15,7 @@ import {
   Fingerprint,
   Ruler,
   VenusAndMars,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -362,6 +363,11 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
   };
 
+  const handleExitToDashboard = () => {
+    setActiveOnboardingTab('dashboard');
+    navigate('/dashboard');
+  };
+
   const openTextModal = (field: 'name' | 'marks') => {
     setTextModalValue(field === 'name' ? dogName : distinguishingMarks);
     setActiveTextModal(field);
@@ -382,6 +388,15 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       <div className="app-container onboarding-container">
         {/* APPROVED OUTER CONTAINER - CSS & GLOW PRESERVED EXACTLY AS-IS */}
         <div className="onboarding-card card owner-theme-card pet-combined-card">
+          <button
+            type="button"
+            className="onboarding-exit-btn"
+            onClick={handleExitToDashboard}
+            aria-label="Exit pet details and go to dashboard"
+            title="Exit to dashboard"
+          >
+            <X size={19} />
+          </button>
           <div className="section-card-title-block">
             <h1>Pet Details</h1>
           </div>

@@ -6,7 +6,7 @@ import { consentService, type AcceptedFormsState } from '../services/consentServ
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { supabaseSyncService } from '../services/supabaseSyncService';
 
-export type OnboardingTab = 'owner' | 'location' | 'dog' | 'pet' | 'report' | 'dashboard' | 'completed';
+export type OnboardingTab = 'owner' | 'location' | 'choice' | 'dog' | 'pet' | 'report' | 'dashboard' | 'completed';
 
 interface AuthContextType {
   user: User | null;
@@ -73,9 +73,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setActiveOnboardingTab((prev) => {
         if (!hasOwner) return 'owner';
         if (!hasLoc) return 'location';
+        if (!hasDog && prev !== 'dog' && prev !== 'pet' && prev !== 'report' && prev !== 'dashboard') return 'choice';
         if (!hasDog) return 'dog';
         if (!hasReport) return 'report';
-        return prev === 'owner' || prev === 'location' || prev === 'dog' || prev === 'report' ? 'completed' : prev;
+        return prev === 'owner' || prev === 'location' || prev === 'choice' || prev === 'dog' || prev === 'report' ? 'completed' : prev;
       });
     } else {
       setHasCompletedOwner(false);

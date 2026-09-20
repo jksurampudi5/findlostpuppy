@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
@@ -249,10 +249,24 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleExitToDashboard = () => {
+    setActiveOnboardingTab('dashboard');
+    navigate('/dashboard');
+  };
+
   return (
     <div className="onboarding-page owner-profile-page">
       <div className="app-container onboarding-container owner-onboarding-container">
         <div className="onboarding-card card owner-theme-card owner-combined-card">
+          <button
+            type="button"
+            className="onboarding-exit-btn"
+            onClick={handleExitToDashboard}
+            aria-label="Exit owner details and go to dashboard"
+            title="Exit to dashboard"
+          >
+            <X size={19} />
+          </button>
           <div className="section-card-title-block">
             <h1>Owner Details</h1>
           </div>

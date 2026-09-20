@@ -10,6 +10,7 @@ import {
   Landmark,
   Check,
   ArrowRight,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -538,10 +539,24 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleExitToDashboard = () => {
+    setActiveOnboardingTab('dashboard');
+    navigate('/dashboard');
+  };
+
   return (
     <div className="onboarding-page-container">
       <div className="onboarding-card-wrapper">
         <div className="card onboarding-card location-onboarding-card">
+          <button
+            type="button"
+            className="onboarding-exit-btn"
+            onClick={handleExitToDashboard}
+            aria-label="Exit location and go to dashboard"
+            title="Exit to dashboard"
+          >
+            <X size={19} />
+          </button>
           <div className="section-card-title-block">
             <h1>Location</h1>
           </div>
@@ -696,7 +711,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                         onClick={handleProceedToPup}
                         className="btn btn-primary btn-lg continue-to-pup-btn"
                       >
-                        <span>Continue to Pup Profile</span>
+                        <span>Continue</span>
                         <ArrowRight size={18} />
                       </button>
                     </>
@@ -711,7 +726,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                         onClick={handleProceedToPup}
                         className="btn btn-primary btn-lg continue-to-pup-btn"
                       >
-                        <span>Continue to Pup Profile</span>
+                        <span>Continue</span>
                         <ArrowRight size={18} />
                       </button>
                     </>

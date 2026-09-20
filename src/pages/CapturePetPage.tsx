@@ -249,10 +249,24 @@ export const CapturePetPage: React.FC = () => {
     navigate('/dashboard');
   };
 
+  const handleExitToDashboard = () => {
+    stopCamera();
+    navigate('/dashboard');
+  };
+
   if (!user) {
     return (
       <div className="capture-pet-page">
         <section className="capture-pet-card">
+          <button
+            type="button"
+            className="onboarding-exit-btn"
+            onClick={handleExitToDashboard}
+            aria-label="Exit capture pet and go to dashboard"
+            title="Exit to dashboard"
+          >
+            <X size={19} />
+          </button>
           <h1>Capture Pet</h1>
           <p>Please sign in to submit a private sighting.</p>
         </section>
@@ -263,6 +277,15 @@ export const CapturePetPage: React.FC = () => {
   return (
     <div className="capture-pet-page">
       <section className="capture-pet-card">
+        <button
+          type="button"
+          className="onboarding-exit-btn"
+          onClick={handleExitToDashboard}
+          aria-label="Exit capture pet and go to dashboard"
+          title="Exit to dashboard"
+        >
+          <X size={19} />
+        </button>
         <div className="section-card-title-block">
           <h1>Capture Pet</h1>
         </div>
