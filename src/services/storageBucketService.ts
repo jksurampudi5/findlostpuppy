@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage, isFirebaseConfigured } from './firebaseConfig';
 
 export const PET_MEDIA_BUCKET = 'pet-media';
 export const MEDIA_QUEUE_KEY = 'findlostpuppy_media_queue_v1';
@@ -75,9 +76,7 @@ export const storageBucketService = {
    * Generates a public HTTPS URL for an object stored in pet-media
    */
   getPublicUrl(path: string): string {
-    if (!supabase) return '';
-    const { data } = supabase.storage.from(PET_MEDIA_BUCKET).getPublicUrl(path);
-    return data.publicUrl || '';
+    return path;
   },
 
   /**
@@ -91,8 +90,8 @@ export const storageBucketService = {
     fileOrBlob: File | Blob | string,
     expectedMime = 'image/jpeg'
   ): Promise<{ publicUrl: string; path: string } | null> {
-    if (!supabase || !isSupabaseConfigured()) {
-      console.warn('[storageBucketService] Supabase is not configured. Cannot upload media.');
+    if (!storage || !isFirebaseConfigured()) {
+      console.warn('[storageBucketService] Firebase Storage is not configured. Cannot upload media.');
       return null;
     }
 
@@ -119,25 +118,10 @@ export const storageBucketService = {
     }
 
     try {
-      const { data, error } = await supabase.storage
-        .from(PET_MEDIA_BUCKET)
-        .upload(storagePath, blob, {
-          contentType: finalMime,
-          upsert: false, // Strict: Never overwrite existing storage objects
-        });
-
-      if (error) {
-        console.error('[storageBucketService] Storage upload error:', error.message);
-        return null;
-      }
-
-      if (!data || !data.path) {
-        console.error('[storageBucketService] Upload succeeded but no path returned.');
-        return null;
-      }
-
-      const publicUrl = this.getPublicUrl(data.path);
-      return { publicUrl, path: data.path };
+      const targetRef = storageRef(storage, storagePath);
+      const uploadResult = await uploadBytes(targetRef, blob, { contentType: finalMime });
+      const publicUrl = await getDownloadURL(uploadResult.ref);
+      return { publicUrl, path: uploadResult.ref.fullPath };
     } catch (err: any) {
       console.error('[storageBucketService] Upload exception:', err);
       return null;

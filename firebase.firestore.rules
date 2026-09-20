@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'jksurampudi5@gmail.com';
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /profiles/{userId} {
+      allow read: if signedIn();
+      allow create, update: if owns(userId) && request.resource.data.email == request.auth.token.email;
+      allow delete: if owns(userId) || isAdmin();
+    }
+
+    match /pets/{userId} {
+      allow read: if signedIn();
+      allow create, update: if owns(userId) && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if owns(userId) || isAdmin();
+    }
+
+    match /missing_reports/{userId} {
+      allow read: if true;
+      allow create, update: if owns(userId) && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if owns(userId) || isAdmin();
+    }
+
+    match /sightings/{sightingId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.reporterUserId == request.auth.uid);
+    }
+
+    match /app_suggestions/{suggestionId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

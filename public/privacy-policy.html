@@ -57,8 +57,8 @@
       </ul>
 
       <h2>3. Data Storage and Architecture</h2>
-      <p>FindLostPuppy uses both local device/browser storage and cloud services. Certain application state, sessions, cached information and locally managed records may be stored in browser/device localStorage. Core account, profile, dog, missing-report and sighting information may also be synchronized to cloud infrastructure operated through Supabase.</p>
-      <p>Uploaded images are stored in the Supabase Storage bucket used by FindLostPuppy. The application also uses a community synchronization relay for public community listing data.</p>
+      <p>FindLostPuppy uses both local device/browser storage and cloud services. Certain application state, sessions, cached information and locally managed records may be stored in browser/device localStorage. Core account, profile, dog, missing-report and sighting information may also be synchronized to cloud infrastructure operated through Firebase.</p>
+      <p>Uploaded images are stored in the Firebase Storage bucket used by FindLostPuppy. The application also uses a community synchronization relay for public community listing data.</p>
       <p>FindLostPuppy is designed to display broad administrative areas such as Locality/Village, Mandal/Taluk, District and State rather than exposing a user's precise home address or exact GPS coordinates in public community views.</p>
 
       <h2>4. Information Sharing and Disclosure</h2>
@@ -71,7 +71,7 @@
       <h2>5. Third-Party Services</h2>
       <p>FindLostPuppy currently uses the following external services:</p>
       <ul>
-        <li><strong>Supabase:</strong> authentication, cloud database synchronization and image storage.</li>
+        <li><strong>Firebase:</strong> authentication, Firestore database synchronization and image storage.</li>
         <li><strong>OpenStreetMap Nominatim:</strong> reverse-geocoding when a user chooses device-based area detection. GPS coordinates may be sent to the service for this lookup.</li>
         <li><strong>Postal Pincode API:</strong> PIN-code lookup used to populate Indian administrative/locality information. A user-entered six-digit PIN code may be sent for the lookup.</li>
         <li><strong>KVDB.io:</strong> community synchronization relay used for public community listing data.</li>
@@ -89,7 +89,7 @@
       <h2>8. Account Deletion, Retention and Data Management</h2>
       <p>FindLostPuppy provides an account deletion function under <strong>Settings → Delete Account</strong>. Account, profile, pet and missing-report records maintained by the application are removed from the application's local data and associated cloud database records as part of account deletion.</p>
       <p>Some sighting records may require administrative handling. Certain moderation/security information may be retained where reasonably necessary to prevent abuse, protect the service, resolve disputes or comply with legal obligations.</p>
-      <p><strong>Important:</strong> The current application does not automatically remove every previously uploaded image object from the Supabase Storage bucket when an account is deleted. Therefore, cloud-stored media may remain after database records are removed until separately deleted or otherwise managed. We do not represent account deletion as an immediate guarantee that every copy of every uploaded media object has been erased.</p>
+      <p><strong>Important:</strong> The current application does not automatically remove every previously uploaded image object from the Firebase Storage bucket when an account is deleted. Therefore, cloud-stored media may remain after database records are removed until separately deleted or otherwise managed. We do not represent account deletion as an immediate guarantee that every copy of every uploaded media object has been erased.</p>
 
       <h2>9. Your Choices and Rights</h2>
       <ul>

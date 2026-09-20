@@ -16,6 +16,7 @@ import type {
   DogProfile,
   LostReport,
   Sighting,
+  AppSuggestion,
 } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
@@ -55,6 +56,45 @@ export const firebaseSyncService = {
       syncedSightingsCount: lastSyncCounts.sightings,
       errorMessage: lastSyncError,
     };
+  },
+
+  async syncUserProfile(user: Partial<OwnerProfile> & { id: string; email: string; name?: string; avatar?: string; phone?: string; createdAt?: string }): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const cleanUserId = (user.id || '').replace(/^owner-/, '');
+      if (!cleanUserId) return false;
+
+      let ownerAvatar = user.avatar || user.photo || '';
+      if (ownerAvatar && isPetPhotoUrl(ownerAvatar)) ownerAvatar = '';
+      if (ownerAvatar?.startsWith('data:') && storage) {
+        const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
+        const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
+        ownerAvatar = await getDownloadURL(uploadRes.ref);
+      }
+
+      await setDoc(doc(db, 'profiles', cleanUserId), {
+        id: cleanUserId,
+        userId: cleanUserId,
+        fullName: user.fullName || user.name || user.email.split('@')[0],
+        email: user.email.toLowerCase().trim(),
+        phone: user.phone || '',
+        photo: ownerAvatar || null,
+        preferredContact: user.preferredContact || 'phone',
+        address: user.address || '',
+        state: user.state || '',
+        district: user.district || '',
+        mandalOrMunicipality: user.mandalOrMunicipality || '',
+        city: user.city || '',
+        pinCode: user.pinCode || '',
+        updatedAt: new Date().toISOString(),
+        createdAt: user.createdAt || new Date().toISOString(),
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] syncUserProfile error:', err);
+      lastSyncError = err?.message || 'Error syncing user profile to Firebase';
+      return false;
+    }
   },
 
   /**
@@ -157,9 +197,10 @@ export const firebaseSyncService = {
         }
       }
 
-      const docRef = doc(db, 'pets', cleanPetId);
+      const docRef = doc(db, 'pets', cleanOwnerId || cleanPetId);
       const payload: Record<string, any> = {
-        id: cleanPetId,
+        id: cleanOwnerId || cleanPetId,
+        petId: cleanPetId,
         ownerId: cleanOwnerId,
         name: pet.name,
         breed: pet.breed || 'Companion Pet',
@@ -208,9 +249,10 @@ export const firebaseSyncService = {
         }
       }
 
-      const docRef = doc(db, 'missing_reports', cleanReportId);
+      const docRef = doc(db, 'missing_reports', cleanOwnerId || cleanReportId);
       const payload: Record<string, any> = {
-        id: cleanReportId,
+        id: cleanOwnerId || cleanReportId,
+        reportId: cleanReportId,
         dogId: report.dogId || report.dog?.id || cleanReportId,
         ownerId: cleanOwnerId,
         petName: report.dog?.name || 'Lost Dog',
@@ -277,6 +319,13 @@ export const firebaseSyncService = {
         location: sighting.location || '',
         description: sighting.description || '',
         photo: photoUrl || null,
+        state: sighting.state || '',
+        district: sighting.district || '',
+        mandal: sighting.mandal || '',
+        village: sighting.village || '',
+        pinCode: sighting.pinCode || '',
+        latitude: sighting.latitude || null,
+        longitude: sighting.longitude || null,
         reporterName: sighting.reporterName || 'Anonymous',
         reporterPhone: sighting.reporterPhone || null,
         createdAt: sighting.createdAt || new Date().toISOString(),
@@ -359,6 +408,107 @@ export const firebaseSyncService = {
       return true;
     } catch (err: any) {
       console.warn('[Firebase] deletePetAsAdmin error:', err);
+      return false;
+    }
+  },
+
+  async deleteUserAsAdmin(userId: string): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      await Promise.all([
+        deleteDoc(doc(db, 'profiles', userId)),
+        deleteDoc(doc(db, 'pets', userId)),
+        deleteDoc(doc(db, 'missing_reports', userId)),
+      ]);
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] deleteUserAsAdmin error:', err);
+      return false;
+    }
+  },
+
+  async deleteUserDataByEmail(email: string): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const target = email.toLowerCase().trim();
+      const data = await this.fetchAllCloudData();
+      const profile = data?.profiles.find((p: any) => p.email?.toLowerCase?.().trim() === target);
+      if (!profile?.id) return false;
+      return this.deleteUserAsAdmin(profile.id);
+    } catch (err: any) {
+      console.warn('[Firebase] deleteUserDataByEmail error:', err);
+      return false;
+    }
+  },
+
+  async deleteLostReport(reportId: string, petId?: string): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const reportsSnap = await getDocs(collection(db, 'missing_reports'));
+      const sightingsSnap = await getDocs(collection(db, 'sightings'));
+      const deletePromises: Promise<any>[] = [];
+      reportsSnap.docs.forEach((d) => {
+        const data: any = d.data();
+        if (d.id === reportId || data.reportId === reportId || data.dogId === petId) deletePromises.push(deleteDoc(d.ref));
+      });
+      sightingsSnap.docs.forEach((d) => {
+        const data: any = d.data();
+        if (data.reportId === reportId || data.reportId === petId) deletePromises.push(deleteDoc(d.ref));
+      });
+      await Promise.allSettled(deletePromises);
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] deleteLostReport error:', err);
+      return false;
+    }
+  },
+
+  async deleteSightingAsAdmin(sightingId: string): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      await deleteDoc(doc(db, 'sightings', sightingId));
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] deleteSightingAsAdmin error:', err);
+      return false;
+    }
+  },
+
+  async updatePetSafetyStatus(petId: string, isLost: boolean): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const reportsSnap = await getDocs(collection(db, 'missing_reports'));
+      const updates = reportsSnap.docs
+        .filter((d) => {
+          const data: any = d.data();
+          return data.dogId === petId || data.petId === petId || d.id === petId;
+        })
+        .map((d) => setDoc(d.ref, { status: isLost ? 'LOST' : 'SAFE', updatedAt: new Date().toISOString() }, { merge: true }));
+      await Promise.allSettled(updates);
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] updatePetSafetyStatus error:', err);
+      return false;
+    }
+  },
+
+  async syncSuggestion(suggestion: AppSuggestion): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      let screenshotUrl = suggestion.screenshotData || '';
+      if (screenshotUrl.startsWith('data:') && storage) {
+        const suggestionRef = storageRef(storage, `suggestions/${suggestion.id}/screen_${Date.now()}.jpg`);
+        const uploadRes = await uploadString(suggestionRef, screenshotUrl, 'data_url');
+        screenshotUrl = await getDownloadURL(uploadRes.ref);
+      }
+      await setDoc(doc(db, 'app_suggestions', suggestion.id), {
+        ...suggestion,
+        screenshotData: screenshotUrl || null,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] syncSuggestion error:', err);
       return false;
     }
   },

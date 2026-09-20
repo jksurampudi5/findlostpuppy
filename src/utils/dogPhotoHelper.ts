@@ -5,7 +5,7 @@ import type { DogProfile, LostReport } from '../types';
 
 /**
  * Tiered generic media resolver:
- * Tier 1 — Remote HTTPS/HTTP URL (Supabase Storage CDN, public URLs)
+ * Tier 1 — Remote HTTPS/HTTP URL (Firebase Storage CDN, public URLs)
  * Tier 2 — Bundled/static assets (resolves correctly on localhost & GitHub Pages via import.meta.env.BASE_URL)
  * Tier 3 — Legacy Base64 data URL (data:image/...)
  * Tier 4 — Neutral fallback placeholder

@@ -238,9 +238,9 @@ function MainAppFlow() {
 export function App() {
   const basename = import.meta.env.BASE_URL;
 
-  // Single source of truth: Pull authentic Supabase cloud records on application boot
+  // Single source of truth: Pull authentic Firebase cloud records on application boot
   useEffect(() => {
-    storageService.pullFromSupabase().catch(() => {});
+    storageService.pullFromFirebase().catch(() => {});
   }, []);
 
   return (

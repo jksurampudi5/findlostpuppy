@@ -61,7 +61,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         return;
       }
 
-      // 2. Upload to Supabase Storage if user & pet context is provided
+      // 2. Upload to Firebase Storage if user & pet context is provided
       let finalUrls: string[] = [];
 
       if (userId && petId) {

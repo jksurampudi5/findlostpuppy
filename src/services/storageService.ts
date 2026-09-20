@@ -13,7 +13,6 @@ import type {
   AppSuggestion,
 } from '../types';
 import { consentService } from './consentService';
-import { supabaseSyncService } from './supabaseSyncService';
 import { firebaseSyncService } from './firebaseSyncService';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
@@ -147,18 +146,18 @@ class StorageService {
         }
       });
 
-      // Single source of truth: Immediately pull original data from Supabase
-      this.pullFromSupabase()
+      // Single source of truth: Immediately pull original data from Firebase
+      this.pullFromFirebase()
         .then(() => {
           // Then sync any local pending records if needed
-          return this.pushLocalToSupabase();
+          return this.pushLocalToFirebase();
         })
         .catch(() => {});
 
       // Periodic cloud background sync (every 20s)
       setInterval(() => {
         if (navigator.onLine) {
-          this.pullFromSupabase().catch(() => {});
+          this.pullFromFirebase().catch(() => {});
         }
       }, 20000);
     }
@@ -780,10 +779,10 @@ class StorageService {
         );
       }
 
-      // 5. Cloud synchronization to Supabase database
-      supabaseSyncService
+      // 5. Cloud synchronization to Firebase database
+      firebaseSyncService
         .deleteLostReport(reportId, targetPetId)
-        .catch((e) => console.warn('[Supabase Sync Delete Report Notice]:', e));
+        .catch((e) => console.warn('[Firebase Sync Delete Report Notice]:', e));
 
       return true;
     });
@@ -854,9 +853,9 @@ class StorageService {
       }
 
       // 6. Cloud sync deletion
-      supabaseSyncService
+      firebaseSyncService
         .deletePetAsAdmin(petId)
-        .catch((e) => console.warn('[Supabase Delete Pet Notice]:', e));
+        .catch((e) => console.warn('[Firebase Delete Pet Notice]:', e));
 
       return true;
     });
@@ -934,10 +933,10 @@ class StorageService {
         this.skippedReportUserIds = this.skippedReportUserIds.filter((x) => x !== id);
       });
 
-      // 6. Cloud synchronization to Supabase
-      supabaseSyncService
+      // 6. Cloud synchronization to Firebase
+      firebaseSyncService
         .deleteUserDataByEmail(targetEmail)
-        .catch((e) => console.warn('[Supabase Sync Delete User Data Notice]:', e));
+        .catch((e) => console.warn('[Firebase Sync Delete User Data Notice]:', e));
 
       return true;
     });
@@ -964,9 +963,9 @@ class StorageService {
         );
       }
 
-      // Background sync to Supabase
-      supabaseSyncService.syncLostReport(report).catch(() => {});
-      supabaseSyncService.updatePetSafetyStatus(
+      // Background sync to Firebase
+      firebaseSyncService.syncLostReport(report).catch(() => {});
+      firebaseSyncService.updatePetSafetyStatus(
         report.dogId || report.dog?.id || report.id,
         normalizedStatus === 'LOST'
       ).catch(() => {});
@@ -1078,8 +1077,8 @@ class StorageService {
         report.updatedAt = now;
       }
 
-      // Background sync to Supabase
-      supabaseSyncService.syncSighting(currentSighting).catch((e) => console.warn('[Supabase Sync Sighting Notice]:', e));
+      // Background sync to Firebase
+      firebaseSyncService.syncSighting(currentSighting).catch((e) => console.warn('[Firebase Sync Sighting Notice]:', e));
 
       return currentSighting;
     });
@@ -1227,7 +1226,7 @@ class StorageService {
 
   /**
    * Safe migration helper: Associates any local unauthenticated or legacy records
-   * with the newly verified Supabase authenticated user (auth.uid()).
+   * with the newly verified Firebase authenticated user (auth.uid()).
    */
   migrateUserDataToAuthenticatedUser(authUid: string, email: string): void {
     if (!authUid || !email) return;
@@ -1386,8 +1385,8 @@ class StorageService {
             r.dog?.id !== targetPetId)
       );
 
-      // Background sync to Supabase and Firebase
-      supabaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Supabase Sync Pet Notice]:', e));
+      // Background sync to Firebase and Firebase
+      firebaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
       if (firebaseSyncService.isConfigured()) {
         firebaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
       }
@@ -1486,13 +1485,13 @@ class StorageService {
 
       this.enforceIntegrityInvariants();
 
-      // Background sync to Supabase
-      supabaseSyncService.syncLostReport(report).catch((e) => console.warn('[Supabase Sync Report Notice]:', e));
+      // Background sync to Firebase
+      firebaseSyncService.syncLostReport(report).catch((e) => console.warn('[Firebase Sync Report Notice]:', e));
 
-      supabaseSyncService.updatePetSafetyStatus(
+      firebaseSyncService.updatePetSafetyStatus(
         report.dogId || report.dog?.id || report.id,
         report.status === 'LOST'
-      ).catch((e) => console.warn('[Supabase Update Safety Notice]:', e));
+      ).catch((e) => console.warn('[Firebase Update Safety Notice]:', e));
 
       return report;
     });
@@ -1818,10 +1817,10 @@ class StorageService {
         }
       }
 
-      // Background sync to Supabase and Firebase
-      supabaseSyncService
+      // Background sync to Firebase and Firebase
+      firebaseSyncService
         .syncOwnerProfile(profile, profile.userId || profile.id)
-        .catch((e) => console.warn('[Supabase Sync Owner Notice]:', e));
+        .catch((e) => console.warn('[Firebase Sync Owner Notice]:', e));
       if (firebaseSyncService.isConfigured()) {
         firebaseSyncService
           .syncOwnerProfile(profile, profile.userId || profile.id)
@@ -1945,7 +1944,7 @@ class StorageService {
       });
     } catch {}
 
-    // 2. From Active Supabase Session
+    // 2. From Active Firebase Session
     try {
       const activeUser = authService.getCurrentUser();
       if (activeUser && activeUser.email && !userMap.has(activeUser.email.toLowerCase().trim())) {
@@ -2023,7 +2022,7 @@ class StorageService {
   deleteUserAsAdmin(userId: string): boolean {
     return this.executeTransaction(() => {
       this.deleteUserAccount(userId);
-      supabaseSyncService.deleteUserAsAdmin(userId).catch((e) => console.warn('[Supabase Delete User Notice]:', e));
+      firebaseSyncService.deleteUserAsAdmin(userId).catch((e) => console.warn('[Firebase Delete User Notice]:', e));
       return true;
     });
   }
@@ -2045,7 +2044,7 @@ class StorageService {
         }
       }
       this.sightings = this.sightings.filter((s) => s.id !== sightingId);
-      supabaseSyncService.deleteSightingAsAdmin(sightingId).catch((e) => console.warn('[Supabase Delete Sighting Notice]:', e));
+      firebaseSyncService.deleteSightingAsAdmin(sightingId).catch((e) => console.warn('[Firebase Delete Sighting Notice]:', e));
       return true;
     });
   }
@@ -2169,7 +2168,7 @@ class StorageService {
       this.executeTransaction(() => {
         if (Array.isArray(remoteData.reports) && remoteData.reports.length > 0) {
           const repMap = new Map<string, LostReport>();
-          // Cloud reports from Supabase are the single source of truth
+          // Cloud reports from Firebase are the single source of truth
           for (const r of remoteData.reports) {
             if (r && r.id) {
               const canon = normalizeReportId(r.id);
@@ -2290,14 +2289,14 @@ class StorageService {
     }
   }
 
-  async pullFromSupabase(): Promise<boolean> {
+  async pullFromFirebase(): Promise<boolean> {
     try {
-      const data = await supabaseSyncService.fetchAllCloudData();
+      const data = await firebaseSyncService.fetchAllCloudData();
       if (!data) return false;
 
       const { profiles, pets, reports, sightings } = data;
 
-      // Map Supabase profiles to OwnerProfile and User (Sanitizing any raw UUID strings)
+      // Map Firebase profiles to OwnerProfile and User (Sanitizing any raw UUID strings)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const sanitizeName = (rawName?: string, email?: string): string => {
         if (!rawName || uuidRegex.test(rawName.trim())) {
@@ -2314,112 +2313,124 @@ class StorageService {
       const mappedProfiles: OwnerProfile[] = (profiles || []).map((p: any) => ({
         id: p.id,
         userId: p.id,
-        fullName: sanitizeName(p.name, p.email),
+        fullName: sanitizeName(p.fullName || p.name, p.email),
         email: p.email,
         phone: p.phone || '',
         address: p.address || '',
-        photo: isPetPhotoUrl(p.avatar_url) ? undefined : p.avatar_url,
-        preferredContact: 'phone',
+        photo: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
+        preferredContact: p.preferredContact || 'phone',
+        state: p.state || '',
+        district: p.district || '',
+        mandalOrMunicipality: p.mandalOrMunicipality || '',
+        city: p.city || '',
+        pinCode: p.pinCode || '',
         hasLocationConsent: true,
-        updatedAt: p.created_at || new Date().toISOString(),
+        updatedAt: p.updatedAt || p.createdAt || new Date().toISOString(),
       }));
 
       const mappedUsers: User[] = (profiles || []).map((p: any) => ({
         id: p.id,
-        name: sanitizeName(p.name, p.email),
+        name: sanitizeName(p.fullName || p.name, p.email),
         email: p.email,
         phone: p.phone,
-        avatar: isPetPhotoUrl(p.avatar_url) ? undefined : p.avatar_url,
+        avatar: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
         isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
-        createdAt: p.created_at || new Date().toISOString(),
+        createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
       }));
 
-      // Map Supabase pets to DogProfile
+      // Map Firebase pets to DogProfile
       const mappedPets: DogProfile[] = (pets || []).map((p: any) => {
-        let photo = resolveGenericMediaUrl(p.photo_url);
+        let photo = resolveGenericMediaUrl(p.primaryPhoto || p.photo_url);
         if (p.id === 'pet-1788871495754' || p.id === '1788885000505' || (p.name && p.name.toUpperCase() === 'SONU')) {
           photo = sonuImg;
         }
         return {
           id: p.id,
-          ownerId: p.user_id,
+          ownerId: p.ownerId || p.user_id,
           name: p.name,
           breed: p.breed || 'Companion Pet',
           gender: p.gender || 'Male',
           age: '2 years',
           size: 'Medium (10-25kg)',
           color: p.color || '',
-          distinguishingMarks: p.markings || '',
-          collarInfo: '',
+          distinguishingMarks: p.distinguishingMarks || p.markings || '',
+          collarInfo: p.collarInfo || '',
           primaryPhoto: photo,
-          photos: [photo],
-          createdAt: p.created_at || new Date().toISOString(),
+          photos: p.photos || [photo],
+          createdAt: p.createdAt || p.created_at || new Date().toISOString(),
         };
       });
 
-      // Map Supabase missing_reports to LostReport
+      // Map Firebase missing_reports to LostReport
       const mappedReports: LostReport[] = (reports || []).map((r: any) => {
-        const petInfo = (pets || []).find((p: any) => p.id === r.pet_id);
-        let photo = resolveGenericMediaUrl(r.pet_photo || petInfo?.photo_url);
+        const petInfo = (pets || []).find((p: any) => p.id === r.dogId || p.id === r.pet_id || p.ownerId === r.ownerId);
+        let photo = resolveGenericMediaUrl(r.petPhoto || r.pet_photo || petInfo?.primaryPhoto || petInfo?.photo_url);
         if (
           r.id === 'LOST-1788885000505' ||
+          r.dogId === '1788885000505' ||
           r.pet_id === '1788885000505' ||
           r.pet_id === 'pet-1788871495754' ||
+          (r.petName && r.petName.toUpperCase() === 'SONU') ||
           (r.pet_name && r.pet_name.toUpperCase() === 'SONU')
         ) {
           photo = sonuImg;
         }
-        const derivedOwnerId = r.user_id || petInfo?.ownerId || petInfo?.user_id || '';
+        const derivedOwnerId = r.ownerId || r.user_id || petInfo?.ownerId || petInfo?.user_id || '';
         return {
-          id: r.id,
-          dogId: r.pet_id,
+          id: r.reportId || r.id,
+          dogId: r.dogId || r.pet_id,
           ownerId: derivedOwnerId,
           dog: {
-            id: r.pet_id,
+            id: r.dogId || r.pet_id,
             ownerId: derivedOwnerId,
-            name: r.pet_name || petInfo?.name || 'Pet',
+            name: r.petName || r.pet_name || petInfo?.name || 'Pet',
             breed: petInfo?.breed || 'Companion Dog',
             gender: petInfo?.gender || 'Male',
             age: '2 years',
             size: 'Medium (10-25kg)',
             color: petInfo?.color || '',
-            distinguishingMarks: petInfo?.markings || '',
-            collarInfo: '',
+            distinguishingMarks: petInfo?.distinguishingMarks || petInfo?.markings || '',
+            collarInfo: petInfo?.collarInfo || '',
             primaryPhoto: photo,
             photos: [photo],
-            createdAt: r.created_at || new Date().toISOString(),
+            createdAt: r.createdAt || r.created_at || new Date().toISOString(),
           },
-          ownerApproximateLocation: r.district || 'West Godavari',
-          lastKnownLocation: r.landmark || 'Nearby',
-          dateLost: r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-          timeLost: '12:00 PM',
-          status: r.is_resolved ? 'SAFE' : 'LOST',
+          ownerApproximateLocation: r.ownerApproximateLocation || r.district || 'West Godavari',
+          lastKnownLocation: r.lastKnownLocation || r.landmark || 'Nearby',
+          dateLost: r.dateLost || (r.createdAt || r.created_at ? (r.createdAt || r.created_at).split('T')[0] : new Date().toISOString().split('T')[0]),
+          timeLost: r.timeLost || '12:00 PM',
+          status: r.status || (r.is_resolved ? 'SAFE' : 'LOST'),
           contactMechanism: {
             showPhone: true,
             showEmail: true,
-            safeContactPhone: r.contact_phone || '',
-            safeContactEmail: r.contact_email || '',
+            safeContactPhone: r.contactMechanism?.safeContactPhone || r.contact_phone || '',
+            safeContactEmail: r.contactMechanism?.safeContactEmail || r.contact_email || '',
             contactNote: 'Please contact immediately if spotted.',
           },
-          sightingCount: (sightings || []).filter((s: any) => s.report_id === r.id || s.pet_id === r.pet_id).length,
-          createdAt: r.created_at || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          sightingCount: r.sightingCount || (sightings || []).filter((s: any) => s.reportId === r.id || s.report_id === r.id || s.pet_id === r.pet_id).length,
+          createdAt: r.createdAt || r.created_at || new Date().toISOString(),
+          updatedAt: r.updatedAt || new Date().toISOString(),
         };
       });
 
-      // Map Supabase sightings to Sighting
+      // Map Firebase sightings to Sighting
       const mappedSightings: Sighting[] = (sightings || []).map((s: any) => ({
         id: s.id,
-        reportId: s.report_id,
-        dogName: s.reporter_name || 'Lost Dog',
-        date: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-        time: '12:00 PM',
-        location: s.landmark || 'Seen nearby',
-        description: s.notes || '',
-        photo: s.photo_url || undefined,
+        reportId: s.reportId || s.report_id,
+        dogName: s.dogName || s.reporter_name || 'Lost Dog',
+        date: s.date || (s.createdAt || s.created_at ? (s.createdAt || s.created_at).split('T')[0] : new Date().toISOString().split('T')[0]),
+        time: s.time || '12:00 PM',
+        location: s.location || s.landmark || 'Seen nearby',
+        description: s.description || s.notes || '',
+        photo: s.photo || s.photo_url || undefined,
         reporterName: s.reporter_name || 'Anonymous',
         reporterPhone: s.reporter_phone || undefined,
-        createdAt: s.created_at || new Date().toISOString(),
+        state: s.state || '',
+        district: s.district || '',
+        mandal: s.mandal || '',
+        village: s.village || '',
+        pinCode: s.pinCode || '',
+        createdAt: s.createdAt || s.created_at || new Date().toISOString(),
       }));
 
       this.mergeCommunityData({
@@ -2438,7 +2449,7 @@ class StorageService {
 
       return true;
     } catch (e) {
-      console.warn('Failed to pull from Supabase:', e);
+      console.warn('Failed to pull from Firebase:', e);
       return false;
     }
   }
@@ -2489,10 +2500,10 @@ class StorageService {
       this.commitAllStorage();
     });
 
-    // Wipe Supabase cloud tables to ensure 0 stale test records
+    // Wipe Firebase cloud tables to ensure 0 stale test records
     try {
       await Promise.allSettled([
-        supabaseSyncService.deletePetAsAdmin('*'),
+        firebaseSyncService.deletePetAsAdmin('*'),
       ]);
     } catch {}
 
@@ -2506,36 +2517,36 @@ class StorageService {
 
   /**
    * Automatically migrates any locally-cached user profiles, pets, and lost reports
-   * to Supabase when a returning user visits the updated site on their phone.
+   * to Firebase when a returning user visits the updated site on their phone.
    */
-  async pushLocalToSupabase(): Promise<void> {
+  async pushLocalToFirebase(): Promise<void> {
     try {
-      if (!supabaseSyncService.isConfigured()) return;
+      if (!firebaseSyncService.isConfigured()) return;
 
       // 1. Sync all registered users
       const users = this.getAllRegisteredUsers();
       for (const u of users) {
-        await supabaseSyncService.syncUserProfile(u).catch(() => {});
+        await firebaseSyncService.syncUserProfile(u).catch(() => {});
       }
 
       // 2. Sync all owner profiles
       for (const p of this.profiles) {
-        await supabaseSyncService.syncOwnerProfile(p, p.userId || p.id).catch(() => {});
+        await firebaseSyncService.syncOwnerProfile(p, p.userId || p.id).catch(() => {});
       }
 
       // 3. Sync all pets
       for (const pet of this.pets) {
-        await supabaseSyncService.syncPet(pet).catch(() => {});
+        await firebaseSyncService.syncPet(pet).catch(() => {});
       }
 
       // 4. Sync all reports
       for (const r of this.reports) {
-        await supabaseSyncService.syncLostReport(r).catch(() => {});
+        await firebaseSyncService.syncLostReport(r).catch(() => {});
       }
 
       // 5. Sync all sightings
       for (const s of this.sightings) {
-        await supabaseSyncService.syncSighting(s).catch(() => {});
+        await firebaseSyncService.syncSighting(s).catch(() => {});
       }
     } catch (e) {
       console.warn('Auto local-to-cloud migration notice:', e);
@@ -2633,8 +2644,8 @@ class StorageService {
     this.commitAllStorage();
     this.notifyUpdate();
 
-    // Background sync to Supabase if configured
-    supabaseSyncService.syncSuggestion(newRecord).catch((err) => {
+    // Background sync to Firebase if configured
+    firebaseSyncService.syncSuggestion(newRecord).catch((err) => {
       console.info('[StorageService] Suggestion sync notice:', err);
     });
 

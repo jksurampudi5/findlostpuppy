@@ -57,13 +57,13 @@ This tracker serves as the single source of truth for all architectural updates,
   - Changing status via dashboard action immediately transitions the pet between tabs with celebratory animations for reunions (`triggerStarCelebration`).
 
 ### 6. Single Pet Per User & Profile Deduplication
-- **Deduplication Engine (`src/services/storageService.ts` & `src/services/supabaseSyncService.ts`)**:
+- **Deduplication Engine (`src/services/storageService.ts` & `src/services/firebaseSyncService.ts`)**:
   - Storage and sync services link owner profiles, pet profiles, and reports by `email` and `userId`.
   - Updates to owner location or details cleanly update existing records without creating orphaned ghost duplicates.
 
-### 7. Supabase Cloud Sync & LocalStorage Dual-Persistence
+### 7. Firebase Cloud Sync & LocalStorage Dual-Persistence
 - **Resilient Storage Architecture**:
-  - Real-time cloud persistence with Supabase with immediate local-first reactivity via `localStorage`.
+  - Real-time cloud persistence with Firebase with immediate local-first reactivity via `localStorage`.
   - Multi-tab and multi-window sync via custom storage events (`findlostpuppy_reports_updated`).
 
 ### 8. Realistic Photographic Storytelling Reunion Player

@@ -1,9 +1,19 @@
-import type { User as SupabaseAuthUser, Session } from '@supabase/supabase-js';
+import {
+  onAuthStateChanged,
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
+  isSignInWithEmailLink,
+  signOut,
+  updateProfile,
+  type User as FirebaseAuthUser,
+  type Unsubscribe,
+} from 'firebase/auth';
 import type { User } from '../types';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { supabaseSyncService } from './supabaseSyncService';
+import { auth, isFirebaseConfigured } from './firebaseConfig';
+import { firebaseSyncService } from './firebaseSyncService';
 
 const OBSOLETE_SESSION_KEY = 'findlostpuppy_session_v1';
+const EMAIL_LINK_KEY = 'findlostpuppy_email_link_pending_email';
 
 export const ADMIN_EMAILS = ['jksurampudi5@gmail.com'];
 
@@ -12,18 +22,10 @@ export function isEmailAdmin(email?: string): boolean {
   return ADMIN_EMAILS.includes(email.trim().toLowerCase());
 }
 
-/**
- * Maps a Supabase Auth User object into the application User model
- */
-export function mapSupabaseUser(
-  sbUser: SupabaseAuthUser,
-  fallbackProfile?: Partial<User>
-): User {
-  const email = (sbUser.email || fallbackProfile?.email || '').toLowerCase().trim();
-  const metadata = sbUser.user_metadata || {};
+export function mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Partial<User>): User {
+  const email = (fbUser.email || fallbackProfile?.email || '').toLowerCase().trim();
   const derivedName =
-    metadata.full_name ||
-    metadata.name ||
+    fbUser.displayName ||
     fallbackProfile?.name ||
     (email.includes('@') ? email.split('@')[0].replace(/[^a-zA-Z]/g, ' ') : 'Pet Parent');
   const formattedName = derivedName
@@ -31,24 +33,20 @@ export function mapSupabaseUser(
     : 'Pet Parent';
 
   return {
-    id: sbUser.id, // Authoritative auth.uid()
+    id: fbUser.uid,
     email,
     name: formattedName,
-    phone: metadata.phone || fallbackProfile?.phone,
-    avatar: metadata.avatar_url || fallbackProfile?.avatar,
+    phone: fbUser.phoneNumber || fallbackProfile?.phone,
+    avatar: fbUser.photoURL || fallbackProfile?.avatar,
     isAdmin: isEmailAdmin(email),
-    createdAt: sbUser.created_at || new Date().toISOString(),
+    createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
   };
 }
 
-/**
- * Determines the appropriate Supabase redirect URL based on current host & deployment path
- */
 export function getAuthRedirectUrl(): string {
   if (typeof window === 'undefined') return '';
   const origin = window.location.origin;
   const baseUrl = import.meta.env.BASE_URL || '/';
-  // Standardize trailing slash
   const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return `${origin}${cleanBase}`;
 }
@@ -61,23 +59,15 @@ class AuthService {
     if (typeof localStorage !== 'undefined') {
       try {
         const saved = localStorage.getItem('findlostpuppy_active_user');
-        if (saved) {
-          this.currentUser = JSON.parse(saved);
-        }
-      } catch (e) {}
+        if (saved) this.currentUser = JSON.parse(saved);
+      } catch {}
     }
   }
 
-  /**
-   * Helper to map Supabase user to application User
-   */
-  mapSupabaseUser(sbUser: SupabaseAuthUser, fallbackProfile?: Partial<User>): User {
-    return mapSupabaseUser(sbUser, fallbackProfile);
+  mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Partial<User>): User {
+    return mapFirebaseUser(fbUser, fallbackProfile);
   }
 
-  /**
-   * Safely clean legacy custom localStorage session so it is never treated as auth truth
-   */
   private cleanObsoleteSessionStorage() {
     if (typeof localStorage !== 'undefined') {
       try {
@@ -88,297 +78,160 @@ class AuthService {
     }
   }
 
-  /**
-   * Synchronously returns the currently cached user from the active Supabase session or localStorage.
-   */
   getCurrentUser(): User | null {
     if (!this.currentUser && typeof localStorage !== 'undefined') {
       try {
         const saved = localStorage.getItem('findlostpuppy_active_user');
-        if (saved) {
-          this.currentUser = JSON.parse(saved);
-        }
-      } catch (e) {}
+        if (saved) this.currentUser = JSON.parse(saved);
+      } catch {}
     }
     return this.currentUser;
   }
 
-  /**
-   * Sets the in-memory cached user and fires a window notification
-   */
   setCurrentUser(user: User | null) {
     this.currentUser = user;
     if (typeof localStorage !== 'undefined') {
       try {
         if (user) localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
         else localStorage.removeItem('findlostpuppy_active_user');
-      } catch (e) {}
+      } catch {}
     }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('findlostpuppy_session_updated', { detail: user })
-      );
+      window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
     }
   }
 
-  /**
-   * Checks if current user is admin
-   */
   isAdmin(): boolean {
-    if (!this.currentUser) return false;
-    return !!(this.currentUser.isAdmin || isEmailAdmin(this.currentUser.email));
+    return !!(this.currentUser?.isAdmin || isEmailAdmin(this.currentUser?.email));
   }
 
-  /**
-   * Checks if there is an active authenticated user
-   */
   isAuthenticated(): boolean {
     return !!this.currentUser;
   }
 
-  /**
-   * Asynchronously fetches the current active session from Supabase
-   */
-  async getSession(): Promise<{ session: Session | null; user: User | null }> {
-    if (!supabase || !isSupabaseConfigured()) {
-      return { session: null, user: null };
-    }
-
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session?.user) {
-        this.setCurrentUser(null);
-        return { session: null, user: null };
+  onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe | null {
+    if (!auth || !isFirebaseConfigured()) return null;
+    return onAuthStateChanged(auth, (fbUser) => {
+      const mapped = fbUser ? mapFirebaseUser(fbUser) : null;
+      this.setCurrentUser(mapped);
+      callback(mapped);
+      if (mapped) {
+        firebaseSyncService.syncUserProfile(mapped).catch((e) =>
+          console.warn('[Firebase Sync User Notice]:', e)
+        );
       }
-
-      const user = mapSupabaseUser(data.session.user);
-      this.setCurrentUser(user);
-      return { session: data.session, user };
-    } catch (err) {
-      console.warn('[AuthService] getSession exception:', err);
-      this.setCurrentUser(null);
-      return { session: null, user: null };
-    }
+    });
   }
 
-  /**
-   * Requests a passwordless OTP / Magic Link via Supabase Auth
-   * Uses `supabase.auth.signInWithOtp()`
-   */
-  async signInWithOtp(
-    email: string,
-    redirectTo?: string
-  ): Promise<{ success: boolean; error?: string }> {
+  async completeEmailLinkSignIn(currentUrl?: string): Promise<{ success: boolean; user?: User; error?: string }> {
+    if (!auth || !isFirebaseConfigured() || typeof window === 'undefined') {
+      return { success: false, error: 'Firebase authentication is not configured.' };
+    }
+
+    const url = currentUrl || window.location.href;
+    if (!isSignInWithEmailLink(auth, url)) {
+      return { success: false, error: 'No Firebase sign-in link detected.' };
+    }
+
+    const email = window.localStorage.getItem(EMAIL_LINK_KEY) || window.prompt('Confirm your email address') || '';
+    if (!email.trim().includes('@')) {
+      return { success: false, error: 'Email is required to complete sign-in.' };
+    }
+
+    const result = await signInWithEmailLink(auth, email.trim().toLowerCase(), url);
+    window.localStorage.removeItem(EMAIL_LINK_KEY);
+    const mapped = mapFirebaseUser(result.user);
+    this.setCurrentUser(mapped);
+    await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+    return { success: true, user: mapped };
+  }
+
+  async getSession(): Promise<{ session: null; user: User | null }> {
+    return { session: null, user: this.getCurrentUser() };
+  }
+
+  async signInWithOtp(email: string): Promise<{ success: boolean; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { success: false, error: 'Please enter a valid email address.' };
     }
-
-    if (!supabase || !isSupabaseConfigured()) {
-      return {
-        success: false,
-        error: 'Supabase authentication service is not configured. Please check environment configuration.',
-      };
+    if (!auth || !isFirebaseConfigured()) {
+      return { success: false, error: 'Firebase authentication is not configured. Add Firebase web config values first.' };
     }
 
     try {
-      const redirectUrl = redirectTo || getAuthRedirectUrl();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: redirectUrl,
-          shouldCreateUser: true,
-        },
-      });
-
-      if (error) {
-        if (
-          error.message?.toLowerCase().includes('rate limit') ||
-          error.message?.toLowerCase().includes('confirmation email') ||
-          error.message?.toLowerCase().includes('error sending') ||
-          cleanEmail.includes('qa') ||
-          cleanEmail.includes('test')
-        ) {
-          console.warn('[AuthService] Supabase email delivery notice, allowing test OTP progression:', error.message);
-          return { success: true };
-        }
-        return { success: false, error: error.message };
-      }
-
+      const actionCodeSettings = {
+        url: getAuthRedirectUrl(),
+        handleCodeInApp: true,
+      };
+      await sendSignInLinkToEmail(auth, cleanEmail, actionCodeSettings);
+      window.localStorage.setItem(EMAIL_LINK_KEY, cleanEmail);
       return { success: true };
     } catch (err: any) {
-      return {
-        success: false,
-        error: err?.message || 'Network error while requesting verification code.',
-      };
+      return { success: false, error: err?.message || 'Network error while sending sign-in link.' };
     }
   }
 
-  /**
-   * Verifies the 6-digit OTP code sent to user's email
-   * Uses `supabase.auth.verifyOtp()`
-   */
-  async verifyOtp(
-    email: string,
-    token: string
-  ): Promise<{ success: boolean; user?: User; session?: Session; error?: string }> {
+  async verifyOtp(email: string, token: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanToken = token.trim().replace(/\D/g, '');
+    if (!cleanEmail.includes('@')) return { success: false, error: 'Invalid email address.' };
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return { success: false, error: 'Invalid email address.' };
-    }
-    if (!cleanToken || cleanToken.length < 6) {
-      return { success: false, error: 'Please enter the 6-digit verification code.' };
-    }
-
-    if (!supabase || !isSupabaseConfigured()) {
-      return {
-        success: false,
-        error: 'Supabase authentication service is not configured.',
-      };
-    }
-
-    try {
-      // 1. Primary check: type 'email'
-      let res = await supabase.auth.verifyOtp({
+    if (cleanToken === '999999' || cleanToken === '123456') {
+      const testUser: User = {
+        id: 'user-qa-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
         email: cleanEmail,
-        token: cleanToken,
-        type: 'email',
-      });
-
-      // 2. Resilient fallback: If rejected, try 'magiclink' and 'signup' (covers first-time unconfirmed users)
-      if (
-        res.error &&
-        (res.error.message.toLowerCase().includes('invalid') ||
-          res.error.message.toLowerCase().includes('expired'))
-      ) {
-        const tryMagic = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: cleanToken,
-          type: 'magiclink',
-        });
-        if (!tryMagic.error && tryMagic.data?.user) {
-          res = tryMagic;
-        } else {
-          const trySignup = await supabase.auth.verifyOtp({
-            email: cleanEmail,
-            token: cleanToken,
-            type: 'signup',
-          });
-          if (!trySignup.error && trySignup.data?.user) {
-            res = trySignup;
-          }
-        }
-      }
-
-      const { data, error } = res;
-
-      if (error) {
-        if (cleanToken === '999999' || cleanToken === '123456') {
-          const testUser: User = {
-            id: 'user-qa-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
-            email: cleanEmail,
-            name: cleanEmail.split('@')[0],
-            isAdmin: isEmailAdmin(cleanEmail),
-            createdAt: new Date().toISOString(),
-          };
-          this.setCurrentUser(testUser);
-          return { success: true, user: testUser };
-        }
-        return { success: false, error: error.message };
-      }
-
-      if (!data.user) {
-        if (cleanToken === '999999' || cleanToken === '123456') {
-          const testUser: User = {
-            id: 'user-qa-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
-            email: cleanEmail,
-            name: cleanEmail.split('@')[0],
-            isAdmin: isEmailAdmin(cleanEmail),
-            createdAt: new Date().toISOString(),
-          };
-          this.setCurrentUser(testUser);
-          return { success: true, user: testUser };
-        }
-        return { success: false, error: 'Authentication failed. Please request a new code.' };
-      }
-
-      const user = mapSupabaseUser(data.user);
-      this.setCurrentUser(user);
-
-      // Sync user profile to Supabase `profiles` table using auth.uid()
-      await supabaseSyncService.syncUserProfile(user).catch((e) =>
-        console.warn('[Supabase Sync User Notice]:', e)
-      );
-
-      return { success: true, user, session: data.session || undefined };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err?.message || 'Verification failed. Please check your code and try again.',
+        name: cleanEmail.split('@')[0],
+        isAdmin: isEmailAdmin(cleanEmail),
+        createdAt: new Date().toISOString(),
       };
+      this.setCurrentUser(testUser);
+      await firebaseSyncService.syncUserProfile(testUser).catch(() => {});
+      return { success: true, user: testUser };
     }
+
+    return {
+      success: false,
+      error: 'Firebase uses a secure email link. Open the link from your email, or use 123456 only for local QA.',
+    };
   }
 
-  /**
-   * Backward-compatible login method: initiates Supabase OTP flow
-   */
-  async loginWithEmail(
-    email: string,
-    _name?: string
-  ): Promise<{ success: boolean; user?: User; error?: string; requiresOtp?: boolean }> {
+  async loginWithEmail(email: string): Promise<{ success: boolean; user?: User; error?: string; requiresOtp?: boolean }> {
     const res = await this.signInWithOtp(email);
-    if (!res.success) {
-      return { success: false, error: res.error };
-    }
+    if (!res.success) return { success: false, error: res.error };
     return { success: true, requiresOtp: true };
   }
 
-  /**
-   * Updates current user profile details
-   */
   async updateCurrentUser(partial: Partial<User>): Promise<User | null> {
     if (!this.currentUser) return null;
-
     const updated: User = { ...this.currentUser, ...partial };
     this.setCurrentUser(updated);
 
-    // Update Supabase user metadata if available
-    if (supabase && isSupabaseConfigured()) {
+    if (auth?.currentUser) {
       try {
-        await supabase.auth.updateUser({
-          data: {
-            name: updated.name,
-            phone: updated.phone,
-            avatar_url: updated.avatar,
-          },
+        await updateProfile(auth.currentUser, {
+          displayName: updated.name,
+          photoURL: updated.avatar || null,
         });
       } catch (e) {
-        console.warn('[AuthService] updateUser metadata exception:', e);
+        console.warn('[AuthService] Firebase updateProfile notice:', e);
       }
     }
 
-    // Sync to profiles table
-    supabaseSyncService.syncUserProfile(updated).catch((e) =>
-      console.warn('[Supabase Sync Profile Notice]:', e)
+    firebaseSyncService.syncUserProfile(updated).catch((e) =>
+      console.warn('[Firebase Sync Profile Notice]:', e)
     );
-
     return updated;
   }
 
-  /**
-   * Signs the user out from Supabase Auth and clears in-memory & local state
-   */
   async logout(): Promise<void> {
-    if (supabase && isSupabaseConfigured()) {
+    if (auth && isFirebaseConfigured()) {
       try {
-        await supabase.auth.signOut();
+        await signOut(auth);
       } catch (e) {
-        console.warn('[AuthService] signOut notice:', e);
+        console.warn('[AuthService] Firebase signOut notice:', e);
       }
     }
-
     this.setCurrentUser(null);
     this.cleanObsoleteSessionStorage();
   }

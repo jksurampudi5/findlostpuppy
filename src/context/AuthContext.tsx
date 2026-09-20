@@ -3,8 +3,7 @@ import type { User } from '../types';
 import { authService, isEmailAdmin } from '../services/authService';
 import { storageService } from '../services/storageService';
 import { consentService, type AcceptedFormsState } from '../services/consentService';
-import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { supabaseSyncService } from '../services/supabaseSyncService';
+import { firebaseSyncService } from '../services/firebaseSyncService';
 
 export type OnboardingTab = 'owner' | 'location' | 'choice' | 'dog' | 'pet' | 'report' | 'dashboard' | 'completed';
 
@@ -95,85 +94,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshProgressForUser(currentUser);
   }, [refreshProgressForUser]);
 
-  // Supabase Auth Lifecycle & Real-time Session Monitoring
+  // Firebase Auth Lifecycle & Real-time Session Monitoring
   useEffect(() => {
     let isMounted = true;
 
     async function initAuth() {
-      if (supabase && isSupabaseConfigured()) {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          if (!isMounted) return;
+      try {
+        await authService.completeEmailLinkSignIn(window.location.href).catch(() => ({ success: false }));
+      } catch {}
 
-          if (!error && data.session?.user) {
-            const mappedUser = authService.mapSupabaseUser(data.session.user);
-            authService.setCurrentUser(mappedUser);
-            setUser(mappedUser);
-
-            // Migrate any local data to this authoritative auth.uid()
-            storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
-            refreshProgressForUser(mappedUser);
-
-            // Sync user profile to Supabase `profiles` table
-            supabaseSyncService.syncUserProfile(mappedUser).catch((e) =>
-              console.warn('[Supabase Sync User Notice]:', e)
-            );
-          } else {
-            const cachedUser = authService.getCurrentUser();
-            if (!cachedUser) {
-              authService.setCurrentUser(null);
-              setUser(null);
-              refreshProgressForUser(null);
-            } else {
-              setUser(cachedUser);
-              refreshProgressForUser(cachedUser);
-            }
-          }
-        } catch (err) {
-          console.warn('[AuthContext] Session init exception:', err);
-          if (isMounted) {
-            authService.setCurrentUser(null);
-            setUser(null);
-            refreshProgressForUser(null);
-          }
-        } finally {
-          if (isMounted) setIsLoading(false);
+      const unsubscribe = authService.onAuthStateChanged((mappedUser) => {
+        if (!isMounted) return;
+        if (mappedUser) {
+          setUser(mappedUser);
+          storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
+          refreshProgressForUser(mappedUser);
+        } else {
+          const cachedUser = authService.getCurrentUser();
+          setUser(cachedUser);
+          refreshProgressForUser(cachedUser);
         }
+        setIsLoading(false);
+      });
 
-        // Subscribe to auth state changes (Magic Links, Sign In, Sign Out, Token Refresh)
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (!isMounted) return;
-          console.log(`[Supabase Auth] State changed: ${event}`);
-
-          if (session?.user) {
-            const mappedUser = authService.mapSupabaseUser(session.user);
-            authService.setCurrentUser(mappedUser);
-            setUser(mappedUser);
-
-            storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
-            refreshProgressForUser(mappedUser);
-
-            supabaseSyncService.syncUserProfile(mappedUser).catch((e) =>
-              console.warn('[Supabase Sync User Notice]:', e)
-            );
-          } else if (event === 'SIGNED_OUT') {
-            authService.setCurrentUser(null);
-            setUser(null);
-            refreshProgressForUser(null);
-          }
-        });
-
-        return () => {
-          subscription.unsubscribe();
-        };
-      } else {
+      if (!unsubscribe) {
         if (isMounted) {
           setIsLoading(false);
-          refreshProgressForUser(null);
+          const cachedUser = authService.getCurrentUser();
+          setUser(cachedUser);
+          refreshProgressForUser(cachedUser);
         }
       }
+
+      return () => {
+        unsubscribe?.();
+      };
     }
 
     const cleanupPromise = initAuth();
@@ -233,7 +188,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   /**
-   * Requests a 6-digit OTP code / Magic Link via Supabase Auth
+   * Requests a Firebase email sign-in link
    */
   const signInWithOtp = async (email: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
@@ -274,7 +229,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   /**
-   * Signs the user out of Supabase Auth
+   * Signs the user out of Firebase Auth
    */
   const logout = async (): Promise<void> => {
     await authService.logout();
@@ -291,7 +246,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const userEmail = user.email;
 
     storageService.deleteUserAccount(userId);
-    supabaseSyncService.deleteUserDataByEmail(userEmail).catch(() => {});
+    firebaseSyncService.deleteUserDataByEmail(userEmail).catch(() => {});
     await authService.logout();
 
     setUser(null);
