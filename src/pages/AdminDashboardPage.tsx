@@ -88,14 +88,14 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Quick Manual Cloud Sync
   const handleManualSync = async () => {
-    showToast('🔄 Syncing with Supabase Cloud Database & Relay...', 'info');
-    const [supabaseSuccess, cloudResult] = await Promise.all([
-      storageService.pullFromSupabase(),
+    showToast('🔄 Syncing with Firebase Cloud Database & Relay...', 'info');
+    const [FirebaseSuccess, cloudResult] = await Promise.all([
+      storageService.pullFromFirebase(),
       cloudSyncService.syncCommunityData(true),
     ]);
     loadAllAdminData();
-    if (supabaseSuccess || cloudResult.success) {
-      showToast('✅ Supabase Cloud Sync Complete! All pet records updated.', 'success');
+    if (FirebaseSuccess || cloudResult.success) {
+      showToast('✅ Firebase Cloud Sync Complete! All pet records updated.', 'success');
     } else {
       showToast('⚠️ Sync completed with local cache.', 'info');
     }
@@ -156,11 +156,11 @@ export const AdminDashboardPage: React.FC = () => {
     reader.readAsText(file);
   };
 
-  // Reset all test data from Supabase & Local to start fresh
+  // Reset all test data from Firebase & Local to start fresh
   const [isWiping, setIsWiping] = useState(false);
   const handleClearAllTestData = async () => {
     const confirmed = window.confirm(
-      '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Supabase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
+      '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Firebase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
     );
     if (!confirmed) return;
 
@@ -168,7 +168,7 @@ export const AdminDashboardPage: React.FC = () => {
     try {
       await storageService.clearAllAdminTestData();
       loadAllAdminData();
-      showToast('🧹 Clean Slate Active! All test data wiped from Admin Portal & Supabase.', 'success');
+      showToast('🧹 Clean Slate Active! All test data wiped from Admin Portal & Firebase.', 'success');
     } catch {
       showToast('Failed to complete clean slate wipe.', 'error');
     } finally {
@@ -422,7 +422,7 @@ export const AdminDashboardPage: React.FC = () => {
                   color: '#EF4444',
                   background: 'rgba(239, 68, 68, 0.08)',
                 }}
-                title="Wipe all stale/test records from Supabase and Local Storage to start fresh"
+                title="Wipe all stale/test records from Firebase and Local Storage to start fresh"
               >
                 <Trash2 size={15} />
                 <span>{isWiping ? 'Wiping...' : 'Start Fresh (Clear Stale Data)'}</span>
@@ -1280,6 +1280,16 @@ export const AdminDashboardPage: React.FC = () => {
                           <div style={{ fontSize: '0.85rem', color: '#475569', whiteSpace: 'pre-wrap' }}>
                             {s.description}
                           </div>
+                          {s.screenshotData && (
+                            <a
+                              href={s.screenshotData}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="admin-suggestion-screenshot-link"
+                            >
+                              View attached screen snippet
+                            </a>
+                          )}
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
@@ -1363,11 +1373,11 @@ export const AdminDashboardPage: React.FC = () => {
                 <div className="cloud-relay-stats-box">
                   <div className="relay-stat-item">
                     <span className="stat-label">Cloud Backend:</span>
-                    <span className="stat-val text-emerald-600 font-bold">⚡ Supabase Database</span>
+                    <span className="stat-val text-emerald-600 font-bold">⚡ Firebase Database</span>
                   </div>
                   <div className="relay-stat-item">
                     <span className="stat-label">Project URL:</span>
-                    <span className="stat-val font-mono text-xs text-gray-700">kfmtlrmttskqaepoznwy.supabase.co</span>
+                    <span className="stat-val font-mono text-xs text-gray-700">kfmtlrmttskqaepoznwy.Firebase.co</span>
                   </div>
                   <div className="relay-stat-item">
                     <span className="stat-label">Relay Status:</span>
@@ -1394,7 +1404,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className="btn btn-primary btn-block"
                 >
                   <RefreshCw size={16} className={syncStatus.isSyncing ? 'animate-spin' : ''} />
-                  <span>{syncStatus.isSyncing ? 'Synchronizing...' : 'Force Supabase Cloud Sync Now'}</span>
+                  <span>{syncStatus.isSyncing ? 'Synchronizing...' : 'Force Firebase Cloud Sync Now'}</span>
                 </button>
               </div>
 

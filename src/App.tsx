@@ -15,6 +15,7 @@ import { LocationOnboardingPage } from './pages/LocationOnboardingPage';
 import { DogOnboardingPage } from './pages/DogOnboardingPage';
 import { ReportLostDogPage } from './pages/ReportLostDogPage';
 import { GuestSightingPage } from './pages/GuestSightingPage';
+import { OnboardingChoicePage } from './pages/OnboardingChoicePage';
 
 // Unlocked Experience Pages
 import { DiscoveryPage } from './pages/DiscoveryPage';
@@ -94,8 +95,8 @@ function MainAppFlow() {
           ) : (
             <LocationOnboardingPage
               onSuccess={() => {
-                setActiveOnboardingTab('dog');
-                navigate('/pet');
+                setActiveOnboardingTab('choice');
+                navigate('/next-step');
               }}
               onBack={() => {
                 setActiveOnboardingTab('owner');
@@ -106,6 +107,19 @@ function MainAppFlow() {
         }
       />
       <Route path="/edit-location" element={<Navigate to="/location" replace />} />
+
+      <Route
+        path="/next-step"
+        element={
+          !hasValidConsent ? (
+            <ConsentPage onConsentAgreed={agreeToConsent} />
+          ) : !isAuthenticated ? (
+            <EmailAuthPage />
+          ) : (
+            <OnboardingChoicePage />
+          )
+        }
+      />
 
       <Route
         path="/pet"
@@ -177,14 +191,16 @@ function MainAppFlow() {
           ) : activeOnboardingTab === 'location' ? (
             <LocationOnboardingPage
               onSuccess={() => {
-                setActiveOnboardingTab('dog');
-                navigate('/pet');
+                setActiveOnboardingTab('choice');
+                navigate('/next-step');
               }}
               onBack={() => {
                 setActiveOnboardingTab('owner');
                 navigate('/owner');
               }}
             />
+          ) : activeOnboardingTab === 'choice' ? (
+            <OnboardingChoicePage />
           ) : activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? (
             <DogOnboardingPage
               onBackToLocation={() => {
@@ -222,9 +238,9 @@ function MainAppFlow() {
 export function App() {
   const basename = import.meta.env.BASE_URL;
 
-  // Single source of truth: Pull authentic Supabase cloud records on application boot
+  // Single source of truth: Pull authentic Firebase cloud records on application boot
   useEffect(() => {
-    storageService.pullFromSupabase().catch(() => {});
+    storageService.pullFromFirebase().catch(() => {});
   }, []);
 
   return (

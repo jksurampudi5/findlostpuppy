@@ -108,7 +108,7 @@ FindLostPuppy uses direct, privacy-safe **Email Authentication**:
 
 ## 🗄️ Database & Persistence
 
-Currently runs on a modular `StorageService` using `localStorage` with rich seed data for Vijayawada, Hyderabad, Bengaluru, and Mumbai. Designed to easily switch to Supabase or Firebase without changing UI code. See [docs/database.md](file:///Users/jayakrishna/Desktop/findlostpuppy/findlostpuppy/docs/database.md).
+Currently runs on a modular `StorageService` using `localStorage` with rich seed data for Vijayawada, Hyderabad, Bengaluru, and Mumbai. Designed to easily switch to Firebase without changing UI code. See [docs/database.md](file:///Users/jayakrishna/Desktop/findlostpuppy/findlostpuppy/docs/database.md).
 
 ---
 

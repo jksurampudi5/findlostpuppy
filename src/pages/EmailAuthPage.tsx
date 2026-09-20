@@ -44,7 +44,7 @@ export const EmailAuthPage = () => {
 
     const res = await signInWithOtp(cleanEmail);
     if (res.success) {
-      showToast('🐾 Verification code sent to your email!', 'success');
+      showToast('🐾 Secure Firebase sign-in link sent to your email!', 'success');
       setStep('otp');
       setResendCooldown(30);
     } else {
@@ -80,7 +80,7 @@ export const EmailAuthPage = () => {
 
     const res = await signInWithOtp(email);
     if (res.success) {
-      showToast('🔄 New verification code sent to your email!', 'info');
+      showToast('🔄 New Firebase sign-in link sent to your email!', 'info');
       setResendCooldown(30);
     } else {
       setErrorMsg(res.error || 'Failed to resend verification code. Please try again in a moment.');
@@ -104,8 +104,8 @@ export const EmailAuthPage = () => {
             </p>
             <p className="auth-card-instruction">
               {step === 'email'
-                ? 'Enter your email to sign in or create an account. A secure one-time code will be sent to your inbox.'
-                : `We've sent a verification code and magic link to ${email}.`}
+                ? 'Enter your email to sign in or create an account. A secure Firebase sign-in link will be sent to your inbox.'
+                : `We've sent a secure Firebase sign-in link to ${email}.`}
             </p>
           </div>
 
@@ -155,7 +155,7 @@ export const EmailAuthPage = () => {
               </button>
             </form>
           ) : (
-            /* Step 2: Verification Code Input (Supports both 6-digit and 8-digit Supabase OTPs) */
+            /* Step 2: Local QA fallback code. Production users should open the Firebase email link. */
             <form onSubmit={handleOtpSubmit} className="auth-card-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="user-otp">
@@ -185,7 +185,7 @@ export const EmailAuthPage = () => {
                   />
                 </div>
                 <span className="form-hint">
-                  Tip: Check your email for the code, or enter early access code <strong>123456</strong>.
+                  Open the email link to sign in. For local QA only, enter <strong>123456</strong>.
                 </span>
               </div>
 
@@ -248,7 +248,7 @@ export const EmailAuthPage = () => {
           <div className="auth-card-footer text-center">
             <div className="privacy-pill-subtle">
               <ShieldCheck size={16} />
-              <span>100% Privacy Protected • Official Supabase Auth • No Spam</span>
+              <span>100% Privacy Protected • Firebase Auth • No Spam</span>
             </div>
           </div>
         </div>

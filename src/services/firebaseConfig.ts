@@ -41,7 +41,7 @@ if (isFirebaseConfigured()) {
   }
 } else {
   // Graceful notification: Dev environment without Firebase credentials yet
-  // Uses local caching / Supabase until credentials are provided in .env
+  // Uses local caching until Firebase credentials are provided in .env
 }
 
 export { app, db, storage, auth, firebaseConfig };
