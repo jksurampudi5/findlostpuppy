@@ -123,10 +123,11 @@ export const SidebarNav: React.FC = () => {
     (location.pathname === '/' && activeOnboardingTab === 'location');
 
   const isPetActive =
+    location.pathname === '/next-step' ||
     location.pathname === '/pet' ||
     location.pathname === '/dog' ||
     location.pathname === '/dog-profile' ||
-    (location.pathname === '/' && (activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet'));
+    (location.pathname === '/' && (activeOnboardingTab === 'choice' || activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet'));
 
   const isAlertActive =
     location.pathname === '/alert' ||
@@ -207,11 +208,11 @@ export const SidebarNav: React.FC = () => {
       drawerIcon: <MapPin size={18} />,
       onClick: () => handleTabClick('location', '/location'),
     },
-    // 4. Pet Profile
+    // 4. Next Step Options
     {
       id: 'pet',
-      title: 'Pet Profile',
-      subtitle: existingPet?.name ? existingPet.name : 'Add Dog Info',
+      title: 'Next Step',
+      subtitle: 'Add Pet / Sighting / Skip',
       isActive: isPetActive,
       isCompleted: hasCompletedDog,
       circleClass: 'circle-pet',
@@ -229,7 +230,7 @@ export const SidebarNav: React.FC = () => {
         </svg>
       ),
       drawerIcon: <PawPrint size={18} />,
-      onClick: () => handleTabClick('dog', '/pet'),
+      onClick: () => handleTabClick('choice', '/next-step'),
     },
     // 5. Pet Safety / Missing Alert
     {
@@ -681,11 +682,11 @@ export const SidebarNav: React.FC = () => {
               <span className="dock-label">Location</span>
             </button>
 
-            {/* 5. Pet Profile */}
+            {/* 5. Next Step */}
             <button
               type="button"
               className={`dock-tab-btn ${isPetActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('dog', '/pet')}
+              onClick={() => handleTabClick('choice', '/next-step')}
             >
               <div className="dock-icon-wrap">
                 {existingPet?.primaryPhoto ? (
@@ -694,7 +695,7 @@ export const SidebarNav: React.FC = () => {
                   <PawPrint size={19} />
                 )}
               </div>
-              <span className="dock-label">Pet</span>
+              <span className="dock-label">Next</span>
             </button>
 
             {/* 6. Logout */}
