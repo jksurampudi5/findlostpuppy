@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export const EmailAuthPage = () => {
-  const { signInWithOtp, verifyOtp, isAuthenticated, activeOnboardingTab, isLoading } = useAuth();
+  const { signInWithOtp, verifyOtp, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -18,13 +18,10 @@ export const EmailAuthPage = () => {
   // Auto-redirect when authenticated (covers both OTP submission and Magic Link click)
   useEffect(() => {
     if (isAuthenticated) {
-      const target =
-        !activeOnboardingTab || activeOnboardingTab === 'completed'
-          ? '/dashboard'
-          : `/${activeOnboardingTab}`;
-      navigate(target, { replace: true });
+      setActiveOnboardingTab('owner');
+      navigate('/owner', { replace: true });
     }
-  }, [isAuthenticated, activeOnboardingTab, navigate]);
+  }, [isAuthenticated, navigate, setActiveOnboardingTab]);
 
   // Resend cooldown timer
   useEffect(() => {

@@ -33,6 +33,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Keep local test installs separate from the Play Store application.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release

@@ -13,6 +13,7 @@ import {
   Check,
   Lightbulb,
   ShieldCheck,
+  Camera,
 } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
@@ -139,6 +140,7 @@ export const SidebarNav: React.FC = () => {
     (location.pathname === '/' && (activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed'));
 
   const isAdminActive = location.pathname === '/admin';
+  const isCaptureActive = location.pathname === '/capture';
 
   // =========================================================================
   // SINGLE SOURCE OF TRUTH: NAVIGATION ITEMS CONFIGURATION
@@ -260,7 +262,21 @@ export const SidebarNav: React.FC = () => {
       drawerIcon: <AlertTriangle size={18} />,
       onClick: () => handleTabClick('report', '/alert'),
     },
-    // 6. Admin Portal (rendered if user is Admin)
+    // 6. Capture Pet
+    {
+      id: 'capture',
+      title: 'Capture Pet',
+      subtitle: 'Private Sighting',
+      isActive: isCaptureActive,
+      circleClass: 'circle-suggestion',
+      icon: <Camera size={20} className="text-amber-500" />,
+      drawerIcon: <Camera size={18} className="text-amber-500" />,
+      onClick: () => {
+        navigate('/capture');
+        setIsMobileMenuOpen(false);
+      },
+    },
+    // 7. Admin Portal (rendered if user is Admin)
     ...(isUserAdmin ? [{
       id: 'admin',
       title: 'Admin Portal',
@@ -274,7 +290,7 @@ export const SidebarNav: React.FC = () => {
         setIsMobileMenuOpen(false);
       },
     }] : []),
-    // 7. Suggest Idea
+    // 8. Suggest Idea
     {
       id: 'suggest',
       title: 'Suggest Idea',
@@ -295,6 +311,7 @@ export const SidebarNav: React.FC = () => {
     isPetActive,
     isAlertActive,
     isAdminActive,
+    isCaptureActive,
     hasCompletedOwner,
     hasCompletedLocation,
     hasCompletedDog,
@@ -315,7 +332,7 @@ export const SidebarNav: React.FC = () => {
       {/* 1. MOBILE TOP APP BAR (< 768px) */}
       {/* ========================================================================= */}
       <header className="mobile-top-header" aria-label="Mobile Header">
-        <div className="mobile-top-header-inner">
+        <div className={`mobile-top-header-inner ${!isAuthenticated ? 'mobile-top-header-inner-guest' : ''}`}>
           <Link
             to={isAuthenticated ? '/dashboard' : '/'}
             className="mobile-brand-logo"
@@ -336,8 +353,8 @@ export const SidebarNav: React.FC = () => {
             <span className="mobile-brand-title">FindLostPuppy</span>
           </Link>
 
-          <div className="mobile-top-right-actions">
-            {isAuthenticated ? (
+          {isAuthenticated ? (
+            <div className="mobile-top-right-actions">
               <>
                 <button
                   type="button"
@@ -380,17 +397,17 @@ export const SidebarNav: React.FC = () => {
                   {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
                 </button>
               </>
-            ) : (
-              <div className="mobile-guest-actions">
-                <Link to="/dashboard" className="btn btn-outline btn-xs">
-                  Dashboard
-                </Link>
-                <Link to="/" className="btn btn-primary btn-xs">
-                  Sign In
-                </Link>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="mobile-guest-actions">
+              <Link to="/dashboard" className="btn btn-outline btn-xs">
+                Dashboard
+              </Link>
+              <Link to="/" className="btn btn-primary btn-xs">
+                Sign In
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

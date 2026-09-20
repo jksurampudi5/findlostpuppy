@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  PawPrint,
   ArrowLeft,
-  Sparkles,
   Check,
-  Edit3,
-  Heart,
   Tag,
   ChevronDown,
   Trash2,
   Camera,
   Calendar,
-  Scale,
   Palette,
   Loader2,
+  Bone,
+  Dog,
+  Fingerprint,
+  Ruler,
+  VenusAndMars,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -40,47 +40,6 @@ interface DogOnboardingPageProps {
   onBackToOwner?: () => void;
   onSuccess?: () => void;
 }
-
-// Dog Head SVG Icon for Breed tile
-const DogHeadIcon = ({ size = 22 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M10 5.172a2 2 0 0 0-3.414-1.414l-3.871 3.87A1 1 0 0 0 2.414 9H4v5a2 2 0 0 0 2 2h1" />
-    <path d="M14 5.172a2 2 0 0 1 3.414-1.414l3.871 3.87A1 1 0 0 1 21.586 9H20v5a2 2 0 0 1-2 2h-1" />
-    <circle cx="9" cy="10" r="1" fill="currentColor" />
-    <circle cx="15" cy="10" r="1" fill="currentColor" />
-    <path d="M10 14a2 2 0 0 0 4 0" />
-    <path d="M12 11.5v1" />
-  </svg>
-);
-
-// Gender Glyph SVG Icon for Gender tile
-const GenderSymbolIcon = ({ size = 20 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="9.5" cy="14.5" r="5" />
-    <path d="m13 11 7-7" />
-    <path d="M15 4h5v5" />
-    <path d="M9.5 19.5v3" />
-    <path d="M8 21h3" />
-  </svg>
-);
 
 export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   onBackToLocation,
@@ -128,17 +87,14 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // Inline editing states for text-based rows
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingMarks, setIsEditingMarks] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const marksInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Active selector popup modal: 'breed' | 'age' | 'gender' | 'size' | 'color' | 'collar' | null
   const [activeModal, setActiveModal] = useState<'breed' | 'age' | 'gender' | 'size' | 'color' | 'collar' | null>(
     null
   );
+  const [activeTextModal, setActiveTextModal] = useState<'name' | 'marks' | null>(null);
+  const [textModalValue, setTextModalValue] = useState('');
 
   // Synchronize form fields whenever existing pet updates
   useEffect(() => {
@@ -163,19 +119,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       }
     }
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
-
-  // Focus inline inputs when activated
-  useEffect(() => {
-    if (isEditingName) {
-      nameInputRef.current?.focus();
-    }
-  }, [isEditingName]);
-
-  useEffect(() => {
-    if (isEditingMarks) {
-      marksInputRef.current?.focus();
-    }
-  }, [isEditingMarks]);
 
   // Handle Photo File Upload with compression & storage persistence
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,7 +207,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       id: opt.value,
       label: opt.value,
       secondaryLabel: opt.label.replace(/^.* - /, ''),
-      icon: <Scale size={18} />,
+      icon: <Ruler size={18} />,
     }));
   }, []);
 
@@ -419,11 +362,29 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
   };
 
+  const openTextModal = (field: 'name' | 'marks') => {
+    setTextModalValue(field === 'name' ? dogName : distinguishingMarks);
+    setActiveTextModal(field);
+  };
+
+  const handleTextModalUpdate = () => {
+    if (activeTextModal === 'name') {
+      setDogName(textModalValue.trim());
+    }
+    if (activeTextModal === 'marks') {
+      setDistinguishingMarks(textModalValue.trim());
+    }
+    setActiveTextModal(null);
+  };
+
   return (
     <div className="onboarding-page">
       <div className="app-container onboarding-container">
         {/* APPROVED OUTER CONTAINER - CSS & GLOW PRESERVED EXACTLY AS-IS */}
         <div className="onboarding-card card owner-theme-card pet-combined-card">
+          <div className="section-card-title-block">
+            <h1>Pet Details</h1>
+          </div>
           {/* 1. Header Bar */}
           <div className="pet-profile-header-bar">
             <div className="pet-profile-header-left">
@@ -436,16 +397,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               >
                 <ArrowLeft size={18} />
               </button>
-              <div className="pet-profile-title-wrap">
-                <h2 className="pet-profile-title">Update Pet Details</h2>
-                <p className="pet-profile-subtitle">Keep your pet’s information up to date.</p>
-              </div>
-            </div>
-
-            <div className="pet-profile-brand-badge" title="Happy Pets Safer Tomorrows">
-              <PawPrint size={14} className="text-amber" />
-              <span className="pet-profile-brand-text">Happy Pets Safer Tomorrows</span>
-              <Heart size={14} className="pet-profile-brand-heart" />
             </div>
           </div>
 
@@ -470,7 +421,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   />
                 ) : (
                   <div className="pet-photo-main-placeholder">
-                    <DogHeadIcon size={52} />
+                    <Dog size={56} />
                   </div>
                 )}
               </div>
@@ -513,54 +464,18 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               {/* ROW 1: Pet Name */}
               <div
                 className="pet-info-row"
-                onClick={() => {
-                  if (!isEditingName) setIsEditingName(true);
-                }}
+                onClick={() => openTextModal('name')}
               >
                 <div className="pet-info-icon-tile">
-                  <PawPrint size={20} />
+                  <Dog size={20} />
                 </div>
                 <div className="pet-info-content">
                   <span className="pet-info-label">
                     Pet Name <span className="required-star">*</span>
                   </span>
-                  {isEditingName ? (
-                    <div
-                      className="pet-inline-edit-form"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        ref={nameInputRef}
-                        type="text"
-                        className="pet-inline-edit-input"
-                        value={dogName}
-                        placeholder="Enter pet name..."
-                        onChange={(e) => setDogName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            setIsEditingName(false);
-                          }
-                        }}
-                        onBlur={() => setIsEditingName(false)}
-                      />
-                      <button
-                        type="button"
-                        className="pet-inline-confirm-btn"
-                        onClick={() => setIsEditingName(false)}
-                        title="Save pet name"
-                      >
-                        <Check size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className={`pet-info-value ${!dogName ? 'placeholder' : ''}`}>
-                      {dogName || 'Buddy'}
-                    </span>
-                  )}
-                </div>
-                <div className="pet-info-action">
-                  <Edit3 size={17} />
+                  <span className={`pet-info-value ${!dogName ? 'placeholder' : ''}`}>
+                    {dogName || 'Buddy'}
+                  </span>
                 </div>
               </div>
 
@@ -570,7 +485,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 onClick={() => setActiveModal('breed')}
               >
                 <div className="pet-info-icon-tile">
-                  <DogHeadIcon size={20} />
+                  <Bone size={20} />
                 </div>
                 <div className="pet-info-content">
                   <span className="pet-info-label">
@@ -612,7 +527,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 onClick={() => setActiveModal('gender')}
               >
                 <div className="pet-info-icon-tile">
-                  <GenderSymbolIcon size={19} />
+                  <VenusAndMars size={19} />
                 </div>
                 <div className="pet-info-content">
                   <span className="pet-info-label">
@@ -633,7 +548,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 onClick={() => setActiveModal('size')}
               >
                 <div className="pet-info-icon-tile">
-                  <Scale size={19} />
+                  <Ruler size={19} />
                 </div>
                 <div className="pet-info-content">
                   <span className="pet-info-label">
@@ -672,54 +587,18 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               {/* ROW 7: Distinctive Marks */}
               <div
                 className="pet-info-row"
-                onClick={() => {
-                  if (!isEditingMarks) setIsEditingMarks(true);
-                }}
+                onClick={() => openTextModal('marks')}
               >
                 <div className="pet-info-icon-tile">
-                  <Sparkles size={19} />
+                  <Fingerprint size={19} />
                 </div>
                 <div className="pet-info-content">
                   <span className="pet-info-label">
                     Distinctive Marks (Optional)
                   </span>
-                  {isEditingMarks ? (
-                    <div
-                      className="pet-inline-edit-form"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        ref={marksInputRef}
-                        type="text"
-                        className="pet-inline-edit-input"
-                        value={distinguishingMarks}
-                        placeholder="e.g. White chest patch, one floppy ear..."
-                        onChange={(e) => setDistinguishingMarks(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            setIsEditingMarks(false);
-                          }
-                        }}
-                        onBlur={() => setIsEditingMarks(false)}
-                      />
-                      <button
-                        type="button"
-                        className="pet-inline-confirm-btn"
-                        onClick={() => setIsEditingMarks(false)}
-                        title="Save markings"
-                      >
-                        <Check size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className={`pet-info-value ${!distinguishingMarks ? 'placeholder' : ''}`}>
-                      {distinguishingMarks || 'White chest patch, one floppy ear'}
-                    </span>
-                  )}
-                </div>
-                <div className="pet-info-action">
-                  <Edit3 size={17} />
+                  <span className={`pet-info-value ${!distinguishingMarks ? 'placeholder' : ''}`}>
+                    {distinguishingMarks || 'White chest patch, one floppy ear'}
+                  </span>
                 </div>
               </div>
 
@@ -877,6 +756,51 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         }}
         searchable={false}
       />
+
+      {activeTextModal && (
+        <div className="pet-text-modal-overlay" onClick={() => setActiveTextModal(null)} role="dialog" aria-modal="true">
+          <div className="pet-text-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="pet-text-modal-header">
+              <h3>{activeTextModal === 'name' ? 'Pet Name' : 'Distinctive Marks'}</h3>
+              <button type="button" onClick={() => setActiveTextModal(null)} aria-label="Close editor">
+                X
+              </button>
+            </div>
+            {activeTextModal === 'name' ? (
+              <input
+                type="text"
+                className="pet-text-modal-input"
+                value={textModalValue}
+                placeholder="Enter pet name"
+                autoFocus
+                onChange={(e) => setTextModalValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleTextModalUpdate();
+                  }
+                }}
+              />
+            ) : (
+              <textarea
+                className="pet-text-modal-textarea"
+                value={textModalValue}
+                placeholder="e.g. White chest patch, one floppy ear"
+                autoFocus
+                onChange={(e) => setTextModalValue(e.target.value)}
+              />
+            )}
+            <button
+              type="button"
+              className="pet-text-modal-update-btn"
+              onClick={handleTextModalUpdate}
+            >
+              <Check size={17} />
+              <span>Update</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
