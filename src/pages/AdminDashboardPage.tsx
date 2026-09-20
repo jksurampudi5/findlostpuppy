@@ -1280,6 +1280,16 @@ export const AdminDashboardPage: React.FC = () => {
                           <div style={{ fontSize: '0.85rem', color: '#475569', whiteSpace: 'pre-wrap' }}>
                             {s.description}
                           </div>
+                          {s.screenshotData && (
+                            <a
+                              href={s.screenshotData}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="admin-suggestion-screenshot-link"
+                            >
+                              View attached screen snippet
+                            </a>
+                          )}
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>

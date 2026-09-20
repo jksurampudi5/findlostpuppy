@@ -18467,6 +18467,216 @@
   margin-top: 8px;
 }
 
+.suggestion-popup-card,
+.suggestion-modal-dialog {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 121, 0, 0.18), transparent 42%),
+    linear-gradient(155deg, rgba(24, 27, 31, 0.98), rgba(6, 7, 8, 0.99));
+  border: 1.5px solid rgba(255, 121, 0, 0.46);
+  color: #FFFFFF;
+  box-shadow:
+    0 0 70px -10px rgba(255, 121, 0, 0.48),
+    0 0 30px rgba(255, 121, 0, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    0 24px 64px rgba(0, 0, 0, 0.65);
+}
+
+.suggestion-modal-overlay,
+.suggestion-popup-prompt-overlay {
+  background: rgba(0, 0, 0, 0.70);
+}
+
+.suggestion-popup-title,
+.suggestion-modal-title,
+.suggestion-success-view h4,
+.rating-question-label,
+.identity-text strong {
+  color: #FFFFFF;
+}
+
+.suggestion-popup-subtitle,
+.suggestion-modal-subtitle,
+.suggestion-popup-body,
+.suggestion-success-view p,
+.identity-display-row,
+.suggestion-rating-desc {
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.suggestion-popup-icon-badge,
+.suggestion-header-icon-box {
+  background: linear-gradient(135deg, #FF9432, #FF7900);
+  box-shadow: 0 0 24px rgba(255, 121, 0, 0.34);
+}
+
+.suggestion-popup-bulb,
+.suggestion-header-flame {
+  color: #FFFFFF;
+}
+
+.suggestion-popup-close,
+.suggestion-modal-close {
+  border: 1px solid rgba(255, 210, 128, 0.72);
+  background: linear-gradient(135deg, #FF9432, #FF7900);
+  color: #FFFFFF;
+  box-shadow: 0 0 18px rgba(255, 121, 0, 0.28);
+}
+
+.suggestion-popup-close:hover,
+.suggestion-modal-close:hover {
+  background: linear-gradient(135deg, #FFA64D, #FF851A);
+  color: #FFFFFF;
+}
+
+.suggestion-modal-header,
+.suggestion-modal-footer {
+  border-color: rgba(255, 121, 0, 0.18);
+}
+
+.suggestion-cat-chip,
+.suggestion-rating-review-card,
+.suggestion-identity-subtle,
+.suggestion-screen-capture-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 121, 0, 0.22);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.suggestion-cat-chip:hover,
+.cat-chip-active {
+  background: rgba(255, 121, 0, 0.14) !important;
+  color: #FFFFFF;
+  border-color: rgba(255, 121, 0, 0.66) !important;
+}
+
+.simplified-textarea,
+.suggestion-subinput {
+  background: rgba(3, 7, 10, 0.72);
+  border-color: rgba(255, 121, 0, 0.34);
+  color: #FFFFFF;
+}
+
+.simplified-textarea::placeholder,
+.suggestion-subinput::placeholder {
+  color: rgba(203, 213, 225, 0.66);
+}
+
+.simplified-textarea:focus,
+.suggestion-subinput:focus {
+  background: rgba(3, 7, 10, 0.88);
+  border-color: #FF7900;
+  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.18);
+}
+
+.suggestion-screen-capture-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+}
+
+.suggestion-screen-copy {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 800;
+  font-size: 0.86rem;
+}
+
+.suggestion-screen-capture-btn,
+.suggestion-screen-remove-btn {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 210, 128, 0.56);
+  background: linear-gradient(135deg, #FF9432, #FF7900);
+  color: #FFFFFF;
+  font-size: 0.78rem;
+  font-weight: 900;
+  box-shadow: 0 0 18px rgba(255, 121, 0, 0.24);
+}
+
+.suggestion-screen-remove-btn {
+  background: linear-gradient(135deg, #EF4444, #B91C1C);
+  border-color: rgba(252, 165, 165, 0.62);
+}
+
+.suggestion-screen-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 121, 0, 0.28);
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.rating-sweet-callout {
+  background: rgba(255, 121, 0, 0.12);
+  color: rgba(255, 237, 213, 0.94);
+  border: 1px solid rgba(255, 121, 0, 0.22);
+}
+
+.callout-review-link,
+.identity-edit-btn {
+  color: #FFB066;
+}
+
+.suggestion-playstore-link-btn {
+  background: rgba(255, 121, 0, 0.10);
+  border-color: rgba(255, 121, 0, 0.54);
+  color: #FFD7A8;
+}
+
+.suggestion-playstore-link-btn:hover {
+  background: rgba(255, 121, 0, 0.18);
+  color: #FFFFFF;
+}
+
+.admin-suggestion-screenshot-link {
+  display: inline-flex;
+  margin-top: 0.45rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 121, 0, 0.12);
+  color: #C2410C;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+@media (max-width: 540px) {
+  .suggestion-modal-dialog {
+    padding: 1rem;
+  }
+
+  .suggestion-header-badge-row {
+    gap: 0.75rem;
+  }
+
+  .suggestion-screen-capture-card,
+  .suggestion-modal-footer,
+  .suggestion-popup-actions {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .suggestion-screen-capture-btn,
+  .suggestion-screen-remove-btn,
+  .suggestion-modal-footer .btn,
+  .suggestion-popup-actions .btn {
+    width: 100%;
+  }
+}
+
 /* Keyframe animations */
 @keyframes ringPulse {
   0% {

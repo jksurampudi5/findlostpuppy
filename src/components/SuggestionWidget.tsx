@@ -12,6 +12,9 @@ import {
   Rocket,
   ExternalLink,
   Edit2,
+  MonitorUp,
+  Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -83,6 +86,8 @@ export const SuggestionWidget: React.FC = () => {
   const [suggestionText, setSuggestionText] = useState('');
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
+  const [screenshotData, setScreenshotData] = useState('');
+  const [isCapturingScreen, setIsCapturingScreen] = useState(false);
 
   // Identity states (prefilled silently)
   const [name, setName] = useState(user?.name || '');
@@ -120,6 +125,45 @@ export const SuggestionWidget: React.FC = () => {
     setRating(val);
   };
 
+  const handleCaptureScreenshot = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      showToast('Screen capture is not available in this browser.', 'warning');
+      return;
+    }
+
+    setIsCapturingScreen(true);
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+
+      const width = video.videoWidth || window.innerWidth;
+      const height = video.videoHeight || window.innerHeight;
+      const maxWidth = 900;
+      const scale = Math.min(1, maxWidth / width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const context = canvas.getContext('2d');
+      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      stream.getTracks().forEach((track) => track.stop());
+      setScreenshotData(canvas.toDataURL('image/jpeg', 0.74));
+      showToast('Screenshot attached to your suggestion.', 'success');
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        showToast('Could not capture screenshot. You can still submit the suggestion.', 'warning');
+      }
+    } finally {
+      setIsCapturingScreen(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -136,6 +180,10 @@ export const SuggestionWidget: React.FC = () => {
       const firstLine = trimmed.split('\n')[0].trim();
       const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
 
+      const descriptionWithContext = screenshotData
+        ? `${trimmed}\n\n[Screen snippet attached for admin review]`
+        : trimmed;
+
       storageService.saveSuggestion({
         userId: user?.id,
         userName: name.trim() || user?.name || 'Community Member',
@@ -143,9 +191,10 @@ export const SuggestionWidget: React.FC = () => {
         userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
         category,
         title: derivedTitle,
-        description: trimmed,
+        description: descriptionWithContext,
         rating,
         pageUrl: location.pathname,
+        screenshotData,
       });
 
       setIsSuccess(true);
@@ -156,6 +205,7 @@ export const SuggestionWidget: React.FC = () => {
         setIsSuccess(false);
         setIsOpen(false);
         setSuggestionText('');
+        setScreenshotData('');
       }, 2500);
     } catch {
       showToast('Could not save suggestion. Please try again.', 'error');
@@ -396,15 +446,45 @@ export const SuggestionWidget: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3. Single Streamlined Suggestion Textarea */}
+                {/* 3. Screenshot + Suggestion */}
+                <div className="suggestion-screen-capture-card">
+                  <div className="suggestion-screen-copy">
+                    <ImageIcon size={18} />
+                    <span>{screenshotData ? 'Screen snippet attached' : 'Attach current page screenshot'}</span>
+                  </div>
+                  {screenshotData ? (
+                    <button
+                      type="button"
+                      className="suggestion-screen-remove-btn"
+                      onClick={() => setScreenshotData('')}
+                    >
+                      <Trash2 size={14} />
+                      <span>Remove</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="suggestion-screen-capture-btn"
+                      onClick={handleCaptureScreenshot}
+                      disabled={isCapturingScreen}
+                    >
+                      <MonitorUp size={15} />
+                      <span>{isCapturingScreen ? 'Capturing...' : 'Screenshot'}</span>
+                    </button>
+                  )}
+                  {screenshotData && (
+                    <img src={screenshotData} alt="Attached screen snippet" className="suggestion-screen-preview" />
+                  )}
+                </div>
+
                 <div className="suggestion-field-group">
                   <textarea
                     id="suggestion-desc-input"
-                    rows={4}
+                    rows={3}
                     className="suggestion-textarea simplified-textarea"
                     value={suggestionText}
                     onChange={(e) => setSuggestionText(e.target.value)}
-                    placeholder="💡 What would make FindLostPuppy even better for you? Share any idea, feature request, or suggestion..."
+                    placeholder="What should we fix or improve?"
                     required
                     maxLength={1500}
                     autoFocus

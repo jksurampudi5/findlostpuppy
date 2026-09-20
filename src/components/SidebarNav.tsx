@@ -211,7 +211,7 @@ export const SidebarNav: React.FC = () => {
     // 4. Next Step Options
     {
       id: 'pet',
-      title: 'Next Step',
+      title: 'What To Do',
       subtitle: 'Add Pet / Sighting / Skip',
       isActive: isPetActive,
       isCompleted: hasCompletedDog,
@@ -235,7 +235,7 @@ export const SidebarNav: React.FC = () => {
     // 5. Pet Safety / Missing Alert
     {
       id: 'alert',
-      title: isLost ? '🔴 PET IS MISSING' : isSafe ? 'Pet Safety' : 'Pet Safety',
+      title: isLost ? '🔴 PET IS MISSING' : 'Pet Safety',
       subtitle: isLost
         ? `🚨 Searching for ${previewDogName}...`
         : isSafe
@@ -280,7 +280,7 @@ export const SidebarNav: React.FC = () => {
     // 7. Admin Portal (rendered if user is Admin)
     ...(isUserAdmin ? [{
       id: 'admin',
-      title: 'Admin Portal',
+      title: 'Admin Profile',
       subtitle: 'Database & Sync',
       isActive: isAdminActive,
       circleClass: 'circle-admin',
@@ -291,10 +291,10 @@ export const SidebarNav: React.FC = () => {
         setIsMobileMenuOpen(false);
       },
     }] : []),
-    // 8. Suggest Idea
+    // 8. App Suggestion
     {
       id: 'suggest',
-      title: 'Suggest Idea',
+      title: 'App Suggestion',
       subtitle: 'Help us improve',
       isActive: false,
       circleClass: 'circle-suggestion',
@@ -695,7 +695,7 @@ export const SidebarNav: React.FC = () => {
                   <PawPrint size={19} />
                 )}
               </div>
-              <span className="dock-label">Next</span>
+              <span className="dock-label">What</span>
             </button>
 
             {/* 6. Logout */}

@@ -225,6 +225,7 @@ export interface AppSuggestion {
   rating?: number; // 1 to 5
   pageUrl: string;
   deviceInfo?: string;
+  screenshotData?: string;
   createdAt: string;
   status: 'NEW' | 'REVIEWED' | 'PLANNED' | 'COMPLETED';
 }

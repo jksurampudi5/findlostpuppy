@@ -2613,6 +2613,7 @@ class StorageService {
       description: (suggestion.description || '').trim(),
       rating: suggestion.rating,
       pageUrl: suggestion.pageUrl || (typeof window !== 'undefined' ? window.location.pathname : '/'),
+      screenshotData: suggestion.screenshotData,
       deviceInfo:
         suggestion.deviceInfo ||
         (typeof navigator !== 'undefined'
@@ -2668,4 +2669,3 @@ class StorageService {
 }
 
 export const storageService = new StorageService();
-
