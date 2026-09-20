@@ -343,7 +343,15 @@ export const firebaseSyncService = {
         longitude: sighting.longitude || null,
         reporterName: sighting.reporterName || 'Anonymous',
         reporterPhone: sighting.reporterPhone || null,
+        reporterEmail: sighting.reporterEmail || null,
+        reporterUserId: sighting.reporterUserId || null,
+        isGuest: sighting.isGuest ?? false,
+        isCurrent: sighting.isCurrent ?? true,
+        validFrom: sighting.validFrom || sighting.createdAt || new Date().toISOString(),
+        validTo: sighting.validTo || null,
+        version: sighting.version || 1,
         createdAt: sighting.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       await setDoc(docRef, payload, { merge: true });

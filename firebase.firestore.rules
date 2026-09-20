@@ -34,7 +34,10 @@ service cloud.firestore {
 
     match /sightings/{sightingId} {
       allow read: if signedIn();
-      allow create: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.id == sightingId
+        && request.resource.data.reportId is string
+        && request.resource.data.location is string;
       allow update, delete: if isAdmin() || (signedIn() && resource.data.reporterUserId == request.auth.uid);
     }
 
