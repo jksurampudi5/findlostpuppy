@@ -21,7 +21,7 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { SuggestionCategory } from '../types';
 
-const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
+const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=com.findlostpuppy.app';
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();

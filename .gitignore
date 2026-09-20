@@ -34,6 +34,7 @@ release-signing.properties
 android/key.properties
 android/app/*.jks
 android/app/*.keystore
+android/app/google-services.json
 *.aab
 *.apk
 archive/

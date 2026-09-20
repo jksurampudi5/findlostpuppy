@@ -40,6 +40,12 @@ let lastSyncCounts = {
 };
 let lastSyncError: string | null = null;
 
+const isInlineImage = (value?: string | null): boolean =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
+const cloudPhotoOrEmpty = (value?: string | null): string =>
+  value && !isInlineImage(value) ? value : '';
+
 export const firebaseSyncService = {
   isConfigured(): boolean {
     return isFirebaseConfigured();
@@ -66,10 +72,15 @@ export const firebaseSyncService = {
 
       let ownerAvatar = user.avatar || user.photo || '';
       if (ownerAvatar && isPetPhotoUrl(ownerAvatar)) ownerAvatar = '';
-      if (ownerAvatar?.startsWith('data:') && storage) {
-        const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
-        const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
-        ownerAvatar = await getDownloadURL(uploadRes.ref);
+      if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
+        try {
+          const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
+          const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
+          ownerAvatar = await getDownloadURL(uploadRes.ref);
+        } catch (uploadErr) {
+          console.warn('[Firebase Storage] User avatar upload notice:', uploadErr);
+          ownerAvatar = '';
+        }
       }
 
       await setDoc(doc(db, 'profiles', cleanUserId), {
@@ -115,7 +126,7 @@ export const firebaseSyncService = {
       }
 
       // If owner uploaded a Base64 photo, store in Firebase Storage under users/{userId}/avatar.jpg
-      if (ownerAvatar?.startsWith('data:') && storage) {
+      if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
         try {
           const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
           const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
@@ -123,6 +134,7 @@ export const firebaseSyncService = {
           profile.photo = ownerAvatar;
         } catch (uploadErr) {
           console.warn('[Firebase Storage] Owner avatar upload notice:', uploadErr);
+          ownerAvatar = undefined;
         }
       }
 
@@ -186,7 +198,7 @@ export const firebaseSyncService = {
 
       let primaryPhoto = pet.primaryPhoto || '';
       // If photo is Base64 data URL, upload to Firebase Storage under pets/{petId}/
-      if (primaryPhoto.startsWith('data:') && storage) {
+      if (isInlineImage(primaryPhoto) && storage) {
         try {
           const petStorageRef = storageRef(storage, `pets/${cleanPetId}/photo_${Date.now()}.jpg`);
           const uploadRes = await uploadString(petStorageRef, primaryPhoto, 'data_url');
@@ -194,6 +206,7 @@ export const firebaseSyncService = {
           pet.primaryPhoto = primaryPhoto;
         } catch (uploadErr) {
           console.warn('[Firebase Storage] Pet photo upload notice:', uploadErr);
+          primaryPhoto = '';
         }
       }
 
@@ -210,8 +223,8 @@ export const firebaseSyncService = {
         color: pet.color || '',
         distinguishingMarks: pet.distinguishingMarks || '',
         collarInfo: pet.collarInfo || '',
-        primaryPhoto: primaryPhoto,
-        photos: pet.photos || (primaryPhoto ? [primaryPhoto] : []),
+        primaryPhoto: cloudPhotoOrEmpty(primaryPhoto),
+        photos: (pet.photos || (primaryPhoto ? [primaryPhoto] : [])).filter((photo) => !isInlineImage(photo)),
         isLost: false,
         createdAt: pet.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -238,7 +251,7 @@ export const firebaseSyncService = {
       if (!cleanReportId) return false;
 
       let reportPhoto = report.dog?.primaryPhoto || '';
-      if (reportPhoto.startsWith('data:') && storage) {
+      if (isInlineImage(reportPhoto) && storage) {
         try {
           const reportStorageRef = storageRef(storage, `reports/${cleanReportId}/photo_${Date.now()}.jpg`);
           const uploadRes = await uploadString(reportStorageRef, reportPhoto, 'data_url');
@@ -246,6 +259,7 @@ export const firebaseSyncService = {
           if (report.dog) report.dog.primaryPhoto = reportPhoto;
         } catch (uploadErr) {
           console.warn('[Firebase Storage] Report photo upload notice:', uploadErr);
+          reportPhoto = '';
         }
       }
 
@@ -257,7 +271,7 @@ export const firebaseSyncService = {
         ownerId: cleanOwnerId,
         petName: report.dog?.name || 'Lost Dog',
         petBreed: report.dog?.breed || 'Companion Pet',
-        petPhoto: reportPhoto,
+        petPhoto: cloudPhotoOrEmpty(reportPhoto),
         ownerApproximateLocation: report.ownerApproximateLocation || '',
         lastKnownLocation: report.lastKnownLocation || '',
         lastKnownLatitude: report.lastKnownLatitude || null,
@@ -298,7 +312,7 @@ export const firebaseSyncService = {
       if (!cleanSightingId) return false;
 
       let photoUrl = sighting.photo || '';
-      if (photoUrl.startsWith('data:') && storage && sighting.reportId) {
+      if (isInlineImage(photoUrl) && storage && sighting.reportId) {
         try {
           const sStorageRef = storageRef(storage, `sightings/${sighting.reportId}/${cleanSightingId}.jpg`);
           const uploadRes = await uploadString(sStorageRef, photoUrl, 'data_url');
@@ -306,6 +320,7 @@ export const firebaseSyncService = {
           sighting.photo = photoUrl;
         } catch (uploadErr) {
           console.warn('[Firebase Storage] Sighting photo upload notice:', uploadErr);
+          photoUrl = '';
         }
       }
 
@@ -318,7 +333,7 @@ export const firebaseSyncService = {
         time: sighting.time || '12:00 PM',
         location: sighting.location || '',
         description: sighting.description || '',
-        photo: photoUrl || null,
+        photo: cloudPhotoOrEmpty(photoUrl) || null,
         state: sighting.state || '',
         district: sighting.district || '',
         mandal: sighting.mandal || '',
@@ -328,7 +343,15 @@ export const firebaseSyncService = {
         longitude: sighting.longitude || null,
         reporterName: sighting.reporterName || 'Anonymous',
         reporterPhone: sighting.reporterPhone || null,
+        reporterEmail: sighting.reporterEmail || null,
+        reporterUserId: sighting.reporterUserId || null,
+        isGuest: sighting.isGuest ?? false,
+        isCurrent: sighting.isCurrent ?? true,
+        validFrom: sighting.validFrom || sighting.createdAt || new Date().toISOString(),
+        validTo: sighting.validTo || null,
+        version: sighting.version || 1,
         createdAt: sighting.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       await setDoc(docRef, payload, { merge: true });
@@ -496,10 +519,15 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return false;
     try {
       let screenshotUrl = suggestion.screenshotData || '';
-      if (screenshotUrl.startsWith('data:') && storage) {
-        const suggestionRef = storageRef(storage, `suggestions/${suggestion.id}/screen_${Date.now()}.jpg`);
-        const uploadRes = await uploadString(suggestionRef, screenshotUrl, 'data_url');
-        screenshotUrl = await getDownloadURL(uploadRes.ref);
+      if (isInlineImage(screenshotUrl) && storage) {
+        try {
+          const suggestionRef = storageRef(storage, `suggestions/${suggestion.id}/screen_${Date.now()}.jpg`);
+          const uploadRes = await uploadString(suggestionRef, screenshotUrl, 'data_url');
+          screenshotUrl = await getDownloadURL(uploadRes.ref);
+        } catch (uploadErr) {
+          console.warn('[Firebase Storage] Suggestion screenshot upload notice:', uploadErr);
+          screenshotUrl = '';
+        }
       }
       await setDoc(doc(db, 'app_suggestions', suggestion.id), {
         ...suggestion,
