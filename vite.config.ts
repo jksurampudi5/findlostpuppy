@@ -19,5 +19,5 @@ export default defineConfig({
   ],
   base: process.env.CAPACITOR_BUILD === 'true'
     ? '/'
-    : (process.env.NODE_ENV === 'production' ? '/findlostpuppy/' : '/'),
+    : (process.env.VITE_BASE_URL || (process.env.NODE_ENV === 'production' ? '/findlostpuppy/' : '/')),
 })
