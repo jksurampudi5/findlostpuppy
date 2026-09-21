@@ -5,6 +5,13 @@ export const PET_MEDIA_BUCKET = 'pet-media';
 export const MEDIA_QUEUE_KEY = 'findlostpuppy_media_queue_v1';
 export const MAX_MEDIA_QUEUE_SIZE = 10;
 
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+const CLOUDINARY_FOLDER = import.meta.env.VITE_CLOUDINARY_FOLDER || 'findlostpuppy';
+
+export const isCloudImageStorageConfigured = (): boolean =>
+  Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
+
 export interface QueuedMediaItem {
   id: string;
   category: 'profile' | 'pet' | 'missing-report' | 'sighting';
@@ -17,6 +24,13 @@ export interface QueuedMediaItem {
 }
 
 const generateRandomSuffix = (): string => Math.random().toString(36).substring(2, 9);
+
+const cleanCloudPath = (path: string): string =>
+  path
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-zA-Z0-9/_-]/g, '_')
+    .replace(/\/+/g, '/')
+    .replace(/^\/|\/$/g, '');
 
 /**
  * Converts a Base64 or Data URL string into a native Blob with MIME type.
@@ -90,11 +104,6 @@ export const storageBucketService = {
     fileOrBlob: File | Blob | string,
     expectedMime = 'image/jpeg'
   ): Promise<{ publicUrl: string; path: string } | null> {
-    if (!storage || !isFirebaseConfigured()) {
-      console.warn('[storageBucketService] Firebase Storage is not configured. Cannot upload media.');
-      return null;
-    }
-
     const blobData = await toBlob(fileOrBlob);
     if (!blobData || !blobData.blob) {
       console.warn('[storageBucketService] Invalid image data provided for upload.');
@@ -114,6 +123,52 @@ export const storageBucketService = {
     // Client-side 5MB enforcement
     if (blob.size > 5 * 1024 * 1024) {
       console.error(`[storageBucketService] File exceeds 5MB limit (${(blob.size / 1024 / 1024).toFixed(2)} MB).`);
+      return null;
+    }
+
+    if (isCloudImageStorageConfigured()) {
+      try {
+        const formData = new FormData();
+        const cloudPath = cleanCloudPath(storagePath);
+        const fileName = `${cloudPath.split('/').pop() || `image_${Date.now()}`}.jpg`;
+        const folderPrefix = cleanCloudPath(CLOUDINARY_FOLDER);
+        const folder = `${folderPrefix}/${cloudPath.split('/').slice(0, -1).join('/')}`.replace(/\/+$/g, '');
+
+        formData.append('file', blob, fileName);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        if (folder) formData.append('folder', folder);
+        formData.append('tags', 'findlostpuppy,user-generated');
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn('[storageBucketService] Cloudinary upload failed:', errorText);
+          return null;
+        }
+
+        const result = await response.json();
+        const publicUrl = result.secure_url || result.url;
+        if (!publicUrl) {
+          console.warn('[storageBucketService] Cloudinary upload did not return a URL.');
+          return null;
+        }
+
+        return {
+          publicUrl,
+          path: result.public_id || cloudPath,
+        };
+      } catch (err: any) {
+        console.error('[storageBucketService] Cloudinary upload exception:', err);
+        return null;
+      }
+    }
+
+    if (!storage || !isFirebaseConfigured()) {
+      console.warn('[storageBucketService] No cloud image storage is configured. Cannot upload media.');
       return null;
     }
 

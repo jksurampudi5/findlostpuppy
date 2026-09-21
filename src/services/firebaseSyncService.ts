@@ -11,6 +11,7 @@ import {
   getDownloadURL,
 } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from './firebaseConfig';
+import { storageBucketService } from './storageBucketService';
 import type {
   OwnerProfile,
   DogProfile,
@@ -46,6 +47,19 @@ const isInlineImage = (value?: string | null): boolean =>
 const cloudPhotoOrEmpty = (value?: string | null): string =>
   value && !isInlineImage(value) ? value : '';
 
+const uploadInlineImage = async (
+  storagePath: string,
+  imageData: string
+): Promise<string> => {
+  const cloudUpload = await storageBucketService.uploadMedia(storagePath, imageData);
+  if (cloudUpload?.publicUrl) return cloudUpload.publicUrl;
+
+  if (!storage) return '';
+  const fallbackRef = storageRef(storage, storagePath);
+  const uploadRes = await uploadString(fallbackRef, imageData, 'data_url');
+  return getDownloadURL(uploadRes.ref);
+};
+
 export const firebaseSyncService = {
   isConfigured(): boolean {
     return isFirebaseConfigured();
@@ -74,11 +88,9 @@ export const firebaseSyncService = {
       if (ownerAvatar && isPetPhotoUrl(ownerAvatar)) ownerAvatar = '';
       if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
         try {
-          const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
-          const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
-          ownerAvatar = await getDownloadURL(uploadRes.ref);
+          ownerAvatar = await uploadInlineImage(`users/${cleanUserId}/avatar_${Date.now()}.jpg`, ownerAvatar);
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] User avatar upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] User avatar upload notice:', uploadErr);
           ownerAvatar = '';
         }
       }
@@ -128,12 +140,10 @@ export const firebaseSyncService = {
       // If owner uploaded a Base64 photo, store in Firebase Storage under users/{userId}/avatar.jpg
       if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
         try {
-          const avatarStorageRef = storageRef(storage, `users/${cleanUserId}/avatar_${Date.now()}.jpg`);
-          const uploadRes = await uploadString(avatarStorageRef, ownerAvatar, 'data_url');
-          ownerAvatar = await getDownloadURL(uploadRes.ref);
+          ownerAvatar = await uploadInlineImage(`users/${cleanUserId}/avatar_${Date.now()}.jpg`, ownerAvatar);
           profile.photo = ownerAvatar;
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] Owner avatar upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] Owner avatar upload notice:', uploadErr);
           ownerAvatar = undefined;
         }
       }
@@ -200,12 +210,10 @@ export const firebaseSyncService = {
       // If photo is Base64 data URL, upload to Firebase Storage under pets/{petId}/
       if (isInlineImage(primaryPhoto) && storage) {
         try {
-          const petStorageRef = storageRef(storage, `pets/${cleanPetId}/photo_${Date.now()}.jpg`);
-          const uploadRes = await uploadString(petStorageRef, primaryPhoto, 'data_url');
-          primaryPhoto = await getDownloadURL(uploadRes.ref);
+          primaryPhoto = await uploadInlineImage(`pets/${cleanOwnerId || 'unknown-owner'}/${cleanPetId}/photo_${Date.now()}.jpg`, primaryPhoto);
           pet.primaryPhoto = primaryPhoto;
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] Pet photo upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] Pet photo upload notice:', uploadErr);
           primaryPhoto = '';
         }
       }
@@ -253,12 +261,10 @@ export const firebaseSyncService = {
       let reportPhoto = report.dog?.primaryPhoto || '';
       if (isInlineImage(reportPhoto) && storage) {
         try {
-          const reportStorageRef = storageRef(storage, `reports/${cleanReportId}/photo_${Date.now()}.jpg`);
-          const uploadRes = await uploadString(reportStorageRef, reportPhoto, 'data_url');
-          reportPhoto = await getDownloadURL(uploadRes.ref);
+          reportPhoto = await uploadInlineImage(`missing-reports/${cleanReportId}/photo_${Date.now()}.jpg`, reportPhoto);
           if (report.dog) report.dog.primaryPhoto = reportPhoto;
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] Report photo upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] Report photo upload notice:', uploadErr);
           reportPhoto = '';
         }
       }
@@ -314,12 +320,10 @@ export const firebaseSyncService = {
       let photoUrl = sighting.photo || '';
       if (isInlineImage(photoUrl) && storage && sighting.reportId) {
         try {
-          const sStorageRef = storageRef(storage, `sightings/${sighting.reportId}/${cleanSightingId}.jpg`);
-          const uploadRes = await uploadString(sStorageRef, photoUrl, 'data_url');
-          photoUrl = await getDownloadURL(uploadRes.ref);
+          photoUrl = await uploadInlineImage(`sightings/${sighting.reportId}/${cleanSightingId}.jpg`, photoUrl);
           sighting.photo = photoUrl;
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] Sighting photo upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] Sighting photo upload notice:', uploadErr);
           photoUrl = '';
         }
       }
@@ -521,11 +525,9 @@ export const firebaseSyncService = {
       let screenshotUrl = suggestion.screenshotData || '';
       if (isInlineImage(screenshotUrl) && storage) {
         try {
-          const suggestionRef = storageRef(storage, `suggestions/${suggestion.id}/screen_${Date.now()}.jpg`);
-          const uploadRes = await uploadString(suggestionRef, screenshotUrl, 'data_url');
-          screenshotUrl = await getDownloadURL(uploadRes.ref);
+          screenshotUrl = await uploadInlineImage(`suggestions/${suggestion.id}/screen_${Date.now()}.jpg`, screenshotUrl);
         } catch (uploadErr) {
-          console.warn('[Firebase Storage] Suggestion screenshot upload notice:', uploadErr);
+          console.warn('[Cloud Image Storage] Suggestion screenshot upload notice:', uploadErr);
           screenshotUrl = '';
         }
       }
