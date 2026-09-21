@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldAlert,
   FileText,
   ShieldCheck,
   AlertTriangle,
@@ -49,6 +48,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     acceptedForms.guidelines;
 
   const canContinue = masterAgreed || allIndividualFormsChecked;
+  const acceptedCount = Object.values(acceptedForms).filter(Boolean).length;
 
   // Toggle all forms at once
   const handleToggleAllForms = (checked: boolean) => {
@@ -59,18 +59,6 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
       guidelines: checked,
     });
     setMasterAgreed(checked);
-  };
-
-  const handleIndividualFormToggle = (docId: 'terms' | 'privacy' | 'disclaimer' | 'guidelines') => {
-    const nextVal = !acceptedForms[docId];
-    const updated = { ...acceptedForms, [docId]: nextVal };
-    setAcceptedForms(updated);
-
-    if (updated.terms && updated.privacy && updated.disclaimer && updated.guidelines) {
-      setMasterAgreed(true);
-    } else {
-      setMasterAgreed(false);
-    }
   };
 
   const handleModalAccept = (docId: 'terms' | 'privacy' | 'disclaimer' | 'guidelines') => {
@@ -104,62 +92,24 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
           <div className="consent-form-header text-center">
             <div className="consent-badge-pill">
               <span className="paw-emoji">🐾</span>
-              <span>OFFICIAL COMMUNITY SAFETY & LEGAL AGREEMENT</span>
+              <span>Community Safety Agreement</span>
             </div>
             <h1 id="consent-form-title" className="consent-form-title">
-              Before You Continue
+              Welcome to FindLostPuppy
             </h1>
             <p className="consent-form-subtitle">
-              Find Lost Puppy is a community-powered missing pet bulletin. Please read our safety
-              declaration below and accept the required legal forms to continue to sign in.
+              Before you sign in, please accept these simple community safety forms. They keep pet
+              parents, helpers, and sighting reporters on the same page.
             </p>
-          </div>
-
-          {/* Key Safety Declaration Box */}
-          <div className="declaration-summary-box">
-            <div className="declaration-summary-header">
-              <ShieldAlert className="text-terracotta" size={20} />
-              <h3>Essential Safety Declarations & Zero-Liability Notice</h3>
-            </div>
-
-            <div className="declaration-points-list">
-              <div className="declaration-point-item">
-                <span className="point-badge">1</span>
-                <div>
-                  <strong>Passive Digital Bulletin Board Only:</strong> Find Lost Puppy strictly provides a digital bulletin board for community pet photos and sightings. We do not operate a search, rescue, catching, sheltering, transport, or veterinary service.
-                </div>
-              </div>
-
-              <div className="declaration-point-item">
-                <span className="point-badge">2</span>
-                <div>
-                  <strong>Absolute Non-Responsibility:</strong> Neither the app developers, platform operators, nor any guest sighting reporters or finders assume any responsibility, duty of care, or liability for any dog, person, location, injury, meeting, or outcome.
-                </div>
-              </div>
-
-              <div className="declaration-point-item">
-                <span className="point-badge">3</span>
-                <div>
-                  <strong>All Dog Problems Disclaimed:</strong> Unfamiliar lost dogs may bite, attack, carry rabies/diseases, cause traffic accidents, or inflict injury. The platform and guest reporters bear zero liability for dog bites, attacks, illness, injury, death, or third-party custody disputes.
-                </div>
-              </div>
-
-              <div className="declaration-point-item">
-                <span className="point-badge">4</span>
-                <div>
-                  <strong>Approximate Locations & Personal Duty:</strong> Locations shown are community approximations and may change. Always verify information independently and meet in safe, public places when verifying pet ownership.
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Legal Agreement Forms Section */}
           <div className="legal-forms-group-section">
             <div className="forms-section-header">
               <div className="forms-section-title-wrap">
-                <h2 className="forms-section-title">Official Legal Agreement Forms</h2>
+                <h2 className="forms-section-title">Review the 4 forms</h2>
                 <span className="forms-section-desc">
-                  Click any form to read its full terms and sign it, or accept all forms below:
+                  Tap a card to read it. You can also accept everything together below.
                 </span>
               </div>
 
@@ -169,7 +119,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                 className="btn btn-ghost btn-sm select-all-forms-btn"
                 onClick={() => handleToggleAllForms(!allIndividualFormsChecked)}
               >
-                {allIndividualFormsChecked ? 'Clear All Forms' : '✓ Check All 4 Forms'}
+                {allIndividualFormsChecked ? 'Clear All' : `Accept All 4 (${acceptedCount}/4)`}
               </button>
             </div>
 
@@ -191,25 +141,18 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                     <span className="form-tag">16 Sections</span>
                   </div>
                   <p className="form-desc">
-                    Digital bulletin board rules, non-commercial service terms, and dispute policies.
+                    How the community board works and what users agree to follow.
                   </p>
                 </div>
               </div>
 
               <div className="form-row-right" onClick={(e) => e.stopPropagation()}>
-                <label className="form-row-checkbox-label" title="Accept Terms & Conditions">
-                  <input
-                    type="checkbox"
-                    id="checkbox-terms-form"
-                    checked={acceptedForms.terms}
-                    onChange={() => handleIndividualFormToggle('terms')}
-                    className="form-row-checkbox-input"
-                  />
-                  <span className="form-row-checkbox-custom"></span>
-                  <span className="form-row-status-text">
-                    {acceptedForms.terms ? 'Consented' : 'Accept'}
+                {acceptedForms.terms && (
+                  <span className="form-row-status-pill">
+                    <CheckCircle2 size={14} />
+                    Accepted
                   </span>
-                </label>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm open-form-arrow-btn"
@@ -239,25 +182,18 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                     <span className="form-tag">Data Safe</span>
                   </div>
                   <p className="form-desc">
-                    Complete data inventory, zero password tracking, safe contact sharing, and deletion.
+                    How profile, pet, contact, photo, and sighting details are protected.
                   </p>
                 </div>
               </div>
 
               <div className="form-row-right" onClick={(e) => e.stopPropagation()}>
-                <label className="form-row-checkbox-label" title="Accept Privacy Policy">
-                  <input
-                    type="checkbox"
-                    id="checkbox-privacy-form"
-                    checked={acceptedForms.privacy}
-                    onChange={() => handleIndividualFormToggle('privacy')}
-                    className="form-row-checkbox-input"
-                  />
-                  <span className="form-row-checkbox-custom"></span>
-                  <span className="form-row-status-text">
-                    {acceptedForms.privacy ? 'Consented' : 'Accept'}
+                {acceptedForms.privacy && (
+                  <span className="form-row-status-pill">
+                    <CheckCircle2 size={14} />
+                    Accepted
                   </span>
-                </label>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm open-form-arrow-btn"
@@ -287,25 +223,18 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                     <span className="form-tag highlight">Zero Liability</span>
                   </div>
                   <p className="form-desc">
-                    Dog bites, attacks, rabies, injury, traffic accidents, and developer/guest non-responsibility.
+                    Safety reminders for unknown pets, sightings, locations, and meetups.
                   </p>
                 </div>
               </div>
 
               <div className="form-row-right" onClick={(e) => e.stopPropagation()}>
-                <label className="form-row-checkbox-label" title="Accept Platform Disclaimer">
-                  <input
-                    type="checkbox"
-                    id="checkbox-disclaimer-form"
-                    checked={acceptedForms.disclaimer}
-                    onChange={() => handleIndividualFormToggle('disclaimer')}
-                    className="form-row-checkbox-input"
-                  />
-                  <span className="form-row-checkbox-custom"></span>
-                  <span className="form-row-status-text">
-                    {acceptedForms.disclaimer ? 'Consented' : 'Accept'}
+                {acceptedForms.disclaimer && (
+                  <span className="form-row-status-pill">
+                    <CheckCircle2 size={14} />
+                    Accepted
                   </span>
-                </label>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm open-form-arrow-btn"
@@ -335,25 +264,18 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                     <span className="form-tag">Code of Conduct</span>
                   </div>
                   <p className="form-desc">
-                    Rules against scams, harassment, false ownership claims, extortion, and fake sightings.
+                    Be honest, kind, and careful when posting or reporting sightings.
                   </p>
                 </div>
               </div>
 
               <div className="form-row-right" onClick={(e) => e.stopPropagation()}>
-                <label className="form-row-checkbox-label" title="Accept User Guidelines">
-                  <input
-                    type="checkbox"
-                    id="checkbox-guidelines-form"
-                    checked={acceptedForms.guidelines}
-                    onChange={() => handleIndividualFormToggle('guidelines')}
-                    className="form-row-checkbox-input"
-                  />
-                  <span className="form-row-checkbox-custom"></span>
-                  <span className="form-row-status-text">
-                    {acceptedForms.guidelines ? 'Consented' : 'Accept'}
+                {acceptedForms.guidelines && (
+                  <span className="form-row-status-pill">
+                    <CheckCircle2 size={14} />
+                    Accepted
                   </span>
-                </label>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm open-form-arrow-btn"
@@ -379,12 +301,8 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               <span className="master-signature-custom" aria-hidden="true"></span>
               <span className="master-signature-text">
                 <strong>
-                  I have read, understood and agree to all declarations and legal forms above,
-                  including the Terms & Conditions, Privacy Policy, Dog Safety & Zero-Liability
-                  Disclaimer, and Community Guidelines. I understand that neither app developers,
-                  platform operators, nor guest users are responsible or liable for anything regarding
-                  any dog, location, listing, meeting, injury, or outcome, and that I am solely
-                  responsible for my own actions and interactions.
+                  I agree to the Terms, Privacy Policy, Dog Safety Disclaimer, and Community
+                  Guidelines for using FindLostPuppy safely and responsibly.
                 </strong>
               </span>
             </label>
@@ -401,19 +319,19 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               >
                 {canContinue ? (
                   <>
-                    <span>Agree & Continue to Sign In</span>
+                    <span>Accept All 4 Forms & Continue</span>
                     <ArrowRight size={18} />
                   </>
                 ) : (
                   <>
-                    <span>Please Check Agreement Box to Continue</span>
+                    <span>Accept all 4 forms to continue</span>
                   </>
                 )}
               </button>
               <div className="consent-storage-note">
                 <CheckCircle2 size={15} className="text-forest" />
                 <span>
-                  All forms and versioned consents (v1.0) are recorded in device storage upon clicking continue.
+                  Your acceptance is saved on this device with the current form versions.
                 </span>
               </div>
             </div>

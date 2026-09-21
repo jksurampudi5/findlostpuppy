@@ -103,14 +103,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await authService.completeEmailLinkSignIn(window.location.href).catch(() => ({ success: false }));
       } catch {}
 
-      const unsubscribe = authService.onAuthStateChanged((mappedUser) => {
+      const unsubscribe = authService.onAuthStateChanged(async (mappedUser) => {
         if (!isMounted) return;
         if (mappedUser) {
           setUser(mappedUser);
           storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
+          await storageService.pullFromFirebase();
+          if (!isMounted) return;
           refreshProgressForUser(mappedUser);
         } else {
           const cachedUser = authService.getCurrentUser();
+          if (cachedUser) {
+            await storageService.pullFromFirebase();
+            if (!isMounted) return;
+          }
           setUser(cachedUser);
           refreshProgressForUser(cachedUser);
         }
