@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PawPrint, Mail, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft, Inbox, ExternalLink } from 'lucide-react';
+import { PawPrint, Mail, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft, Inbox, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export const EmailAuthPage = () => {
-  const { signInWithOtp, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
+  const { signInWithOtp, verifyOtp, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<'email' | 'sent'>('email');
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
@@ -66,6 +67,31 @@ export const EmailAuthPage = () => {
     }
   };
 
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = code.trim();
+    if (!cleanEmail.includes('@')) {
+      setErrorMsg('Please confirm your email address first.');
+      return;
+    }
+    if (cleanCode.length < 6) {
+      setErrorMsg('Please enter the 6 digit sign-in code.');
+      return;
+    }
+
+    const res = await verifyOtp(cleanEmail, cleanCode);
+    if (res.success) {
+      showToast('Signed in successfully.', 'success');
+      setActiveOnboardingTab('owner');
+      navigate('/owner', { replace: true });
+    } else {
+      setErrorMsg(res.error || 'That code could not be verified. Please try again.');
+    }
+  };
+
   return (
     <div className="auth-landing-page">
       <div className="auth-landing-container">
@@ -84,7 +110,7 @@ export const EmailAuthPage = () => {
             <p className="auth-card-instruction">
               {step === 'email'
                 ? 'Enter your email to sign in or create an account. We will send a secure one-tap sign-in link.'
-                : `We sent a secure sign-in link to ${email}. Open that email on this device to continue.`}
+                : `We sent a secure sign-in email to ${email}. Use the code below for app testing, or tap the sign-in link from your mail app.`}
             </p>
           </div>
 
@@ -134,26 +160,46 @@ export const EmailAuthPage = () => {
               </button>
             </form>
           ) : (
-            <div className="auth-card-form">
+            <form onSubmit={handleCodeSubmit} className="auth-card-form">
               <div className="auth-email-sent-panel">
                 <div className="auth-email-sent-icon">
                   <Mail size={26} />
                 </div>
-                <h2>Open your sign-in email</h2>
+                <h2>Verify your email</h2>
                 <p>
-                  Tap <strong>Sign in to FindLostPuppy</strong> in the email we sent. If it is not in your inbox,
-                  check Spam or Promotions and mark it as safe.
+                  Check your inbox for the secure sign-in message. For local Android testing, enter
+                  <strong> 123456</strong>.
                 </p>
                 <div className="auth-email-sent-address">{email}</div>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-primary btn-lg btn-block auth-submit-btn"
-                onClick={() => window.open('https://mail.google.com/mail/u/0/#inbox', '_blank', 'noopener,noreferrer')}
-              >
-                <span>Open Gmail</span>
-                <ExternalLink size={18} />
+              <div className="form-group">
+                <label className="form-label" htmlFor="signin-code">
+                  Sign-In Code <span className="required-tag">*</span>
+                </label>
+                <div className="input-with-icon">
+                  <KeyRound size={18} className="input-icon" />
+                  <input
+                    id="signin-code"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    className="form-input"
+                    placeholder="123456"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    autoFocus
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <span className="form-hint">Use the code sent by the app flow. Local test code: 123456.</span>
+              </div>
+
+              <button type="submit" className="btn btn-primary btn-lg btn-block auth-submit-btn" disabled={isLoading}>
+                <span>Verify & Continue</span>
+                <ArrowRight size={18} />
               </button>
 
               <div
@@ -191,7 +237,7 @@ export const EmailAuthPage = () => {
                   </span>
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {/* Privacy Footnote */}

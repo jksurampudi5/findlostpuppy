@@ -163,6 +163,10 @@ class AuthService {
       const actionCodeSettings = {
         url: getAuthRedirectUrl(),
         handleCodeInApp: true,
+        android: {
+          packageName: 'om.findlostpuppy.app',
+          installApp: true,
+        },
       };
       await sendSignInLinkToEmail(auth, cleanEmail, actionCodeSettings);
       window.localStorage.setItem(EMAIL_LINK_KEY, cleanEmail);
