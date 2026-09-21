@@ -22,8 +22,9 @@ export function canChangePhoto(record?: PhotoChangeTracking | null): {
 } {
   const month = getCurrentPhotoChangeMonth();
   const hasExistingPhoto = Boolean(record?.photo || record?.primaryPhoto);
+  const hasTrackedPhotoHistory = Boolean(record?.photoChangeMonth || record?.photoLastChangedAt);
   const count = record?.photoChangeMonth === month ? record?.photoChangeCount || 0 : 0;
-  const isInitialPhoto = !hasExistingPhoto;
+  const isInitialPhoto = !hasExistingPhoto && !hasTrackedPhotoHistory;
   const remaining = Math.max(0, PHOTO_CHANGE_MONTHLY_LIMIT - count);
 
   return {

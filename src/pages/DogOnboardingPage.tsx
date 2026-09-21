@@ -53,6 +53,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const { showToast } = useToast();
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const photoPolicy = canChangePhoto(existingPet);
+  const photoLimitText = photoPolicy.isInitialPhoto
+    ? 'First pet photo upload is free.'
+    : photoPolicy.allowed
+      ? `${photoPolicy.remaining} pet photo change${photoPolicy.remaining === 1 ? '' : 's'} left this month.`
+      : 'Pet photo change limit reached. Admin approval is required.';
 
   // Stable pet ID draft for uploads before initial save
   const [petDraftId] = useState<string>(() => existingPet?.id || `pet-${Date.now()}`);
@@ -456,12 +462,19 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               <button
                 type="button"
                 className="pet-photo-camera-badge"
-                onClick={() => fileInputRef.current?.click()}
-                title="Change pet photo"
-                aria-label="Upload photo"
+                onClick={() => {
+                  if (photoPolicy.allowed) fileInputRef.current?.click();
+                }}
+                disabled={!photoPolicy.allowed}
+                title={photoPolicy.allowed ? 'Change pet photo' : 'Photo change limit reached'}
+                aria-label={photoPolicy.allowed ? 'Upload photo' : 'Photo change limit reached'}
               >
                 {uploadingPhoto ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
               </button>
+            </div>
+
+            <div className={`photo-change-limit-note pet-photo-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
+              {photoLimitText}
             </div>
 
             {/* Remove Photo Link */}

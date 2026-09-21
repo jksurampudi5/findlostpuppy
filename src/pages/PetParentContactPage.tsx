@@ -91,6 +91,12 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     phone.trim() !== savedSnapshot.phone.trim() ||
     photo.trim() !== savedSnapshot.photo.trim()
   );
+  const photoPolicy = canChangePhoto(existingProfile);
+  const photoLimitText = photoPolicy.isInitialPhoto
+    ? 'First owner photo upload is free.'
+    : photoPolicy.allowed
+      ? `${photoPolicy.remaining} owner photo change${photoPolicy.remaining === 1 ? '' : 's'} left this month.`
+      : 'Owner photo change limit reached. Admin approval is required.';
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -282,11 +288,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
             <div className="owner-unified-avatar-hero">
               <div className="owner-center-avatar-box">
                 <div
-                  className="owner-center-avatar-ring"
-                  onClick={() => fileInputRef.current?.click()}
+                  className={`owner-center-avatar-ring ${!photoPolicy.allowed ? 'photo-upload-locked' : ''}`}
+                  onClick={() => {
+                    if (photoPolicy.allowed) fileInputRef.current?.click();
+                  }}
                   role="button"
                   tabIndex={0}
-                  title="Tap to change profile picture"
+                  title={photoPolicy.allowed ? 'Tap to change profile picture' : 'Photo change limit reached'}
                 >
                   {photo ? (
                     <img
@@ -304,10 +312,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                 {/* Quick Camera Action Badge */}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (photoPolicy.allowed) fileInputRef.current?.click();
+                  }}
                   className="owner-center-camera-btn"
-                  title="Upload or change photo"
-                  aria-label="Upload or change photo"
+                  disabled={!photoPolicy.allowed}
+                  title={photoPolicy.allowed ? 'Upload or change photo' : 'Photo change limit reached'}
+                  aria-label={photoPolicy.allowed ? 'Upload or change photo' : 'Photo change limit reached'}
                 >
                   <Camera size={18} />
                 </button>
@@ -319,6 +330,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                   accept="image/*"
                   style={{ display: 'none' }}
                 />
+              </div>
+
+              <div className={`photo-change-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
+                {photoLimitText}
               </div>
 
               {photo && (
