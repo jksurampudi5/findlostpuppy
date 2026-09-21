@@ -17,6 +17,20 @@ const OBSOLETE_SESSION_KEY = 'findlostpuppy_session_v1';
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+function getGoogleAuthErrorMessage(err: any): string {
+  const code = String(err?.code || '');
+  if (code.includes('operation-not-allowed')) {
+    return 'Google Sign-In is not enabled in Firebase yet. Enable the Google provider in Firebase Authentication, then try again.';
+  }
+  if (code.includes('unauthorized-domain')) {
+    return 'This app URL is not allowed in Firebase Authentication. Add localhost and the app domain under Authorized domains.';
+  }
+  if (code.includes('popup-closed-by-user')) {
+    return 'Google Sign-In was closed before it finished. Please try again.';
+  }
+  return err?.message || 'Could not sign in with Google.';
+}
+
 export const ADMIN_EMAILS = ['jksurampudi5@gmail.com'];
 
 export function isEmailAdmin(email?: string): boolean {
@@ -130,7 +144,7 @@ class AuthService {
       await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
       return { success: true, user: mapped };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Could not complete Google sign-in.' };
+      return { success: false, error: getGoogleAuthErrorMessage(err) };
     }
   }
 
@@ -161,10 +175,10 @@ class AuthService {
           await signInWithRedirect(auth, googleProvider);
           return { success: true, redirected: true };
         } catch (redirectErr: any) {
-          return { success: false, error: redirectErr?.message || 'Could not open Google sign-in.' };
+          return { success: false, error: getGoogleAuthErrorMessage(redirectErr) };
         }
       }
-      return { success: false, error: err?.message || 'Could not sign in with Google.' };
+      return { success: false, error: getGoogleAuthErrorMessage(err) };
     }
   }
 
