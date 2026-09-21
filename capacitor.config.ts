@@ -8,6 +8,10 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
+    FirebaseAuthentication: {
+      providers: ['google.com'],
+      skipNativeAuth: true,
+    },
     SplashScreen: {
       launchShowDuration: 250,
       launchAutoHide: true,

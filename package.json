@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:android": "CAPACITOR_BUILD=true tsc -b && CAPACITOR_BUILD=true vite build",
+    "build:android": "node scripts/validate_firebase_env.mjs && CAPACITOR_BUILD=true tsc -b && CAPACITOR_BUILD=true vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.5.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/geolocation": "^8.2.2",
     "@capgo/capacitor-nativegeocoder": "^8.0.48",

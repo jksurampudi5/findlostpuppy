@@ -1,14 +1,17 @@
 import {
   onAuthStateChanged,
   GoogleAuthProvider,
-  getRedirectResult,
+  browserLocalPersistence,
   signInWithPopup,
-  signInWithRedirect,
+  signInWithCredential,
+  setPersistence,
   signOut,
   updateProfile,
   type User as FirebaseAuthUser,
   type Unsubscribe,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import type { User } from '../types';
 import { auth, isFirebaseConfigured } from './firebaseConfig';
 import { firebaseSyncService } from './firebaseSyncService';
@@ -132,20 +135,7 @@ class AuthService {
   }
 
   async completeGoogleRedirectSignIn(): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (!auth || !isFirebaseConfigured()) {
-      return { success: false, error: 'Firebase authentication is not configured.' };
-    }
-
-    try {
-      const result = await getRedirectResult(auth);
-      if (!result?.user) return { success: false };
-      const mapped = mapFirebaseUser(result.user);
-      this.setCurrentUser(mapped);
-      await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
-      return { success: true, user: mapped };
-    } catch (err: any) {
-      return { success: false, error: getGoogleAuthErrorMessage(err) };
-    }
+    return { success: false };
   }
 
   async getSession(): Promise<{ session: null; user: User | null }> {
@@ -158,6 +148,20 @@ class AuthService {
     }
 
     try {
+      await setPersistence(auth, browserLocalPersistence);
+      if (Capacitor.isNativePlatform()) {
+        const nativeResult = await FirebaseAuthentication.signInWithGoogle();
+        const idToken = nativeResult.credential?.idToken;
+        if (!idToken) {
+          return { success: false, error: 'Google Sign-In did not return an ID token.' };
+        }
+        const result = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+        const mapped = mapFirebaseUser(result.user);
+        this.setCurrentUser(mapped);
+        await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+        return { success: true, user: mapped };
+      }
+
       const result = await signInWithPopup(auth, googleProvider);
       const mapped = mapFirebaseUser(result.user);
       this.setCurrentUser(mapped);
@@ -171,12 +175,11 @@ class AuthService {
         code.includes('operation-not-supported-in-this-environment') ||
         code.includes('cancelled-popup-request')
       ) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return { success: true, redirected: true };
-        } catch (redirectErr: any) {
-          return { success: false, error: getGoogleAuthErrorMessage(redirectErr) };
-        }
+        return {
+          success: false,
+          error:
+            'Google Sign-In popup was blocked or closed. Allow popups for this site and try again.',
+        };
       }
       return { success: false, error: getGoogleAuthErrorMessage(err) };
     }
