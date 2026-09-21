@@ -1,8 +1,9 @@
 import {
   onAuthStateChanged,
-  sendSignInLinkToEmail,
-  signInWithEmailLink,
-  isSignInWithEmailLink,
+  GoogleAuthProvider,
+  getRedirectResult,
+  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User as FirebaseAuthUser,
@@ -13,7 +14,22 @@ import { auth, isFirebaseConfigured } from './firebaseConfig';
 import { firebaseSyncService } from './firebaseSyncService';
 
 const OBSOLETE_SESSION_KEY = 'findlostpuppy_session_v1';
-const EMAIL_LINK_KEY = 'findlostpuppy_email_link_pending_email';
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+function getGoogleAuthErrorMessage(err: any): string {
+  const code = String(err?.code || '');
+  if (code.includes('operation-not-allowed')) {
+    return 'Google Sign-In is not enabled in Firebase yet. Enable the Google provider in Firebase Authentication, then try again.';
+  }
+  if (code.includes('unauthorized-domain')) {
+    return 'This app URL is not allowed in Firebase Authentication. Add localhost and the app domain under Authorized domains.';
+  }
+  if (code.includes('popup-closed-by-user')) {
+    return 'Google Sign-In was closed before it finished. Please try again.';
+  }
+  return err?.message || 'Could not sign in with Google.';
+}
 
 export const ADMIN_EMAILS = ['jksurampudi5@gmail.com'];
 
@@ -41,14 +57,6 @@ export function mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Part
     isAdmin: isEmailAdmin(email),
     createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
   };
-}
-
-export function getAuthRedirectUrl(): string {
-  if (typeof window === 'undefined') return '';
-  const origin = window.location.origin;
-  const baseUrl = import.meta.env.BASE_URL || '/';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return `${origin}${cleanBase}`;
 }
 
 class AuthService {
@@ -123,87 +131,55 @@ class AuthService {
     });
   }
 
-  async completeEmailLinkSignIn(currentUrl?: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (!auth || !isFirebaseConfigured() || typeof window === 'undefined') {
+  async completeGoogleRedirectSignIn(): Promise<{ success: boolean; user?: User; error?: string }> {
+    if (!auth || !isFirebaseConfigured()) {
       return { success: false, error: 'Firebase authentication is not configured.' };
     }
 
-    const url = currentUrl || window.location.href;
-    if (!isSignInWithEmailLink(auth, url)) {
-      return { success: false, error: 'No Firebase sign-in link detected.' };
+    try {
+      const result = await getRedirectResult(auth);
+      if (!result?.user) return { success: false };
+      const mapped = mapFirebaseUser(result.user);
+      this.setCurrentUser(mapped);
+      await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+      return { success: true, user: mapped };
+    } catch (err: any) {
+      return { success: false, error: getGoogleAuthErrorMessage(err) };
     }
-
-    const email = window.localStorage.getItem(EMAIL_LINK_KEY) || window.prompt('Confirm your email address') || '';
-    if (!email.trim().includes('@')) {
-      return { success: false, error: 'Email is required to complete sign-in.' };
-    }
-
-    const result = await signInWithEmailLink(auth, email.trim().toLowerCase(), url);
-    window.localStorage.removeItem(EMAIL_LINK_KEY);
-    const mapped = mapFirebaseUser(result.user);
-    this.setCurrentUser(mapped);
-    await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
-    return { success: true, user: mapped };
   }
 
   async getSession(): Promise<{ session: null; user: User | null }> {
     return { session: null, user: this.getCurrentUser() };
   }
 
-  async signInWithOtp(email: string): Promise<{ success: boolean; error?: string }> {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return { success: false, error: 'Please enter a valid email address.' };
-    }
+  async signInWithGoogle(): Promise<{ success: boolean; user?: User; error?: string; redirected?: boolean }> {
     if (!auth || !isFirebaseConfigured()) {
       return { success: false, error: 'Firebase authentication is not configured. Add Firebase web config values first.' };
     }
 
     try {
-      const actionCodeSettings = {
-        url: getAuthRedirectUrl(),
-        handleCodeInApp: true,
-        android: {
-          packageName: 'om.findlostpuppy.app',
-          installApp: true,
-        },
-      };
-      await sendSignInLinkToEmail(auth, cleanEmail, actionCodeSettings);
-      window.localStorage.setItem(EMAIL_LINK_KEY, cleanEmail);
-      return { success: true };
+      const result = await signInWithPopup(auth, googleProvider);
+      const mapped = mapFirebaseUser(result.user);
+      this.setCurrentUser(mapped);
+      await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+      return { success: true, user: mapped };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Network error while sending sign-in link.' };
+      const code = String(err?.code || '');
+      if (
+        code.includes('popup-blocked') ||
+        code.includes('popup-closed-by-user') ||
+        code.includes('operation-not-supported-in-this-environment') ||
+        code.includes('cancelled-popup-request')
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return { success: true, redirected: true };
+        } catch (redirectErr: any) {
+          return { success: false, error: getGoogleAuthErrorMessage(redirectErr) };
+        }
+      }
+      return { success: false, error: getGoogleAuthErrorMessage(err) };
     }
-  }
-
-  async verifyOtp(email: string, token: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanToken = token.trim().replace(/\D/g, '');
-    if (!cleanEmail.includes('@')) return { success: false, error: 'Invalid email address.' };
-
-    if (cleanToken === '999999' || cleanToken === '123456') {
-      const testUser: User = {
-        id: 'user-qa-' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
-        email: cleanEmail,
-        name: cleanEmail.split('@')[0],
-        isAdmin: isEmailAdmin(cleanEmail),
-        createdAt: new Date().toISOString(),
-      };
-      this.setCurrentUser(testUser);
-      await firebaseSyncService.syncUserProfile(testUser).catch(() => {});
-      return { success: true, user: testUser };
-    }
-
-    return {
-      success: false,
-      error: 'Firebase uses a secure email link. Open the link from your email, or use 123456 only for local QA.',
-    };
-  }
-
-  async loginWithEmail(email: string): Promise<{ success: boolean; user?: User; error?: string; requiresOtp?: boolean }> {
-    const res = await this.signInWithOtp(email);
-    if (!res.success) return { success: false, error: res.error };
-    return { success: true, requiresOtp: true };
   }
 
   async updateCurrentUser(partial: Partial<User>): Promise<User | null> {

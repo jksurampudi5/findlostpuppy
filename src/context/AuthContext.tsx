@@ -27,9 +27,7 @@ interface AuthContextType {
     acceptedForms?: Partial<AcceptedFormsState>,
     method?: 'all_forms_accepted' | 'master_declaration'
   ) => void;
-  signInWithOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
-  verifyOtp: (email: string, token: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithEmail: (email: string, name?: string) => Promise<{ success: boolean; error?: string; requiresOtp?: boolean }>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string; redirected?: boolean }>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<boolean>;
   refreshProgress: () => void;
@@ -100,7 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     async function initAuth() {
       try {
-        await authService.completeEmailLinkSignIn(window.location.href).catch(() => ({ success: false }));
+        await authService.completeGoogleRedirectSignIn().catch(() => ({ success: false }));
       } catch {}
 
       const unsubscribe = authService.onAuthStateChanged(async (mappedUser) => {
@@ -193,45 +191,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setHasValidConsent(true);
   };
 
-  /**
-   * Requests a Firebase email sign-in link
-   */
-  const signInWithOtp = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; redirected?: boolean }> => {
     setIsLoading(true);
-    const res = await authService.signInWithOtp(email);
-    setIsLoading(false);
-    return res;
-  };
-
-  /**
-   * Verifies the 6-digit OTP code entered by user
-   */
-  const verifyOtp = async (
-    email: string,
-    token: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true);
-    const res = await authService.verifyOtp(email, token);
+    const res = await authService.signInWithGoogle();
     setIsLoading(false);
 
     if (res.success && res.user) {
       setUser(res.user);
       storageService.migrateUserDataToAuthenticatedUser(res.user.id, res.user.email);
+      await storageService.pullFromFirebase();
       refreshProgressForUser(res.user);
       return { success: true };
     }
 
-    return { success: false, error: res.error || 'Verification failed.' };
-  };
-
-  /**
-   * Backward-compatible login method for forms
-   */
-  const loginWithEmail = async (
-    email: string,
-    _name?: string
-  ): Promise<{ success: boolean; error?: string; requiresOtp?: boolean }> => {
-    return signInWithOtp(email);
+    return { success: res.success, error: res.error, redirected: res.redirected };
   };
 
   /**
@@ -280,9 +253,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         markPetSafe,
         markPetLost,
         agreeToConsent,
-        signInWithOtp,
-        verifyOtp,
-        loginWithEmail,
+        signInWithGoogle,
         logout,
         deleteAccount,
         refreshProgress,
