@@ -13,7 +13,7 @@ import type {
   AppSuggestion,
 } from '../types';
 import { consentService } from './consentService';
-import { firebaseSyncService } from './firebaseSyncService';
+import { isFirebaseConfigured } from './firebaseConfig';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
@@ -34,6 +34,36 @@ const SESSION_KEY = 'findlostpuppy_session_v1';
 const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
 const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
 const SUGGESTIONS_KEY = 'findlostpuppy_suggestions_v1';
+
+const firebaseSyncService = {
+  isConfigured: () => isFirebaseConfigured(),
+  syncUserProfile: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncUserProfile>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncUserProfile(...args),
+  syncOwnerProfile: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncOwnerProfile>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncOwnerProfile(...args),
+  syncPet: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncPet>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncPet(...args),
+  syncLostReport: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncLostReport>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncLostReport(...args),
+  syncSighting: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncSighting>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncSighting(...args),
+  fetchAllCloudData: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.fetchAllCloudData>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.fetchAllCloudData(...args),
+  deleteUserAsAdmin: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteUserAsAdmin>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deleteUserAsAdmin(...args),
+  deleteSightingAsAdmin: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteSightingAsAdmin>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deleteSightingAsAdmin(...args),
+  deletePetAsAdmin: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deletePetAsAdmin>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deletePetAsAdmin(...args),
+  updatePetSafetyStatus: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.updatePetSafetyStatus>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.updatePetSafetyStatus(...args),
+  deleteLostReport: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteLostReport>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deleteLostReport(...args),
+  deleteUserDataByEmail: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteUserDataByEmail>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deleteUserDataByEmail(...args),
+  syncSuggestion: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncSuggestion>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncSuggestion(...args),
+};
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   {

@@ -16,7 +16,8 @@ service cloud.firestore {
 
     match /profiles/{userId} {
       allow read: if signedIn();
-      allow create, update: if owns(userId) && request.resource.data.email == request.auth.token.email;
+      allow create, update: if signedIn()
+        && request.resource.data.email == request.auth.token.email;
       allow delete: if owns(userId) || isAdmin();
     }
 
