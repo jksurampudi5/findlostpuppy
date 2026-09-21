@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PawPrint, Mail, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft, Inbox, KeyRound } from 'lucide-react';
+import { PawPrint, Mail, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft, Inbox, KeyRound, ClipboardPaste } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -89,6 +89,22 @@ export const EmailAuthPage = () => {
       navigate('/owner', { replace: true });
     } else {
       setErrorMsg(res.error || 'That code could not be verified. Please try again.');
+    }
+  };
+
+  const handlePasteCode = async () => {
+    setErrorMsg('');
+    try {
+      const text = await navigator.clipboard.readText();
+      const pastedCode = text.replace(/\D/g, '').slice(0, 6);
+      if (!pastedCode) {
+        setErrorMsg('No 6 digit code found in your clipboard.');
+        return;
+      }
+      setCode(pastedCode);
+      showToast('Code pasted.', 'success');
+    } catch {
+      setErrorMsg('Clipboard access was blocked. Long press the code box and paste manually.');
     }
   };
 
@@ -181,8 +197,10 @@ export const EmailAuthPage = () => {
                   <KeyRound size={18} className="input-icon" />
                   <input
                     id="signin-code"
+                    name="one-time-code"
                     type="tel"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
                     pattern="[0-9]*"
                     maxLength={6}
                     className="form-input"
@@ -196,6 +214,16 @@ export const EmailAuthPage = () => {
                 </div>
                 <span className="form-hint">Use the code sent by the app flow. Local test code: 123456.</span>
               </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-block auth-submit-btn"
+                onClick={handlePasteCode}
+                disabled={isLoading}
+              >
+                <ClipboardPaste size={18} />
+                <span>Paste Code</span>
+              </button>
 
               <button type="submit" className="btn btn-primary btn-lg btn-block auth-submit-btn" disabled={isLoading}>
                 <span>Verify & Continue</span>
