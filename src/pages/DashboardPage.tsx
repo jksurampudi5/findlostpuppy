@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Calendar, Camera, Check, Eye, Home, MapPin, Navigation, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import { getDogDisplayName, getDogPhotoUrl, handleDogImageError } from '../utils
 export const DashboardPage: React.FC = () => {
   const { user, petSafetyStatus } = useAuth();
   const navigate = useNavigate();
+  const listPanelRef = useRef<HTMLDivElement | null>(null);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
@@ -29,6 +30,13 @@ export const DashboardPage: React.FC = () => {
     return 'UNDECIDED';
   })();
   const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST' | null>(null);
+
+  const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
+    setSelectedStatus(status);
+    window.setTimeout(() => {
+      listPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
   useEffect(() => {
     const loadDashboardData = () => {
@@ -110,7 +118,7 @@ export const DashboardPage: React.FC = () => {
             <button
               type="button"
               className={`dashboard-status-filter-btn sighting-filter ${selectedStatus === 'SIGHTINGS' ? 'active' : ''}`}
-              onClick={() => setSelectedStatus('SIGHTINGS')}
+              onClick={() => selectStatusAndScroll('SIGHTINGS')}
               role="tab"
               aria-selected={selectedStatus === 'SIGHTINGS'}
             >
@@ -129,7 +137,7 @@ export const DashboardPage: React.FC = () => {
             <button
               type="button"
               className={`dashboard-status-filter-btn safe-filter ${selectedStatus === 'SAFE' ? 'active' : ''}`}
-              onClick={() => setSelectedStatus('SAFE')}
+              onClick={() => selectStatusAndScroll('SAFE')}
               role="tab"
               aria-selected={selectedStatus === 'SAFE'}
             >
@@ -148,7 +156,7 @@ export const DashboardPage: React.FC = () => {
             <button
               type="button"
               className={`dashboard-status-filter-btn missing-filter ${selectedStatus === 'LOST' ? 'active' : ''}`}
-              onClick={() => setSelectedStatus('LOST')}
+              onClick={() => selectStatusAndScroll('LOST')}
               role="tab"
               aria-selected={selectedStatus === 'LOST'}
             >
@@ -166,7 +174,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {selectedStatus && (
-            <div className="dashboard-status-pets-panel">
+            <div className="dashboard-status-pets-panel" ref={listPanelRef}>
               <div className="dashboard-status-pets-panel-header">
                 <h2>
                   {selectedStatus === 'SIGHTINGS'

@@ -397,10 +397,17 @@ export const CapturePetPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <button type="button" className="capture-location-button" onClick={() => handleDetectLocation()} disabled={detecting}>
-                {detecting ? <Navigation size={18} className="spin" /> : <MapPin size={18} />}
-                <span>{detecting ? 'Detecting Location...' : 'Detect Location'}</span>
-              </button>
+              <div className="capture-location-action-stack">
+                <button type="button" className="capture-location-button" onClick={() => handleDetectLocation()} disabled={detecting}>
+                  {detecting ? <Navigation size={18} className="spin" /> : <MapPin size={18} />}
+                  <span>{detecting ? 'Detecting Location...' : 'Detect Location'}</span>
+                </button>
+                {detecting && (
+                  <p className="capture-location-wait-text" aria-live="polite">
+                    Please wait while we capture the pet sighting location.
+                  </p>
+                )}
+              </div>
             )}
 
             {locationText ? (

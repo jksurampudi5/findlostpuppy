@@ -19621,6 +19621,21 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.capture-location-action-stack {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.capture-location-wait-text {
+  margin: 0;
+  color: #FED7AA;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .capture-submit-button:disabled::before {
   display: none;
 }
