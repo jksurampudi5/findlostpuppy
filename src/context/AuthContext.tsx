@@ -13,6 +13,7 @@ interface AuthContextType {
   isAdmin: boolean;
   hasValidConsent: boolean;
   isLoading: boolean;
+  authNotice: string;
   hasCompletedOwner: boolean;
   hasCompletedLocation: boolean;
   hasCompletedDog: boolean;
@@ -38,6 +39,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
   const [isLoading, setIsLoading] = useState(true);
+  const [authNotice, setAuthNotice] = useState('');
   const [hasValidConsent, setHasValidConsent] = useState<boolean>(() =>
     consentService.hasAcceptedCurrentConsent()
   );
@@ -98,7 +100,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     async function initAuth() {
       try {
-        await authService.completeGoogleRedirectSignIn().catch(() => ({ success: false }));
+        const redirectResult = await authService.completeGoogleRedirectSignIn();
+        if (redirectResult.error) setAuthNotice(redirectResult.error);
       } catch {}
 
       const unsubscribe = authService.onAuthStateChanged(async (mappedUser) => {
@@ -192,17 +195,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; redirected?: boolean }> => {
+    setAuthNotice('');
     setIsLoading(true);
     const res = await authService.signInWithGoogle();
-    setIsLoading(false);
+    if (!res.redirected) setIsLoading(false);
 
     if (res.success && res.user) {
+      setAuthNotice('');
       setUser(res.user);
       storageService.migrateUserDataToAuthenticatedUser(res.user.id, res.user.email);
       await storageService.pullFromFirebase();
       refreshProgressForUser(res.user);
       return { success: true };
     }
+
+    if (!res.success && res.error) setAuthNotice(res.error);
 
     return { success: res.success, error: res.error, redirected: res.redirected };
   };
@@ -242,6 +249,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAdmin: !!(user && (user.isAdmin || isEmailAdmin(user.email))),
         hasValidConsent,
         isLoading,
+        authNotice,
         hasCompletedOwner,
         hasCompletedLocation,
         hasCompletedDog,

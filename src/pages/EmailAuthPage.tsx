@@ -5,10 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export const EmailAuthPage = () => {
-  const { signInWithGoogle, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
+  const { signInWithGoogle, isAuthenticated, setActiveOnboardingTab, isLoading, authNotice } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState('');
+  const visibleError = errorMsg || authNotice;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -49,9 +50,9 @@ export const EmailAuthPage = () => {
             </p>
           </div>
 
-          {errorMsg && (
+          {visibleError && (
             <div className="auth-error-banner" role="alert" style={{ marginBottom: '1.25rem' }}>
-              <span>{errorMsg}</span>
+              <span>{visibleError}</span>
             </div>
           )}
 
@@ -63,7 +64,7 @@ export const EmailAuthPage = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <span>Opening Google...</span>
+                <span>Signing you in...</span>
               ) : (
                 <>
                   <span>Continue with Google</span>
