@@ -180,6 +180,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
   const handleRemovePhoto = () => {
     setPrimaryPhoto('');
+    setAdditionalPhotos([]);
     showToast('Pet photo removed', 'info');
   };
 
@@ -340,12 +341,33 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
   };
 
+  const handleResetPetForm = () => {
+    const confirmed = window.confirm(
+      'Reset all pet details on this screen? This clears the photo and fields here. Use Delete Pet to permanently remove a saved pet profile.'
+    );
+    if (!confirmed) return;
+
+    setDogName('');
+    setBreed('');
+    setGender('Male');
+    setAge('');
+    setSize('Medium (10-25kg)' as DogSize);
+    setColor('');
+    setDistinguishingMarks('');
+    setHasCollarOrChip(false);
+    setCollarDetails('');
+    setPrimaryPhoto('');
+    setAdditionalPhotos([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    showToast('Pet form reset. Saved profile is unchanged until you update or delete it.', 'info');
+  };
+
   // Handle Delete Pet Profile immediately
   const handleDeletePetProfile = () => {
     if (!user) return;
     const petNameToDelete = existingPet?.name || dogName || 'your pet';
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${petNameToDelete}'s pet profile? All pet details and community dashboard listings will be removed immediately.`
+      `Are you sure you want to permanently delete ${petNameToDelete}'s pet profile? All saved pet details, photo links, missing reports, and sighting records for this pet will be removed immediately.`
     );
     if (!confirmed) return;
 
@@ -685,6 +707,16 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   className="btn btn-outline pet-cancel-btn"
                 >
                   Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetPetForm}
+                  className="pet-reset-link-btn"
+                  title="Reset all pet fields on this screen"
+                >
+                  <X size={14} />
+                  <span>Reset</span>
                 </button>
 
                 {existingPet && (

@@ -422,15 +422,16 @@ export const firebaseSyncService = {
   /**
    * Delete a pet record as admin from Firestore.
    */
-  async deletePetAsAdmin(petId: string): Promise<boolean> {
+  async deletePetAsAdmin(petId: string, ownerId?: string): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {
+      const firestore = db;
       if (petId === '*') {
-        const profilesSnap = await getDocs(collection(db, 'profiles'));
-        const petsSnap = await getDocs(collection(db, 'pets'));
-        const reportsSnap = await getDocs(collection(db, 'missing_reports'));
-        const sightingsSnap = await getDocs(collection(db, 'sightings'));
-        const suggestionsSnap = await getDocs(collection(db, 'app_suggestions'));
+        const profilesSnap = await getDocs(collection(firestore, 'profiles'));
+        const petsSnap = await getDocs(collection(firestore, 'pets'));
+        const reportsSnap = await getDocs(collection(firestore, 'missing_reports'));
+        const sightingsSnap = await getDocs(collection(firestore, 'sightings'));
+        const suggestionsSnap = await getDocs(collection(firestore, 'app_suggestions'));
 
         const deletePromises: Promise<any>[] = [];
         profilesSnap.docs.forEach((d) => deletePromises.push(deleteDoc(d.ref)));
@@ -447,7 +448,9 @@ export const firebaseSyncService = {
         return true;
       }
 
-      await deleteDoc(doc(db, 'pets', petId));
+      const cleanOwnerId = (ownerId || '').replace(/^owner-/, '').trim();
+      const idsToDelete = Array.from(new Set([petId, cleanOwnerId].filter(Boolean)));
+      await Promise.all(idsToDelete.map((id) => deleteDoc(doc(firestore, 'pets', id))));
       return true;
     } catch (err: any) {
       console.warn('[Firebase] deletePetAsAdmin error:', err);

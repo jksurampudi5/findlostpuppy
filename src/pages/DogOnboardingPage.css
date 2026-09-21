@@ -633,6 +633,7 @@
   cursor: not-allowed;
 }
 
+.pet-reset-link-btn,
 .pet-delete-link-btn {
   background: none !important;
   border: none !important;
@@ -644,6 +645,10 @@
   cursor: pointer !important;
   padding: 4px 6px !important;
   transition: color 0.15s ease !important;
+}
+
+.pet-reset-link-btn:hover {
+  color: #FFB366 !important;
 }
 
 .pet-delete-link-btn:hover {
@@ -703,6 +708,8 @@
   }
 
   .pet-profile-actions-left,
+  .pet-reset-link-btn,
+  .pet-delete-link-btn,
   .pet-cancel-btn,
   .pet-update-submit-btn {
     width: 100% !important;

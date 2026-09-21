@@ -884,7 +884,7 @@ class StorageService {
 
       // 6. Cloud sync deletion
       firebaseSyncService
-        .deletePetAsAdmin(petId)
+        .deletePetAsAdmin(petId, ownerId)
         .catch((e) => console.warn('[Firebase Delete Pet Notice]:', e));
 
       return true;
