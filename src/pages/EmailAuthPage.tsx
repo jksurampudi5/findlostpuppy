@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PawPrint, Mail, ArrowRight, ShieldCheck, KeyRound, RefreshCw, ArrowLeft } from 'lucide-react';
+import { PawPrint, Mail, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft, Inbox, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export const EmailAuthPage = () => {
-  const { signInWithOtp, verifyOtp, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
+  const { signInWithOtp, isAuthenticated, setActiveOnboardingTab, isLoading } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [step, setStep] = useState<'email' | 'sent'>('email');
   const [email, setEmail] = useState('');
-  const [otpToken, setOtpToken] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
@@ -45,31 +44,11 @@ export const EmailAuthPage = () => {
     const res = await signInWithOtp(cleanEmail);
     if (res.success) {
       showToast('🐾 Secure Firebase sign-in link sent to your email!', 'success');
-      setStep('otp');
+      setStep('sent');
       setResendCooldown(30);
     } else {
       setErrorMsg(
-        res.error || 'Unable to send verification code. Please check your connection and try again.'
-      );
-    }
-  };
-
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-
-    const cleanOtp = otpToken.trim().replace(/\D/g, '');
-    if (cleanOtp.length < 6) {
-      setErrorMsg('Please enter the full 6-digit verification code.');
-      return;
-    }
-
-    const res = await verifyOtp(email, cleanOtp);
-    if (res.success) {
-      showToast('Welcome to FindLostPuppy! 🐾', 'success');
-    } else {
-      setErrorMsg(
-        res.error || 'The code you entered is invalid or has expired. Please check and try again.'
+        res.error || 'Unable to send the sign-in email. Please check your connection and try again.'
       );
     }
   };
@@ -83,7 +62,7 @@ export const EmailAuthPage = () => {
       showToast('🔄 New Firebase sign-in link sent to your email!', 'info');
       setResendCooldown(30);
     } else {
-      setErrorMsg(res.error || 'Failed to resend verification code. Please try again in a moment.');
+      setErrorMsg(res.error || 'Failed to resend the sign-in email. Please try again in a moment.');
     }
   };
 
@@ -94,18 +73,18 @@ export const EmailAuthPage = () => {
           {/* Brand & Header */}
           <div className="auth-card-header text-center">
             <div className="auth-paw-icon-bubble">
-              {step === 'email' ? <PawPrint size={36} /> : <KeyRound size={36} />}
+              {step === 'email' ? <PawPrint size={36} /> : <Inbox size={36} />}
             </div>
             <h1 className="auth-card-title">
-              {step === 'email' ? 'FindLostPuppy 🐾' : 'Check Your Email 📬'}
+              {step === 'email' ? 'FindLostPuppy 🐾' : 'Check Your Inbox 📬'}
             </h1>
             <p className="auth-card-quote">
               "Every paw deserves to find its way home."
             </p>
             <p className="auth-card-instruction">
               {step === 'email'
-                ? 'Enter your email to sign in or create an account. A secure Firebase sign-in link will be sent to your inbox.'
-                : `We've sent a secure Firebase sign-in link to ${email}.`}
+                ? 'Enter your email to sign in or create an account. We will send a secure one-tap sign-in link.'
+                : `We sent a secure sign-in link to ${email}. Open that email on this device to continue.`}
             </p>
           </div>
 
@@ -145,66 +124,38 @@ export const EmailAuthPage = () => {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <span>Sending Code...</span>
+                  <span>Sending Link...</span>
                 ) : (
                   <>
-                    <span>🐾 Continue</span>
+                    <span>🐾 Send Sign-In Link</span>
                     <ArrowRight size={18} />
                   </>
                 )}
               </button>
             </form>
           ) : (
-            /* Step 2: Local QA fallback code. Production users should open the Firebase email link. */
-            <form onSubmit={handleOtpSubmit} className="auth-card-form">
-              <div className="form-group">
-                <label className="form-label" htmlFor="user-otp">
-                  Verification Code <span className="required-tag">*</span>
-                </label>
-                <div className="input-with-icon">
-                  <KeyRound size={18} className="input-icon" />
-                  <input
-                    id="user-otp"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={8}
-                    className="form-input"
-                    placeholder="Enter code"
-                    value={otpToken}
-                    onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
-                    style={{
-                      letterSpacing: otpToken.length > 6 ? '0.22em' : '0.35em',
-                      fontSize: '1.35rem',
-                      fontWeight: '700',
-                      textAlign: 'center',
-                    }}
-                    autoFocus
-                    required
-                    disabled={isLoading}
-                  />
+            <div className="auth-card-form">
+              <div className="auth-email-sent-panel">
+                <div className="auth-email-sent-icon">
+                  <Mail size={26} />
                 </div>
-                <span className="form-hint">
-                  Open the email link to sign in. For local QA only, enter <strong>123456</strong>.
-                </span>
+                <h2>Open your sign-in email</h2>
+                <p>
+                  Tap <strong>Sign in to FindLostPuppy</strong> in the email we sent. If it is not in your inbox,
+                  check Spam or Promotions and mark it as safe.
+                </p>
+                <div className="auth-email-sent-address">{email}</div>
               </div>
 
               <button
-                type="submit"
+                type="button"
                 className="btn btn-primary btn-lg btn-block auth-submit-btn"
-                disabled={isLoading || otpToken.length < 6}
+                onClick={() => window.open('https://mail.google.com/mail/u/0/#inbox', '_blank', 'noopener,noreferrer')}
               >
-                {isLoading ? (
-                  <span>Verifying...</span>
-                ) : (
-                  <>
-                    <span>🐾 Verify & Sign In</span>
-                    <ArrowRight size={18} />
-                  </>
-                )}
+                <span>Open Gmail</span>
+                <ExternalLink size={18} />
               </button>
 
-              {/* Resend and Change Email Actions */}
               <div
                 style={{
                   display: 'flex',
@@ -218,7 +169,6 @@ export const EmailAuthPage = () => {
                   type="button"
                   onClick={() => {
                     setStep('email');
-                    setOtpToken('');
                     setErrorMsg('');
                   }}
                   className="btn btn-ghost btn-sm"
@@ -237,11 +187,11 @@ export const EmailAuthPage = () => {
                 >
                   <RefreshCw size={14} className={resendCooldown > 0 ? '' : ''} />
                   <span>
-                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend link'}
                   </span>
                 </button>
               </div>
-            </form>
+            </div>
           )}
 
           {/* Privacy Footnote */}

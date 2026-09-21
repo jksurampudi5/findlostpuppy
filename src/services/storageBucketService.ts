@@ -133,10 +133,12 @@ export const storageBucketService = {
         const fileName = `${cloudPath.split('/').pop() || `image_${Date.now()}`}.jpg`;
         const folderPrefix = cleanCloudPath(CLOUDINARY_FOLDER);
         const folder = `${folderPrefix}/${cloudPath.split('/').slice(0, -1).join('/')}`.replace(/\/+$/g, '');
+        const publicId = cloudPath.split('/').pop() || `image_${Date.now()}`;
 
         formData.append('file', blob, fileName);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
         if (folder) formData.append('folder', folder);
+        formData.append('public_id', publicId);
         formData.append('tags', 'findlostpuppy,user-generated');
 
         const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
@@ -185,7 +187,7 @@ export const storageBucketService = {
 
   /**
    * Uploads user profile avatar to:
-   * profiles/{user_id}/avatar_{timestamp}_{random}.jpg
+   * profiles/{user_id}/avatar.jpg
    */
   async uploadProfileAvatar(
     userId: string,
@@ -197,9 +199,7 @@ export const storageBucketService = {
       return null;
     }
 
-    const timestamp = Date.now();
-    const random = generateRandomSuffix();
-    const storagePath = `profiles/${cleanUserId}/avatar_${timestamp}_${random}.jpg`;
+    const storagePath = `profiles/${cleanUserId}/avatar.jpg`;
 
     const result = await this.uploadMedia(storagePath, image);
     return result ? result.publicUrl : null;
@@ -207,7 +207,7 @@ export const storageBucketService = {
 
   /**
    * Uploads pet primary or gallery photo to:
-   * pets/{user_id}/{pet_id}/photo_{timestamp}_{index}_{random}.jpg
+   * pets/{user_id}/{pet_id}/photo_{index}.jpg
    */
   async uploadPetPhoto(
     userId: string,
@@ -223,9 +223,7 @@ export const storageBucketService = {
       return null;
     }
 
-    const timestamp = Date.now();
-    const random = generateRandomSuffix();
-    const storagePath = `pets/${cleanUserId}/${cleanPetId}/photo_${timestamp}_${index}_${random}.jpg`;
+    const storagePath = `pets/${cleanUserId}/${cleanPetId}/photo_${index}.jpg`;
 
     const result = await this.uploadMedia(storagePath, image);
     return result ? result.publicUrl : null;
@@ -233,7 +231,7 @@ export const storageBucketService = {
 
   /**
    * Uploads missing report photo to:
-   * missing-reports/{report_id}/photo_{timestamp}_{random}.jpg
+   * missing-reports/{report_id}/photo.jpg
    * (Report must exist in public.missing_reports to satisfy Storage RLS)
    */
   async uploadMissingReportPhoto(
@@ -246,9 +244,7 @@ export const storageBucketService = {
       return null;
     }
 
-    const timestamp = Date.now();
-    const random = generateRandomSuffix();
-    const storagePath = `missing-reports/${cleanReportId}/photo_${timestamp}_${random}.jpg`;
+    const storagePath = `missing-reports/${cleanReportId}/photo.jpg`;
 
     const result = await this.uploadMedia(storagePath, image);
     return result ? result.publicUrl : null;
@@ -256,7 +252,7 @@ export const storageBucketService = {
 
   /**
    * Uploads guest or community sighting photo to:
-   * sightings/{report_id}/sighting_{timestamp}_{random}.jpg
+   * sightings/{report_id}/sighting.jpg
    * (Works unauthenticated; {report_id} must exist in public.missing_reports)
    */
   async uploadSightingPhoto(
@@ -269,9 +265,7 @@ export const storageBucketService = {
       return null;
     }
 
-    const timestamp = Date.now();
-    const random = generateRandomSuffix();
-    const storagePath = `sightings/${cleanReportId}/sighting_${timestamp}_${random}.jpg`;
+    const storagePath = `sightings/${cleanReportId}/sighting.jpg`;
 
     const result = await this.uploadMedia(storagePath, image);
     return result ? result.publicUrl : null;

@@ -86,9 +86,9 @@ export const firebaseSyncService = {
 
       let ownerAvatar = user.avatar || user.photo || '';
       if (ownerAvatar && isPetPhotoUrl(ownerAvatar)) ownerAvatar = '';
-      if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
+      if (ownerAvatar && isInlineImage(ownerAvatar)) {
         try {
-          ownerAvatar = await uploadInlineImage(`users/${cleanUserId}/avatar_${Date.now()}.jpg`, ownerAvatar);
+          ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] User avatar upload notice:', uploadErr);
           ownerAvatar = '';
@@ -137,10 +137,10 @@ export const firebaseSyncService = {
         ownerAvatar = undefined;
       }
 
-      // If owner uploaded a Base64 photo, store in Firebase Storage under users/{userId}/avatar.jpg
-      if (ownerAvatar && isInlineImage(ownerAvatar) && storage) {
+      // If owner uploaded a Base64 photo, store it in the configured cloud image store.
+      if (ownerAvatar && isInlineImage(ownerAvatar)) {
         try {
-          ownerAvatar = await uploadInlineImage(`users/${cleanUserId}/avatar_${Date.now()}.jpg`, ownerAvatar);
+          ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
           profile.photo = ownerAvatar;
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Owner avatar upload notice:', uploadErr);
@@ -207,10 +207,10 @@ export const firebaseSyncService = {
       if (!cleanPetId) return false;
 
       let primaryPhoto = pet.primaryPhoto || '';
-      // If photo is Base64 data URL, upload to Firebase Storage under pets/{petId}/
-      if (isInlineImage(primaryPhoto) && storage) {
+      // If photo is Base64 data URL, upload it to the configured cloud image store.
+      if (isInlineImage(primaryPhoto)) {
         try {
-          primaryPhoto = await uploadInlineImage(`pets/${cleanOwnerId || 'unknown-owner'}/${cleanPetId}/photo_${Date.now()}.jpg`, primaryPhoto);
+          primaryPhoto = await uploadInlineImage(`pets/${cleanOwnerId || 'unknown-owner'}/${cleanPetId}/photo_0.jpg`, primaryPhoto);
           pet.primaryPhoto = primaryPhoto;
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Pet photo upload notice:', uploadErr);
@@ -259,9 +259,9 @@ export const firebaseSyncService = {
       if (!cleanReportId) return false;
 
       let reportPhoto = report.dog?.primaryPhoto || '';
-      if (isInlineImage(reportPhoto) && storage) {
+      if (isInlineImage(reportPhoto)) {
         try {
-          reportPhoto = await uploadInlineImage(`missing-reports/${cleanReportId}/photo_${Date.now()}.jpg`, reportPhoto);
+          reportPhoto = await uploadInlineImage(`missing-reports/${cleanReportId}/photo.jpg`, reportPhoto);
           if (report.dog) report.dog.primaryPhoto = reportPhoto;
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Report photo upload notice:', uploadErr);
@@ -318,7 +318,7 @@ export const firebaseSyncService = {
       if (!cleanSightingId) return false;
 
       let photoUrl = sighting.photo || '';
-      if (isInlineImage(photoUrl) && storage && sighting.reportId) {
+      if (isInlineImage(photoUrl) && sighting.reportId) {
         try {
           photoUrl = await uploadInlineImage(`sightings/${sighting.reportId}/${cleanSightingId}.jpg`, photoUrl);
           sighting.photo = photoUrl;
@@ -414,11 +414,14 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return false;
     try {
       if (petId === '*') {
+        const profilesSnap = await getDocs(collection(db, 'profiles'));
         const petsSnap = await getDocs(collection(db, 'pets'));
         const reportsSnap = await getDocs(collection(db, 'missing_reports'));
         const sightingsSnap = await getDocs(collection(db, 'sightings'));
+        const suggestionsSnap = await getDocs(collection(db, 'app_suggestions'));
 
         const deletePromises: Promise<any>[] = [];
+        profilesSnap.docs.forEach((d) => deletePromises.push(deleteDoc(d.ref)));
         petsSnap.docs.forEach((d) => {
           if (d.id !== 'pet-1788871495754') deletePromises.push(deleteDoc(d.ref));
         });
@@ -426,6 +429,7 @@ export const firebaseSyncService = {
           if (d.id !== 'LOST-1788885000505') deletePromises.push(deleteDoc(d.ref));
         });
         sightingsSnap.docs.forEach((d) => deletePromises.push(deleteDoc(d.ref)));
+        suggestionsSnap.docs.forEach((d) => deletePromises.push(deleteDoc(d.ref)));
 
         await Promise.allSettled(deletePromises);
         return true;
@@ -523,9 +527,9 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return false;
     try {
       let screenshotUrl = suggestion.screenshotData || '';
-      if (isInlineImage(screenshotUrl) && storage) {
+      if (isInlineImage(screenshotUrl)) {
         try {
-          screenshotUrl = await uploadInlineImage(`suggestions/${suggestion.id}/screen_${Date.now()}.jpg`, screenshotUrl);
+          screenshotUrl = await uploadInlineImage(`suggestions/${suggestion.id}/screen.jpg`, screenshotUrl);
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Suggestion screenshot upload notice:', uploadErr);
           screenshotUrl = '';
