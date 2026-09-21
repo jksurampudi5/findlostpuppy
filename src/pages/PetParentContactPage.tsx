@@ -11,6 +11,7 @@ import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -102,6 +103,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       showToast('Image size should be under 5MB.', 'warning');
       return;
     }
+    const existingOwnerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+    const policy = canChangePhoto(existingOwnerProfile);
+    if (!policy.allowed) {
+      showToast('Owner photo can be changed twice per month. Please contact admin approval for another update.', 'warning');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     try {
       showToast('Compressing photo for lightning-fast save...', 'info');
       const compressed = await compressImage(file, 600, 600, 0.85);
@@ -122,9 +130,8 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
       authService.updateCurrentUser({ avatar: finalPhotoUrl });
       if (user) {
-        const p = storageService.getOwnerProfileByUserId(user.id, user.email);
         const updated: OwnerProfile = {
-          ...(p || {}),
+          ...(existingOwnerProfile || {}),
           id: user.id,
           userId: user.id,
           fullName: fullName.trim() || user.name || '',
@@ -132,14 +139,14 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           email: user.email,
           photo: finalPhotoUrl,
           preferredContact,
-          address: p?.address || '',
-          state: p?.state || '',
-          district: p?.district || '',
-          city: p?.city || '',
-          hasLocationConsent: p?.hasLocationConsent ?? true,
+          address: existingOwnerProfile?.address || '',
+          state: existingOwnerProfile?.state || '',
+          district: existingOwnerProfile?.district || '',
+          city: existingOwnerProfile?.city || '',
+          hasLocationConsent: existingOwnerProfile?.hasLocationConsent ?? true,
           updatedAt: new Date().toISOString(),
         };
-        storageService.saveOwnerProfile(updated);
+        storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, existingOwnerProfile));
         refreshProgress();
       }
       setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));

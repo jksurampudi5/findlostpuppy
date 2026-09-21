@@ -24,6 +24,7 @@ import { storageBucketService } from '../services/storageBucketService';
 import type { DogGender, DogSize, DogProfile } from '../types';
 import { handleDogImageError, getDogPhotoUrl, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { compressImage } from '../utils/imageCompressor';
+import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import {
   DOG_AGE_OPTIONS,
   DOG_SIZE_OPTIONS,
@@ -132,6 +133,13 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
     if (file.size > 10 * 1024 * 1024) {
       showToast('Image must be under 10MB', 'error');
+      return;
+    }
+
+    const policy = canChangePhoto(existingPet);
+    if (!policy.allowed) {
+      showToast('Pet photo can be changed twice per month. Please contact admin approval for another update.', 'warning');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -266,6 +274,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       : undefined;
 
     const profile: DogProfile = {
+      ...(existingPet || {}),
       id: petId,
       ownerId,
       name: dogName.trim() || 'Buddy',
@@ -280,13 +289,15 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       photos: finalAdditionals,
       createdAt: existingPet?.createdAt || new Date().toISOString(),
     };
+    const photoChanged = Boolean(finalPrimary) && finalPrimary !== existingPet?.primaryPhoto;
+    const profileToSave = photoChanged ? applyPhotoChangeTracking(profile, existingPet) : profile;
 
     try {
-      storageService.savePetProfile(profile);
+      storageService.savePetProfile(profileToSave);
       refreshProgress();
       setSubmitting(false);
 
-      showToast(`🐾 ${profile.name}'s profile saved!`, 'success');
+      showToast(`🐾 ${profileToSave.name}'s profile saved!`, 'success');
       if (onSuccess) {
         onSuccess();
       }

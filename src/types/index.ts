@@ -61,6 +61,10 @@ export interface OwnerProfile {
   phone: string;
   email: string;
   photo?: string; // Optional Owner profile photo
+  photoChangeMonth?: string;
+  photoChangeCount?: number;
+  photoLastChangedAt?: string;
+  photoChangeApprovalRequired?: boolean;
   address?: string; // Private
   city?: string;
   state?: string;
@@ -99,6 +103,10 @@ export interface DogProfile {
   medicalNotes?: string;
   primaryPhoto: string;
   photos: string[];
+  photoChangeMonth?: string;
+  photoChangeCount?: number;
+  photoLastChangedAt?: string;
+  photoChangeApprovalRequired?: boolean;
   createdAt: string;
 }
 
