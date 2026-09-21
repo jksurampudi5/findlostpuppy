@@ -21,10 +21,20 @@ This follows SCD Type 1 for owner, pet, and report records: updates overwrite th
 5. Authentication -> Settings -> Authorized domains:
    - `localhost`
    - `jksurampudi5.github.io`
-6. Firestore Database -> Create database -> Production mode.
-7. Firestore Rules -> paste `firebase.firestore.rules`.
-8. Storage -> Get started -> Production mode.
-9. Storage Rules -> paste `firebase.storage.rules`.
+    - Add the exact production hostname users visit, preserving protocol and host
+       spelling. Do not mix `www` and non-`www` hosts.
+6. Authentication -> Settings -> Authorized domains / OAuth redirect setup:
+    - Keep `VITE_FIREBASE_AUTH_DOMAIN` set to the Firebase project's auth domain
+       (`findlostpuppy.firebaseapp.com` unless the Firebase console shows another
+       value).
+    - The app must start and return on the same deployed origin, for example
+       `https://jksurampudi5.github.io/findlostpuppy/`. A flow started on another
+       protocol or hostname can lose redirect state even when the Firebase config
+       is correct.
+7. Firestore Database -> Create database -> Production mode.
+8. Firestore Rules -> paste `firebase.firestore.rules`.
+9. Storage -> Get started -> Production mode.
+10. Storage Rules -> paste `firebase.storage.rules`.
 
 ## Required env values
 
