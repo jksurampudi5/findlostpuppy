@@ -150,7 +150,11 @@ class AuthService {
     try {
       await setPersistence(auth, browserLocalPersistence);
       if (Capacitor.isNativePlatform()) {
-        const nativeResult = await FirebaseAuthentication.signInWithGoogle();
+        // Use the legacy Google Sign-In path on Android while we work around the
+        // Credential Manager re-authentication failure ([16] Account reauth failed).
+        const nativeResult = await FirebaseAuthentication.signInWithGoogle({
+          useCredentialManager: false,
+        });
         const idToken = nativeResult.credential?.idToken;
         if (!idToken) {
           return { success: false, error: 'Google Sign-In did not return an ID token.' };
