@@ -203,6 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (res.success && res.user) {
       setAuthNotice('');
       setUser(res.user);
+      window.dispatchEvent(new CustomEvent('findlostpuppy_first_login'));
       storageService.migrateUserDataToAuthenticatedUser(res.user.id, res.user.email);
       await storageService.pullFromFirebase();
       refreshProgressForUser(res.user);
