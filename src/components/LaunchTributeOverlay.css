@@ -221,7 +221,7 @@
   width: 0%;
   background: linear-gradient(90deg, #FF7B54, #FDBA74);
   border-radius: 99px;
-  animation: progressFill 7s linear forwards;
+  animation: progressFill 3s linear forwards;
 }
 
 @keyframes progressFill {

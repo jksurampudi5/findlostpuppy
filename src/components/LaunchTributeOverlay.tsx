@@ -45,15 +45,23 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     setPhase('logo');
     setIsFadingOut(false);
 
-    // Splash animation runs smoothly for ~7.0s so user can clearly enjoy the hands coming in from outside the orange border
+    // Keep the launch splash brief so first-time users reach sign-in quickly.
     const logoTimer = setTimeout(() => {
+      if (localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true') {
+        localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
+        setPhase('tribute');
+        setCurrentWordIndex(0);
+        setShowProceedBtn(false);
+        return;
+      }
+
       setIsFadingOut(true);
       setTimeout(() => {
         setVisible(false);
         setIsFadingOut(false);
         if (onClose) onClose();
       }, 400);
-    }, 7000);
+    }, 3000);
 
     return () => clearTimeout(logoTimer);
   }, [forceOpen, onClose]);
