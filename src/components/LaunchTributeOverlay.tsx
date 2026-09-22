@@ -47,6 +47,14 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
 
     // Keep the launch splash brief so first-time users reach sign-in quickly.
     const logoTimer = setTimeout(() => {
+      if (localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true') {
+        localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
+        setPhase('tribute');
+        setCurrentWordIndex(0);
+        setShowProceedBtn(false);
+        return;
+      }
+
       setIsFadingOut(true);
       setTimeout(() => {
         setVisible(false);
@@ -69,20 +77,6 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
 
     window.addEventListener('open-tribute-modal', handleReopen);
     return () => window.removeEventListener('open-tribute-modal', handleReopen);
-  }, []);
-
-  useEffect(() => {
-    const handleFirstLogin = () => {
-      if (localStorage.getItem('findlostpuppy_gratitude_seen') === 'true') return;
-      localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
-      setVisible(true);
-      setPhase('tribute');
-      setShowProceedBtn(false);
-      setCurrentWordIndex(0);
-    };
-
-    window.addEventListener('findlostpuppy_first_login', handleFirstLogin);
-    return () => window.removeEventListener('findlostpuppy_first_login', handleFirstLogin);
   }, []);
 
   // Lock body scroll when overlay is active to eliminate background judder
