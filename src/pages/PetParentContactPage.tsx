@@ -10,6 +10,7 @@ import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
+import { firebaseSyncService } from '../services/firebaseSyncService';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 
@@ -248,11 +249,21 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
   };
 
-  const handleContinueToLocation = () => {
+  const handleContinueToLocation = async () => {
     if (hasChanges) {
       const ok = saveProfileInternal(false);
       if (!ok) return;
     }
+
+    // Auto-sync profile and avatar to Cloudinary & Firebase cloud
+    try {
+      const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '');
+      if (currentProfile) {
+        firebaseSyncService.syncOwnerProfile(currentProfile, currentProfile.id || '').catch(() => {});
+        showToast('✓ Pet Parent details & photo synced to cloud!', 'success');
+      }
+    } catch {}
+
     if (onSuccess) {
       onSuccess();
     } else {

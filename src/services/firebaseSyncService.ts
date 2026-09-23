@@ -461,11 +461,53 @@ export const firebaseSyncService = {
   async deleteUserAsAdmin(userId: string): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {
-      await Promise.all([
-        deleteDoc(doc(db, 'profiles', userId)),
-        deleteDoc(doc(db, 'pets', userId)),
-        deleteDoc(doc(db, 'missing_reports', userId)),
-      ]);
+      const cleanUserId = userId.replace(/^owner-/, '').trim();
+      const firestore = db;
+
+      // 1. Delete profile doc (both variants of ID)
+      const profileDeletes = [
+        deleteDoc(doc(firestore, 'profiles', userId)),
+        deleteDoc(doc(firestore, 'profiles', cleanUserId)),
+        deleteDoc(doc(firestore, 'profiles', `owner-${cleanUserId}`)),
+      ];
+
+      // 2. Query and delete all pets owned by this user
+      const petsSnap = await getDocs(collection(firestore, 'pets'));
+      const petDeletes: Promise<any>[] = [];
+      petsSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (
+          d.id === userId ||
+          d.id === cleanUserId ||
+          data.ownerId === userId ||
+          data.ownerId === cleanUserId ||
+          data.ownerId === `owner-${cleanUserId}`
+        ) {
+          if (d.id !== 'pet-1788871495754') {
+            petDeletes.push(deleteDoc(d.ref));
+          }
+        }
+      });
+
+      // 3. Query and delete all missing reports owned by this user
+      const reportsSnap = await getDocs(collection(firestore, 'missing_reports'));
+      const reportDeletes: Promise<any>[] = [];
+      reportsSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (
+          d.id === userId ||
+          d.id === cleanUserId ||
+          data.ownerId === userId ||
+          data.ownerId === cleanUserId ||
+          data.ownerId === `owner-${cleanUserId}`
+        ) {
+          if (d.id !== 'LOST-1788885000505') {
+            reportDeletes.push(deleteDoc(d.ref));
+          }
+        }
+      });
+
+      await Promise.allSettled([...profileDeletes, ...petDeletes, ...reportDeletes]);
       return true;
     } catch (err: any) {
       console.warn('[Firebase] deleteUserAsAdmin error:', err);

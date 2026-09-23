@@ -83,6 +83,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const [detecting, setDetecting] = useState(false);
   const [showLocationRationale, setShowLocationRationale] = useState(false);
+  const [showGpsOffModal, setShowGpsOffModal] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
@@ -392,11 +393,21 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       }
     } catch (hardErr: any) {
       setHasDetected(true);
-      setActiveLocationModal('district');
-      showToast(
-        hardErr?.message || 'Location permission unavailable. Select details from squares below.',
-        'warning'
-      );
+      const errorMsg = String(hardErr?.message || '');
+      const isGpsOff =
+        hardErr?.code === 'LOCATION_SERVICES_DISABLED' ||
+        (errorMsg.toLowerCase().includes('location') && (errorMsg.toLowerCase().includes('off') || errorMsg.toLowerCase().includes('disabled')));
+
+      if (isGpsOff) {
+        setShowGpsOffModal(true);
+        showToast('📍 Device Location is turned off. Please enable Location in phone quick settings.', 'warning');
+      } else {
+        setActiveLocationModal('district');
+        showToast(
+          hardErr?.message || 'Location permission unavailable. Select details from squares below.',
+          'warning'
+        );
+      }
     } finally {
       isDetectingRef.current = false;
       setDetecting(false);
@@ -787,6 +798,22 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         message="Location access is needed only when you choose Detect Location. It helps identify your State, District, Mandal and Home Base. Your exact coordinates are not publicly displayed."
         onCancel={() => setShowLocationRationale(false)}
         onContinue={handleLocationRationaleContinue}
+      />
+
+      <PermissionRationaleModal
+        isOpen={showGpsOffModal}
+        title="Turn On Device Location"
+        message="Your device Location (GPS) is currently turned off. To automatically detect your State, District, and Mandal, swipe down from the top of your screen to open Quick Settings, turn on Location, and tap Detect Again."
+        continueLabel="Detect Again"
+        cancelLabel="Choose Manually"
+        onCancel={() => {
+          setShowGpsOffModal(false);
+          setActiveLocationModal('district');
+        }}
+        onContinue={() => {
+          setShowGpsOffModal(false);
+          executeDetectLocation();
+        }}
       />
     </div>
   );

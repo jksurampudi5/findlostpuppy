@@ -732,10 +732,10 @@ export const AdminDashboardPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteUser(u.id, u.name)}
-                                className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                                title="Delete user"
+                                className="admin-delete-btn"
+                                title={`Delete user ${u.name}`}
                               >
-                                <Trash2 size={15} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -878,10 +878,10 @@ export const AdminDashboardPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleDeletePet(pet.id, pet.name)}
-                                className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                                className="admin-delete-btn"
                                 title="Delete pet profile"
                               >
-                                <Trash2 size={15} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -1196,7 +1196,7 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="admin-table-wrapper card">
-                <table className="admin-table">
+                <table className="admin-data-table">
                   <thead>
                     <tr>
                       <th>Status</th>
@@ -1221,14 +1221,16 @@ export const AdminDashboardPage: React.FC = () => {
                             className="select select-xs"
                             style={{
                               fontWeight: 700,
+                              background: '#161A20',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               color:
                                 s.status === 'COMPLETED'
-                                  ? '#16a34a'
+                                  ? '#4ADE80'
                                   : s.status === 'PLANNED'
-                                  ? '#2563eb'
+                                  ? '#60A5FA'
                                   : s.status === 'REVIEWED'
-                                  ? '#8b5cf6'
-                                  : '#ea580c',
+                                  ? '#C084FC'
+                                  : '#FB923C',
                             }}
                           >
                             <option value="NEW">NEW</option>
@@ -1243,28 +1245,29 @@ export const AdminDashboardPage: React.FC = () => {
                             style={{
                               backgroundColor:
                                 s.category === 'feature'
-                                  ? '#ffedd5'
+                                  ? 'rgba(234, 88, 12, 0.2)'
                                   : s.category === 'improvement'
-                                  ? '#dbeafe'
+                                  ? 'rgba(37, 99, 235, 0.2)'
                                   : s.category === 'ui_ux'
-                                  ? '#f3e8ff'
+                                  ? 'rgba(147, 51, 234, 0.2)'
                                   : s.category === 'bug'
-                                  ? '#fee2e2'
+                                  ? 'rgba(239, 68, 68, 0.2)'
                                   : s.category === 'praise'
-                                  ? '#fce7f3'
-                                  : '#f1f5f9',
+                                  ? 'rgba(236, 72, 153, 0.2)'
+                                  : 'rgba(255, 255, 255, 0.08)',
                               color:
                                 s.category === 'feature'
-                                  ? '#c2410c'
+                                  ? '#FB923C'
                                   : s.category === 'improvement'
-                                  ? '#1d4ed8'
+                                  ? '#93C5FD'
                                   : s.category === 'ui_ux'
-                                  ? '#6b21a8'
+                                  ? '#D8B4FE'
                                   : s.category === 'bug'
-                                  ? '#b91c1c'
+                                  ? '#FCA5A5'
                                   : s.category === 'praise'
-                                  ? '#be185d'
-                                  : '#475569',
+                                  ? '#F472B6'
+                                  : '#CBD5E1',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
                               fontWeight: 700,
                               textTransform: 'uppercase',
                               fontSize: '0.72rem',
@@ -1274,10 +1277,10 @@ export const AdminDashboardPage: React.FC = () => {
                           </span>
                         </td>
                         <td style={{ maxWidth: '300px' }}>
-                          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: '3px' }}>
+                          <div style={{ fontWeight: 700, color: '#FFFFFF', marginBottom: '3px' }}>
                             {s.title}
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                          <div style={{ fontSize: '0.85rem', color: '#CBD5E1', whiteSpace: 'pre-wrap' }}>
                             {s.description}
                           </div>
                           {s.screenshotData && (
@@ -1297,23 +1300,23 @@ export const AdminDashboardPage: React.FC = () => {
                               <Star
                                 key={star}
                                 size={14}
-                                fill={(s.rating || 0) >= star ? '#f59e0b' : 'none'}
-                                stroke={(s.rating || 0) >= star ? '#f59e0b' : '#cbd5e1'}
+                                fill={(s.rating || 0) >= star ? '#F59E0B' : 'none'}
+                                stroke={(s.rating || 0) >= star ? '#F59E0B' : '#475569'}
                               />
                             ))}
                           </div>
                         </td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{s.userName || 'Anonymous'}</div>
-                          {s.userEmail && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{s.userEmail}</div>}
-                          {s.userPhone && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{s.userPhone}</div>}
+                          <div style={{ fontWeight: 600, color: '#FFFFFF' }}>{s.userName || 'Anonymous'}</div>
+                          {s.userEmail && <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>{s.userEmail}</div>}
+                          {s.userPhone && <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>{s.userPhone}</div>}
                         </td>
                         <td>
-                          <code style={{ fontSize: '0.78rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
+                          <code style={{ fontSize: '0.78rem', background: 'rgba(255, 255, 255, 0.08)', color: '#CBD5E1', padding: '2px 6px', borderRadius: '4px' }}>
                             {s.pageUrl}
                           </code>
                           {s.deviceInfo && (
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
                               {s.deviceInfo}
                             </div>
                           )}

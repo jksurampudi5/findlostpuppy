@@ -84,9 +84,12 @@ interface CoordsResult {
 }
 
 export class NativeLocationError extends Error {
-  code: 'PERMISSION_DENIED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED';
+  code: 'PERMISSION_DENIED' | 'LOCATION_SERVICES_DISABLED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED';
 
-  constructor(code: 'PERMISSION_DENIED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED', message: string) {
+  constructor(
+    code: 'PERMISSION_DENIED' | 'LOCATION_SERVICES_DISABLED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED',
+    message: string
+  ) {
     super(message);
     this.name = 'NativeLocationError';
     this.code = code;
@@ -167,8 +170,31 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
       };
     } catch (nativeErr: any) {
       console.warn('[geolocationHelper] Native GPS tier failed:', nativeErr);
+      const msg = String(nativeErr?.message || '').toLowerCase();
+      const errCode = String(nativeErr?.code || '').toUpperCase();
+      const isLocationDisabled =
+        msg.includes('location disabled') ||
+        msg.includes('provider disabled') ||
+        msg.includes('location services are disabled') ||
+        msg.includes('location services are not enabled') ||
+        msg.includes('request to enable location was denied') ||
+        msg.includes('os-plug-gloc-0007') ||
+        msg.includes('os-plug-gloc-0009') ||
+        msg.includes('os-plug-gloc-0017') ||
+        errCode === 'OS-PLUG-GLOC-0007' ||
+        errCode === 'OS-PLUG-GLOC-0009' ||
+        errCode === 'OS-PLUG-GLOC-0017' ||
+        nativeErr?.code === 2;
+
+      if (isLocationDisabled) {
+        throw new NativeLocationError(
+          'LOCATION_SERVICES_DISABLED',
+          'Device Location (GPS) is turned off. Please turn on Location in quick settings.'
+        );
+      }
+
       throw new NativeLocationError(
-        nativeErr?.code === 3 ? 'TIMEOUT' : 'POSITION_UNAVAILABLE',
+        nativeErr?.code === 3 || msg.includes('timeout') ? 'TIMEOUT' : 'POSITION_UNAVAILABLE',
         nativeErr?.message || 'Native location fix failed'
       );
     }
@@ -528,7 +554,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       }
     }
   } catch (gpsErr: any) {
-    if (gpsErr?.code === 'PERMISSION_DENIED') {
+    if (gpsErr?.code === 'PERMISSION_DENIED' || gpsErr?.code === 'LOCATION_SERVICES_DISABLED') {
       throw gpsErr;
     }
     console.warn('[geolocationHelper] Tier 1 GPS failed, attempting Tier 2 network...', gpsErr);
