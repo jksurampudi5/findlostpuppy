@@ -2513,6 +2513,19 @@ class StorageService {
         localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify([]));
         localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify([]));
         localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify([]));
+        
+        // Preserve active admin user in USERS_KEY, remove all other test members
+        try {
+          const rawActive = localStorage.getItem('findlostpuppy_active_user');
+          const activeUser = rawActive ? JSON.parse(rawActive) : null;
+          if (activeUser) {
+            localStorage.setItem(USERS_KEY, JSON.stringify([activeUser]));
+          } else {
+            localStorage.setItem(USERS_KEY, JSON.stringify([]));
+          }
+        } catch {
+          localStorage.setItem(USERS_KEY, JSON.stringify([]));
+        }
 
         // Clean user avatar if it's a pet photo
         try {
@@ -2587,10 +2600,21 @@ class StorageService {
   deleteUserAccount(userId: string): { success: boolean } {
     return this.executeTransaction(() => {
       const rawUserId = userId.replace('owner-', '');
+      
+      // Find any associated email for this user ID to ensure thorough cleanup
+      const matchedProfile = this.profiles.find(
+        (p) => p.userId === userId || p.userId === rawUserId || p.id === userId || p.id === rawUserId
+      );
+      const userEmail = matchedProfile?.email?.toLowerCase().trim();
 
       // 1. Remove owner profile
       this.profiles = this.profiles.filter(
-        (p) => p.userId !== userId && p.userId !== rawUserId && p.id !== userId && p.id !== rawUserId
+        (p) =>
+          p.userId !== userId &&
+          p.userId !== rawUserId &&
+          p.id !== userId &&
+          p.id !== rawUserId &&
+          (!userEmail || p.email?.toLowerCase().trim() !== userEmail)
       );
 
       // 2. Remove pet profile
@@ -2600,12 +2624,18 @@ class StorageService {
 
       // 3. Remove user reports
       this.reports = this.reports.filter(
-        (r) => r.ownerId !== userId && r.ownerId !== `owner-${userId}` && r.ownerId !== rawUserId
+        (r) =>
+          r.ownerId !== userId &&
+          r.ownerId !== `owner-${userId}` &&
+          r.ownerId !== rawUserId &&
+          (!userEmail || r.contactMechanism?.safeContactEmail?.toLowerCase().trim() !== userEmail)
       );
 
       // 4. Remove user sightings
       this.sightings = this.sightings.filter(
-        (s) => s.reporterEmail !== userId
+        (s) =>
+          s.reporterEmail !== userId &&
+          (!userEmail || s.reporterEmail?.toLowerCase().trim() !== userEmail)
       );
 
       // 5. Remove registered user entry
@@ -2613,7 +2643,12 @@ class StorageService {
         const storedUsers = localStorage.getItem(USERS_KEY);
         if (storedUsers) {
           const users = JSON.parse(storedUsers);
-          const filtered = users.filter((u: any) => u.id !== userId && u.id !== rawUserId);
+          const filtered = users.filter(
+            (u: any) =>
+              u.id !== userId &&
+              u.id !== rawUserId &&
+              (!userEmail || u.email?.toLowerCase().trim() !== userEmail)
+          );
           localStorage.setItem(USERS_KEY, JSON.stringify(filtered));
         }
       } catch (e) {
