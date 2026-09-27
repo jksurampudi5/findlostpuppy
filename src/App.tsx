@@ -25,7 +25,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CapturePetPage } from './pages/CapturePetPage';
 
 import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
-
+import { SuggestionWidget } from './components/SuggestionWidget';
 
 import './App.css';
 
@@ -51,6 +51,8 @@ function MainAppFlow() {
       {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
       <Route path="/homepage" element={<DashboardPage />} />
       <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
+      <Route path="/feedback" element={<DashboardPage />} />
+      <Route path="/suggest" element={<DashboardPage />} />
       <Route path="/next-step" element={<Navigate to="/homepage" replace />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route
@@ -260,6 +262,7 @@ export function App() {
               <Footer />
             </div>
           </div>
+          <SuggestionWidget />
         </AuthProvider>
       </ToastProvider>
     </Router>

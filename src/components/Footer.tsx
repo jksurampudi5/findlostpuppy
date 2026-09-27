@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PawPrint, Shield, MapPin, Compass, FileText, Sparkles } from 'lucide-react';
+import { PawPrint, Shield, MapPin, Compass, FileText, Sparkles, Lightbulb } from 'lucide-react';
 import { SettingsLegalModal } from './SettingsLegalModal';
 
 export const Footer: React.FC = () => {
@@ -12,8 +12,11 @@ export const Footer: React.FC = () => {
   // In tabs like Owner Profile, Location, Pet Profile, Pet Safety, and Admin Portal, footer is removed completely.
   const isDashboard =
     location.pathname === '/' ||
+    location.pathname === '/homepage' ||
     location.pathname === '/dashboard' ||
-    location.pathname === '/find';
+    location.pathname === '/find' ||
+    location.pathname === '/feedback' ||
+    location.pathname === '/suggest';
 
   if (!isDashboard) {
     return null;
@@ -67,6 +70,16 @@ export const Footer: React.FC = () => {
                   <MapPin size={15} />
                   <span>Recent Sightings</span>
                 </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="footer-link-btn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-suggestion-modal'))}
+                >
+                  <Lightbulb size={15} />
+                  <span>Feedback & Suggestions</span>
+                </button>
               </li>
             </ul>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Lightbulb,
   X,
@@ -14,69 +14,45 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { SuggestionCategory } from '../types';
 
-const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=com.findlostpuppy.app';
+const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
-
-  // Route whitelist: Allowed on /homepage, /dashboard, etc.
   const pathname = location.pathname;
-  const isAllowedRoute =
-    pathname === '/homepage' ||
-    pathname === '/dashboard' ||
-    pathname === '/find' ||
-    pathname === '/admin' ||
-    /^\/dog\/[^/]+$/.test(pathname);
 
-  const isBlockedRoute = [
-    '/',
-    '/consent',
-    '/login',
-    '/owner',
-    '/location',
-    '/choice',
-    '/pet-choice',
-    '/pet',
-    '/alert',
-    '/edit-parent',
-    '/edit-location',
-    '/dog',
-    '/dog-profile',
-    '/report-another',
-    '/report',
-    '/report-lost',
-  ].includes(pathname);
-
-  const canShowOnRoute = isAllowedRoute && !isBlockedRoute;
-
-  // One-time automatic App Suggestion Popup on reaching Dashboard
+  // Auto-open on feedback routes or when query parameter indicates feedback
   useEffect(() => {
-    const isDashboard = pathname === '/homepage' || pathname === '/dashboard';
-    const alreadyShown =
-      localStorage.getItem('suggestion_shown') === 'true' ||
-      localStorage.getItem('findlostpuppy_suggestion_shown') === 'true';
+    const isFeedbackRoute = pathname === '/feedback' || pathname === '/suggest';
+    const searchParams = new URLSearchParams(location.search);
+    const hasFeedbackParam =
+      searchParams.get('feedback') === 'true' || searchParams.get('openFeedback') === 'true';
 
-    if (isDashboard && !alreadyShown) {
+    if (isFeedbackRoute || hasFeedbackParam) {
+      setIsOpen(true);
+      setIsSuccess(false);
+      return;
+    }
+
+    // Automatic App Suggestion Popup on Dashboard — once every 5 days
+    const isDashboard = pathname === '/homepage' || pathname === '/dashboard';
+    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+    const lastShownStr = localStorage.getItem('suggestion_last_shown');
+    const lastShown = lastShownStr ? parseInt(lastShownStr, 10) : 0;
+
+    if (isDashboard && (Date.now() - lastShown > FIVE_DAYS_MS)) {
       setIsOpen(true);
     }
-  }, [pathname]);
+  }, [pathname, location.search]);
 
-  // Simplified form states
-  const [category, setCategory] = useState<SuggestionCategory>('feature');
+  // Form states
   const [suggestionText, setSuggestionText] = useState('');
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
-  const [screenshotData, setScreenshotData] = useState('');
-  const [isCapturingScreen, setIsCapturingScreen] = useState(false);
-
-  // Suppress unused variable warnings internally
-  void category;
-  void setCategory;
-  void isCapturingScreen;
 
   // Identity states (prefilled silently)
   const [name, setName] = useState(user?.name || '');
@@ -94,7 +70,7 @@ export const SuggestionWidget: React.FC = () => {
     }
   }, [user?.name, user?.email, user?.phone]);
 
-  // Global listener to open suggestion modal from any button in navbar or drawer
+  // Global listener to open suggestion modal from any button in navbar, drawer, or footer
   useEffect(() => {
     const handleOpen = () => {
       setIsOpen(true);
@@ -106,53 +82,18 @@ export const SuggestionWidget: React.FC = () => {
 
   const handleClose = () => {
     setIsOpen(false);
+    // Record the timestamp of the last shown popup
+    localStorage.setItem('suggestion_last_shown', Date.now().toString());
+    // Preserve old flags for backward compatibility
     localStorage.setItem('suggestion_shown', 'true');
     localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
+    if (pathname === '/feedback' || pathname === '/suggest') {
+      navigate('/homepage');
+    }
   };
 
   const handleRatingClick = (val: number) => {
     setRating(val);
-  };
-
-  const handleCaptureScreenshot = async () => {
-    void setScreenshotData; // To suppress unused warnings in some paths if we return early
-    // ...
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      showToast('Screen capture is not available in this browser.', 'warning');
-      return;
-    }
-
-    setIsCapturingScreen(true);
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.muted = true;
-      await video.play();
-
-      const width = video.videoWidth || window.innerWidth;
-      const height = video.videoHeight || window.innerHeight;
-      const maxWidth = 900;
-      const scale = Math.min(1, maxWidth / width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
-      const context = canvas.getContext('2d');
-      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      stream.getTracks().forEach((track) => track.stop());
-      setScreenshotData(canvas.toDataURL('image/jpeg', 0.74));
-      showToast('Screenshot attached to your suggestion.', 'success');
-    } catch (err: any) {
-      if (err?.name !== 'NotAllowedError') {
-        showToast('Could not capture screenshot. You can still submit the suggestion.', 'warning');
-      }
-    } finally {
-      setIsCapturingScreen(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,24 +106,25 @@ export const SuggestionWidget: React.FC = () => {
       const firstLine = trimmed ? trimmed.split('\n')[0].trim() : `App Rating: ${rating} Stars`;
       const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
 
-      const descriptionWithContext = trimmed
-        ? (screenshotData ? `${trimmed}\n\n[Screen snippet attached for admin review]` : trimmed)
-        : `User rated ${rating} out of 5 stars.`;
+      const descriptionWithContext = trimmed || `User rated ${rating} out of 5 stars.`;
+
+      const derivedCategory: SuggestionCategory =
+        rating <= 2 ? 'bug' : rating === 3 ? 'improvement' : 'praise';
 
       storageService.saveSuggestion({
         userId: user?.id,
         userName: name.trim() || user?.name || 'Community Member',
         userEmail: contact.includes('@') ? contact.trim() : user?.email,
         userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
-        category: 'praise',
+        category: derivedCategory,
         title: derivedTitle,
         description: descriptionWithContext,
         rating,
         pageUrl: location.pathname,
-        screenshotData,
       });
 
-      // Mark suggestion_shown = true so it never auto-shows again
+      // Record timestamp so popup won't re-appear for 5 days
+      localStorage.setItem('suggestion_last_shown', Date.now().toString());
       localStorage.setItem('suggestion_shown', 'true');
       localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
 
@@ -194,7 +136,9 @@ export const SuggestionWidget: React.FC = () => {
         setIsSuccess(false);
         setIsOpen(false);
         setSuggestionText('');
-        setScreenshotData('');
+        if (pathname === '/feedback' || pathname === '/suggest') {
+          navigate('/homepage');
+        }
       }, 1500);
     } catch {
       showToast('Could not save suggestion. Please try again.', 'error');
@@ -202,13 +146,6 @@ export const SuggestionWidget: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  // 4 simplified, punchy categories
-  const categories: { key: SuggestionCategory; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: 'praise', label: 'Rate App Experience', icon: <Star size={16} />, color: '#FFB800' },
-  ];
-  void categories;
-  void handleCaptureScreenshot;
 
   const ratingDescriptions = [
     '',
@@ -219,8 +156,7 @@ export const SuggestionWidget: React.FC = () => {
     'Loved it! ❤️',
   ];
 
-  // If user is on an onboarding or unallowed route, do not render unless modal is explicitly opened
-  if (!canShowOnRoute && !isOpen) {
+  if (!isOpen) {
     return null;
   }
 
