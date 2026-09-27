@@ -40,6 +40,7 @@ export const ReportWizardPage = () => {
   const [state, setState] = useState('Andhra Pradesh');
   const [district, setDistrict] = useState('Vijayawada');
   const [mandalOrMunicipality, setMandalOrMunicipality] = useState('');
+  const [city, setCity] = useState('');
   const [streetOrLocality, setStreetOrLocality] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [privateAddress, setPrivateAddress] = useState('');
@@ -93,7 +94,8 @@ export const ReportWizardPage = () => {
         setState(existingProfile.state || 'Andhra Pradesh');
         setDistrict(existingProfile.district || '');
         setMandalOrMunicipality(existingProfile.mandalOrMunicipality || '');
-        setStreetOrLocality(existingProfile.streetOrLocality || '');
+        setCity(existingProfile.city || '');
+        setStreetOrLocality(existingProfile.streetOrLocality || (existingProfile as any).street || '');
         setPinCode(existingProfile.pinCode || '');
         setPrivateAddress(existingProfile.address || '');
         setHasLocationConsent(existingProfile.hasLocationConsent);
@@ -146,6 +148,12 @@ export const ReportWizardPage = () => {
       return;
     }
 
+    if (!email.trim().toLowerCase().endsWith('@gmail.com')) {
+      showToast('Only @gmail.com email addresses are allowed for security purposes.', 'error');
+      return;
+    }
+
+
     const phoneValidation = validateIndianPhoneNumber(phone);
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
@@ -178,7 +186,9 @@ export const ReportWizardPage = () => {
       state: state.trim(),
       district: district.trim(),
       mandalOrMunicipality: mandalOrMunicipality.trim(),
+      city: city.trim(),
       streetOrLocality: streetOrLocality.trim(),
+      street: streetOrLocality.trim(),
       pinCode: pinCode.trim(),
       preferredContact,
       hasLocationConsent,
@@ -359,7 +369,7 @@ export const ReportWizardPage = () => {
                       id="owner-name"
                       type="text"
                       className="form-input"
-                      placeholder="e.g. Suresh Varma"
+                      placeholder="e.g. Rahul Sharma"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -417,7 +427,7 @@ export const ReportWizardPage = () => {
                       id="owner-email"
                       type="email"
                       className="form-input"
-                      placeholder="suresh.varma@example.com"
+                      placeholder="e.g. rahul.sharma@gmail.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -448,8 +458,10 @@ export const ReportWizardPage = () => {
                 <LocationPicker
                   state={state}
                   district={district}
+                  city={city}
                   mandalOrMunicipality={mandalOrMunicipality}
                   streetOrLocality={streetOrLocality}
+                  street={streetOrLocality}
                   pinCode={pinCode}
                   privateAddress={privateAddress}
                   hasLocationConsent={hasLocationConsent}
@@ -459,8 +471,9 @@ export const ReportWizardPage = () => {
                   onChange={(fields) => {
                     setState(fields.state);
                     setDistrict(fields.district);
+                    if (fields.city !== undefined) setCity(fields.city);
                     setMandalOrMunicipality(fields.mandalOrMunicipality);
-                    setStreetOrLocality(fields.streetOrLocality);
+                    setStreetOrLocality(fields.streetOrLocality || fields.street);
                     setPinCode(fields.pinCode);
                     setPrivateAddress(fields.privateAddress);
                     setHasLocationConsent(fields.hasLocationConsent);

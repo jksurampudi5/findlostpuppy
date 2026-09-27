@@ -59,6 +59,7 @@ export function mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Part
     avatar: fbUser.photoURL || fallbackProfile?.avatar,
     isAdmin: isEmailAdmin(email),
     createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
+    lastLoginAt: fbUser.metadata.lastSignInTime || new Date().toISOString(),
   };
 }
 
@@ -123,13 +124,16 @@ class AuthService {
   onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe | null {
     if (!auth || !isFirebaseConfigured()) return null;
     return onAuthStateChanged(auth, (fbUser) => {
-      const mapped = fbUser ? mapFirebaseUser(fbUser) : null;
-      this.setCurrentUser(mapped);
-      callback(mapped);
-      if (mapped) {
+      if (fbUser) {
+        const mapped = mapFirebaseUser(fbUser);
+        this.setCurrentUser(mapped);
+        callback(mapped);
         firebaseSyncService.syncUserProfile(mapped).catch((e) =>
           console.warn('[Firebase Sync User Notice]:', e)
         );
+      } else {
+        const cached = this.getCurrentUser();
+        callback(cached);
       }
     });
   }
@@ -160,6 +164,10 @@ class AuthService {
           return { success: false, error: 'Google Sign-In did not return an ID token.' };
         }
         const result = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+        if (result.user?.email && !result.user.email.toLowerCase().endsWith('@gmail.com')) {
+          await auth.signOut();
+          return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
+        }
         const mapped = mapFirebaseUser(result.user);
         this.setCurrentUser(mapped);
         await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
@@ -167,6 +175,10 @@ class AuthService {
       }
 
       const result = await signInWithPopup(auth, googleProvider);
+      if (result.user?.email && !result.user.email.toLowerCase().endsWith('@gmail.com')) {
+        await auth.signOut();
+        return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
+      }
       const mapped = mapFirebaseUser(result.user);
       this.setCurrentUser(mapped);
       await firebaseSyncService.syncUserProfile(mapped).catch(() => {});

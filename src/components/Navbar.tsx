@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield, LayoutDashboard, User, MapPin, PawPrint } from 'lucide-react';
+import { LogOut, Check, AlertTriangle, ArrowRight, ShieldCheck, Shield, LayoutDashboard, User, MapPin, PawPrint, RefreshCw } from 'lucide-react';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
@@ -78,6 +78,7 @@ export const Navbar = () => {
     (location.pathname === '/' && activeOnboardingTab === 'report');
 
   const isDashboardActive =
+    location.pathname === '/homepage' ||
     location.pathname === '/dashboard' ||
     location.pathname === '/find' ||
     (location.pathname === '/' && (activeOnboardingTab === 'dashboard' || activeOnboardingTab === 'completed'));
@@ -93,12 +94,12 @@ export const Navbar = () => {
           {/* Brand Logo */}
           <div className="navbar-brand-row">
             <Link
-              to={isAuthenticated ? '/dashboard' : '/'}
+              to={isAuthenticated ? '/homepage' : '/'}
               className="brand-logo"
               onClick={() => {
                 if (isAuthenticated) {
                   setActiveOnboardingTab('dashboard');
-                  navigate('/dashboard');
+                  navigate('/homepage');
                 }
               }}
             >
@@ -111,7 +112,6 @@ export const Navbar = () => {
               </div>
               <div className="brand-text">
                 <span className="brand-title">FindLostPuppy</span>
-                <span className="brand-badge">Community Network</span>
               </div>
             </Link>
           </div>
@@ -333,7 +333,7 @@ export const Navbar = () => {
                   <button
                     type="button"
                     className={`nav-space-pill dashboard-space-pill ${isDashboardActive ? 'active' : ''}`}
-                    onClick={() => handleTabClick('dashboard', '/dashboard')}
+                    onClick={() => handleTabClick('dashboard', '/homepage')}
                     title="Community Recovery Dashboard & Browse Dogs"
                   >
                     <div className="space-pill-icon dashboard-icon">
@@ -382,12 +382,27 @@ export const Navbar = () => {
             </div>
           ) : (
             <div className="onboarding-nav-status guest-nav-status">
-              <Link to="/dashboard" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Link to="/homepage" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span>📊 Dashboard</span>
               </Link>
               <Link to="/" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span>🐾 Sign In</span>
               </Link>
+              <button 
+                type="button" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  window.location.reload();
+                }} 
+                className="btn btn-ghost btn-sm"
+                title="Clear cache to switch user"
+                style={{ marginLeft: '4px', padding: '0 8px' }}
+              >
+                <RefreshCw size={18} color="#f97316" strokeWidth={2.5} />
+              </button>
             </div>
           )}
         </div>
@@ -401,7 +416,7 @@ export const Navbar = () => {
             <button
               type="button"
               className={`mobile-nav-item ${isDashboardActive ? 'active' : ''}`}
-              onClick={() => handleTabClick('dashboard', '/dashboard')}
+              onClick={() => handleTabClick('dashboard', '/homepage')}
             >
               <div className="mobile-nav-icon-wrap">
                 <LayoutDashboard size={20} className="mobile-nav-icon" />

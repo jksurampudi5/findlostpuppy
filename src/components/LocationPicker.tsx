@@ -18,6 +18,7 @@ import { useToast } from '../context/ToastContext';
 import { locationService } from '../services/locationService';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import { SearchableSelect, type SelectOption } from './SearchableSelect';
+import { PermissionRationaleModal } from './PermissionRationaleModal';
 import type { LocationLocality } from '../types';
 
 interface LocationPickerProps {
@@ -26,6 +27,7 @@ interface LocationPickerProps {
   city?: string;
   mandalOrMunicipality?: string;
   streetOrLocality?: string;
+  street?: string;
   pinCode?: string;
   privateAddress: string;
   hasLocationConsent: boolean;
@@ -38,6 +40,7 @@ interface LocationPickerProps {
     city?: string;
     mandalOrMunicipality: string;
     streetOrLocality: string;
+    street: string;
     pinCode: string;
     privateAddress: string;
     hasLocationConsent: boolean;
@@ -52,7 +55,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   district: propDistrict,
   city: propCity,
   mandalOrMunicipality: propMandal,
-  streetOrLocality: propStreet = '',
+  streetOrLocality: propStreetOrLocality = '',
+  street: propStreet = '',
   pinCode: propPin = '',
   privateAddress: propPrivate = '',
   hasLocationConsent: _hasLocationConsent = true,
@@ -75,11 +79,13 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const currentDistrict = propDistrict || '';
   const currentMandal = propMandal || '';
   const currentCity = propCity || '';
+  const currentStreet = propStreet || propStreetOrLocality || '';
   const currentPin = propPin || '';
   const currentPrivate = propPrivate || '';
 
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
   const [loadingVillages, setLoadingVillages] = useState(false);
+  const [showLocationRationale, setShowLocationRationale] = useState(false);
 
   // 1. State Options
   const stateOptions: SelectOption[] = useMemo(() => {
@@ -171,6 +177,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     city: string;
     mandalOrMunicipality: string;
     streetOrLocality: string;
+    street: string;
     pinCode: string;
     privateAddress: string;
     latitude: number;
@@ -182,6 +189,12 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     const nextMandal =
       updates.mandalOrMunicipality !== undefined ? updates.mandalOrMunicipality : currentMandal;
     const nextCity = updates.city !== undefined ? updates.city : currentCity;
+    const nextStreet =
+      updates.street !== undefined
+        ? updates.street
+        : updates.streetOrLocality !== undefined
+        ? updates.streetOrLocality
+        : currentStreet;
     const nextPin = updates.pinCode !== undefined ? updates.pinCode : currentPin;
     const nextPrivate =
       updates.privateAddress !== undefined ? updates.privateAddress : currentPrivate;
@@ -197,7 +210,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       district: nextDistrict,
       mandalOrMunicipality: nextMandal,
       city: nextCity,
-      streetOrLocality: updates.streetOrLocality ?? propStreet,
+      streetOrLocality: nextStreet,
+      street: nextStreet,
       pinCode: nextPin,
       privateAddress: nextPrivate,
       hasLocationConsent: true,
@@ -289,6 +303,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
   // Direct native location detector (prompts OS/Browser permission directly: While using app / Only this time / Don't allow)
   const handleDetectClick = () => {
+    setShowLocationRationale(true);
+  };
+
+  const executeAfterRationale = () => {
+    setShowLocationRationale(false);
     executeDetectLocation();
   };
 
@@ -308,6 +327,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       const rawDistrict = geo.district || currentDistrict;
       const detectedMandal = geo.mandal || currentMandal;
       const detectedCity = geo.city || currentCity;
+      const detectedStreet = geo.street || '';
       const detectedPin = geo.pinCode || currentPin;
 
       const match = await locationService.matchLocation({
@@ -326,6 +346,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           state: match.state.name,
           district: match.district.districtName,
           mandalOrMunicipality: match.subDistrict.subDistrictName,
+          streetOrLocality: detectedStreet,
           city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
           pinCode: detectedPin,
           latitude: exactLat,
@@ -374,6 +395,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           partialUpdates.city = detectedCity;
           matchedSomething = true;
         }
+        if (detectedStreet) partialUpdates.streetOrLocality = detectedStreet;
         if (detectedPin) partialUpdates.pinCode = detectedPin;
 
         updateFields(partialUpdates);
@@ -392,9 +414,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       }
     } catch (err: any) {
       const message = err?.message || 'Could not acquire location fix. Please select location manually.';
+      const isDenied = err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(message);
+      
       setGeoError(message);
       setIsEditing(true);
-      showToast(message, 'info');
+
+      if (isDenied) {
+        alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
+      } else {
+        showToast(message, 'info');
+      }
     } finally {
       setDetecting(false);
     }
@@ -411,6 +440,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   return (
     <div className="location-picker-component neat-flow">
       {/* STEP 1: Auto-Locate Hero Button Card */}
+      <PermissionRationaleModal
+        isOpen={showLocationRationale}
+        title="Location Permission"
+        message="FindLostPuppy needs your precise location to accurately plot this area on the map and find pets nearby. We do not track you in the background."
+        continueLabel="Allow Location"
+        cancelLabel="Choose Manually"
+        onContinue={executeAfterRationale}
+        onCancel={() => setShowLocationRationale(false)}
+      />
+
       <div className="auto-locate-hero-card">
         <div className="auto-locate-header">
           <div className="auto-locate-icon-wrap">
@@ -512,6 +551,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 <span className="summary-mandal-lead">› {currentMandal} (Mandal)</span>
               )}
               <strong className="summary-city-lead">› {currentCity || 'City or Village'}</strong>
+              {currentStreet && <span className="summary-street-lead">› {currentStreet} (Street)</span>}
               {currentPin && <span className="summary-pin">({currentPin})</span>}
             </div>
             <p className="summary-hint">
@@ -657,10 +697,31 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               />
             </div>
 
-            {/* 5. PIN / ZIP Code */}
+            {/* 5. Street / Colony / Landmark */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="picker-street">
+                <span>5. Street / Colony / Locality</span>
+              </label>
+              <div className="input-with-icon">
+                <Navigation size={15} className="input-icon text-terracotta" />
+                <input
+                  id="picker-street"
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Main Road, Gandhi Nagar, Temple Street"
+                  value={currentStreet}
+                  onChange={(e) => updateFields({ streetOrLocality: e.target.value, street: e.target.value })}
+                />
+              </div>
+              <span className="form-hint">
+                Street, colony, or landmark stored in your profile and auto-retrieved on future visits.
+              </span>
+            </div>
+
+            {/* 6. PIN / ZIP Code */}
             <div className="form-group">
               <label className="form-label" htmlFor="picker-pin">
-                <span>5. PIN / ZIP Code</span>
+                <span>6. PIN / ZIP Code</span>
                 {lookingUpPin && (
                   <span className="pin-lookup-indicator">Looking up official location...</span>
                 )}

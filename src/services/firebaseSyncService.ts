@@ -152,9 +152,10 @@ export const firebaseSyncService = {
         }
       }
 
+      const resolvedStreet = (profile as any).street || profile.streetOrLocality || '';
       const fullAddress =
         [
-          profile.streetOrLocality,
+          resolvedStreet,
           profile.city,
           profile.mandalOrMunicipality,
           profile.district,
@@ -181,6 +182,8 @@ export const firebaseSyncService = {
         district: profile.district || '',
         mandalOrMunicipality: profile.mandalOrMunicipality || '',
         city: profile.city || '',
+        street: resolvedStreet,
+        streetOrLocality: resolvedStreet,
         pinCode: profile.pinCode || '',
         stateCode: profile.stateCode || null,
         districtCode: profile.districtCode || null,
@@ -420,9 +423,19 @@ export const firebaseSyncService = {
   },
 
   /**
-   * Delete a pet record as admin from Firestore.
+   * Delete a pet record as admin from Firestore, along with all associated
+   * missing reports, sightings, and Cloudinary/Storage images.
    */
-  async deletePetAsAdmin(petId: string, ownerId?: string): Promise<boolean> {
+  async deletePetAsAdmin(petId: string, ownerId?: string, petPhotos?: string[]): Promise<boolean> {
+    // 1. Clean up known media from Cloudinary / Storage
+    if (petPhotos && petPhotos.length > 0) {
+      for (const photo of petPhotos) {
+        if (photo) {
+          storageBucketService.deleteMedia(photo).catch(() => {});
+        }
+      }
+    }
+
     if (!db || !isFirebaseConfigured()) return false;
     try {
       const firestore = db;
@@ -448,15 +461,70 @@ export const firebaseSyncService = {
         return true;
       }
 
+      const cleanPetId = petId.replace(/^pet-/, '').replace(/^dog-/, '').trim();
       const cleanOwnerId = (ownerId || '').replace(/^owner-/, '').trim();
-      const idsToDelete = Array.from(new Set([petId, cleanOwnerId].filter(Boolean)));
-      await Promise.all(idsToDelete.map((id) => deleteDoc(doc(firestore, 'pets', id))));
+
+      // Query and delete all pet documents in Firestore matching petId, cleanPetId, ownerId, or cleanOwnerId
+      const petsSnap = await getDocs(collection(firestore, 'pets'));
+      const petDeletes: Promise<any>[] = [];
+      petsSnap.docs.forEach((d) => {
+        const data: any = d.data();
+        const dId = d.id;
+        const matchesPetId = dId === petId || dId === cleanPetId || data.petId === petId || data.petId === cleanPetId || data.id === petId;
+        const matchesOwner = cleanOwnerId && (
+          dId === cleanOwnerId ||
+          dId === `owner-${cleanOwnerId}` ||
+          data.ownerId === cleanOwnerId ||
+          data.ownerId === `owner-${cleanOwnerId}` ||
+          data.ownerId === ownerId
+        );
+        if (matchesPetId || matchesOwner) {
+          if (d.id !== 'pet-1788871495754') {
+            if (data.primaryPhoto) storageBucketService.deleteMedia(data.primaryPhoto).catch(() => {});
+            if (Array.isArray(data.photos)) {
+              data.photos.forEach((p: string) => {
+                if (p) storageBucketService.deleteMedia(p).catch(() => {});
+              });
+            }
+            petDeletes.push(deleteDoc(d.ref));
+          }
+        }
+      });
+
+      // Query and delete linked missing_reports from Firestore
+      const reportsSnap = await getDocs(collection(firestore, 'missing_reports'));
+      const reportDeletes: Promise<any>[] = [];
+      const reportIdsToDelete: string[] = [];
+      reportsSnap.docs.forEach((d) => {
+        const data: any = d.data();
+        const matchesPet = data.dogId === petId || data.dogId === cleanPetId || data.petId === petId;
+        const matchesOwner = cleanOwnerId && (data.ownerId === cleanOwnerId || data.ownerId === `owner-${cleanOwnerId}` || data.ownerId === ownerId);
+        if ((matchesPet || matchesOwner) && d.id !== 'LOST-1788885000505') {
+          reportIdsToDelete.push(d.id);
+          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => {});
+          reportDeletes.push(deleteDoc(d.ref));
+        }
+      });
+
+      // Query and delete sightings for those reports from Firestore
+      const sightingsSnap = await getDocs(collection(firestore, 'sightings'));
+      const sightingDeletes: Promise<any>[] = [];
+      sightingsSnap.docs.forEach((d) => {
+        const data: any = d.data();
+        if (reportIdsToDelete.includes(data.reportId) || data.reportId === petId) {
+          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => {});
+          sightingDeletes.push(deleteDoc(d.ref));
+        }
+      });
+
+      await Promise.allSettled([...petDeletes, ...reportDeletes, ...sightingDeletes]);
       return true;
     } catch (err: any) {
       console.warn('[Firebase] deletePetAsAdmin error:', err);
       return false;
     }
   },
+
 
   async deleteUserAsAdmin(userId: string): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;

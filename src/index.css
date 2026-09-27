@@ -1048,3 +1048,46 @@ h3 {
     box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
   }
 }
+.dashboard-status-pet-row {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  gap: 16px;
+}
+.dashboard-status-pet-row:last-child {
+  border-bottom: none;
+}
+.dashboard-status-pet-photo-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 122, 0, 0.2);
+}
+.dashboard-status-pet-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dashboard-status-pet-copy {
+  flex-grow: 1;
+}
+.dashboard-status-view-details-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background-color: var(--color-orange-50);
+  color: var(--color-terracotta);
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dashboard-status-view-details-btn:hover {
+  background-color: var(--color-orange-100);
+}

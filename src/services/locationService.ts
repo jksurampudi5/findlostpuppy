@@ -172,7 +172,12 @@ class LocationService {
     if (typeof districtCodeOrName === 'number') {
       targetDistrictCode = districtCodeOrName;
     } else if (stateCodeOrName) {
-      const d = this.getDistrict(stateCodeOrName, districtCodeOrName);
+      // Check normal order (stateCodeOrName is state, districtCodeOrName is district)
+      let d = this.getDistrict(stateCodeOrName, districtCodeOrName);
+      // Check inverted order (if caller passed state as 1st arg and district as 2nd arg)
+      if (!d) {
+        d = this.getDistrict(districtCodeOrName, stateCodeOrName);
+      }
       targetDistrictCode = d?.districtCode;
     } else {
       const clean = districtCodeOrName.trim().toLowerCase().replace(/\s*district/i, '');

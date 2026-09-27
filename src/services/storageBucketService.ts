@@ -8,6 +8,8 @@ export const MAX_MEDIA_QUEUE_SIZE = 10;
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 const CLOUDINARY_FOLDER = import.meta.env.VITE_CLOUDINARY_FOLDER || 'findlostpuppy';
+const CLOUDINARY_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY || '675289426463557';
+const CLOUDINARY_API_SECRET = import.meta.env.VITE_CLOUDINARY_API_SECRET || 'RwlakSEuC9sDDQ0bcCpbxiuzl7Q';
 
 export const isCloudImageStorageConfigured = (): boolean =>
   Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
@@ -31,6 +33,59 @@ const cleanCloudPath = (path: string): string =>
     .replace(/[^a-zA-Z0-9/_-]/g, '_')
     .replace(/\/+/g, '/')
     .replace(/^\/|\/$/g, '');
+
+async function sha1Hex(message: string): Promise<string> {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return '';
+}
+
+/**
+ * Extracts the Cloudinary public_id from any Cloudinary URL,
+ * stripping transformations, versions, and file extensions.
+ */
+export function extractCloudinaryPublicId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  if (!url.includes('res.cloudinary.com') && !url.includes('cloudinary.com')) return null;
+
+  try {
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const uploadIndex = cleanUrl.indexOf('/upload/');
+    if (uploadIndex === -1) return null;
+
+    const afterUpload = cleanUrl.substring(uploadIndex + '/upload/'.length);
+    const segments = afterUpload.split('/');
+
+    // Skip transformation segments and version segment (v12345678)
+    while (segments.length > 0) {
+      const seg = segments[0];
+      if (/^v\d+$/.test(seg)) {
+        segments.shift();
+        break; // after version, everything remaining is public_id
+      } else if (
+        seg.includes(',') ||
+        /^(c|w|h|q|f|e|b|dpr|ar|g|fl|co|cs|o|z|pg)_/i.test(seg)
+      ) {
+        segments.shift();
+      } else {
+        break;
+      }
+    }
+
+    if (segments.length === 0) return null;
+
+    let path = segments.join('/');
+    // Remove file extension
+    path = path.replace(/\.[a-zA-Z0-9]+$/, '');
+    return path;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Converts a Base64 or Data URL string into a native Blob with MIME type.
@@ -113,6 +168,13 @@ export const storageBucketService = {
     const { blob, mimeType } = blobData;
     const finalMime = mimeType || expectedMime;
 
+    // Strict path validation
+    const allowedPrefixes = ['profiles/', 'pets/', 'missing-reports/', 'sightings/'];
+    if (!allowedPrefixes.some(prefix => storagePath.startsWith(prefix))) {
+      console.error(`[storageBucketService] Upload blocked. Path '${storagePath}' is unauthorized.`);
+      return null;
+    }
+
     // Validate MIME type
     const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validMimes.includes(finalMime.toLowerCase())) {
@@ -130,10 +192,13 @@ export const storageBucketService = {
       try {
         const formData = new FormData();
         const cloudPath = cleanCloudPath(storagePath);
-        const fileName = `${cloudPath.split('/').pop() || `image_${Date.now()}`}.jpg`;
+        const fileName = `${cloudPath.split('/').pop() || 'image'}_${Date.now()}.jpg`;
         const folderPrefix = cleanCloudPath(CLOUDINARY_FOLDER);
         const folder = `${folderPrefix}/${cloudPath.split('/').slice(0, -1).join('/')}`.replace(/\/+$/g, '');
-        const publicId = cloudPath.split('/').pop() || `image_${Date.now()}`;
+        // Append Date.now() to publicId to ensure it is unique. Cloudinary unsigned uploads 
+        // without 'overwrite' permission will otherwise ignore the new image and return the old one.
+        const baseName = cloudPath.split('/').pop() || 'image';
+        const publicId = `${baseName}_${Date.now()}`;
 
         formData.append('file', blob, fileName);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -160,7 +225,7 @@ export const storageBucketService = {
         }
 
         return {
-          publicUrl,
+          publicUrl: `${publicUrl}?t=${Date.now()}`,
           path: result.public_id || cloudPath,
         };
       } catch (err: any) {
@@ -317,4 +382,95 @@ export const storageBucketService = {
       localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify(queue));
     } catch {}
   },
+
+  /**
+   * Deletes an image from Cloudinary using signed destroy API.
+   */
+  async deleteCloudinaryMedia(urlOrPublicId: string): Promise<boolean> {
+    if (!urlOrPublicId) return false;
+    const cloudName = CLOUDINARY_CLOUD_NAME || 'ymrxc4mq';
+    const apiKey = CLOUDINARY_API_KEY;
+    const apiSecret = CLOUDINARY_API_SECRET;
+    if (!cloudName || !apiKey || !apiSecret) return false;
+
+    let publicId = urlOrPublicId;
+    if (urlOrPublicId.includes('cloudinary.com') || urlOrPublicId.startsWith('http')) {
+      const extracted = extractCloudinaryPublicId(urlOrPublicId);
+      if (!extracted) {
+        console.warn('[storageBucketService] Could not parse Cloudinary public_id from:', urlOrPublicId);
+        return false;
+      }
+      publicId = extracted;
+    }
+
+    try {
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const strToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+      const signature = await sha1Hex(strToSign);
+      if (!signature) {
+        console.warn('[storageBucketService] Could not generate SHA-1 signature for Cloudinary destroy');
+        return false;
+      }
+
+      const formData = new FormData();
+      formData.append('public_id', publicId);
+      formData.append('timestamp', timestamp);
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn('[storageBucketService] Cloudinary destroy error response:', text);
+        return false;
+      }
+
+      const json = await res.json();
+      console.log('[storageBucketService] Cloudinary image destroyed successfully:', publicId, json);
+      return json.result === 'ok';
+    } catch (err) {
+      console.warn('[storageBucketService] Failed to destroy Cloudinary image:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Universal media deletion handler. Cleans up from Cloudinary and Firebase Storage.
+   */
+  async deleteMedia(urlOrPath: string): Promise<boolean> {
+    if (!urlOrPath) return false;
+
+    // 1. Cloudinary image deletion
+    if (
+      urlOrPath.includes('cloudinary.com') ||
+      urlOrPath.includes('findlostpuppy/') ||
+      (!urlOrPath.startsWith('http') && !urlOrPath.startsWith('data:') && !urlOrPath.startsWith('/'))
+    ) {
+      const cloudSuccess = await this.deleteCloudinaryMedia(urlOrPath);
+      if (cloudSuccess) return true;
+    }
+
+    // 2. Firebase Storage deletion fallback
+    if (
+      storage &&
+      isFirebaseConfigured() &&
+      (urlOrPath.includes('firebasestorage') || (!urlOrPath.startsWith('http') && !urlOrPath.startsWith('data:')))
+    ) {
+      try {
+        const { ref, deleteObject } = await import('firebase/storage');
+        const fileRef = ref(storage, urlOrPath);
+        await deleteObject(fileRef);
+        return true;
+      } catch (e) {
+        console.warn('[storageBucketService] Firebase Storage delete notice:', e);
+      }
+    }
+
+    return false;
+  },
 };
+

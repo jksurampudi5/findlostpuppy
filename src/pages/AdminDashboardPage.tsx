@@ -23,16 +23,19 @@ import {
   Heart,
   Cloud,
   CheckCircle2,
+  Clock,
   AlertCircle,
   Lightbulb,
   Star,
+  Radar,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { cloudSyncService, type CloudSyncStatus } from '../services/cloudSyncService';
 import { StatusBadge } from '../components/StatusBadge';
-import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion } from '../types';
+import { AdminUserProximityMap } from '../components/AdminUserProximityMap';
+import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion, OwnerProfile } from '../types';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
@@ -43,12 +46,13 @@ export const AdminDashboardPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<
-    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup'
+    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup' | 'radar'
   >('members');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Data states
   const [users, setUsers] = useState<User[]>([]);
+  const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
   const [pets, setPets] = useState<DogProfile[]>([]);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -59,6 +63,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   const loadAllAdminData = () => {
     setUsers(storageService.getAllRegisteredUsers());
+    setProfiles(storageService.getAllOwnerProfiles());
     setPets(storageService.getAllPets());
     setReports(storageService.getAllReports());
     setSightings(storageService.getAllSightings());
@@ -573,9 +578,18 @@ export const AdminDashboardPage: React.FC = () => {
               <Cloud size={17} />
               <span>☁️ Cloud Sync & Backups</span>
             </button>
+
+            <button
+              className={`admin-tab-btn ${activeTab === 'radar' ? 'active' : ''}`}
+              onClick={() => setActiveTab('radar')}
+              role="tab"
+            >
+              <Radar size={17} />
+              <span>🛰️ Proximity Radar & Map</span>
+            </button>
           </div>
 
-          {activeTab !== 'backup' && (
+          {activeTab !== 'backup' && activeTab !== 'radar' && (
             <div className="admin-search-wrapper">
               <Search size={16} className="admin-search-icon" />
               <input
@@ -628,6 +642,7 @@ export const AdminDashboardPage: React.FC = () => {
                       <th>Location / District</th>
                       <th>Registered Pets</th>
                       <th>Joined Date</th>
+                      <th>Last Login</th>
                       <th>Role</th>
                       <th>Actions</th>
                     </tr>
@@ -718,6 +733,18 @@ export const AdminDashboardPage: React.FC = () => {
                             <div className="date-cell">
                               <Calendar size={13} />
                               <span>{new Date(u.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="date-cell">
+                              {u.lastLoginAt ? (
+                                <>
+                                  <Clock size={13} />
+                                  <span>{new Date(u.lastLoginAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400">Never</span>
+                              )}
                             </div>
                           </td>
                           <td>
@@ -1446,6 +1473,13 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 7: ADMIN USER PROXIMITY RADAR & DISTANCE MAP */}
+        {/* ========================================================================= */}
+        {activeTab === 'radar' && (
+          <AdminUserProximityMap users={users} profiles={profiles} />
         )}
       </div>
     </div>

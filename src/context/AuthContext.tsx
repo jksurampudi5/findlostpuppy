@@ -72,7 +72,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setActiveOnboardingTab((prev) => {
         if (!hasOwner) return 'owner';
         if (!hasLoc) return 'location';
-        if (!hasDog && prev !== 'dog' && prev !== 'pet' && prev !== 'report' && prev !== 'dashboard') return 'choice';
         if (!hasDog) return 'dog';
         if (!hasReport) return 'report';
         return prev === 'owner' || prev === 'location' || prev === 'choice' || prev === 'dog' || prev === 'report' ? 'completed' : prev;

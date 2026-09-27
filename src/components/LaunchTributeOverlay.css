@@ -184,6 +184,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: titleReveal 2.0s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes titleReveal {
+  0% { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+  30% { opacity: 1; transform: translateY(0); filter: blur(0px); }
+  100% { opacity: 1; }
 }
 
 .brand-find {
@@ -205,6 +212,13 @@
   font-weight: 500;
   margin: 0 0 2rem;
   letter-spacing: -0.01em;
+  animation: taglineReveal 2.0s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+@keyframes taglineReveal {
+  0% { opacity: 0; transform: translateY(10px); }
+  30% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; }
 }
 
 .launch-progress-bar-wrap {
@@ -221,7 +235,7 @@
   width: 0%;
   background: linear-gradient(90deg, #FF7B54, #FDBA74);
   border-radius: 99px;
-  animation: progressFill 3s linear forwards;
+  animation: progressFill 8.0s linear forwards;
 }
 
 @keyframes progressFill {
@@ -735,8 +749,8 @@
 /* TOP HAND: Starts physically OUTSIDE the orange border above and slowly glides in over the home */
 .hand-top-incoming {
   z-index: 4;
-  animation: handTopFromOutside 1.65s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both,
-             handTopProtectiveHover 3.2s infinite ease-in-out 1.77s;
+  animation: handTopFromOutside 6.0s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both,
+             handTopProtectiveHover 3.2s infinite ease-in-out 6.12s;
 }
 
 @keyframes handTopFromOutside {
@@ -767,8 +781,8 @@
 /* BOTTOM HAND: Starts physically OUTSIDE the orange border below and slowly glides in under the locator */
 .hand-bottom-incoming {
   z-index: 3;
-  animation: handBottomFromOutside 1.65s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both,
-             handBottomProtectiveCradle 3.2s infinite ease-in-out 1.87s;
+  animation: handBottomFromOutside 6.0s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both,
+             handBottomProtectiveCradle 3.2s infinite ease-in-out 6.22s;
 }
 
 @keyframes handBottomFromOutside {

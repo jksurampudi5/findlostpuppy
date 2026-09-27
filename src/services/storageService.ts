@@ -33,6 +33,8 @@ const USERS_KEY = 'findlostpuppy_registered_users_v1';
 const SESSION_KEY = 'findlostpuppy_session_v1';
 const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
 const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
+const DELETED_USERS_KEY = 'findlostpuppy_deleted_users_v1';
+const DELETED_SIGHTINGS_KEY = 'findlostpuppy_deleted_sightings_v1';
 const SUGGESTIONS_KEY = 'findlostpuppy_suggestions_v1';
 
 const firebaseSyncService = {
@@ -138,16 +140,6 @@ export function extractReportOwnerEmail(report: LostReport, profiles: OwnerProfi
   if (matchedProfile?.email && matchedProfile.email.includes('@')) {
     return matchedProfile.email.toLowerCase().trim();
   }
-  // Baseline known emails
-  if (report.id === 'LOST-1788807276098' || report.ownerId === 'owner-krishna-abullu') {
-    return 'krishna.owner@findlostpuppy.org';
-  }
-  if (report.id === 'LOST-CHARLIE-01' || report.ownerId === 'owner-charlie-rescuers') {
-    return 'community.care@findlostpuppy.org';
-  }
-  if (report.id === 'LOST-BRUNO-WESTGODAVARI' || report.ownerId === 'owner-bruno-family') {
-    return 'bruno.family@findlostpuppy.org';
-  }
   return cleanOwnerId || 'unknown-owner';
 }
 
@@ -163,6 +155,8 @@ class StorageService {
   private blockedUsers: BlockedUserRecord[] = [];
   private deletedReportIds: string[] = [];
   private deletedPetIds: string[] = [];
+  private deletedUserIds: string[] = [];
+  private deletedSightingIds: string[] = [];
   private suggestions: AppSuggestion[] = [];
   private isTransactionActive: boolean = false;
 
@@ -217,6 +211,8 @@ class StorageService {
       blockedUsers: JSON.stringify(this.blockedUsers),
       deletedReportIds: JSON.stringify(this.deletedReportIds),
       deletedPetIds: JSON.stringify(this.deletedPetIds),
+      deletedSightingIds: JSON.stringify(this.deletedSightingIds),
+      deletedUserIds: JSON.stringify(this.deletedUserIds),
       suggestions: JSON.stringify(this.suggestions),
     };
 
@@ -242,6 +238,8 @@ class StorageService {
       this.blockedUsers = JSON.parse(snapshot.blockedUsers);
       this.deletedReportIds = JSON.parse(snapshot.deletedReportIds);
       this.deletedPetIds = JSON.parse(snapshot.deletedPetIds);
+      this.deletedSightingIds = JSON.parse(snapshot.deletedSightingIds);
+      if (snapshot.deletedUserIds) this.deletedUserIds = JSON.parse(snapshot.deletedUserIds);
       this.suggestions = JSON.parse(snapshot.suggestions);
       throw err;
     } finally {
@@ -413,6 +411,26 @@ class StorageService {
           }
         } catch {}
       }
+
+      const rawDeletedSightings = localStorage.getItem(DELETED_SIGHTINGS_KEY);
+      if (rawDeletedSightings) {
+        try {
+          const parsed = JSON.parse(rawDeletedSightings);
+          if (Array.isArray(parsed)) {
+            this.deletedSightingIds = Array.from(new Set([...this.deletedSightingIds, ...parsed]));
+          }
+        } catch {}
+      }
+
+      const rawDeletedUsers = localStorage.getItem(DELETED_USERS_KEY);
+      if (rawDeletedUsers) {
+        try {
+          const parsed = JSON.parse(rawDeletedUsers);
+          if (Array.isArray(parsed)) {
+            this.deletedUserIds = Array.from(new Set([...this.deletedUserIds, ...parsed]));
+          }
+        } catch {}
+      }
     }
 
     const checkId = (idToCheck?: string): boolean => {
@@ -453,6 +471,20 @@ class StorageService {
     return false;
   }
 
+  isUserDeleted(userId: string): boolean {
+    if (!userId) return false;
+    const cleanId = userId.replace(/^owner-/, '').trim().toLowerCase();
+    return this.deletedUserIds.some((id) => {
+      if (!id) return false;
+      const idClean = id.replace(/^owner-/, '').trim().toLowerCase();
+      return idClean === cleanId;
+    });
+  }
+
+  isSightingDeleted(sightingId: string): boolean {
+    return this.deletedSightingIds.includes(sightingId);
+  }
+
   private init() {
     try {
       const storedDeletedReports = localStorage.getItem(DELETED_REPORTS_KEY);
@@ -460,6 +492,12 @@ class StorageService {
 
       const storedDeletedPets = localStorage.getItem(DELETED_PETS_KEY);
       this.deletedPetIds = storedDeletedPets ? JSON.parse(storedDeletedPets) : [];
+
+      const storedDeletedSightings = localStorage.getItem(DELETED_SIGHTINGS_KEY);
+      this.deletedSightingIds = storedDeletedSightings ? JSON.parse(storedDeletedSightings) : [];
+
+      const storedDeletedUsers = localStorage.getItem(DELETED_USERS_KEY);
+      this.deletedUserIds = storedDeletedUsers ? JSON.parse(storedDeletedUsers) : [];
 
       const storedReports = localStorage.getItem(REPORTS_KEY);
       if (storedReports !== null) {
@@ -824,6 +862,21 @@ class StorageService {
       const rawPetId = canonicalPetId.replace(/^pet-/, '').replace(/^dog-/, '');
       const rawOwnerId = ownerId ? ownerId.replace(/^owner-/, '').toLowerCase().trim() : '';
 
+      // 0. Find target pet to harvest photo URLs for Cloudinary cleanup
+      const targetPet = this.pets.find((p) => {
+        const pLower = p.id.toLowerCase();
+        const pRaw = pLower.replace(/^pet-/, '').replace(/^dog-/, '');
+        const pOwnerRaw = (p.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
+        const matchPet = p.id === petId || pLower === canonicalPetId || pRaw === rawPetId;
+        const matchOwner = rawOwnerId && (p.ownerId === ownerId || pOwnerRaw === rawOwnerId || p.ownerId === `owner-${rawOwnerId}`);
+        return matchPet || matchOwner;
+      });
+
+      const petPhotos: string[] = [
+        targetPet?.primaryPhoto,
+        ...(targetPet?.photos || []),
+      ].filter(Boolean) as string[];
+
       // 1. Tombstone pet IDs
       const petIdsToTombstone = [
         petId,
@@ -859,6 +912,8 @@ class StorageService {
       });
 
       linkedReports.forEach((r) => {
+        if (r.dog?.primaryPhoto) petPhotos.push(r.dog.primaryPhoto);
+        if (r.dog?.photos) petPhotos.push(...r.dog.photos);
         const cId = normalizeReportId(r.id);
         [r.id, cId, r.id.toLowerCase(), cId.toLowerCase()].forEach((id) => {
           if (!this.deletedReportIds.includes(id)) this.deletedReportIds.push(id);
@@ -882,13 +937,14 @@ class StorageService {
         );
       }
 
-      // 6. Cloud sync deletion
+      // 6. Cloud synchronization to Firebase database and Cloudinary image cleanup
       firebaseSyncService
-        .deletePetAsAdmin(petId, ownerId)
+        .deletePetAsAdmin(petId, ownerId, petPhotos)
         .catch((e) => console.warn('[Firebase Delete Pet Notice]:', e));
 
       return true;
     });
+
   }
 
   deleteUserDataByEmail(email: string): boolean {
@@ -1769,6 +1825,10 @@ class StorageService {
         }
       }
 
+      const resolvedStreet = (profile as any).street || profile.streetOrLocality || '';
+      profile.street = resolvedStreet;
+      profile.streetOrLocality = resolvedStreet;
+
       if (index >= 0) {
         this.profiles[index] = {
           ...this.profiles[index],
@@ -2052,6 +2112,9 @@ class StorageService {
   deleteUserAsAdmin(userId: string): boolean {
     return this.executeTransaction(() => {
       this.deleteUserAccount(userId);
+      this.deletedUserIds = Array.from(new Set([...this.deletedUserIds, userId, userId.replace(/^owner-/, '')]));
+      localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(this.deletedUserIds));
+
       firebaseSyncService.deleteUserAsAdmin(userId).catch((e) => console.warn('[Firebase Delete User Notice]:', e));
       return true;
     });
@@ -2074,6 +2137,8 @@ class StorageService {
         }
       }
       this.sightings = this.sightings.filter((s) => s.id !== sightingId);
+      this.deletedSightingIds = Array.from(new Set([...this.deletedSightingIds, sightingId]));
+      localStorage.setItem(DELETED_SIGHTINGS_KEY, JSON.stringify(this.deletedSightingIds));
       firebaseSyncService.deleteSightingAsAdmin(sightingId).catch((e) => console.warn('[Firebase Delete Sighting Notice]:', e));
       return true;
     });
@@ -2131,6 +2196,23 @@ class StorageService {
               if (!prMap.has(key)) {
                 prMap.set(key, pr);
                 addedProfiles++;
+              } else {
+                const existing = prMap.get(key)!;
+                const cloudStreet = (pr as any).street || pr.streetOrLocality || '';
+                const existingStreet = (existing as any).street || existing.streetOrLocality || '';
+                const finalStreet = cloudStreet || existingStreet;
+                prMap.set(key, {
+                  ...existing,
+                  ...pr,
+                  street: finalStreet,
+                  streetOrLocality: finalStreet,
+                  city: pr.city || existing.city || '',
+                  mandalOrMunicipality: pr.mandalOrMunicipality || existing.mandalOrMunicipality || '',
+                  district: pr.district || existing.district || '',
+                  state: pr.state || existing.state || '',
+                  pinCode: pr.pinCode || existing.pinCode || '',
+                  photo: (!isPetPhotoUrl(pr.photo) ? pr.photo : undefined) || (!isPetPhotoUrl(existing.photo) ? existing.photo : undefined),
+                });
               }
             }
           });
@@ -2168,7 +2250,7 @@ class StorageService {
           const sMap = new Map<string, Sighting>();
           this.sightings.forEach((s) => sMap.set(s.id, s));
           data.sightings.forEach((s: Sighting) => {
-            if (s && s.id && !sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId)) {
+            if (s && s.id && !sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId) && !this.isSightingDeleted(s.id)) {
               sMap.set(s.id, s);
               addedSightings++;
             }
@@ -2226,12 +2308,12 @@ class StorageService {
         if (Array.isArray(remoteData.sightings)) {
           const sMap = new Map<string, Sighting>();
           for (const s of remoteData.sightings) {
-            if (s && s.id && !this.isReportOrPetDeleted(s.reportId)) {
+            if (s && s.id && !this.isReportOrPetDeleted(s.reportId) && !this.isSightingDeleted(s.id)) {
               sMap.set(s.id, s);
             }
           }
           for (const s of this.sightings) {
-            if (!sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId)) {
+            if (!sMap.has(s.id) && !this.isReportOrPetDeleted(s.reportId) && !this.isSightingDeleted(s.id)) {
               sMap.set(s.id, s);
             }
           }
@@ -2340,25 +2422,41 @@ class StorageService {
         return rawName.trim();
       };
 
-      const mappedProfiles: OwnerProfile[] = (profiles || []).map((p: any) => ({
-        id: p.id,
-        userId: p.id,
-        fullName: sanitizeName(p.fullName || p.name, p.email),
-        email: p.email,
-        phone: p.phone || '',
-        address: p.address || '',
-        photo: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
-        preferredContact: p.preferredContact || 'phone',
-        state: p.state || '',
-        district: p.district || '',
-        mandalOrMunicipality: p.mandalOrMunicipality || '',
-        city: p.city || '',
-        pinCode: p.pinCode || '',
-        hasLocationConsent: true,
-        updatedAt: p.updatedAt || p.createdAt || new Date().toISOString(),
-      }));
+      const mappedProfiles: OwnerProfile[] = (profiles || [])
+        .filter((p: any) => !this.isUserDeleted(p.id))
+        .map((p: any) => {
+          const resolvedStreet = p.street || p.streetOrLocality || '';
+          return {
+            id: p.id,
+            userId: p.id,
+            fullName: sanitizeName(p.fullName || p.name, p.email),
+            email: p.email,
+            phone: p.phone || '',
+            address: p.address || '',
+            photo: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
+            preferredContact: p.preferredContact || 'phone',
+            state: p.state || '',
+            district: p.district || '',
+            mandalOrMunicipality: p.mandalOrMunicipality || '',
+            city: p.city || '',
+            street: resolvedStreet,
+            streetOrLocality: resolvedStreet,
+            pinCode: p.pinCode || '',
+            stateCode: p.stateCode ?? null,
+            districtCode: p.districtCode ?? null,
+            subDistrictCode: p.subDistrictCode ?? null,
+            localityCode: p.localityCode ?? null,
+            latitude: p.latitude !== undefined && p.latitude !== null ? Number(p.latitude) : undefined,
+            longitude: p.longitude !== undefined && p.longitude !== null ? Number(p.longitude) : undefined,
+            approximateArea: p.approximateArea || '',
+            hasLocationConsent: true,
+            updatedAt: p.updatedAt || p.createdAt || new Date().toISOString(),
+          };
+        });
 
-      const mappedUsers: User[] = (profiles || []).map((p: any) => ({
+      const mappedUsers: User[] = (profiles || [])
+        .filter((p: any) => !this.isUserDeleted(p.id))
+        .map((p: any) => ({
         id: p.id,
         name: sanitizeName(p.fullName || p.name, p.email),
         email: p.email,
@@ -2453,6 +2551,7 @@ class StorageService {
         location: s.location || s.landmark || 'Seen nearby',
         description: s.description || s.notes || '',
         photo: s.photo || s.photo_url || undefined,
+        photos: s.photos || (s.photo ? [s.photo] : []),
         reporterName: s.reporter_name || 'Anonymous',
         reporterPhone: s.reporter_phone || undefined,
         state: s.state || '',
@@ -2461,7 +2560,7 @@ class StorageService {
         village: s.village || '',
         pinCode: s.pinCode || '',
         createdAt: s.createdAt || s.created_at || new Date().toISOString(),
-      }));
+      })).filter((s: Sighting) => !this.isSightingDeleted(s.id));
 
       this.mergeCommunityData({
         users: mappedUsers,

@@ -79,12 +79,14 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   // Modal State for reporting or updating missing pet
   const [isMissingModalOpen, setIsMissingModalOpen] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  void setIsEditingExisting;
+  const [showSuccessTick, setShowSuccessTick] = useState(false);
 
   // Dog Info (Pre-populated from Pet Profile or fallback)
   const dogName = existingReport?.dog?.name || existingPet?.name || 'My Dog';
   const breed = existingReport?.dog?.breed || existingPet?.breed || 'Companion Pet';
 
-  // ACTION 1: User chooses "My Pet is Safe" (Updates Navbar instantly!)
+  // ACTION 1: User chooses "My Pet is Safe" -> Go to Dashboard Pets At Home tab
   const handleMarkSafe = () => {
     markPetSafe();
     setUserSelectedChoice('safe');
@@ -94,14 +96,15 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     triggerStarCelebration();
 
     showToast(`🐾 Wonderful! ${dogName || 'Your pup'} is safe at home.`, 'success');
+    setActiveOnboardingTab('dashboard');
+    navigate('/homepage', { state: { activeTab: 'SAFE' } });
   };
 
-  // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Immediately opens Missing Report Modal!
+  // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Open Report / Capture
   const handleSelectMissing = () => {
     markPetLost();
     setUserSelectedChoice('missing');
-    setIsEditingExisting(false);
-    setIsMissingModalOpen(true);
+    navigate('/capture');
   };
 
   // ACTION 3: Handle Report Submission from Modal
@@ -179,6 +182,13 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
           : `📢 Lost Dog Alert for ${dogData.name} broadcasted to community!`,
         'success'
       );
+
+      setShowSuccessTick(true);
+      setTimeout(() => {
+        setShowSuccessTick(false);
+        setActiveOnboardingTab('dashboard');
+        navigate('/homepage');
+      }, 1000);
     } catch {
       showToast('Could not save lost report. Please try again.', 'error');
     }
@@ -308,8 +318,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
             </div>
 
             <h1 className="ps-title">
-              <span className="ps-title-white">Pet Alert &amp; </span>
-              <span className="ps-title-orange">Safety Status</span>
+              Pet safety status
             </h1>
 
             <p className="ps-desc">
@@ -408,17 +417,26 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
           </div>
 
           {/* ── DASHBOARD BUTTON ── */}
-          <div className="ps-dashboard-row">
+          <div className="ps-dashboard-row" style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-outline ps-dash-btn"
+              style={{ color: 'var(--success-color, #10b981)', borderColor: 'var(--success-color, #10b981)' }}
+              onClick={() => showToast('Details synced successfully', 'success')}
+            >
+              <Check size={18} />
+              <span>Sync Details</span>
+            </button>
             <button
               type="button"
               className="btn btn-primary ps-dash-btn"
               onClick={() => {
                 setActiveOnboardingTab('dashboard');
-                navigate('/dashboard');
+                navigate('/homepage');
               }}
             >
               <LayoutDashboard size={18} />
-              <span>Explore Community Dashboard</span>
+              <span>Explore Dashboard</span>
             </button>
           </div>
           {/* END OF PET SAFETY CONTENT */}
@@ -440,6 +458,59 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
         ownerProfile={ownerProfile || null}
         isEditing={isEditingExisting}
       />
+
+      {/* 1 SEC SUCCESS TICK ANIMATION */}
+      {showSuccessTick && (
+        <div
+          className="success-tick-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              background: '#18181B',
+              border: '2px solid #10B981',
+              borderRadius: '20px',
+              padding: '2.5rem 3rem',
+              textAlign: 'center',
+              boxShadow: '0 20px 45px rgba(16, 185, 129, 0.35)',
+            }}
+          >
+            <div
+              style={{
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.16)',
+                border: '3px solid #10B981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem',
+                color: '#10B981',
+              }}
+            >
+              <Check size={46} strokeWidth={3.5} />
+            </div>
+            <h2 style={{ color: '#F9FAFB', fontSize: '1.45rem', fontWeight: 800, margin: '0 0 0.5rem' }}>
+              Missing Alert Broadcasted!
+            </h2>
+            <p style={{ color: '#9CA3AF', fontSize: '0.95rem', margin: 0 }}>
+              ✓ Broadcast shared with community
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

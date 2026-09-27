@@ -1,22 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Calendar, Camera, Check, Eye, Home, MapPin, Navigation, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { LostReport, Sighting } from '../types';
-import { getDogDisplayName, getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
+import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 
 export const DashboardPage: React.FC = () => {
   const { user, petSafetyStatus } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const listPanelRef = useRef<HTMLDivElement | null>(null);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
   const [detailSighting, setDetailSighting] = useState<Sighting | null>(null);
-  const isDashboardAdmin = Boolean(user?.isAdmin || user?.email?.toLowerCase().trim() === 'jksurmpudi5@gmail.com');
+  const [activeSightingPhotoIndex, setActiveSightingPhotoIndex] = useState(0);
+  const isDashboardAdmin = Boolean(
+    user?.isAdmin ||
+    user?.email?.toLowerCase().trim() === 'jksurmpudi5@gmail.com' ||
+    user?.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com'
+  );
 
   const userReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
+  const userPetProfile = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const effectiveSafetyStatus: 'SAFE' | 'LOST' | 'UNDECIDED' = (() => {
     if (petSafetyStatus === 'LOST' || userReport?.status === 'LOST') return 'LOST';
     if (
@@ -29,7 +38,22 @@ export const DashboardPage: React.FC = () => {
     if (user && storageService.isPetSafe(user.id, user.email)) return 'SAFE';
     return 'UNDECIDED';
   })();
-  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST' | null>(null);
+
+  const initialTab = (() => {
+    const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
+    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
+      return stateTab;
+    }
+    return 'SIGHTINGS';
+  })();
+  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST'>(initialTab);
+
+  useEffect(() => {
+    const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
+    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
+      setSelectedStatus(stateTab);
+    }
+  }, [location.state]);
 
   const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
     setSelectedStatus(status);
@@ -53,21 +77,56 @@ export const DashboardPage: React.FC = () => {
     };
   }, []);
 
-  const visiblePets = useMemo(
-    () =>
-      reports.filter((report) =>
-        selectedStatus === 'LOST'
-          ? report.status === 'LOST'
-          : report.status === 'SAFE' || report.status === 'REUNITED'
-      ),
-    [reports, selectedStatus]
-  );
+  const visiblePets = useMemo(() => {
+    if (selectedStatus === 'LOST') {
+      return reports.filter((report) => report.status === 'LOST');
+    }
+    const safeReports = reports.filter(
+      (report) => report.status === 'SAFE' || report.status === 'REUNITED'
+    );
+    if (user && (effectiveSafetyStatus === 'SAFE' || userReport?.status === 'SAFE')) {
+      const alreadyInList = safeReports.some(
+        (r) => r.id === userReport?.id || r.ownerId === user.id || r.ownerId === `owner-${user.id}`
+      );
+      if (!alreadyInList && userReport) {
+        return [userReport, ...safeReports];
+      }
+    }
+    if (safeReports.length === 0 && selectedStatus === 'SAFE' && userPetProfile) {
+      return [
+        {
+          id: `local-safe-${userPetProfile.id}`,
+          dogId: userPetProfile.id,
+          ownerId: user?.id || 'owner',
+          dog: userPetProfile,
+          ownerApproximateLocation: 'Safe at home',
+          lastKnownLocation: 'Safe at home',
+          dateLost: '',
+          timeLost: '',
+          additionalNotes: 'Your beloved companion is safe at home.',
+          status: 'SAFE' as const,
+          sightingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          contactMechanism: {
+            showPhone: false,
+            showEmail: false,
+            safeContactPhone: '',
+            safeContactEmail: '',
+            contactNote: 'Safe at home',
+          },
+        },
+      ];
+    }
+    return safeReports;
+  }, [reports, selectedStatus, user, effectiveSafetyStatus, userReport, userPetProfile]);
 
   const getSightingReport = (sighting: Sighting) =>
     reports.find((report) => report.id === sighting.reportId || report.id.toLowerCase() === sighting.reportId.toLowerCase());
 
-  const openSightingDetails = (sighting: Sighting) => {
+  const openSightingDetails = (sighting: Sighting, photoIndex: number = 0) => {
     setDetailSighting(sighting);
+    setActiveSightingPhotoIndex(photoIndex);
   };
 
   const openPetDetails = (report: LostReport) => {
@@ -79,22 +138,24 @@ export const DashboardPage: React.FC = () => {
     setReports(storageService.getAllReports());
   };
 
-  const handleDeleteSighting = (sightingId: string) => {
-    if (!isDashboardAdmin) return;
-    const ok = window.confirm('Delete this sighting permanently?');
-    if (!ok) return;
-    storageService.deleteSightingAsAdmin(sightingId);
-    if (detailSighting?.id === sightingId) setDetailSighting(null);
+  const handleDeleteSightingGroup = (sightingIds: string[]) => {
+    if (sightingIds.length === 0) return;
+    sightingIds.forEach(id => storageService.deleteSightingAsAdmin(id));
+    if (detailSighting && sightingIds.includes(detailSighting.id)) setDetailSighting(null);
     refreshSightings();
+    window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    window.dispatchEvent(new Event('storage'));
+    showToast(`Deleted ${sightingIds.length > 1 ? `all ${sightingIds.length} sightings` : 'sighting'} for this pet.`, 'success');
   };
 
   const handleHardResetSightings = () => {
-    if (!isDashboardAdmin || sightings.length === 0) return;
-    const ok = window.confirm('Hard reset all sighted missing pet reports? This permanently deletes every sighting in this list.');
-    if (!ok) return;
+    if (sightings.length === 0) return;
     sightings.forEach((sighting) => storageService.deleteSightingAsAdmin(sighting.id));
     setDetailSighting(null);
     refreshSightings();
+    window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    window.dispatchEvent(new Event('storage'));
+    showToast('All sightings cleared.', 'success');
   };
 
   return (
@@ -185,7 +246,7 @@ export const DashboardPage: React.FC = () => {
                 </h2>
                 <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : visiblePets.length} listed</span>
               </div>
-              {selectedStatus === 'LOST' && user && (
+              {selectedStatus === 'LOST' && (
                 <button
                   type="button"
                   className="dashboard-capture-shortcut-btn"
@@ -193,6 +254,17 @@ export const DashboardPage: React.FC = () => {
                 >
                   <Camera size={16} />
                   <span>Capture Missing Pet Photo</span>
+                </button>
+              )}
+              {selectedStatus === 'SAFE' && (
+                <button
+                  type="button"
+                  className="dashboard-capture-shortcut-btn"
+                  onClick={() => navigate('/capture')}
+                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', borderColor: '#059669' }}
+                >
+                  <Camera size={16} />
+                  <span>Report Other Pet (Capture Sighting)</span>
                 </button>
               )}
               {selectedStatus === 'SIGHTINGS' && isDashboardAdmin && sightings.length > 0 && (
@@ -209,49 +281,79 @@ export const DashboardPage: React.FC = () => {
               <div className="dashboard-status-pets-list">
                 {selectedStatus === 'SIGHTINGS' ? (
                   sightings.length > 0 ? (
-                    sightings.map((sighting) => {
-                      const report = getSightingReport(sighting);
-                      const displayName = sighting.dogName || report?.dog?.name || 'Missing Pet';
-                      const photoUrl = sighting.photo || sighting.photos?.[0] || (report ? getDogPhotoUrl(report.dog, report) : '');
-                      return (
-                        <article key={sighting.id} className={`dashboard-status-pet-row ${isDashboardAdmin ? 'has-admin-action' : ''}`}>
-                          <div className="dashboard-status-pet-photo-wrap">
-                            <img
-                              src={photoUrl}
-                              alt={displayName}
-                              className="dashboard-status-pet-photo"
-                              onError={handleDogImageError}
-                            />
-                          </div>
-                          <div className="dashboard-status-pet-copy">
-                            <strong>{displayName}</strong>
-                            <span className="dashboard-status-pet-location">
-                              <MapPin size={13} />
-                              {sighting.village || sighting.mandal || sighting.district || sighting.location || 'Location shared'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            className="dashboard-status-view-details-btn"
-                            onClick={() => openSightingDetails(sighting)}
-                          >
-                            <Eye size={14} />
-                            <span>View sighting</span>
-                          </button>
-                          {isDashboardAdmin && (
-                            <button
-                              type="button"
-                              className="dashboard-sighting-delete-btn"
-                              onClick={() => handleDeleteSighting(sighting.id)}
-                              aria-label="Delete sighting"
-                              title="Delete sighting"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
-                        </article>
-                      );
-                    })
+                    (() => {
+                      const groupedSightings = Object.values(sightings.reduce((acc, sighting) => {
+                        const reportId = sighting.reportId;
+                        if (!acc[reportId]) acc[reportId] = [];
+                        acc[reportId].push(sighting);
+                        return acc;
+                      }, {} as Record<string, Sighting[]>));
+                      
+                      return groupedSightings.map((group) => {
+                        const firstSighting = group[0];
+                        const report = getSightingReport(firstSighting);
+                        const displayName = firstSighting.dogName || report?.dog?.name || 'Missing Pet';
+                        // Original pet photo from the missing dog report
+                        const originalPetPhoto = report ? getDogPhotoUrl(report.dog, report) : (firstSighting.photo || firstSighting.photos?.[0] || '');
+                        
+                        // Collect all captured sighting photos from this group
+                        const allSightingPhotos: { sighting: Sighting; photoIndex: number }[] = [];
+                        group.forEach((s) => {
+                          if (s.photos && s.photos.length > 0) {
+                            s.photos.forEach((p, idx) => {
+                              if (p) allSightingPhotos.push({ sighting: s, photoIndex: idx });
+                            });
+                          } else if (s.photo) {
+                            allSightingPhotos.push({ sighting: s, photoIndex: 0 });
+                          }
+                        });
+                        
+                        return (
+                          <article key={firstSighting.reportId} className={`dashboard-status-pet-row ${isDashboardAdmin ? 'has-admin-action' : ''}`}>
+                            <div className="dashboard-status-pet-photo-wrap">
+                              <img
+                                src={originalPetPhoto}
+                                alt={displayName}
+                                className="dashboard-status-pet-photo"
+                                onError={handleDogImageError}
+                              />
+                            </div>
+                            <div className="dashboard-status-pet-copy">
+                              <strong>{displayName}</strong>
+                              <span className="dashboard-status-pet-location">
+                                <MapPin size={13} />
+                                {firstSighting.village || firstSighting.mandal || firstSighting.district || firstSighting.location || 'Location shared'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingRight: '8px', flexShrink: 0, alignItems: 'center' }}>
+                              {allSightingPhotos.slice(0, 3).map((item, idx) => (
+                                <button
+                                  key={`${item.sighting.id}-${item.photoIndex}`}
+                                  type="button"
+                                  className="dashboard-status-view-details-btn"
+                                  onClick={() => openSightingDetails(item.sighting, item.photoIndex)}
+                                  style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}
+                                >
+                                  <Eye size={14} />
+                                  <span>Sighting {idx + 1}</span>
+                                </button>
+                              ))}
+                            </div>
+                            {isDashboardAdmin && (
+                              <button
+                                type="button"
+                                className="dashboard-sighting-delete-btn"
+                                onClick={() => handleDeleteSightingGroup(group.map(s => s.id))}
+                                aria-label="Delete all sightings for this pet"
+                                title="Delete all sightings for this pet"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </article>
+                        );
+                      });
+                    })()
                   ) : (
                     <div className="dashboard-status-empty">No missing pet sightings are listed yet.</div>
                   )
@@ -275,14 +377,47 @@ export const DashboardPage: React.FC = () => {
                         <div className="dashboard-status-pet-copy">
                           <strong>{displayName}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="dashboard-status-view-details-btn"
-                          onClick={() => openPetDetails(report)}
-                        >
-                          <Eye size={14} />
-                          <span>View details</span>
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {selectedStatus === 'SAFE' && (
+                            <>
+                              <button
+                                type="button"
+                                className="dashboard-status-view-details-btn"
+                                onClick={() => navigate('/pet')}
+                                title="Edit Pet Details"
+                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                              >
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="dashboard-status-view-details-btn"
+                                onClick={() => navigate('/alert')}
+                                title="Mark Missing"
+                                style={{ padding: '6px 10px', fontSize: '0.8rem', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                              >
+                                <span>Mark Missing</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="dashboard-status-view-details-btn"
+                                onClick={() => navigate('/capture')}
+                                title="Report Other Pet"
+                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                              >
+                                <span>Report Other Pet</span>
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="dashboard-status-view-details-btn"
+                            onClick={() => openPetDetails(report)}
+                          >
+                            <Eye size={14} />
+                            <span>View details</span>
+                          </button>
+                        </div>
                       </article>
                     );
                   })
@@ -365,7 +500,7 @@ export const DashboardPage: React.FC = () => {
                 {detailReport.additionalNotes && (
                   <p>{detailReport.additionalNotes}</p>
                 )}
-                {isMissing && (
+                {isMissing ? (
                   <a
                     href={`/report-sighting/${detailReport.id}`}
                     className="dashboard-status-popover-action"
@@ -373,6 +508,43 @@ export const DashboardPage: React.FC = () => {
                     <Eye size={16} />
                     <span>Report if found / sighted</span>
                   </a>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px' }}>
+                    <button
+                      type="button"
+                      className="dashboard-status-popover-action"
+                      style={{ flex: 1, minWidth: '100px', textAlign: 'center', justifyContent: 'center' }}
+                      onClick={() => {
+                        setDetailReport(null);
+                        navigate('/pet');
+                      }}
+                    >
+                      <span>Edit Details</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="dashboard-status-popover-action"
+                      style={{ flex: 1, minWidth: '110px', textAlign: 'center', justifyContent: 'center', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                      onClick={() => {
+                        setDetailReport(null);
+                        navigate('/alert');
+                      }}
+                    >
+                      <span>Mark Missing</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="dashboard-status-popover-action"
+                      style={{ flex: 1, minWidth: '130px', textAlign: 'center', justifyContent: 'center' }}
+                      onClick={() => {
+                        setDetailReport(null);
+                        navigate('/capture');
+                      }}
+                    >
+                      <Camera size={15} />
+                      <span>Report Other Pet</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </section>
@@ -383,7 +555,16 @@ export const DashboardPage: React.FC = () => {
       {detailSighting && (() => {
         const report = getSightingReport(detailSighting);
         const displayName = detailSighting.dogName || report?.dog?.name || 'Missing Pet';
-        const photoUrl = detailSighting.photo || detailSighting.photos?.[0] || (report ? getDogPhotoUrl(report.dog, report) : '');
+        
+        let allPhotos: string[] = [];
+        if (detailSighting.photos && detailSighting.photos.length > 0) {
+          allPhotos = detailSighting.photos;
+        } else if (detailSighting.photo) {
+          allPhotos = [detailSighting.photo];
+        }
+        
+        const photoUrl = resolveGenericMediaUrl(allPhotos[activeSightingPhotoIndex] || allPhotos[0] || '');
+        
         const locationRows = [
           ['State', detailSighting.state],
           ['District', detailSighting.district],
@@ -409,13 +590,39 @@ export const DashboardPage: React.FC = () => {
                 <X size={22} />
               </button>
 
-              <div className="dashboard-status-popover-photo-stage">
-                <img
-                  src={photoUrl}
-                  alt={`${displayName} sighting`}
-                  className="dashboard-status-popover-photo"
-                  onError={handleDogImageError}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="dashboard-status-popover-photo-stage" style={{ marginBottom: 0 }}>
+                  <img
+                    src={photoUrl}
+                    alt={`${displayName} sighting`}
+                    className="dashboard-status-popover-photo"
+                    onError={handleDogImageError}
+                  />
+                </div>
+                {allPhotos.length > 1 && (
+                  <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                    {allPhotos.map((p, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveSightingPhotoIndex(idx)}
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          padding: 0,
+                          border: activeSightingPhotoIndex === idx ? '2px solid #F97316' : '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          background: '#000',
+                          cursor: 'pointer',
+                          opacity: activeSightingPhotoIndex === idx ? 1 : 0.6
+                        }}
+                      >
+                        <img src={resolveGenericMediaUrl(p)} alt={`Thumbnail ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="dashboard-status-popover-copy">
                 <div className="dashboard-status-modal-title-block">
@@ -445,10 +652,14 @@ export const DashboardPage: React.FC = () => {
                   <button
                     type="button"
                     className="dashboard-sighting-delete-wide-btn"
-                    onClick={() => handleDeleteSighting(detailSighting.id)}
+                    onClick={() => {
+                      const petSightings = sightings.filter((s) => s.reportId === detailSighting.reportId);
+                      handleDeleteSightingGroup(petSightings.length > 0 ? petSightings.map((s) => s.id) : [detailSighting.id]);
+                    }}
+                    title="Delete all sightings for this pet"
                   >
                     <Trash2 size={16} />
-                    <span>Delete this sighting</span>
+                    <span>Delete sightings for this pet</span>
                   </button>
                 )}
                 {report && (

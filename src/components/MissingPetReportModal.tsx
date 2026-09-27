@@ -45,8 +45,9 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   const { showToast } = useToast();
 
   const today = new Date().toISOString().split('T')[0];
+  const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
   const [dateLost, setDateLost] = useState(initialData?.dateLost || today);
-  const [timeLost, setTimeLost] = useState(initialData?.timeLost || '06:00 PM');
+  const [timeLost, setTimeLost] = useState(initialData?.timeLost || currentTime);
   // Initialize ONLY with existing report's location when editing; otherwise leave empty for the lost location
   const [lastKnownLocation, setLastKnownLocation] = useState(
     initialData?.lastKnownLocation || ''
@@ -57,8 +58,9 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   // Sync state whenever modal opens or initialData changes
   useEffect(() => {
     if (isOpen) {
-      setDateLost(initialData?.dateLost || today);
-      setTimeLost(initialData?.timeLost || '06:00 PM');
+      const now = new Date();
+      setDateLost(initialData?.dateLost || now.toISOString().split('T')[0]);
+      setTimeLost(initialData?.timeLost || now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
       setLastKnownLocation(initialData?.lastKnownLocation || '');
       setDetectedSuccess(false);
     }
@@ -78,7 +80,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     setIsDetectingLocation(true);
     try {
       const geo = await detectResilientLocation();
-      const area = geo.city || geo.mandal || geo.district || '';
+      const area = (geo as any).village || geo.city || geo.mandal || geo.district || geo.state || '';
       const detected = area
         ? `${area} (GPS: ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`
         : `GPS (${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`;
@@ -86,8 +88,12 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
       setLastKnownLocation(detected);
       setDetectedSuccess(true);
       showToast('📍 Current lost location detected! You can edit or add landmark details in the box below.', 'success');
-    } catch {
-      showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
+    } catch (err: any) {
+      if (err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '')) {
+        alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
+      } else {
+        showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
+      }
     } finally {
       setIsDetectingLocation(false);
     }
@@ -208,9 +214,9 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                 <Clock size={16} className="input-icon text-terracotta" />
                 <input
                   id="modal-time-lost"
-                  type="text"
+                  type="time"
                   className="form-input cute-input"
-                  placeholder="e.g. 06:00 PM"
+                  placeholder="e.g. 18:00"
                   value={timeLost}
                   onChange={(e) => setTimeLost(e.target.value)}
                 />

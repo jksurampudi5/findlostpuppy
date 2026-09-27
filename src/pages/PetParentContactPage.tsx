@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X, Upload, Phone, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
@@ -13,6 +13,7 @@ import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
+import { CameraModal } from '../components/CameraModal';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -37,6 +38,13 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     existingProfile?.preferredContact || 'phone'
   );
 
+  const isProfileFilled = Boolean(
+    (existingProfile?.fullName && existingProfile?.phone) ||
+    (user?.name && user?.phone)
+  );
+  const [isEditing, setIsEditing] = useState<boolean>(!isProfileFilled);
+  const initialModeSetRef = useRef(false);
+
   const [savedSnapshot, setSavedSnapshot] = useState({
     name: initialCleanName,
     phone: existingProfile?.phone || user?.phone || '',
@@ -44,7 +52,15 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     contact: existingProfile?.preferredContact || 'phone',
   });
 
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [showAvatarIcons, setShowAvatarIcons] = useState(!photo);
+
+  useEffect(() => {
+    if (!photo) setShowAvatarIcons(true);
+  }, [photo]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Sync when user or profile loads
   useEffect(() => {
@@ -70,6 +86,11 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           photo: effectivePhoto,
           contact: p.preferredContact || 'phone',
         });
+
+        if (!initialModeSetRef.current && (cleanedName || user.name) && (p.phone || user.phone)) {
+          initialModeSetRef.current = true;
+          setIsEditing(false);
+        }
       } else {
         const cleanedName = sanitizePersonName(user.name, user.email);
         setFullName(cleanedName);
@@ -83,15 +104,21 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           photo: userAvatar || '',
           contact: 'phone',
         });
+
+        if (!initialModeSetRef.current && cleanedName && user.phone) {
+          initialModeSetRef.current = true;
+          setIsEditing(false);
+        }
       }
     }
   }, [user?.id, user?.email]);
 
-  const hasChanges = Boolean(
-    fullName.trim() !== savedSnapshot.name.trim() ||
-    phone.trim() !== savedSnapshot.phone.trim() ||
-    photo.trim() !== savedSnapshot.photo.trim()
+  const hasProfileData = Boolean(
+    (fullName.trim() && phone.trim()) ||
+    (existingProfile?.fullName && existingProfile?.phone) ||
+    (user?.name && user?.phone)
   );
+
   const photoPolicy = canChangePhoto(existingProfile);
   const photoLimitText = photoPolicy.isInitialPhoto
     ? 'First owner photo upload is free.'
@@ -163,14 +190,19 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
   };
 
-  const handlePhotoRemove = () => {
+  const handleHardReset = () => {
+    setFullName('');
+    setPhone('');
+    setPhoneError(null);
     setPhoto('');
-    authService.updateCurrentUser({ avatar: undefined });
+    authService.updateCurrentUser({ name: undefined, phone: undefined, avatar: undefined });
     if (user) {
       const p = storageService.getOwnerProfileByUserId(user.id, user.email);
       if (p) {
         const updated: OwnerProfile = {
           ...p,
+          fullName: '',
+          phone: '',
           photo: undefined,
           updatedAt: new Date().toISOString(),
         };
@@ -178,8 +210,17 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         refreshProgress();
       }
     }
-    setSavedSnapshot((prev) => ({ ...prev, photo: '' }));
-    showToast('Photo removed.', 'info');
+    setSavedSnapshot((prev) => ({ ...prev, name: '', phone: '', photo: '' }));
+    showToast('Profile hard reset.', 'info');
+  };
+
+  const handleCancelEdit = () => {
+    setFullName(savedSnapshot.name);
+    setPhone(savedSnapshot.phone);
+    setPhoto(savedSnapshot.photo);
+    setPreferredContact(savedSnapshot.contact);
+    setPhoneError(null);
+    setIsEditing(false);
   };
 
   const saveProfileInternal = (showNotification = true): boolean => {
@@ -190,6 +231,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     if (!phone.trim()) {
       setPhoneError('Please enter your contact phone number.');
       showToast('Please enter your contact phone number.', 'warning');
+      return false;
+    }
+    if (!photo.trim()) {
+      showToast('Please upload a profile photo. A photo is required to verify your identity.', 'warning');
       return false;
     }
 
@@ -217,7 +262,11 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       address: existingProfile?.address || '',
       state: existingProfile?.state || '',
       district: existingProfile?.district || '',
+      mandalOrMunicipality: existingProfile?.mandalOrMunicipality || '',
       city: existingProfile?.city || '',
+      streetOrLocality: existingProfile?.streetOrLocality || existingProfile?.street || '',
+      street: existingProfile?.street || existingProfile?.streetOrLocality || '',
+      pinCode: existingProfile?.pinCode || '',
       hasLocationConsent: existingProfile?.hasLocationConsent ?? true,
       updatedAt: new Date().toISOString(),
     };
@@ -238,23 +287,16 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     if (showNotification) {
       showToast('🐾 Pet Parent profile updated successfully!', 'success');
     }
+    setIsEditing(false);
     return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = saveProfileInternal(true);
-    if (ok) {
-      handleContinueToLocation();
-    }
+    saveProfileInternal(true);
   };
 
   const handleContinueToLocation = async () => {
-    if (hasChanges) {
-      const ok = saveProfileInternal(false);
-      if (!ok) return;
-    }
-
     // Auto-sync profile and avatar to Cloudinary & Firebase cloud
     try {
       const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '');
@@ -294,170 +336,371 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           <div className="section-card-title-block">
             <h1>Owner Details</h1>
           </div>
-          <form onSubmit={handleSubmit} className="onboarding-form owner-combined-form">
-            {/* 1. ENLARGED PROFILE PICTURE HERO (Unified, No Split Box) */}
-            <div className="owner-unified-avatar-hero">
-              <div className="owner-center-avatar-box">
+
+          {!isEditing ? (
+            <div className="owner-profile-view-content">
+              {/* Clean Avatar Hero (No floating action badges) */}
+              <div className="owner-unified-avatar-hero owner-avatar-view-hero">
+                <div className="owner-center-avatar-box">
+                  <div
+                    className="owner-center-avatar-ring owner-view-avatar-ring"
+                    onClick={() => {
+                      if (photoPolicy.allowed) {
+                        setIsEditing(true);
+                      } else {
+                        showToast('Photo change limit reached. Click Modify Details below to edit text details.', 'info');
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to modify photo or details"
+                  >
+                    {photo ? (
+                      <img
+                        src={photo}
+                        alt={fullName || 'Owner Profile'}
+                        className="owner-center-avatar-img"
+                      />
+                    ) : (
+                      <div className="owner-center-avatar-placeholder">
+                        <UserIcon size={64} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Clean Profile Details Card (Click input bar or card to edit) */}
+              <div className="owner-profile-view-wrap">
                 <div
-                  className={`owner-center-avatar-ring ${!photoPolicy.allowed ? 'photo-upload-locked' : ''}`}
-                  onClick={() => {
-                    if (photoPolicy.allowed) fileInputRef.current?.click();
-                  }}
+                  className="owner-view-details-card"
+                  onClick={() => setIsEditing(true)}
                   role="button"
                   tabIndex={0}
-                  title={photoPolicy.allowed ? 'Tap to change profile picture' : 'Photo change limit reached'}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
+                  title="Click to edit details"
+                  style={{ cursor: 'pointer' }}
                 >
-                  {photo ? (
-                    <img
-                      src={photo}
-                      alt={fullName || 'Owner Profile'}
-                      className="owner-center-avatar-img"
-                    />
-                  ) : (
-                    <div className="owner-center-avatar-placeholder">
-                      <UserIcon size={64} />
+                  <div
+                    className="owner-view-row"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditing(true);
+                      setTimeout(() => document.getElementById('owner-full-name')?.focus(), 50);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setIsEditing(true); setTimeout(() => document.getElementById('owner-full-name')?.focus(), 50); } }}
+                    title="Click to edit name"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="owner-view-icon-badge">
+                      <UserIcon size={20} />
+                    </div>
+                    <div className="owner-view-data">
+                      <span className="owner-view-label">Full Name</span>
+                      <span className="owner-view-value">{fullName || user?.name || 'Owner Name'}</span>
+                    </div>
+                    <Edit3 size={15} style={{ marginLeft: 'auto', color: 'var(--color-primary)', opacity: 0.7 }} />
+                  </div>
+
+                  <div
+                    className="owner-view-row"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditing(true);
+                      setTimeout(() => document.getElementById('owner-phone')?.focus(), 50);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setIsEditing(true); setTimeout(() => document.getElementById('owner-phone')?.focus(), 50); } }}
+                    title="Click to edit phone number"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="owner-view-icon-badge">
+                      <Phone size={20} />
+                    </div>
+                    <div className="owner-view-data">
+                      <span className="owner-view-label">Mobile Phone Number</span>
+                      <div className="owner-view-phone-row">
+                        <span className="owner-view-value">
+                          {validateIndianPhoneNumber(phone).isValid
+                            ? `+91 ${validateIndianPhoneNumber(phone).cleanDigits}`
+                            : (phone ? `+91 ${phone}` : 'Not provided')}
+                        </span>
+                        {phone && validateIndianPhoneNumber(phone).isValid && (
+                          <span className="owner-view-verified-pill">
+                            <CheckCircle2 size={13} />
+                            <span>Verified Mobile</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Edit3 size={15} style={{ marginLeft: 'auto', color: 'var(--color-primary)', opacity: 0.7 }} />
+                  </div>
+
+                  {(user?.email || existingProfile?.email) && (
+                    <div
+                      className="owner-view-row"
+                      onClick={() => setIsEditing(true)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
+                      title="Click to edit details"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="owner-view-icon-badge">
+                        <Mail size={20} />
+                      </div>
+                      <div className="owner-view-data">
+                        <span className="owner-view-label">Email Address</span>
+                        <span className="owner-view-value">{user?.email || existingProfile?.email}</span>
+                      </div>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Quick Camera Action Badge */}
+              {/* Bottom Actions for View Mode */}
+              <div className="owner-actions-bottom-row view-mode-actions">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (photoPolicy.allowed) fileInputRef.current?.click();
-                  }}
-                  className="owner-center-camera-btn"
-                  disabled={!photoPolicy.allowed}
-                  title={photoPolicy.allowed ? 'Upload or change photo' : 'Photo change limit reached'}
-                  aria-label={photoPolicy.allowed ? 'Upload or change photo' : 'Photo change limit reached'}
+                  onClick={() => setIsEditing(true)}
+                  className="owner-modify-btn"
                 >
-                  <Camera size={18} />
+                  <Edit3 size={16} />
+                  <span>Modify Details / Photo</span>
                 </button>
 
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePhotoUpload}
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                />
-              </div>
-
-              <div className={`photo-change-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
-                {photoLimitText}
-              </div>
-
-              {photo && (
                 <button
                   type="button"
-                  onClick={handlePhotoRemove}
+                  onClick={handleContinueToLocation}
+                  className="btn btn-primary btn-lg continue-to-location-orange-btn"
+                >
+                  <span>Continue to Location</span>
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="onboarding-form owner-combined-form">
+              {/* 1. ENLARGED PROFILE PICTURE HERO (With Edit Badges & Actions) */}
+              <div className="owner-unified-avatar-hero">
+                <div
+                  className="owner-center-avatar-box"
+                  onMouseEnter={() => setShowAvatarIcons(true)}
+                  onMouseLeave={() => { if (photo) setShowAvatarIcons(false); }}
+                  onTouchStart={() => setShowAvatarIcons(true)}
+                  onFocus={() => setShowAvatarIcons(true)}
+                  tabIndex={0}
+                >
+                  <div
+                    className={`owner-center-avatar-ring ${!photoPolicy.allowed ? 'photo-upload-locked' : ''}`}
+                    onClick={() => {
+                      setShowAvatarIcons(true);
+                      if (photoPolicy.allowed) fileInputRef.current?.click();
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title={photoPolicy.allowed ? 'Tap to change profile picture' : 'Photo change limit reached'}
+                  >
+                    {photo ? (
+                      <img
+                        src={photo}
+                        alt={fullName || 'Owner Profile'}
+                        className="owner-center-avatar-img"
+                      />
+                    ) : (
+                      <div className="owner-center-avatar-placeholder">
+                        <UserIcon size={64} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className="owner-avatar-actions-group"
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      position: 'absolute',
+                      bottom: '-15px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      opacity: (!photo || showAvatarIcons) ? 1 : 0,
+                      pointerEvents: (!photo || showAvatarIcons) ? 'auto' : 'none',
+                      transition: 'opacity 0.2s ease, transform 0.2s ease',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (photoPolicy.allowed) fileInputRef.current?.click();
+                      }}
+                      className="owner-center-camera-btn"
+                      style={{ position: 'static', transform: 'none' }}
+                      disabled={!photoPolicy.allowed}
+                      title={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
+                      aria-label={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
+                    >
+                      <Upload size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (photoPolicy.allowed) setIsCameraOpen(true);
+                      }}
+                      className="owner-center-camera-btn"
+                      style={{ position: 'static', transform: 'none' }}
+                      disabled={!photoPolicy.allowed}
+                      title={photoPolicy.allowed ? 'Take Photo with Camera' : 'Photo change limit reached'}
+                      aria-label={photoPolicy.allowed ? 'Take Photo with Camera' : 'Photo change limit reached'}
+                    >
+                      <Camera size={18} />
+                    </button>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+                  <input
+                    type="file"
+                    ref={cameraInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    capture="user"
+                    style={{ display: 'none' }}
+                  />
+                </div>
+
+                <div className={`photo-change-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
+                  {photoLimitText}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleHardReset}
                   className="btn btn-ghost btn-xs remove-photo-link"
                 >
                   <Trash2 size={13} />
-                  <span>Remove Photo</span>
+                  <span>Hard Reset</span>
                 </button>
-              )}
-            </div>
+              </div>
 
-            {/* 2. FORM INPUTS (Flows Directly from Avatar in the Same Card) */}
-            <div className="owner-combined-fields">
-              {/* Full Name input */}
-              <div className="owner-modern-form-group">
-                <label className="owner-modern-label" htmlFor="owner-full-name">
-                  <span>Full Name</span>
-                  <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
-                </label>
-                <div className="owner-modern-input-wrapper">
-                  <div className="owner-input-icon-prefix">
-                    <UserIcon size={18} />
+              {/* 2. FORM INPUTS (Flows Directly from Avatar in the Same Card) */}
+              <div className="owner-combined-fields">
+                {/* Full Name input */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="owner-full-name">
+                    <span>Full Name</span>
+                    <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
+                  </label>
+                  <div className="owner-modern-input-wrapper">
+                    <div className="owner-input-icon-prefix">
+                      <UserIcon size={18} />
+                    </div>
+                    <input
+                      id="owner-full-name"
+                      type="text"
+                      required
+                      className="owner-modern-input"
+                      placeholder="e.g. Jaya Krishna"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
                   </div>
-                  <input
-                    id="owner-full-name"
-                    type="text"
-                    required
-                    className="owner-modern-input"
-                    placeholder="e.g. Jaya Krishna"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  />
+                </div>
+
+                {/* 10-Digit Indian Phone Number */}
+                <div className="owner-modern-form-group">
+                  <label className="owner-modern-label" htmlFor="owner-phone">
+                    <span>Mobile Phone Number</span>
+                    <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
+                  </label>
+                  <div className={`owner-modern-input-wrapper ${phoneError ? 'input-error' : ''}`}>
+                    <div className="owner-input-badge-prefix">
+                      <span>+91</span>
+                    </div>
+                    <input
+                      id="owner-phone"
+                      type="tel"
+                      required
+                      className="owner-modern-input"
+                      placeholder="98765 43210"
+                      value={phone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setPhone(val);
+                        if (phoneError) setPhoneError(null);
+                      }}
+                    />
+                  </div>
+                  {phoneError ? (
+                    <span className="form-hint input-error-text" style={{ color: 'var(--color-lost)', fontWeight: 600, fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <AlertCircle size={14} />
+                      <span>{phoneError}</span>
+                    </span>
+                  ) : phone.trim() && validateIndianPhoneNumber(phone).isValid ? (
+                    <span className="phone-validation-success" style={{ color: 'var(--color-reunited)', fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                      <CheckCircle2 size={14} />
+                      <span>Valid 10-digit Indian Mobile: {validateIndianPhoneNumber(phone).formatted}</span>
+                    </span>
+                  ) : (
+                    <span className="form-hint" style={{ marginTop: '0.35rem', display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Protected with owner privacy masking on public dashboards.
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* 10-Digit Indian Phone Number */}
-              <div className="owner-modern-form-group">
-                <label className="owner-modern-label" htmlFor="owner-phone">
-                  <span>Mobile Phone Number</span>
-                  <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
-                </label>
-                <div className={`owner-modern-input-wrapper ${phoneError ? 'input-error' : ''}`}>
-                  <div className="owner-input-badge-prefix">
-                    <span>+91</span>
-                  </div>
-                  <input
-                    id="owner-phone"
-                    type="tel"
-                    required
-                    className="owner-modern-input"
-                    placeholder="98765 43210"
-                    value={phone}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setPhone(val);
-                      if (phoneError) setPhoneError(null);
-                    }}
-                  />
-                </div>
-                {phoneError ? (
-                  <span className="form-hint input-error-text" style={{ color: 'var(--color-lost)', fontWeight: 600, fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <AlertCircle size={14} />
-                    <span>{phoneError}</span>
-                  </span>
-                ) : phone.trim() && validateIndianPhoneNumber(phone).isValid ? (
-                  <span className="phone-validation-success" style={{ color: 'var(--color-reunited)', fontSize: '0.82rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
-                    <CheckCircle2 size={14} />
-                    <span>Valid 10-digit Indian Mobile: {validateIndianPhoneNumber(phone).formatted}</span>
-                  </span>
-                ) : (
-                  <span className="form-hint" style={{ marginTop: '0.35rem', display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    Protected with owner privacy masking on public dashboards.
-                  </span>
+              {/* 3. ACTIONS IN EDIT MODE */}
+              <div className="owner-actions-bottom-row edit-mode-actions">
+                {hasProfileData && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="owner-cancel-edit-btn"
+                  >
+                    <X size={16} />
+                    <span>Cancel</span>
+                  </button>
                 )}
-              </div>
-            </div>
 
-            {/* 3. ACTIONS: DYNAMIC UPDATE BUTTON WHEN EDITED + ALWAYS ORANGE CONTINUE BUTTON */}
-            <div className="owner-actions-bottom-row">
-              {hasChanges ? (
                 <button
                   type="submit"
-                  className="btn btn-outline btn-lg update-profile-btn has-pending-changes"
+                  className="owner-save-btn"
                 >
-                  <Edit3 size={16} />
-                  <span>Update Details</span>
+                  <Check size={16} />
+                  <span>Save & Update Details</span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => showToast('Profile details are synced!', 'info')}
-                  className="btn btn-ghost btn-sm text-muted synced-status-btn"
-                >
-                  <Check size={14} />
-                  <span>Details Synced</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={handleContinueToLocation}
-                className="btn btn-primary btn-lg continue-to-location-orange-btn"
-              >
-                <span>Continue to Location</span>
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </form>
+              </div>
+            </form>
+          )}
         </div>
       </div>
+      
+      <CameraModal 
+        isOpen={isCameraOpen} 
+        onClose={() => setIsCameraOpen(false)} 
+        title="Owner Profile Photo"
+        captureButtonText="Capture Owner Photo"
+        onCapture={async (photoData) => {
+          try {
+            // we compress the captured data URL to ensure it fits in storage
+            const res = await fetch(photoData);
+            const blob = await res.blob();
+            const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+            const compressed = await compressImage(file, 250);
+            setPhoto(compressed);
+          } catch (e) {
+            console.error('Failed to compress camera photo', e);
+            setPhoto(photoData);
+          }
+        }} 
+      />
     </div>
   );
 };

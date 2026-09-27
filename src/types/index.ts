@@ -14,6 +14,7 @@ export interface User {
   avatar?: string;
   isAdmin?: boolean;
   createdAt: string;
+  lastLoginAt?: string;
 }
 
 export type LocalityType = 'VILLAGE' | 'TOWN' | 'CITY' | 'URBAN_LOCALITY' | 'OTHER';
@@ -71,6 +72,7 @@ export interface OwnerProfile {
   district?: string;
   mandalOrMunicipality?: string;
   streetOrLocality?: string;
+  street?: string;
   pinCode?: string;
   // Normalized LGD fields for authoritative September 2026 hierarchy
   stateCode?: number;

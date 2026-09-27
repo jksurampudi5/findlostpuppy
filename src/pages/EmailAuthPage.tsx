@@ -1,38 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, PawPrint, ShieldCheck } from 'lucide-react';
+import { ArrowRight, PawPrint, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export const EmailAuthPage = () => {
-  const { signInWithGoogle, isAuthenticated, setActiveOnboardingTab, isLoading, authNotice } = useAuth();
+  const {
+    signInWithGoogle,
+    isAuthenticated,
+    setActiveOnboardingTab,
+    isLoading,
+    authNotice,
+    hasCompletedOwner,
+    hasCompletedLocation,
+  } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const visibleError = errorMsg || authNotice;
 
   useEffect(() => {
     if (isAuthenticated) {
-      setActiveOnboardingTab('owner');
-      navigate('/owner', { replace: true });
+      if (hasCompletedOwner && hasCompletedLocation) {
+        setActiveOnboardingTab('dashboard');
+        navigate('/homepage', { replace: true });
+      } else {
+        setActiveOnboardingTab('owner');
+        navigate('/owner', { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, setActiveOnboardingTab]);
+  }, [isAuthenticated, hasCompletedOwner, hasCompletedLocation, navigate, setActiveOnboardingTab]);
 
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
+    setIsSigningIn(true);
     const res = await signInWithGoogle();
+    
+    if (isMountedRef.current) {
+      setIsSigningIn(false);
+    }
 
     if (res.success) {
       if (!res.redirected) {
         showToast('Signed in with Google.', 'success');
-        setActiveOnboardingTab('owner');
-        navigate('/owner', { replace: true });
+        if (hasCompletedOwner && hasCompletedLocation) {
+          setActiveOnboardingTab('dashboard');
+          navigate('/homepage', { replace: true });
+        } else {
+          setActiveOnboardingTab('owner');
+          navigate('/owner', { replace: true });
+        }
       }
       return;
     }
 
-    setErrorMsg(res.error || 'Could not sign in with Google. Please try again.');
+    const nextRetry = retryCount + 1;
+    setRetryCount(nextRetry);
+
+    if (nextRetry >= 3) {
+      sessionStorage.setItem('findlostpuppy_limited_mode', 'true');
+      showToast('Login failed after 3 attempts. Entering Dashboard in Limited Guest Mode. You can retry from Profile anytime.', 'info');
+      setActiveOnboardingTab('dashboard');
+      navigate('/homepage', { replace: true });
+      return;
+    }
+
+    setErrorMsg(res.error || `Could not sign in with Google (Attempt ${nextRetry}/3). Please try again.`);
   };
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   return (
     <div className="auth-landing-page">
@@ -61,10 +104,17 @@ export const EmailAuthPage = () => {
               type="button"
               className="btn btn-primary btn-lg btn-block auth-submit-btn"
               onClick={handleGoogleSignIn}
-              disabled={isLoading}
+              disabled={isLoading || isSigningIn}
             >
-              {isLoading ? (
+              {isSigningIn ? (
                 <span>Signing you in...</span>
+              ) : isLoading ? (
+                <span>Loading...</span>
+              ) : retryCount > 0 ? (
+                <>
+                  <RotateCcw size={18} />
+                  <span>Retry Google Sign-In ({retryCount}/3)</span>
+                </>
               ) : (
                 <>
                   <span>Continue with Google</span>

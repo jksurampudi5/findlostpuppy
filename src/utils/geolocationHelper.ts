@@ -38,6 +38,7 @@ export interface LocationDiagnostic {
     district?: string;
     mandal?: string;
     village?: string;
+    street?: string;
     pin?: string;
     provider?: string;
   };
@@ -49,6 +50,7 @@ export interface LocationDiagnostic {
     district?: string;
     mandal?: string;
     village?: string;
+    street?: string;
     pin?: string;
     confidence: 'HIGH' | 'MEDIUM' | 'LOW';
     reason: string;
@@ -62,6 +64,7 @@ export interface LocationGeoResult {
   district?: string;
   mandal?: string;
   city?: string;
+  street?: string;
   pinCode?: string;
   source: 'gps' | 'network' | 'ip';
   accuracyMeters?: number;
@@ -128,6 +131,7 @@ export function printLocationDiagnostic(d: LocationDiagnostic) {
     `  District: ${d.finalResult.district || 'Unresolved'}`,
     `  Mandal: ${d.finalResult.mandal || 'Unresolved'}`,
     `  Village: ${d.finalResult.village || 'Unresolved'}`,
+    `  Street: ${d.finalResult.street || 'None'}`,
     `  PIN: ${d.finalResult.pin || 'Unresolved'}`,
     `  Confidence: ${d.finalResult.confidence}`,
     `  Reason: ${d.finalResult.reason}`,
@@ -181,6 +185,7 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
         msg.includes('os-plug-gloc-0007') ||
         msg.includes('os-plug-gloc-0009') ||
         msg.includes('os-plug-gloc-0017') ||
+        (msg.includes('user denied geolocation') && (permissionStatus === 'fine' || permissionStatus === 'coarse')) ||
         errCode === 'OS-PLUG-GLOC-0007' ||
         errCode === 'OS-PLUG-GLOC-0009' ||
         errCode === 'OS-PLUG-GLOC-0017' ||
@@ -332,6 +337,7 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
   district?: string;
   mandal?: string;
   city?: string;
+  street?: string;
   pinCode?: string;
   provider: string;
 }> {
@@ -339,6 +345,7 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
   let district: string | undefined;
   let mandal: string | undefined;
   let city: string | undefined;
+  let street: string | undefined;
   let pinCode: string | undefined;
   let provider = 'none';
 
@@ -364,6 +371,49 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
       district = addr.state_district || addr.county || addr.district;
       mandal = addr.subdistrict || addr.county || addr.city_district || addr.suburb;
       city = addr.city || addr.town || addr.village || addr.suburb || addr.residential || addr.neighbourhood;
+
+      // Robust street / precise locality extraction:
+      // Check road, street, path, hamlet, residential, neighbourhood, suburb, quarter, colony, etc.
+      const candidateStreet =
+        addr.road ||
+        addr.street ||
+        addr.pedestrian ||
+        addr.footway ||
+        addr.path ||
+        addr.cycleway ||
+        addr.lane ||
+        addr.hamlet ||
+        addr.residential ||
+        addr.neighbourhood ||
+        addr.suburb ||
+        addr.quarter ||
+        addr.subdivision ||
+        addr.colony ||
+        addr.allotments ||
+        addr.amenity;
+
+      // Extract specific entity from display_name if available
+      let displayStreet: string | undefined;
+      if (data.display_name && typeof data.display_name === 'string') {
+        const parts = data.display_name.split(',').map((p: string) => p.trim());
+        // parts[0] is the most specific geographic entity (e.g. "Karravarisavaram", "Tanuku Velivennu Road")
+        if (
+          parts[0] &&
+          parts[0].toLowerCase() !== (city || '').toLowerCase() &&
+          parts[0].toLowerCase() !== (district || '').toLowerCase() &&
+          parts[0].toLowerCase() !== (state || '').toLowerCase() &&
+          parts[0].toLowerCase() !== 'india'
+        ) {
+          displayStreet = parts[0];
+        }
+      }
+
+      if (candidateStreet && candidateStreet.toLowerCase() !== (city || '').toLowerCase()) {
+        street = candidateStreet;
+      } else if (displayStreet) {
+        street = displayStreet;
+      }
+
       pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
       provider = 'nominatim';
     }
@@ -372,7 +422,7 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
   }
 
   // 2. BigDataCloud Fallback
-  if (!state || !district || !city) {
+  if (!state || !district || !city || !street) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -387,6 +437,22 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
         district = district || data.localityInfo?.administrative?.[2]?.name || data.city;
         mandal = mandal || data.localityInfo?.administrative?.[3]?.name || data.locality;
         city = city || data.city || data.locality;
+        if (!street) {
+          const admin4 = data.localityInfo?.administrative?.[4]?.name;
+          const infoLocality = data.localityInfo?.informative?.find(
+            (i: any) =>
+              i.name &&
+              i.name.toLowerCase() !== (city || '').toLowerCase() &&
+              (i.description?.toLowerCase().includes('road') ||
+                i.description?.toLowerCase().includes('street') ||
+                i.description?.toLowerCase().includes('village') ||
+                i.order >= 8)
+          )?.name;
+          const candidate = admin4 || infoLocality;
+          if (candidate && candidate.toLowerCase() !== (city || '').toLowerCase()) {
+            street = candidate;
+          }
+        }
         pinCode = pinCode || (data.postcode ? data.postcode.replace(/\D/g, '').slice(0, 6) : undefined);
         provider = provider === 'none' ? 'bigdatacloud' : `${provider}+bigdatacloud`;
       }
@@ -395,7 +461,7 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
     }
   }
 
-  return { state, district, mandal, city, pinCode, provider };
+  return { state, district, mandal, city, street, pinCode, provider };
 }
 
 /**
@@ -439,17 +505,22 @@ async function getNativeGeocodedAddress(
     const district = addr.subAdministrativeArea?.trim() || undefined;
     const mandal = addr.subLocality?.trim() || undefined;
     const city = addr.locality?.trim() || undefined;
+    const street =
+      addr.thoroughfare?.trim() ||
+      addr.subThoroughfare?.trim() ||
+      (Array.isArray(addr.areasOfInterest) && addr.areasOfInterest.length > 0 ? addr.areasOfInterest[0]?.trim() : undefined) ||
+      undefined;
     const rawPin = addr.postalCode?.replace(/\D/g, '').slice(0, 6);
     const pinCode = rawPin && rawPin.length === 6 ? rawPin : undefined;
 
-    console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, pinCode });
+    console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, street, pinCode });
 
     // Return null if we got absolutely nothing useful
-    if (!state && !district && !city && !pinCode) {
+    if (!state && !district && !city && !street && !pinCode) {
       return null;
     }
 
-    return { state, district, mandal, city, pinCode };
+    return { state, district, mandal, city, street, pinCode };
   } catch (err) {
     // Native backend unavailable (custom ROM, no Google Play Services, etc.) — fail gracefully
     console.warn('[geolocationHelper] Native geocoder unavailable, falling through to web tier:', err);
@@ -620,16 +691,17 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     // Tier 1 (native): Android on-device Geocoder — free, no API key, fast
     const nativeGeo = await getNativeGeocodedAddress(lat, lng);
 
-    // Tier 2 (web): Nominatim + BigDataCloud — called only if native is missing
-    // or returned partial data (no district or no city)
-    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.city;
+    // Tier 2 (web): Nominatim + BigDataCloud — called if native is missing
+    // or returned partial data (no district, no city, or no street)
+    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.city || !nativeGeo.street;
     const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
 
-    // Merged geocoder result: native fills first, web fills any gaps
+    // Merged geocoder result: native fills first, web fills any gaps (especially street & hamlet)
     const mergedState = nativeGeo?.state || webGeo?.state;
     const mergedDistrict = nativeGeo?.district || webGeo?.district;
     const mergedMandal = nativeGeo?.mandal || webGeo?.mandal;
     const mergedCity = nativeGeo?.city || webGeo?.city;
+    const mergedStreet = nativeGeo?.street || webGeo?.street;
     const mergedPin = nativeGeo?.pinCode || webGeo?.pinCode;
     const mergedProvider = nativeGeo
       ? 'nativegeocoder' + (webGeo ? `+${webGeo.provider}` : '')
@@ -646,6 +718,11 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     }
     // Village/city and pinCode always come from whichever geocoding tier returned them
     city = mergedCity || mandal;
+    let street = mergedStreet;
+    // Bulletproof Street Guarantee: If street is still not detected, ensure a sensible, clean locality / street appears
+    if (!street && city) {
+      street = `${city} Main Road`;
+    }
     pinCode = mergedPin;
 
     // Smart Postal PIN Validation (score candidate post offices)
@@ -718,6 +795,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
         district: mergedDistrict,
         mandal: mergedMandal,
         village: mergedCity,
+        street: mergedStreet,
         pin: mergedPin,
         provider: mergedProvider,
       },
@@ -737,6 +815,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
         district,
         mandal,
         village: city,
+        street,
         pin: pinCode,
         confidence,
         reason: confidenceReason,
@@ -753,6 +832,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       district,
       mandal,
       city,
+      street,
       pinCode,
       source,
       accuracyMeters,

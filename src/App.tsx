@@ -25,7 +25,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CapturePetPage } from './pages/CapturePetPage';
 
 import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
-import { SuggestionWidget } from './components/SuggestionWidget';
+
 
 import './App.css';
 
@@ -49,7 +49,9 @@ function MainAppFlow() {
       <Route path="/find" element={<DiscoveryPage />} />
 
       {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/homepage" element={<DashboardPage />} />
+      <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
+      <Route path="/next-step" element={<Navigate to="/homepage" replace />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route
         path="/capture"
@@ -96,7 +98,7 @@ function MainAppFlow() {
             <LocationOnboardingPage
               onSuccess={() => {
                 setActiveOnboardingTab('choice');
-                navigate('/next-step');
+                navigate('/choice');
               }}
               onBack={() => {
                 setActiveOnboardingTab('owner');
@@ -109,7 +111,7 @@ function MainAppFlow() {
       <Route path="/edit-location" element={<Navigate to="/location" replace />} />
 
       <Route
-        path="/next-step"
+        path="/choice"
         element={
           !hasValidConsent ? (
             <ConsentPage onConsentAgreed={agreeToConsent} />
@@ -120,6 +122,7 @@ function MainAppFlow() {
           )
         }
       />
+      <Route path="/pet-choice" element={<Navigate to="/choice" replace />} />
 
       <Route
         path="/pet"
@@ -131,8 +134,8 @@ function MainAppFlow() {
           ) : (
             <DogOnboardingPage
               onBackToLocation={() => {
-                setActiveOnboardingTab('location');
-                navigate('/location');
+                setActiveOnboardingTab('choice');
+                navigate('/choice');
               }}
               onSuccess={() => {
                 setActiveOnboardingTab('report');
@@ -161,7 +164,7 @@ function MainAppFlow() {
               }}
               onSuccess={() => {
                 setActiveOnboardingTab('dashboard');
-                navigate('/dashboard');
+                navigate('/homepage');
               }}
             />
           )
@@ -192,7 +195,7 @@ function MainAppFlow() {
             <LocationOnboardingPage
               onSuccess={() => {
                 setActiveOnboardingTab('choice');
-                navigate('/next-step');
+                navigate('/choice');
               }}
               onBack={() => {
                 setActiveOnboardingTab('owner');
@@ -204,8 +207,8 @@ function MainAppFlow() {
           ) : activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? (
             <DogOnboardingPage
               onBackToLocation={() => {
-                setActiveOnboardingTab('location');
-                navigate('/location');
+                setActiveOnboardingTab('choice');
+                navigate('/choice');
               }}
               onSuccess={() => {
                 setActiveOnboardingTab('report');
@@ -220,7 +223,7 @@ function MainAppFlow() {
               }}
               onSuccess={() => {
                 setActiveOnboardingTab('dashboard');
-                navigate('/dashboard');
+                navigate('/homepage');
               }}
             />
           ) : (
@@ -230,7 +233,7 @@ function MainAppFlow() {
       />
 
       {/* 5. CATCH-ALL FALLBACK */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/homepage" replace />} />
     </Routes>
   );
 }
@@ -257,7 +260,6 @@ export function App() {
               <Footer />
             </div>
           </div>
-          <SuggestionWidget />
         </AuthProvider>
       </ToastProvider>
     </Router>

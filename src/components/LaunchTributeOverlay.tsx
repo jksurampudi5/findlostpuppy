@@ -3,6 +3,7 @@ import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import logoTopHandImg from '../assets/logo_top_hand.png';
 import logoBottomHandImg from '../assets/logo_bottom_hand.png';
 import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
+import { consentService } from '../services/consentService';
 import './LaunchTributeOverlay.css';
 
 interface LaunchTributeOverlayProps {
@@ -11,10 +12,14 @@ interface LaunchTributeOverlayProps {
 }
 
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => {
+    if (forceOpen) return true;
+    return sessionStorage.getItem('findlostpuppy_launch_seen') !== 'true';
+  });
   const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [showProceedBtn, setShowProceedBtn] = useState(false);
+  const [replayKey] = useState(0);
 
   const paragraph1Words = [
     "A", "very", "special", "note", "of", "gratitude", "to", "Priyanka", "Sharma", "—",
@@ -41,14 +46,19 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       return;
     }
 
-    setVisible(true);
+    if (sessionStorage.getItem('findlostpuppy_launch_seen') === 'true') {
+      return; // Already seen splash in this session
+    }
+
     setPhase('logo');
     setIsFadingOut(false);
 
-    // Keep the launch splash brief so first-time users reach sign-in quickly.
+    // Splash screen animation: 2 seconds, then check Gratitude + Safety
     const logoTimer = setTimeout(() => {
-      if (localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true') {
-        localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
+      const isGratitudeAccepted = localStorage.getItem('findlostpuppy_gratitude_seen') === 'true';
+      const isConsentAccepted = consentService.hasAcceptedCurrentConsent();
+
+      if (!isGratitudeAccepted || !isConsentAccepted) {
         setPhase('tribute');
         setCurrentWordIndex(0);
         setShowProceedBtn(false);
@@ -58,13 +68,14 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       setIsFadingOut(true);
       setTimeout(() => {
         setVisible(false);
+        sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
         setIsFadingOut(false);
         if (onClose) onClose();
       }, 400);
-    }, 3000);
+    }, 2000);
 
     return () => clearTimeout(logoTimer);
-  }, [forceOpen, onClose]);
+  }, [forceOpen, onClose, replayKey]);
 
   // Global event listener to re-open from footer button
   useEffect(() => {
@@ -121,8 +132,10 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
   }, [visible, phase, currentWordIndex, totalWords]);
 
   const handleDismiss = () => {
+    localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
     sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
     setVisible(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (onClose) onClose();
   };
 
@@ -136,7 +149,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       <div className="launch-ambient-glow glow-3" />
 
       {phase === 'logo' ? (
-        <div className="launch-logo-stage animate-fade-in" onClick={handleDismiss} title="Click anywhere to enter app">
+        <div key={replayKey} className="launch-logo-stage animate-fade-in" onClick={handleDismiss} title="Click anywhere to enter app">
           <div className="launch-logo-container">
             {/* The Badge Container */}
             <div className="launch-logo-badge protective-sanctuary-card">
@@ -166,10 +179,12 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
             </div>
           </div>
 
-          <h1 className="launch-brand-title">
-            <span className="brand-find">find</span>
-            <span className="brand-lost">lost</span>
-            <span className="brand-puppy">puppy</span>
+          <h1 className="launch-brand-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <div>
+              <span className="brand-find">find</span>
+              <span className="brand-lost">lost</span>
+              <span className="brand-puppy">puppy</span>
+            </div>
           </h1>
 
           <p className="launch-brand-tagline">
@@ -288,6 +303,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
                 <div 
                   className="tribute-actions-holding" 
                   onClick={() => setShowProceedBtn(true)}
+                  onMouseEnter={() => setShowProceedBtn(true)}
                   title="Click to proceed immediately"
                   role="button"
                   tabIndex={0}

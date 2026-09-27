@@ -2,26 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Lightbulb,
-  Sparkles,
   X,
   Send,
   CheckCircle2,
   Star,
-  Bug,
-  Heart,
-  Rocket,
   ExternalLink,
   Edit2,
-  MonitorUp,
-  Image as ImageIcon,
-  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { SuggestionCategory } from '../types';
 
-const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
+const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=com.findlostpuppy.app';
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();
@@ -30,9 +23,10 @@ export const SuggestionWidget: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  // Route whitelist: Only allowed on post-onboarding routes
+  // Route whitelist: Allowed on /homepage, /dashboard, etc.
   const pathname = location.pathname;
   const isAllowedRoute =
+    pathname === '/homepage' ||
     pathname === '/dashboard' ||
     pathname === '/find' ||
     pathname === '/admin' ||
@@ -44,6 +38,8 @@ export const SuggestionWidget: React.FC = () => {
     '/login',
     '/owner',
     '/location',
+    '/choice',
+    '/pet-choice',
     '/pet',
     '/alert',
     '/edit-parent',
@@ -57,29 +53,17 @@ export const SuggestionWidget: React.FC = () => {
 
   const canShowOnRoute = isAllowedRoute && !isBlockedRoute;
 
-  // Active app-time tracking (pauses when tab/app is hidden or in background)
-  const [hasDismissedPrompt, setHasDismissedPrompt] = useState(() => {
-    return localStorage.getItem('findlostpuppy_suggestion_prompt_dismissed') === 'true';
-  });
-  const [showPopupPrompt, setShowPopupPrompt] = useState(false);
-
+  // One-time automatic App Suggestion Popup on reaching Dashboard
   useEffect(() => {
-    if (hasDismissedPrompt) return;
+    const isDashboard = pathname === '/homepage' || pathname === '/dashboard';
+    const alreadyShown =
+      localStorage.getItem('suggestion_shown') === 'true' ||
+      localStorage.getItem('findlostpuppy_suggestion_shown') === 'true';
 
-    const interval = setInterval(() => {
-      // Only increment active seconds when app is visibly active (not in background/hidden)
-      if (document.visibilityState === 'visible') {
-        const currentSeconds = parseInt(sessionStorage.getItem('findlostpuppy_active_seconds') || '0', 10) + 1;
-        sessionStorage.setItem('findlostpuppy_active_seconds', currentSeconds.toString());
-        // ~3 minutes (180s) of active app time
-        if (currentSeconds >= 180 && !hasDismissedPrompt) {
-          setShowPopupPrompt(true);
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [hasDismissedPrompt]);
+    if (isDashboard && !alreadyShown) {
+      setIsOpen(true);
+    }
+  }, [pathname]);
 
   // Simplified form states
   const [category, setCategory] = useState<SuggestionCategory>('feature');
@@ -88,6 +72,11 @@ export const SuggestionWidget: React.FC = () => {
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [screenshotData, setScreenshotData] = useState('');
   const [isCapturingScreen, setIsCapturingScreen] = useState(false);
+
+  // Suppress unused variable warnings internally
+  void category;
+  void setCategory;
+  void isCapturingScreen;
 
   // Identity states (prefilled silently)
   const [name, setName] = useState(user?.name || '');
@@ -115,10 +104,10 @@ export const SuggestionWidget: React.FC = () => {
     return () => window.removeEventListener('open-suggestion-modal', handleOpen);
   }, []);
 
-  const handleDismissPrompt = () => {
-    setShowPopupPrompt(false);
-    setHasDismissedPrompt(true);
-    localStorage.setItem('findlostpuppy_suggestion_prompt_dismissed', 'true');
+  const handleClose = () => {
+    setIsOpen(false);
+    localStorage.setItem('suggestion_shown', 'true');
+    localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
   };
 
   const handleRatingClick = (val: number) => {
@@ -126,6 +115,8 @@ export const SuggestionWidget: React.FC = () => {
   };
 
   const handleCaptureScreenshot = async () => {
+    void setScreenshotData; // To suppress unused warnings in some paths if we return early
+    // ...
     if (!navigator.mediaDevices?.getDisplayMedia) {
       showToast('Screen capture is not available in this browser.', 'warning');
       return;
@@ -167,29 +158,23 @@ export const SuggestionWidget: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const trimmed = suggestionText.trim();
-    if (!trimmed) {
-      showToast('Please share your idea or suggestion.', 'warning');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Derive a short summary title from first sentence or up to 60 chars
-      const firstLine = trimmed.split('\n')[0].trim();
+      const trimmed = suggestionText.trim();
+      const firstLine = trimmed ? trimmed.split('\n')[0].trim() : `App Rating: ${rating} Stars`;
       const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
 
-      const descriptionWithContext = screenshotData
-        ? `${trimmed}\n\n[Screen snippet attached for admin review]`
-        : trimmed;
+      const descriptionWithContext = trimmed
+        ? (screenshotData ? `${trimmed}\n\n[Screen snippet attached for admin review]` : trimmed)
+        : `User rated ${rating} out of 5 stars.`;
 
       storageService.saveSuggestion({
         userId: user?.id,
         userName: name.trim() || user?.name || 'Community Member',
         userEmail: contact.includes('@') ? contact.trim() : user?.email,
         userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
-        category,
+        category: 'praise',
         title: derivedTitle,
         description: descriptionWithContext,
         rating,
@@ -197,16 +182,20 @@ export const SuggestionWidget: React.FC = () => {
         screenshotData,
       });
 
-      setIsSuccess(true);
-      showToast('🎉 Thank you! Your suggestion was recorded.', 'success');
+      // Mark suggestion_shown = true so it never auto-shows again
+      localStorage.setItem('suggestion_shown', 'true');
+      localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
 
-      // Auto close after 2.5s
+      setIsSuccess(true);
+      showToast('🎉 Thank you! Your feedback was recorded.', 'success');
+
+      // Auto close after 1.5s
       setTimeout(() => {
         setIsSuccess(false);
         setIsOpen(false);
         setSuggestionText('');
         setScreenshotData('');
-      }, 2500);
+      }, 1500);
     } catch {
       showToast('Could not save suggestion. Please try again.', 'error');
     } finally {
@@ -216,11 +205,10 @@ export const SuggestionWidget: React.FC = () => {
 
   // 4 simplified, punchy categories
   const categories: { key: SuggestionCategory; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: 'feature', label: 'Feature Idea', icon: <Rocket size={16} />, color: '#f97316' },
-    { key: 'improvement', label: 'Improvement', icon: <Sparkles size={16} />, color: '#3b82f6' },
-    { key: 'bug', label: 'Report Issue', icon: <Bug size={16} />, color: '#ef4444' },
-    { key: 'praise', label: 'Praise & Other', icon: <Heart size={16} />, color: '#ec4899' },
+    { key: 'praise', label: 'Rate App Experience', icon: <Star size={16} />, color: '#FFB800' },
   ];
+  void categories;
+  void handleCaptureScreenshot;
 
   const ratingDescriptions = [
     '',
@@ -239,61 +227,10 @@ export const SuggestionWidget: React.FC = () => {
   return (
     <>
       {/* ========================================================================= */}
-      {/* 1. DISMISSIBLE MODAL POPUP (Appears after ~3 min active app time on allowed routes) */}
-      {/* ========================================================================= */}
-      {canShowOnRoute && showPopupPrompt && !isOpen && (
-        <div className="suggestion-popup-prompt-overlay" onClick={handleDismissPrompt} role="dialog" aria-modal="true" aria-labelledby="popup-suggest-title">
-          <div className="suggestion-popup-card" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="suggestion-popup-close"
-              onClick={handleDismissPrompt}
-              title="Dismiss note"
-              aria-label="Dismiss note"
-            >
-              <X size={16} />
-            </button>
-            <div className="suggestion-popup-header">
-              <div className="suggestion-popup-icon-badge">
-                <Lightbulb size={22} className="suggestion-popup-bulb" />
-              </div>
-              <div>
-                <h4 id="popup-suggest-title" className="suggestion-popup-title">💡 Have an Idea for Us?</h4>
-                <p className="suggestion-popup-subtitle">Help us shape FindLostPuppy!</p>
-              </div>
-            </div>
-            <p className="suggestion-popup-body">
-              You've been exploring the app! We'd love your thoughts, feature requests, or suggestions to make pet reunions faster and smoother.
-            </p>
-            <div className="suggestion-popup-actions">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={handleDismissPrompt}
-              >
-                Maybe Later
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm suggestion-popup-action-btn"
-                onClick={() => {
-                  setShowPopupPrompt(false);
-                  setIsOpen(true);
-                }}
-              >
-                <Sparkles size={14} />
-                <span>Share Suggestion ✨</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 2. SIMPLIFIED & STREAMLINED SUGGESTION MODAL                              */}
+      {/* APP SUGGESTION & REVIEW POPUP MODAL                                       */}
       {/* ========================================================================= */}
       {isOpen && (
-        <div className="suggestion-modal-overlay" onClick={() => setIsOpen(false)}>
+        <div className="suggestion-modal-overlay" onClick={handleClose}>
           <div
             className="suggestion-modal-dialog"
             onClick={(e) => e.stopPropagation()}
@@ -309,17 +246,17 @@ export const SuggestionWidget: React.FC = () => {
                 </div>
                 <div>
                   <h3 id="suggestion-modal-title" className="suggestion-modal-title">
-                    💡 Got a Suggestion?
+                    💡 App Suggestion & Feedback
                   </h3>
                   <p className="suggestion-modal-subtitle">
-                    Share an idea, request a feature, or tell us what we can improve!
+                    Share a rating, review, feature idea, or bug report!
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 className="suggestion-modal-close"
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 aria-label="Close dialog"
               >
                 <X size={20} />
@@ -349,7 +286,7 @@ export const SuggestionWidget: React.FC = () => {
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleClose}
                   >
                     Done
                   </button>
@@ -357,31 +294,7 @@ export const SuggestionWidget: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="suggestion-form">
-                {/* 1. Simplified Category Chips */}
-                <div className="suggestion-field-group">
-                  <div className="suggestion-categories-grid simplified-categories">
-                    {categories.map((cat) => {
-                      const isSelected = category === cat.key;
-                      return (
-                        <button
-                          key={cat.key}
-                          type="button"
-                          className={`suggestion-cat-chip ${isSelected ? 'cat-chip-active' : ''}`}
-                          onClick={() => setCategory(cat.key)}
-                          style={{
-                            borderColor: isSelected ? cat.color : undefined,
-                            backgroundColor: isSelected ? `${cat.color}15` : undefined,
-                          }}
-                        >
-                          <span className="cat-chip-icon" style={{ color: cat.color }}>
-                            {cat.icon}
-                          </span>
-                          <span className="cat-chip-label">{cat.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* Categories removed as requested, focusing only on Rating */}
 
                 {/* 2. Rating & Direct Review Link Row */}
                 <div className="suggestion-rating-review-card">
@@ -446,37 +359,6 @@ export const SuggestionWidget: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3. Screenshot + Suggestion */}
-                <div className="suggestion-screen-capture-card">
-                  <div className="suggestion-screen-copy">
-                    <ImageIcon size={18} />
-                    <span>{screenshotData ? 'Screen snippet attached' : 'Attach current page screenshot'}</span>
-                  </div>
-                  {screenshotData ? (
-                    <button
-                      type="button"
-                      className="suggestion-screen-remove-btn"
-                      onClick={() => setScreenshotData('')}
-                    >
-                      <Trash2 size={14} />
-                      <span>Remove</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="suggestion-screen-capture-btn"
-                      onClick={handleCaptureScreenshot}
-                      disabled={isCapturingScreen}
-                    >
-                      <MonitorUp size={15} />
-                      <span>{isCapturingScreen ? 'Capturing...' : 'Screenshot'}</span>
-                    </button>
-                  )}
-                  {screenshotData && (
-                    <img src={screenshotData} alt="Attached screen snippet" className="suggestion-screen-preview" />
-                  )}
-                </div>
-
                 <div className="suggestion-field-group">
                   <textarea
                     id="suggestion-desc-input"
@@ -484,8 +366,7 @@ export const SuggestionWidget: React.FC = () => {
                     className="suggestion-textarea simplified-textarea"
                     value={suggestionText}
                     onChange={(e) => setSuggestionText(e.target.value)}
-                    placeholder="What should we fix or improve?"
-                    required
+                    placeholder="Share any bug, suggestion, or review text (optional)..."
                     maxLength={1500}
                     autoFocus
                   />
@@ -538,19 +419,23 @@ export const SuggestionWidget: React.FC = () => {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleClose}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm suggestion-submit-btn"
-                    disabled={isSubmitting || !suggestionText.trim()}
+                    disabled={isSubmitting}
                   >
                     <Send size={15} />
-                    {isSubmitting ? 'Sending...' : 'Send Suggestion 🚀'}
+                    {isSubmitting ? 'Sending...' : 'Submit Feedback 🚀'}
                   </button>
                 </div>
+
+                <p style={{ fontSize: '0.8rem', color: '#9CA3AF', margin: '0.75rem 0 0', textAlign: 'center' }}>
+                  💡 Note: Feedback is always available from Nav Bar &gt; Feedback for future reference.
+                </p>
               </form>
             )}
           </div>

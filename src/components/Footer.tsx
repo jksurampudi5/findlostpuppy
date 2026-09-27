@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PawPrint, Shield, Heart, MapPin, Compass, FileText, Sparkles } from 'lucide-react';
+import { PawPrint, Shield, MapPin, Compass, FileText, Sparkles } from 'lucide-react';
 import { SettingsLegalModal } from './SettingsLegalModal';
 
 export const Footer: React.FC = () => {
@@ -48,7 +48,7 @@ export const Footer: React.FC = () => {
 
           {/* Quick Actions */}
           <div className="footer-col">
-            <h4 className="footer-heading">Community Network</h4>
+            <h4 className="footer-heading">Quick Links</h4>
             <ul className="footer-links">
               <li>
                 <Link to="/find">
@@ -118,19 +118,6 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Immediate Steps Guidance */}
-          <div className="footer-col guidance-col">
-            <h4 className="footer-heading">
-              <Heart size={16} />
-              <span>Lost Pup Quick Steps</span>
-            </h4>
-            <ol className="guidance-list">
-              <li>Post a report with your pup’s distinct characteristics.</li>
-              <li>Leave a worn t-shirt or familiar blanket near the last seen location.</li>
-              <li>Check nearby local parks, food stalls, and animal shelters.</li>
-              <li>Ask neighbors to keep eyes out for sightings on this portal.</li>
-            </ol>
-          </div>
         </div>
 
         {/* Compact, Non-intrusive Tribute Link (Opens Full Interactive Modal on Click) */}

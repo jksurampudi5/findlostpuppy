@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Tag,
   ChevronDown,
@@ -16,6 +17,8 @@ import {
   Ruler,
   VenusAndMars,
   X,
+  Upload,
+  Edit3,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -35,6 +38,7 @@ import {
   DOG_COLOR_SWATCHES,
 } from '../utils/breedAssetHelper';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
+import { CameraModal } from '../components/CameraModal';
 import './DogOnboardingPage.css';
 
 interface DogOnboardingPageProps {
@@ -65,19 +69,23 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const petId = existingPet?.id || petDraftId;
 
   // Form Field States
-  const [dogName, setDogName] = useState(existingPet?.name || 'Buddy');
-  const [breed, setBreed] = useState(existingPet?.breed || 'Golden Retriever');
+  const [dogName, setDogName] = useState(existingPet?.name || '');
+  const [breed, setBreed] = useState(existingPet?.breed || '');
   const [gender, setGender] = useState<DogGender>(existingPet?.gender || 'Male');
-  const [age, setAge] = useState(existingPet?.age || '2 years');
-  const [size, setSize] = useState<DogSize>(existingPet?.size || 'Large (25-40 kg)' as DogSize);
-  const [color, setColor] = useState(existingPet?.color || 'Golden / Fawn');
+  const [age, setAge] = useState(existingPet?.age || '');
+  const [size, setSize] = useState<DogSize>(existingPet?.size || ('Large (25-40 kg)' as DogSize));
+  const [color, setColor] = useState(existingPet?.color || '');
   const [distinguishingMarks, setDistinguishingMarks] = useState(
-    existingPet?.distinguishingMarks || 'White chest patch, one floppy ear'
+    existingPet?.distinguishingMarks || ''
   );
+
+  const isPetFilled = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
+  const [isEditing, setIsEditing] = useState<boolean>(!isPetFilled);
+  const initialPetModeSetRef = useRef(false);
 
   // Collar, Tag, or Microchip: Yes/No + companion detail
   const [hasCollarOrChip, setHasCollarOrChip] = useState<boolean>(() => {
-    if (!existingPet?.collarInfo) return true; // Default Yes to match mockup
+    if (!existingPet?.collarInfo) return false;
     const lower = existingPet.collarInfo.toLowerCase().trim();
     return lower !== 'no' && lower !== 'none' && lower !== 'no collar';
   });
@@ -97,6 +105,13 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [showPetAvatarIcons, setShowPetAvatarIcons] = useState(!primaryPhoto);
+
+  useEffect(() => {
+    if (!primaryPhoto) setShowPetAvatarIcons(true);
+  }, [primaryPhoto]);
+
   // Active selector popup modal: 'breed' | 'age' | 'gender' | 'size' | 'color' | 'collar' | null
   const [activeModal, setActiveModal] = useState<'breed' | 'age' | 'gender' | 'size' | 'color' | 'collar' | null>(
     null
@@ -107,13 +122,13 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   // Synchronize form fields whenever existing pet updates
   useEffect(() => {
     if (existingPet) {
-      setDogName(existingPet.name || 'Buddy');
-      setBreed(existingPet.breed || 'Golden Retriever');
+      setDogName(existingPet.name || '');
+      setBreed(existingPet.breed || '');
       setGender(existingPet.gender || 'Male');
-      setAge(existingPet.age || '2 years');
+      setAge(existingPet.age || '');
       setSize(existingPet.size || ('Large (25-40 kg)' as DogSize));
-      setColor(existingPet.color || 'Golden / Fawn');
-      setDistinguishingMarks(existingPet.distinguishingMarks || 'White chest patch, one floppy ear');
+      setColor(existingPet.color || '');
+      setDistinguishingMarks(existingPet.distinguishingMarks || '');
       setPrimaryPhoto(existingPet.primaryPhoto || '');
       setAdditionalPhotos(existingPet.photos || []);
       if (existingPet.collarInfo) {
@@ -124,6 +139,11 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       } else {
         setHasCollarOrChip(false);
         setCollarDetails('');
+      }
+
+      if (!initialPetModeSetRef.current && (existingPet.name || existingPet.breed)) {
+        initialPetModeSetRef.current = true;
+        setIsEditing(false);
       }
     }
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
@@ -178,11 +198,48 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
   };
 
-  const handleRemovePhoto = () => {
+  const handleHardReset = () => {
+    // 1. Harvest all pet photos to delete from Cloudinary
+    const photosToDelete = [
+      primaryPhoto,
+      ...additionalPhotos,
+      existingPet?.primaryPhoto,
+      ...(existingPet?.photos || []),
+    ].filter(Boolean) as string[];
+
+    for (const photo of photosToDelete) {
+      if (photo && (photo.includes('cloudinary.com') || photo.includes('findlostpuppy/'))) {
+        storageBucketService.deleteMedia(photo).catch(() => {});
+      }
+    }
+
+    // 2. Clear all pet details EXCEPT gender and size category
     setPrimaryPhoto('');
     setAdditionalPhotos([]);
-    showToast('Pet photo removed', 'info');
+    setDogName('');
+    setBreed('');
+    // Gender is preserved as per user requirement
+    setAge('');
+    // Size Category is preserved as per user requirement
+    setColor('');
+    setDistinguishingMarks('');
+    setHasCollarOrChip(false);
+    setCollarDetails('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // 3. Purge existing pet profile in storage & backend if registered
+    if (user && existingPet) {
+      storageService.deletePetProfile(petId, user.id);
+    }
+    
+    refreshProgress();
+    window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced'));
+    window.dispatchEvent(new Event('storage'));
+
+    showToast('Pet details reset (gender & size category preserved)', 'info');
   };
+
 
   // Resolve best available pet photo URL
   const displayPhotoUrl = useMemo(() => {
@@ -280,14 +337,20 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       ? (collarDetails.trim() || 'Collar / Tag / Microchip equipped')
       : undefined;
 
+    if (!dogName.trim()) {
+      showToast('Please provide a name for your pet.', 'error');
+      setSubmitting(false);
+      return;
+    }
+
     const profile: DogProfile = {
       ...(existingPet || {}),
       id: petId,
       ownerId,
-      name: dogName.trim() || 'Buddy',
+      name: dogName.trim(),
       breed: breed.trim() || 'Street Dog / Desi / Indie',
       gender,
-      age: age.trim() || '2 years',
+      age: age.trim() || 'Young Adult (1-3 yrs)',
       size,
       color: color.trim() || 'Golden / Fawn',
       distinguishingMarks: distinguishingMarks.trim() || '',
@@ -305,6 +368,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       setSubmitting(false);
 
       showToast(`🐾 ${profileToSave.name}'s profile saved!`, 'success');
+      setIsEditing(false);
       if (onSuccess) {
         onSuccess();
       }
@@ -336,9 +400,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         setCollarDetails('');
       }
       showToast('Changes discarded', 'info');
-    } else {
-      handleBack();
     }
+    setIsEditing(false);
   };
 
   const handleResetPetForm = () => {
@@ -367,29 +430,55 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     if (!user) return;
     const petNameToDelete = existingPet?.name || dogName || 'your pet';
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${petNameToDelete}'s pet profile? All saved pet details, photo links, missing reports, and sighting records for this pet will be removed immediately.`
+      `Are you sure you want to permanently delete ${petNameToDelete}'s pet profile? All saved pet details, photo links, and missing reports for this pet will be removed immediately.`
     );
     if (!confirmed) return;
 
     const targetId = existingPet?.id || petId;
+
+    // Harvest all pet photos to delete from Cloudinary / Storage
+    const photosToDelete = [
+      primaryPhoto,
+      ...additionalPhotos,
+      existingPet?.primaryPhoto,
+      ...(existingPet?.photos || []),
+    ].filter(Boolean) as string[];
+
+    for (const photo of photosToDelete) {
+      if (photo && (photo.includes('cloudinary.com') || photo.includes('findlostpuppy/'))) {
+        storageBucketService.deleteMedia(photo).catch(() => {});
+      }
+    }
+
     storageService.deletePetProfile(targetId, user.id);
 
-    // Reset local form states
+    // Reset local form states to empty for refilling or skipping
     setDogName('');
     setBreed('');
     setGender('Male');
-    setAge('2 years');
+    setAge('');
     setSize('Medium (10-25kg)' as DogSize);
-    setColor('Golden / Fawn');
+    setColor('');
     setDistinguishingMarks('');
     setHasCollarOrChip(false);
     setCollarDetails('');
     setPrimaryPhoto('');
     setAdditionalPhotos([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Switch to editing empty form so user can refill or skip
+    setIsEditing(true);
 
     refreshProgress();
-    showToast(`🗑️ ${petNameToDelete}'s pet profile was deleted immediately.`, 'info');
+    window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced'));
+    window.dispatchEvent(new Event('storage'));
+
+    showToast(`🗑️ ${petNameToDelete}'s pet profile and images removed. You can enter new pet details or skip to Dashboard.`, 'info');
   };
+
+
+  void handleResetPetForm;
 
   const handleBack = () => {
     if (onBackToLocation) {
@@ -397,14 +486,14 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     } else if (onBackToOwner) {
       onBackToOwner();
     } else {
-      setActiveOnboardingTab('location');
-      navigate('/location');
+      setActiveOnboardingTab('choice');
+      navigate('/choice');
     }
   };
 
   const handleExitToDashboard = () => {
     setActiveOnboardingTab('dashboard');
-    navigate('/dashboard');
+    navigate('/homepage');
   };
 
   const openTextModal = (field: 'name' | 'marks') => {
@@ -452,300 +541,514 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 <ArrowLeft size={18} />
               </button>
             </div>
+
+            {isPetFilled && (
+              <button
+                type="button"
+                className="pet-profile-remove-btn"
+                onClick={handleDeletePetProfile}
+                title="Remove Pet Profile"
+                aria-label="Remove Pet Profile"
+              >
+                <Trash2 size={15} />
+                <span>Remove Pet</span>
+              </button>
+            )}
           </div>
 
-          {/* 2. Centered Pet Profile Photo */}
-          <div className="pet-profile-photo-center">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handlePhotoSelect}
-            />
+          {!isEditing ? (
+            <div className="pet-profile-view-content">
+              {/* Existing Pet Status Pill */}
+              <div className="existing-pet-status-pill pet-view-status-pill">
+                <span className="existing-pet-status-dot"></span>
+                <span>
+                  🐾 You already have a pet: <strong>{dogName || 'Buddy'}</strong> {breed ? `(${breed})` : ''}
+                </span>
+                <button
+                  type="button"
+                  className="pill-remove-pet-link"
+                  onClick={handleDeletePetProfile}
+                  title="Remove this pet"
+                >
+                  <Trash2 size={12} />
+                  <span>Remove</span>
+                </button>
+              </div>
 
-            <div className="pet-photo-circle-wrap">
-              <div className="pet-photo-circle-inner">
-                {displayPhotoUrl ? (
-                  <img
-                    src={displayPhotoUrl}
-                    alt={dogName || 'Pet Photo'}
-                    className="pet-photo-main-img"
-                    onError={handleDogImageError}
-                  />
-                ) : (
-                  <div className="pet-photo-main-placeholder">
-                    <Dog size={56} />
+              {/* Clean Pet Photo Circle (No floating camera/upload badges) */}
+              <div className="pet-profile-photo-center pet-photo-view-center">
+                <div
+                  className="pet-photo-circle-wrap pet-photo-view-wrap"
+                  onClick={() => {
+                    if (photoPolicy.allowed) {
+                      setIsEditing(true);
+                    } else {
+                      showToast('Photo change limit reached. Click Modify Pet Details below to edit info.', 'info');
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to modify photo or details"
+                >
+                  <div className="pet-photo-circle-inner">
+                    {displayPhotoUrl ? (
+                      <img
+                        src={displayPhotoUrl}
+                        alt={dogName || 'Pet Photo'}
+                        className="pet-photo-main-img"
+                        onError={handleDogImageError}
+                      />
+                    ) : (
+                      <div className="pet-photo-main-placeholder">
+                        <Dog size={56} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Overlapping Camera Badge */}
-              <button
-                type="button"
-                className="pet-photo-camera-badge"
-                onClick={() => {
-                  if (photoPolicy.allowed) fileInputRef.current?.click();
-                }}
-                disabled={!photoPolicy.allowed}
-                title={photoPolicy.allowed ? 'Change pet photo' : 'Photo change limit reached'}
-                aria-label={photoPolicy.allowed ? 'Upload photo' : 'Photo change limit reached'}
-              >
-                {uploadingPhoto ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-              </button>
-            </div>
-
-            <div className={`photo-change-limit-note pet-photo-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
-              {photoLimitText}
-            </div>
-
-            {/* Remove Photo Link */}
-            {displayPhotoUrl && (
-              <button
-                type="button"
-                className="pet-photo-remove-btn"
-                onClick={handleRemovePhoto}
-                title="Remove current pet photo"
-              >
-                <Trash2 size={13} />
-                <span>Remove Photo</span>
-              </button>
-            )}
-
-            {uploadingPhoto && (
-              <span className="pet-photo-upload-status">
-                <Loader2 size={12} className="animate-spin" /> Uploading & compressing photo...
-              </span>
-            )}
-          </div>
-
-          {/* 3. Fixed Information Row System */}
-          <form onSubmit={handleSubmit} className="pet-info-form">
-            <div className="pet-info-rows-container">
-              {/* ROW 1: Pet Name */}
-              <div
-                className="pet-info-row"
-                onClick={() => openTextModal('name')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Dog size={20} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Pet Name <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!dogName ? 'placeholder' : ''}`}>
-                    {dogName || 'Buddy'}
-                  </span>
                 </div>
               </div>
 
-              {/* ROW 2: Breed */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('breed')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Bone size={20} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Breed <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!breed ? 'placeholder' : ''}`}>
-                    {breed || 'Select breed'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
+              {/* Clean Pet Profile Summary Card (Click to edit) */}
+              <div className="pet-profile-view-wrap">
+                <div
+                  className="pet-view-card"
+                  onClick={() => setIsEditing(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
+                  title="Click to edit pet details"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="pet-view-header">
+                    <div className="pet-view-name-wrap">
+                      <h2 className="pet-view-name">{dogName || 'Buddy'}</h2>
+                      <span className={`pet-view-gender-badge gender-${gender.toLowerCase()}`}>
+                        {gender === 'Male' ? '♂ Male' : '♀ Female'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pet-view-grid">
+                    <div className="pet-view-stat-cell">
+                      <div className="pet-view-stat-icon"><Bone size={16} /></div>
+                      <div className="pet-view-stat-info">
+                        <span className="pet-view-stat-label">Breed</span>
+                        <span className="pet-view-stat-value">{breed || 'Street Dog / Indie'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pet-view-stat-cell">
+                      <div className="pet-view-stat-icon"><Calendar size={16} /></div>
+                      <div className="pet-view-stat-info">
+                        <span className="pet-view-stat-label">Age</span>
+                        <span className="pet-view-stat-value">{age || '2 years'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pet-view-stat-cell">
+                      <div className="pet-view-stat-icon"><Ruler size={16} /></div>
+                      <div className="pet-view-stat-info">
+                        <span className="pet-view-stat-label">Size</span>
+                        <span className="pet-view-stat-value">
+                          {size && size.includes('Large') && !size.includes('Extra') ? 'Large (> 25 kg)' : size || 'Large (> 25 kg)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pet-view-stat-cell">
+                      <div className="pet-view-stat-icon"><Palette size={16} /></div>
+                      <div className="pet-view-stat-info">
+                        <span className="pet-view-stat-label">Color</span>
+                        <span className="pet-view-stat-value">{color || 'Golden / Fawn'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {distinguishingMarks && (
+                    <div className="pet-view-extra-row">
+                      <div className="pet-view-stat-icon"><Fingerprint size={16} /></div>
+                      <div className="pet-view-stat-info">
+                        <span className="pet-view-stat-label">Distinctive Marks</span>
+                        <span className="pet-view-stat-value">{distinguishingMarks}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pet-view-extra-row">
+                    <div className="pet-view-stat-icon"><Tag size={16} /></div>
+                    <div className="pet-view-stat-info">
+                      <span className="pet-view-stat-label">Collar / Tag / ID</span>
+                      <span className="pet-view-stat-value">
+                        {hasCollarOrChip
+                          ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes'
+                            ? `Yes (${collarDetails})`
+                            : 'Yes (Equipped with collar / ID tag)')
+                          : 'No collar or microchip'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* ROW 3: Age */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('age')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Calendar size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Age <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!age ? 'placeholder' : ''}`}>
-                    {age || '2 years'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {/* ROW 4: Gender */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('gender')}
-              >
-                <div className="pet-info-icon-tile">
-                  <VenusAndMars size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Gender <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!gender ? 'placeholder' : ''}`}>
-                    {gender || 'Male'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {/* ROW 5: Size Category */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('size')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Ruler size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Size Category <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!size ? 'placeholder' : ''}`}>
-                    {size && size.includes('Large') && !size.includes('Extra') ? 'Large (> 25 kg)' : size || 'Large (> 25 kg)'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {/* ROW 6: Color & Markings */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('color')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Palette size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Color & Markings <span className="required-star">*</span>
-                  </span>
-                  <span className={`pet-info-value ${!color ? 'placeholder' : ''}`}>
-                    {color || 'Golden / Fawn'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {/* ROW 7: Distinctive Marks */}
-              <div
-                className="pet-info-row"
-                onClick={() => openTextModal('marks')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Fingerprint size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Distinctive Marks (Optional)
-                  </span>
-                  <span className={`pet-info-value ${!distinguishingMarks ? 'placeholder' : ''}`}>
-                    {distinguishingMarks || 'White chest patch, one floppy ear'}
-                  </span>
-                </div>
-              </div>
-
-              {/* ROW 8: Collar, Tag, or Microchip */}
-              <div
-                className="pet-info-row"
-                onClick={() => setActiveModal('collar')}
-              >
-                <div className="pet-info-icon-tile">
-                  <Tag size={19} />
-                </div>
-                <div className="pet-info-content">
-                  <span className="pet-info-label">
-                    Collar, Tag, or Microchip
-                  </span>
-                  <span className="pet-info-value">
-                    {hasCollarOrChip ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes' ? `Yes (${collarDetails})` : 'Yes') : 'No'}
-                  </span>
-                </div>
-                <div className="pet-info-action">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {/* Optional companion detail input when Collar/Tag is Yes */}
-              {hasCollarOrChip && (
-                <div className="collar-inline-detail-wrap">
-                  <input
-                    type="text"
-                    className="collar-inline-input"
-                    placeholder="e.g. Red collar with bell, QR Tag, Microchip #..."
-                    value={collarDetails.toLowerCase().trim() === 'yes' ? '' : collarDetails}
-                    onChange={(e) => setCollarDetails(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* 4. Bottom Actions */}
-            <div className="pet-profile-actions-bottom">
-              <div className="pet-profile-actions-left">
+              {/* View Mode Actions */}
+              <div className="pet-profile-actions-bottom view-mode-actions">
                 <button
                   type="button"
-                  onClick={handleCancel}
-                  className="btn btn-outline pet-cancel-btn"
+                  onClick={() => {
+                    if (onSuccess) {
+                      onSuccess();
+                    } else {
+                      setActiveOnboardingTab('report');
+                      navigate('/alert');
+                    }
+                  }}
+                  className="btn btn-primary btn-lg continue-to-location-orange-btn pet-view-continue-btn"
                 >
-                  Cancel
+                  <span>Continue to Pet Safety Status</span>
+                  <ArrowRight size={18} />
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleResetPetForm}
-                  className="pet-reset-link-btn"
-                  title="Reset all pet fields on this screen"
+                  onClick={() => setIsEditing(true)}
+                  className="pet-modify-btn"
                 >
-                  <X size={14} />
-                  <span>Reset</span>
+                  <Edit3 size={16} />
+                  <span>Modify Pet Details / Photo</span>
                 </button>
 
-                {existingPet && (
+                <button
+                  type="button"
+                  onClick={handleExitToDashboard}
+                  className="pet-skip-direct-btn"
+                  title="I don't have a pet / Skip to Homepage"
+                >
+                  <span>I don’t have a pet / Skip to Homepage</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* 2. Centered Pet Profile Photo (With Edit Badges & Actions) */}
+              <div className="pet-profile-photo-center">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoSelect}
+                />
+
+                <div
+                  className="pet-photo-circle-wrap"
+                  onMouseEnter={() => setShowPetAvatarIcons(true)}
+                  onMouseLeave={() => { if (displayPhotoUrl) setShowPetAvatarIcons(false); }}
+                  onTouchStart={() => setShowPetAvatarIcons(true)}
+                  onFocus={() => setShowPetAvatarIcons(true)}
+                  tabIndex={0}
+                >
+                  <div className="pet-photo-circle-inner">
+                    {displayPhotoUrl ? (
+                      <img
+                        src={displayPhotoUrl}
+                        alt={dogName || 'Pet Photo'}
+                        className="pet-photo-main-img"
+                        onError={handleDogImageError}
+                      />
+                    ) : (
+                      <div className="pet-photo-main-placeholder">
+                        <Dog size={56} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className="owner-avatar-actions-group"
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      position: 'absolute',
+                      bottom: '-15px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      opacity: (!displayPhotoUrl || showPetAvatarIcons) ? 1 : 0,
+                      pointerEvents: (!displayPhotoUrl || showPetAvatarIcons) ? 'auto' : 'none',
+                      transition: 'opacity 0.2s ease, transform 0.2s ease',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="pet-photo-camera-badge"
+                      style={{ position: 'static', transform: 'none' }}
+                      onClick={() => {
+                        setShowPetAvatarIcons(true);
+                        if (photoPolicy.allowed) fileInputRef.current?.click();
+                      }}
+                      disabled={!photoPolicy.allowed}
+                      title={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
+                      aria-label={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
+                    >
+                      <Upload size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="pet-photo-camera-badge"
+                      style={{ position: 'static', transform: 'none' }}
+                      onClick={() => {
+                        setShowPetAvatarIcons(true);
+                        if (photoPolicy.allowed) setIsCameraOpen(true);
+                      }}
+                      disabled={!photoPolicy.allowed}
+                      title={photoPolicy.allowed ? 'Change pet photo' : 'Photo change limit reached'}
+                      aria-label={photoPolicy.allowed ? 'Upload photo' : 'Photo change limit reached'}
+                    >
+                      {uploadingPhoto ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`photo-change-limit-note pet-photo-limit-note ${photoPolicy.allowed ? '' : 'is-locked'}`}>
+                  {photoLimitText}
+                </div>
+
+                {/* Remove Photo Link */}
+                {displayPhotoUrl && (
                   <button
                     type="button"
-                    onClick={handleDeletePetProfile}
-                    className="pet-delete-link-btn"
-                    title="Permanently remove pet profile"
+                    className="pet-photo-remove-btn"
+                    onClick={handleHardReset}
+                    title="Remove current pet photo and reset form"
                   >
-                    <Trash2 size={14} />
-                    <span>Delete Pet</span>
+                    <Trash2 size={13} />
+                    <span>Hard Reset</span>
                   </button>
+                )}
+
+                {uploadingPhoto && (
+                  <span className="pet-photo-upload-status">
+                    <Loader2 size={12} className="animate-spin" /> Uploading & compressing photo...
+                  </span>
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="btn btn-primary pet-update-submit-btn"
-              >
-                {submitting ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Check size={18} />
-                )}
-                <span>Update Pet Details</span>
-              </button>
-            </div>
-          </form>
+              {/* 3. Fixed Information Row System */}
+              <form onSubmit={handleSubmit} className="pet-info-form">
+                <div className="pet-info-rows-container">
+                  {/* ROW 1: Pet Name */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => openTextModal('name')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Dog size={20} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Pet Name <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!dogName ? 'placeholder' : ''}`}>
+                        {dogName || 'Enter pet name'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ROW 2: Breed */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('breed')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Bone size={20} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Breed <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!breed ? 'placeholder' : ''}`}>
+                        {breed || 'Select breed'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* ROW 3: Age */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('age')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Calendar size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Age <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!age ? 'placeholder' : ''}`}>
+                        {age || 'Select age'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* ROW 4: Gender */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('gender')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <VenusAndMars size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Gender <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!gender ? 'placeholder' : ''}`}>
+                        {gender || 'Male'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* ROW 5: Size Category */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('size')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Ruler size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Size Category <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!size ? 'placeholder' : ''}`}>
+                        {size && size.includes('Large') && !size.includes('Extra') ? 'Large (> 25 kg)' : size || 'Large (> 25 kg)'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* ROW 6: Color & Markings */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('color')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Palette size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Color & Markings <span className="required-star">*</span>
+                      </span>
+                      <span className={`pet-info-value ${!color ? 'placeholder' : ''}`}>
+                        {color || 'Select color'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* ROW 7: Distinctive Marks */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => openTextModal('marks')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Fingerprint size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Distinctive Marks (Optional)
+                      </span>
+                      <span className={`pet-info-value ${!distinguishingMarks ? 'placeholder' : ''}`}>
+                        {distinguishingMarks || 'None (optional)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ROW 8: Collar, Tag, or Microchip */}
+                  <div
+                    className="pet-info-row"
+                    onClick={() => setActiveModal('collar')}
+                  >
+                    <div className="pet-info-icon-tile">
+                      <Tag size={19} />
+                    </div>
+                    <div className="pet-info-content">
+                      <span className="pet-info-label">
+                        Collar, Tag, or Microchip
+                      </span>
+                      <span className="pet-info-value">
+                        {hasCollarOrChip ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes' ? `Yes (${collarDetails})` : 'Yes') : 'No'}
+                      </span>
+                    </div>
+                    <div className="pet-info-action">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+
+                  {/* Optional companion detail input when Collar/Tag is Yes */}
+                  {hasCollarOrChip && (
+                    <div className="collar-inline-detail-wrap">
+                      <input
+                        type="text"
+                        className="collar-inline-input"
+                        placeholder="e.g. Red collar with bell, QR Tag, Microchip #..."
+                        value={collarDetails.toLowerCase().trim() === 'yes' ? '' : collarDetails}
+                        onChange={(e) => setCollarDetails(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Bottom Actions in Edit Mode */}
+                <div className="pet-profile-actions-bottom edit-mode-actions">
+                  {isPetFilled && (
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="pet-cancel-edit-btn"
+                    >
+                      <X size={16} />
+                      <span>Cancel</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="pet-save-btn"
+                  >
+                    {submitting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Check size={18} />
+                    )}
+                    <span>Save Pet Details</span>
+                  </button>
+                </div>
+
+                <div style={{ textAlign: 'center', marginTop: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleExitToDashboard}
+                    className="pet-skip-direct-btn"
+                    title="I don't have a pet / Skip to Homepage"
+                  >
+                    <span>I don’t have a pet / Skip to Homepage</span>
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
 
@@ -872,6 +1175,41 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
           </div>
         </div>
       )}
+
+      <CameraModal 
+        isOpen={isCameraOpen} 
+        onClose={() => setIsCameraOpen(false)} 
+        title="Pet Profile Photo"
+        captureButtonText="Capture Pet Photo"
+        onCapture={async (photoData) => {
+          try {
+            setUploadingPhoto(true);
+            const res = await fetch(photoData);
+            const blob = await res.blob();
+            const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+            
+            const compressed = await compressImage(file, 800, 800, 0.82);
+            if (!compressed) throw new Error('Compression failed');
+
+            if (user) {
+              try {
+                const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, compressed, 0);
+                setPrimaryPhoto(uploadedUrl || compressed);
+              } catch (uploadErr) {
+                setPrimaryPhoto(compressed);
+              }
+            } else {
+              setPrimaryPhoto(compressed);
+            }
+            showToast('🐾 Pet photo updated!', 'success');
+          } catch (e) {
+            console.error('Failed to process camera photo', e);
+            showToast('Could not process photo. Please try another image.', 'error');
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }} 
+      />
     </div>
   );
 };

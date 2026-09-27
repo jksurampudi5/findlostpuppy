@@ -48,7 +48,6 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     acceptedForms.guidelines;
 
   const canContinue = masterAgreed || allIndividualFormsChecked;
-  const acceptedCount = Object.values(acceptedForms).filter(Boolean).length;
 
   // Toggle all forms at once
   const handleToggleAllForms = (checked: boolean) => {
@@ -112,15 +111,6 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                   Tap a card to read it. You can also accept everything together below.
                 </span>
               </div>
-
-              <button
-                type="button"
-                id="toggle-all-forms-btn"
-                className="btn btn-ghost btn-sm select-all-forms-btn"
-                onClick={() => handleToggleAllForms(!allIndividualFormsChecked)}
-              >
-                {allIndividualFormsChecked ? 'Clear All' : `Accept All 4 (${acceptedCount}/4)`}
-              </button>
             </div>
 
             {/* Form 1: Terms & Conditions */}

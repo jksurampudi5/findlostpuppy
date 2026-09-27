@@ -12,6 +12,9 @@ export interface SelectorOption {
   swatchColor?: string;
   swatchBorder?: string;
   letter?: string;
+  hasPetAlert?: boolean;
+  alertCount?: number;
+  badge?: React.ReactNode;
 }
 
 export interface PetProfileSelectorProps {
@@ -24,6 +27,7 @@ export interface PetProfileSelectorProps {
   searchable?: boolean;
   searchPlaceholder?: string;
   showAlphabetScrubber?: boolean;
+  closeOnSelect?: boolean;
 }
 
 const ALPHABET = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
@@ -38,6 +42,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
   searchable = false,
   searchPlaceholder = 'Search...',
   showAlphabetScrubber = false,
+  closeOnSelect = true,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLetter, setActiveLetter] = useState<string>('#');
@@ -108,7 +113,9 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
 
   const handleSelect = (val: string) => {
     onSelect(val);
-    onClose();
+    if (closeOnSelect) {
+      onClose();
+    }
   };
 
   const handleImageError = (id: string) => {
@@ -185,7 +192,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
                       else itemRefs.current.delete(opt.id);
                     }}
                     type="button"
-                    className={`pet-selector-item ${isSelected ? 'selected' : ''}`}
+                    className={`pet-selector-item ${isSelected ? 'selected' : ''} ${opt.hasPetAlert ? 'has-pet-alert' : ''}`}
                     onClick={() => handleSelect(opt.id)}
                   >
                     {/* Visual: Avatar / Swatch / Icon */}
@@ -217,6 +224,18 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
                         <span className="pet-selector-item-sublabel">{opt.secondaryLabel}</span>
                       )}
                     </div>
+
+                    {/* Green Dog Alert Indicator / Pointer */}
+                    {opt.hasPetAlert ? (
+                      <div className="pet-selector-alert-badge" title={`${opt.alertCount || 1} dog(s) present in this area`}>
+                        <span className="pet-selector-alert-pulse-dot" />
+                        <span className="pet-selector-alert-text">
+                          {opt.alertCount && opt.alertCount > 1 ? `${opt.alertCount} Dogs` : 'Dog Present'}
+                        </span>
+                      </div>
+                    ) : opt.badge ? (
+                      opt.badge
+                    ) : null}
 
                     {/* Selection Checkmark */}
                     {isSelected && <Check size={18} className="pet-selector-item-check" />}

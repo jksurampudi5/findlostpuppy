@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   Navigation,
   RefreshCw,
   Building,
@@ -29,6 +30,7 @@ interface LocationOnboardingPageProps {
 
 export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onSuccess,
+  onBack,
 }) => {
   const { user, hasCompletedLocation, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
@@ -41,9 +43,13 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       refreshProgress();
     };
     window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('findlostpuppy_data_synced', handleUpdate);
+    window.addEventListener('findlostpuppy_session_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('findlostpuppy_data_synced', handleUpdate);
+      window.removeEventListener('findlostpuppy_session_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, [refreshProgress]);
@@ -63,9 +69,32 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     existingProfile?.mandalOrMunicipality || ''
   );
   const [city, setCity] = useState<string>(existingProfile?.city || '');
+  const [streetOrLocality, setStreetOrLocality] = useState<string>(
+    existingProfile?.streetOrLocality || (existingProfile as any)?.street || ''
+  );
   const [pinCode, setPinCode] = useState(existingProfile?.pinCode || '');
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
+
+  const hasManuallyResetRef = useRef(false);
+
+  // Auto-populate when profile data arrives from cloud/Firestore (unless user manually clicked reset)
+  useEffect(() => {
+    if (hasManuallyResetRef.current) return;
+    if (existingProfile) {
+      const pStreet = existingProfile.streetOrLocality || (existingProfile as any).street || '';
+      if (!streetOrLocality && pStreet) {
+        setStreetOrLocality(pStreet);
+      }
+      if (!state && existingProfile.state) setState(existingProfile.state);
+      if (!district && existingProfile.district) setDistrict(existingProfile.district);
+      if (!mandalOrMunicipality && existingProfile.mandalOrMunicipality) {
+        setMandalOrMunicipality(existingProfile.mandalOrMunicipality);
+      }
+      if (!city && existingProfile.city) setCity(existingProfile.city);
+      if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
+    }
+  }, [existingProfile]);
 
   // Dynamic localities loaded for currently selected district and mandal
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
@@ -84,6 +113,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [detecting, setDetecting] = useState(false);
   const [showLocationRationale, setShowLocationRationale] = useState(false);
   const [showGpsOffModal, setShowGpsOffModal] = useState(false);
+  const [showPermissionDeniedDialog, setShowPermissionDeniedDialog] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
@@ -96,6 +126,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     district: existingProfile?.district || '',
     mandal: existingProfile?.mandalOrMunicipality || '',
     city: existingProfile?.city || '',
+    street: existingProfile?.streetOrLocality || (existingProfile as any)?.street || '',
     pinCode: existingProfile?.pinCode || '',
   });
 
@@ -104,6 +135,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     district !== savedSnapshot.district ||
     mandalOrMunicipality !== savedSnapshot.mandal ||
     city !== savedSnapshot.city ||
+    streetOrLocality !== savedSnapshot.street ||
     pinCode !== savedSnapshot.pinCode;
 
   // 1. State Options
@@ -272,6 +304,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
   const handleCitySelect = (newCity: string) => {
     setCity(newCity);
+    if (!streetOrLocality.trim()) {
+      setStreetOrLocality(`${newCity} Main Road`);
+    }
     setActiveLocationModal(null);
     resolvePinCodeForLocality(newCity, mandalOrMunicipality, district);
   };
@@ -279,13 +314,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   // Compute safe public preview string
   const calculatePublicArea = useCallback(() => {
     const parts = [
+      streetOrLocality.trim(),
       city.trim(),
       mandalOrMunicipality.trim() ? `${mandalOrMunicipality.trim()} (Mandal)` : '',
       district.trim(),
       state.trim(),
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
-  }, [city, district, mandalOrMunicipality, state]);
+  }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
   // Direct native location detector
   const handleDetectClick = () => {
@@ -298,6 +334,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   };
 
   const handleResetLocation = () => {
+    hasManuallyResetRef.current = true;
     if (autoSyncTimerRef.current) {
       window.clearTimeout(autoSyncTimerRef.current);
       autoSyncTimerRef.current = null;
@@ -306,6 +343,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     setDistrict('');
     setMandalOrMunicipality('');
     setCity('');
+    setStreetOrLocality('');
     setPinCode('');
     setLatitude(undefined);
     setLongitude(undefined);
@@ -313,11 +351,44 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     setPinConflictNote('');
     setHasDetected(false);
     setActiveLocationModal(null);
+    setDetecting(false);
+
+    setSavedSnapshot({
+      state: '',
+      district: '',
+      mandal: '',
+      city: '',
+      street: '',
+      pinCode: '',
+    });
+
+    if (user && existingProfile) {
+      storageService.saveOwnerProfile({
+        ...existingProfile,
+        state: '',
+        district: '',
+        mandalOrMunicipality: '',
+        city: '',
+        streetOrLocality: '',
+        pinCode: '',
+        latitude: undefined,
+        longitude: undefined,
+        approximateArea: '',
+        subDistrictCode: undefined,
+        localityCode: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+      refreshProgress();
+      window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+
     showToast('Location fields reset. Choose manually or detect again.', 'info');
   };
 
   // Hardware GPS & Native Geolocation Detection
   const executeDetectLocation = async () => {
+    hasManuallyResetRef.current = false;
     if (isDetectingRef.current) return;
     isDetectingRef.current = true;
     setDetecting(true);
@@ -341,6 +412,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       const rawDistrict = geo.district || district;
       const detectedMandal = geo.mandal || mandalOrMunicipality;
       const detectedCity = geo.city || city;
+      const detectedStreet = geo.street || streetOrLocality || (detectedCity ? `${detectedCity} Main Road` : '');
       const detectedPin = geo.pinCode || pinCode;
 
       const match = await locationService.matchLocation({
@@ -360,6 +432,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         setDistrict(match.district.districtName);
         setMandalOrMunicipality(match.subDistrict.subDistrictName);
         setCity(finalCity);
+        const resolvedStreet = detectedStreet || (finalCity ? `${finalCity} Main Road` : '');
+        setStreetOrLocality(resolvedStreet);
         if (detectedPin) {
           setPinCode(detectedPin);
         } else {
@@ -367,6 +441,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         }
 
         setHasDetected(true);
+        setShowPermissionDeniedDialog(false);
         setActiveLocationModal(null);
 
         const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
@@ -390,6 +465,15 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         setHasDetected(true);
         setActiveLocationModal('district');
         showToast('Please select your District and Mandal from the squares below.', 'info');
+        
+        // Fallback: populate raw detected values
+        if (detectedState) setState(detectedState);
+        if (rawDistrict) setDistrict(rawDistrict);
+        if (detectedMandal) setMandalOrMunicipality(detectedMandal);
+        if (detectedCity) setCity(detectedCity);
+        const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
+        setStreetOrLocality(resolvedStreet);
+        if (detectedPin) setPinCode(detectedPin);
       }
     } catch (hardErr: any) {
       setHasDetected(true);
@@ -398,9 +482,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         hardErr?.code === 'LOCATION_SERVICES_DISABLED' ||
         (errorMsg.toLowerCase().includes('location') && (errorMsg.toLowerCase().includes('off') || errorMsg.toLowerCase().includes('disabled')));
 
+      const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
+
       if (isGpsOff) {
         setShowGpsOffModal(true);
         showToast('📍 Device Location is turned off. Please enable Location in phone quick settings.', 'warning');
+      } else if (isDenied) {
+        setShowPermissionDeniedDialog(true);
+        showToast('Location permission denied. Please enable Precise Location in settings.', 'warning');
       } else {
         setActiveLocationModal('district');
         showToast(
@@ -413,6 +502,30 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       setDetecting(false);
     }
   };
+
+  // Auto-recheck location permission on app resume / window focus until granted
+  useEffect(() => {
+    if (!showPermissionDeniedDialog) return;
+
+    const handleRecheckOnResume = () => {
+      if (showPermissionDeniedDialog && !isDetectingRef.current) {
+        executeDetectLocation();
+      }
+    };
+
+    window.addEventListener('focus', handleRecheckOnResume);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleRecheckOnResume();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', handleRecheckOnResume);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [showPermissionDeniedDialog]);
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
@@ -458,6 +571,8 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         district: district.trim(),
         mandalOrMunicipality: mandalOrMunicipality.trim(),
         city: city.trim(),
+        streetOrLocality: streetOrLocality.trim(),
+        street: streetOrLocality.trim(),
         pinCode: pinCode.trim(),
         stateCode: distObj?.stateCode,
         districtCode: distObj?.districtCode,
@@ -480,6 +595,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         district: district.trim(),
         mandal: mandalOrMunicipality.trim(),
         city: city.trim(),
+        street: streetOrLocality.trim(),
         pinCode: pinCode.trim(),
       });
 
@@ -540,14 +656,35 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     };
   }, [user, hasUnsavedChanges, state, district, mandalOrMunicipality, city, pinCode, handleSyncLocation]);
 
+  const isLocationValid = Boolean(
+    state.trim() &&
+    district.trim() &&
+    mandalOrMunicipality.trim() &&
+    city.trim()
+  );
+
   const handleProceedToPup = () => {
+    if (!isLocationValid) {
+      showToast('Please select State, District, Mandal, and Home Base before continuing.', 'warning');
+      return;
+    }
+    handleSyncLocation({ silent: true });
     if (onSuccess) {
       onSuccess();
     } else {
-      setActiveOnboardingTab('dog');
-      navigate('/pet');
+      setActiveOnboardingTab('choice');
+      navigate('/choice');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      setActiveOnboardingTab('owner');
+      navigate('/owner');
+    }
   };
 
   const handleExitToDashboard = () => {
@@ -570,6 +707,20 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           </button>
           <div className="section-card-title-block">
             <h1>Location</h1>
+          </div>
+          {/* Top-left back button inside container for going back to Owner Profile */}
+          <div className="pet-profile-header-bar location-header-bar">
+            <div className="pet-profile-header-left">
+              <button
+                type="button"
+                className="pet-profile-back-btn location-back-btn"
+                onClick={handleBack}
+                title="Go back to Owner Profile"
+                aria-label="Back to Owner Profile"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            </div>
           </div>
           <div className="location-profile-header">
             <div className="location-header-actions">
@@ -687,6 +838,43 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                   </div>
                 </button>
               </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', padding: '0.75rem 0.25rem 0' }}>
+                {/* 5. STREET / LOCALITY SQUARE */}
+                <div
+                  className="loc-grid-square loc-gsq-street"
+                  style={{ cursor: 'text' }}
+                >
+                  <div className="loc-gsq-top">
+                    <div className="loc-gsq-icon">
+                      <MapPin size={20} />
+                    </div>
+                    <span className="loc-gsq-label">Street / Precise Area</span>
+                  </div>
+                  <div className="loc-gsq-value-wrap" style={{ width: '100%' }}>
+                    <input
+                      type="text"
+                      value={streetOrLocality}
+                      onChange={(e) => setStreetOrLocality(e.target.value)}
+                      placeholder="Enter street or auto-detect"
+                      className="loc-gsq-value"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#fff',
+                        width: '100%',
+                        outline: 'none',
+                        padding: 0,
+                        fontWeight: 'bold',
+                        textAlign: 'center'
+                      }}
+                    />
+                    <span className="loc-gsq-pin-btn" style={{ cursor: 'text' }}>
+                      {streetOrLocality ? 'Editable street / colony' : 'Auto-detected or type street'}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {pinConflictNote && (
                 <div
@@ -720,9 +908,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <button
                         type="button"
                         onClick={handleProceedToPup}
+                        disabled={!isLocationValid}
                         className="btn btn-primary btn-lg continue-to-pup-btn"
+                        title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
+                        style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                       >
-                        <span>Continue</span>
+                        <span>Continue to Pet Details</span>
                         <ArrowRight size={18} />
                       </button>
                     </>
@@ -735,9 +926,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                       <button
                         type="button"
                         onClick={handleProceedToPup}
+                        disabled={!isLocationValid}
                         className="btn btn-primary btn-lg continue-to-pup-btn"
+                        title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
+                        style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                       >
-                        <span>Continue</span>
+                        <span>Continue to Pet Details</span>
                         <ArrowRight size={18} />
                       </button>
                     </>
@@ -757,6 +951,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         onSelect={handleStateChange}
         searchable
         searchPlaceholder="Search state..."
+        closeOnSelect={false}
       />
 
       <PetProfileSelector
@@ -768,6 +963,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         onSelect={handleDistrictChange}
         searchable
         searchPlaceholder={state ? 'Search district...' : 'Select state first'}
+        closeOnSelect={false}
       />
 
       <PetProfileSelector
@@ -779,6 +975,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         onSelect={handleMandalSelect}
         searchable
         searchPlaceholder={district ? 'Search mandal...' : 'Select district first'}
+        closeOnSelect={false}
       />
 
       <PetProfileSelector
@@ -812,6 +1009,19 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         }}
         onContinue={() => {
           setShowGpsOffModal(false);
+          executeDetectLocation();
+        }}
+      />
+
+      <PermissionRationaleModal
+        isOpen={showPermissionDeniedDialog}
+        title="Enable Precise Location in Settings"
+        message="Location permission was denied. To protect pets and detect your exact community (State, District, Mandal, Home Base), please enable Location in your device or browser settings, then tap Try Again."
+        continueLabel="Try Again"
+        cancelLabel="Stay on Page"
+        onCancel={() => setShowPermissionDeniedDialog(false)}
+        onContinue={() => {
+          setShowPermissionDeniedDialog(false);
           executeDetectLocation();
         }}
       />

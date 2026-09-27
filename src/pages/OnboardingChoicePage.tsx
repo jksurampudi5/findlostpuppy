@@ -1,15 +1,26 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Camera, Dog, LayoutDashboard, Plus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Dog, LayoutDashboard, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { storageService } from '../services/storageService';
+import { getDogPhotoUrl } from '../utils/dogPhotoHelper';
 
 export const OnboardingChoicePage: React.FC = () => {
   const navigate = useNavigate();
-  const { setActiveOnboardingTab } = useAuth();
+  const { user, setActiveOnboardingTab } = useAuth();
+
+  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
+  const hasExistingPet = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
+  const petPhotoUrl = existingPet ? getDogPhotoUrl(existingPet) : '';
+
+  const handleBack = () => {
+    setActiveOnboardingTab('location');
+    navigate('/location');
+  };
 
   const exitToDashboard = () => {
     setActiveOnboardingTab('dashboard');
-    navigate('/dashboard');
+    navigate('/homepage');
   };
 
   const goToPetDetails = () => {
@@ -21,6 +32,9 @@ export const OnboardingChoicePage: React.FC = () => {
     setActiveOnboardingTab('dashboard');
     navigate('/capture');
   };
+
+  // Preserve feature for reference
+  void goToCapturePet;
 
   return (
     <div className="onboarding-page onboarding-choice-page">
@@ -36,43 +50,96 @@ export const OnboardingChoicePage: React.FC = () => {
             <X size={19} />
           </button>
 
-          <div className="section-card-title-block">
-            <h1>What would you like to do?</h1>
-            <p>Choose the next step. You can add your pet now, report a sighting, or skip and come back later.</p>
+          {/* Top-left back button inside container for going back to Location */}
+          <div className="pet-profile-header-bar choice-header-bar">
+            <div className="pet-profile-header-left">
+              <button
+                type="button"
+                className="pet-profile-back-btn choice-back-btn"
+                onClick={handleBack}
+                title="Go back to Location"
+                aria-label="Back to Location"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            </div>
           </div>
 
+          <div className="section-card-title-block">
+            <h1>{hasExistingPet ? 'Pet Registered' : 'Pet Choice'}</h1>
+            <p>
+              {hasExistingPet
+                ? `You already have a pet registered (${existingPet?.name || 'Buddy'}). Review pet details or skip to community.`
+                : 'Choose the next step. You can add your pet now or continue to the community homepage.'}
+            </p>
+          </div>
+
+          {hasExistingPet && existingPet && (
+            <div className="existing-pet-status-pill">
+              <span className="existing-pet-status-dot"></span>
+              <span>
+                ✓ You already have a pet: <strong>{existingPet.name}</strong>{' '}
+                {existingPet.breed ? `(${existingPet.breed})` : ''}
+              </span>
+            </div>
+          )}
+
           <div className="onboarding-choice-grid">
-            <button type="button" className="onboarding-choice-option pet-option" onClick={goToPetDetails}>
-              <span className="choice-icon-wrap">
-                <Dog size={30} />
-              </span>
-              <span className="choice-copy">
-                <strong>Add My Pet</strong>
-                <small>Create or update your pet details and photo.</small>
-              </span>
-              <ArrowRight size={20} />
-            </button>
+            {hasExistingPet && existingPet ? (
+              <button
+                type="button"
+                className="onboarding-choice-option pet-option existing-pet-active-option"
+                onClick={goToPetDetails}
+              >
+                <span className="choice-icon-wrap choice-pet-avatar-wrap">
+                  {petPhotoUrl ? (
+                    <img
+                      src={petPhotoUrl}
+                      alt={existingPet.name}
+                      className="choice-pet-avatar-img"
+                    />
+                  ) : (
+                    <Dog size={30} />
+                  )}
+                </span>
+                <span className="choice-copy">
+                  <strong>You already have a pet: {existingPet.name}</strong>
+                  <small>
+                    View & edit {existingPet.name}'s details, then continue to Pet Safety Status.
+                  </small>
+                </span>
+                <ArrowRight size={20} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="onboarding-choice-option pet-option"
+                onClick={goToPetDetails}
+              >
+                <span className="choice-icon-wrap">
+                  <Dog size={30} />
+                </span>
+                <span className="choice-copy">
+                  <strong>Add My Pet</strong>
+                  <small>Create or update your pet details and photo.</small>
+                </span>
+                <ArrowRight size={20} />
+              </button>
+            )}
 
-            <button type="button" className="onboarding-choice-option sighting-option" onClick={goToCapturePet}>
-              <span className="choice-icon-wrap">
-                <Camera size={30} />
-              </span>
-              <span className="choice-copy">
-                <strong>Report Pet Sighting</strong>
-                <small>Capture a missing pet photo and detected location privately.</small>
-              </span>
-              <ArrowRight size={20} />
-            </button>
-
-            <button type="button" className="onboarding-choice-option skip-option" onClick={exitToDashboard}>
+            <button
+              type="button"
+              className="onboarding-choice-option skip-option"
+              onClick={exitToDashboard}
+            >
               <span className="choice-icon-wrap">
                 <LayoutDashboard size={30} />
               </span>
               <span className="choice-copy">
-                <strong>Skip for Now</strong>
-                <small>Go to Dashboard. You can add details later.</small>
+                <strong>I don’t have a pet / Skip</strong>
+                <small>Skip directly to community homepage. You can add pet details anytime.</small>
               </span>
-              <Plus size={20} />
+              <ArrowRight size={20} />
             </button>
           </div>
         </section>
