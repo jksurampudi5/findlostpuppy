@@ -34,7 +34,19 @@
   </head>
   <body>
     <div id="root">
-      <div id="splash-pre-bootstrap" style="position:fixed;inset:0;background:#09090B;z-index:9999999;"></div>
+      <div id="splash-pre-bootstrap" style="position:fixed;inset:0;background:#09090B;z-index:9999999;transition:opacity 0.3s ease;"></div>
+      <script>
+        // Fail-safe: Ensure black pre-bootstrap overlay never traps the user if bundle loading stalls
+        setTimeout(function() {
+          var splash = document.getElementById('splash-pre-bootstrap');
+          if (splash) {
+            splash.style.opacity = '0';
+            setTimeout(function() {
+              if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+            }, 300);
+          }
+        }, 3500);
+      </script>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

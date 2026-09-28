@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:android": "node scripts/validate_firebase_env.mjs && CAPACITOR_BUILD=true tsc -b && CAPACITOR_BUILD=true vite build",
+    "sync:android": "npx cap copy android && node scripts/verify_android_assets.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

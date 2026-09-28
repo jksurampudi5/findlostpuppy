@@ -26,6 +26,8 @@ try {
       consentVersion: '1.0', termsVersion: '1.0', privacyVersion: '1.0', disclaimerVersion: '1.0',
       guidelinesVersion: '1.0', agreedAt: '2026-01-01T00:00:00Z',
     }));
+    localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
+    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
   });
   for (const width of (process.env.AUDIT_WIDTHS || '320,390,768,1024').split(',').map(Number)) {
     await page.setViewport({ width, height: 844, deviceScaleFactor: 1 });
