@@ -505,15 +505,30 @@ async function getNativeGeocodedAddress(
     const district = addr.subAdministrativeArea?.trim() || undefined;
     const mandal = addr.subLocality?.trim() || undefined;
     const city = addr.locality?.trim() || undefined;
+
+    // Google Plus Code filter: patterns like "QMCX+3RF", "VX5J+Q3", "8FW4+RX Hyderabad" etc.
+    // These are Open Location Codes returned by Android geocoder's areasOfInterest/thoroughfare
+    // and are NOT human-readable street names. Filter them out entirely.
+    const PLUS_CODE_REGEX = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+
+    const rawThoroughfare = addr.thoroughfare?.trim();
+    const rawSubThoroughfare = addr.subThoroughfare?.trim();
+    const rawAreaOfInterest =
+      Array.isArray(addr.areasOfInterest) && addr.areasOfInterest.length > 0
+        ? addr.areasOfInterest[0]?.trim()
+        : undefined;
+
     const street =
-      addr.thoroughfare?.trim() ||
-      addr.subThoroughfare?.trim() ||
-      (Array.isArray(addr.areasOfInterest) && addr.areasOfInterest.length > 0 ? addr.areasOfInterest[0]?.trim() : undefined) ||
+      (rawThoroughfare && !PLUS_CODE_REGEX.test(rawThoroughfare) ? rawThoroughfare : undefined) ||
+      (rawSubThoroughfare && !PLUS_CODE_REGEX.test(rawSubThoroughfare) ? rawSubThoroughfare : undefined) ||
+      (rawAreaOfInterest && !PLUS_CODE_REGEX.test(rawAreaOfInterest) ? rawAreaOfInterest : undefined) ||
       undefined;
+
     const rawPin = addr.postalCode?.replace(/\D/g, '').slice(0, 6);
     const pinCode = rawPin && rawPin.length === 6 ? rawPin : undefined;
 
-    console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, street, pinCode });
+    console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, street, pinCode,
+      rawThoroughfare, rawSubThoroughfare, rawAreaOfInterest });
 
     // Return null if we got absolutely nothing useful
     if (!state && !district && !city && !street && !pinCode) {
@@ -716,12 +731,18 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       district = mergedDistrict;
       mandal = mergedMandal;
     }
-    // Village/city and pinCode always come from whichever geocoding tier returned them
-    city = mergedCity || mandal;
+    // Village/city comes from whichever geocoding tier returned it.
+    // IMPORTANT: Do NOT fall back to mandal here — that causes village and mandal to show as identical.
+    // If city is truly unknown, leave it undefined and let matchLocation/locality picker resolve it.
+    city = mergedCity || undefined;
     let street = mergedStreet;
-    // Bulletproof Street Guarantee: If street is still not detected, ensure a sensible, clean locality / street appears
-    if (!street && city) {
-      street = `${city} Main Road`;
+    // Street Guarantee: If street is still not detected, compute a clean locality/street name.
+    // Use city if known, otherwise use mandal (not as the city value, only for the street label).
+    if (!street) {
+      const streetBase = city || mandal;
+      if (streetBase) {
+        street = `${streetBase} Main Road`;
+      }
     }
     pinCode = mergedPin;
 
