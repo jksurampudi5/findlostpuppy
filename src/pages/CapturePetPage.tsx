@@ -536,9 +536,29 @@ export const CapturePetPage: React.FC = () => {
     }
   }, [displayedReports, selectedReportId]);
 
+  // Stop camera on unmount (navigation away)
   useEffect(() => {
     return () => {
       stopCamera();
+    };
+  }, [stopCamera]);
+
+  // Stop camera when user switches tabs, minimizes app, or the page is hidden
+  // This ensures the camera indicator light turns off when not actively using the page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        stopCamera();
+      }
+    };
+    const handlePageHide = () => {
+      stopCamera();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, [stopCamera]);
 
@@ -592,9 +612,8 @@ export const CapturePetPage: React.FC = () => {
     }
     if (updated.length === 0) {
       setShowReviewPopup(false);
-      if (cameraConsentAccepted) {
-        startCamera();
-      }
+      // Don't auto-restart camera — user must click "Turn on Camera" again
+      // This prevents unintended camera access
     }
   };
 
@@ -616,18 +635,31 @@ export const CapturePetPage: React.FC = () => {
     setLatitude(undefined);
     setLongitude(undefined);
     setShowReviewPopup(false);
-    startCamera();
+    // Reset consent so user must explicitly click "Turn on Camera" again
+    // This gives clear, intentional control over when camera is active
+    setCameraConsentAccepted(false);
+    stopCamera();
   };
 
   const handleCloseReview = () => {
     setShowReviewPopup(false);
-    if (cameraConsentAccepted) {
-      startCamera();
-    }
+    // Don't auto-restart camera — user must click "Turn on Camera" again
+    // Camera should only be on when explicitly requested
   };
 
   const handleRotateCamera = () => {
+    // Only switch and restart if camera is currently running
+    // If camera is off, just update the mode for when they turn it on next
+    const wasRunning = cameraReady;
     setCameraFacingMode((current) => (current === 'environment' ? 'user' : 'environment'));
+    if (wasRunning) {
+      // startCamera will pick up the new facingMode in the next render cycle
+      // We stop immediately and let the user see the "Turn on Camera" button briefly,
+      // then restart automatically since they clearly want the camera on (they just rotated it)
+      stopCamera();
+      // Small timeout so facingMode state update is committed before startCamera reads it
+      setTimeout(() => { startCamera(); }, 80);
+    }
   };
 
   const handleDetectLocation = async (hasConfirmed = locationConsentAccepted) => {
