@@ -5,6 +5,7 @@ const backend = fs.readFileSync('worker/index.ts', 'utf8');
 const envExample = fs.readFileSync('.env.example', 'utf8');
 
 const failures = [];
+/** Records a privacy-check failure when the supplied condition is false. */
 const requireText = (condition, message) => { if (!condition) failures.push(message); };
 
 requireText(!service.includes('VITE_CLOUDINARY_API_SECRET'), 'Cloudinary API secret reference exists in client service.');

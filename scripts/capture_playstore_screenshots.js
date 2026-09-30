@@ -11,6 +11,7 @@ if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
+/** Seeds a browser session and captures Play Store screenshots in the configured output directory. */
 async function captureScreenshots() {
   console.log('🚀 Launching headless Chrome for Play Store screenshot capture...');
   const browser = await puppeteer.launch({

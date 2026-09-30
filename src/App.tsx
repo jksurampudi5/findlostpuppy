@@ -30,6 +30,7 @@ import { NetworkResilience } from './components/NetworkResilience';
 import { ServerFailureNotice } from './components/fallbacks/ServerFailureNotice';
 import { LoadingFallback } from './components/fallbacks/LoadingFallback';
 
+/** Throws when the development-only forceErrorBoundary query flag is present; otherwise renders nothing. */
 function DevelopmentErrorProbe() {
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('forceErrorBoundary')) {
     throw new Error('Intentional development-only error boundary check');
@@ -39,6 +40,7 @@ function DevelopmentErrorProbe() {
 
 import './App.css';
 
+/** Renders application routes according to session loading, authentication, consent, and onboarding state. */
 function MainAppFlow() {
   const {
     isAuthenticated,
@@ -255,6 +257,7 @@ function MainAppFlow() {
   );
 }
 
+/** Composes routing, session providers, recovery notices, and the app shell, and starts cloud synchronization. */
 export function App() {
   const basename = import.meta.env.BASE_URL;
 

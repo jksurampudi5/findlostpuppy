@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import { getDogPhotoUrl } from '../utils/dogPhotoHelper';
 
+/** Offers pet registration or the existing-pet flow, with an option to skip to the dashboard. */
 export const OnboardingChoicePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, setActiveOnboardingTab } = useAuth();

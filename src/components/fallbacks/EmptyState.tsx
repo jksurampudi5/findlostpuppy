@@ -9,6 +9,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
+/** Renders an accessible empty-state message with optional icon and action content. */
 export function EmptyState({ title, message, action, icon, className = '' }: EmptyStateProps) {
   return (
     <div className={`standard-empty-state ${className}`} role="status">

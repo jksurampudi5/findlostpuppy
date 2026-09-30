@@ -39,6 +39,7 @@ import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
+/** Displays administrative records, synchronization controls, and confirmed cleanup actions. */
 export const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -89,6 +90,7 @@ export const AdminDashboardPage: React.FC = () => {
   }, []);
 
   // Quick Manual Firebase Sync
+  /** Pulls Firebase data, refreshes the admin lists, and reports whether cloud data or local cache was used. */
   const handleManualSync = async () => {
     setIsSyncing(true);
     showToast('🔄 Syncing with Firebase Cloud Database...', 'info');
@@ -129,6 +131,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // Import / Merge Backup JSON
+  /** Reads a selected JSON backup, imports its records, and refreshes the admin lists on success. */
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -163,6 +166,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [isWiping, setIsWiping] = useState(false);
   const [isWipingCloudinary, setIsWipingCloudinary] = useState(false);
   const [isClearingLegacyMedia, setIsClearingLegacyMedia] = useState(false);
+  /** Confirms removal of legacy photo references and reports the cleanup result. */
   const handleClearLegacyMedia = async () => {
     const confirmed = window.confirm(
       'Remove all legacy owner, pet, report, and sighting photo references? Authenticated Cloudinary images and Sonu will be preserved.'
@@ -179,6 +183,7 @@ export const AdminDashboardPage: React.FC = () => {
       setIsClearingLegacyMedia(false);
     }
   };
+  /** Requires typed confirmation before requesting Cloudinary image deletion and reporting its result. */
   const handleClearCloudinaryImages = async () => {
     const typedConfirmation = window.prompt(
       'Permanently delete every image in the connected Cloudinary environment. Type DELETE ALL FINDLOSTPUPPY MEDIA to continue.'
@@ -199,6 +204,7 @@ export const AdminDashboardPage: React.FC = () => {
       setIsWipingCloudinary(false);
     }
   };
+  /** Confirms test-data cleanup, awaits deletion, and refreshes the admin view. */
   const handleClearAllTestData = async () => {
     const confirmed = window.confirm(
       '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Firebase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
@@ -225,6 +231,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // Actions on Pet & Report Status
+  /** Toggles a report's safety status through the admin storage action and refreshes the records. */
   const handleToggleReportStatus = (reportId: string, currentStatus: ReportStatus) => {
     const nextStatus = currentStatus === 'LOST' ? 'SAFE' : 'LOST';
     storageService.updateReportStatus(reportId, nextStatus);
@@ -237,6 +244,7 @@ export const AdminDashboardPage: React.FC = () => {
     loadAllAdminData();
   };
 
+  /** Confirms user deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteUser = (userId: string, userName: string) => {
     const confirmed = window.confirm(`Admin Action: Permanently delete user "${userName}" and all associated data?`);
     if (!confirmed) return;
@@ -246,6 +254,7 @@ export const AdminDashboardPage: React.FC = () => {
     loadAllAdminData();
   };
 
+  /** Confirms pet deletion, runs the admin storage action, and refreshes the records. */
   const handleDeletePet = (petId: string, petName: string) => {
     const confirmed = window.confirm(`Admin Action: Remove pet profile "${petName}"?`);
     if (!confirmed) return;
@@ -255,6 +264,7 @@ export const AdminDashboardPage: React.FC = () => {
     loadAllAdminData();
   };
 
+  /** Confirms report deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteAlert = (reportId: string, dogName: string) => {
     const confirmed = window.confirm(`Admin Action: Remove missing alert for "${dogName}"?`);
     if (!confirmed) return;
@@ -264,6 +274,7 @@ export const AdminDashboardPage: React.FC = () => {
     loadAllAdminData();
   };
 
+  /** Confirms sighting deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteSighting = (sightingId: string) => {
     const confirmed = window.confirm('Admin Action: Delete this sighting report?');
     if (!confirmed) return;

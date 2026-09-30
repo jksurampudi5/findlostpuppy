@@ -28,6 +28,7 @@ import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { useAuth } from '../context/AuthContext';
 import { maskPhoneNumber, maskEmail, maskOwnerName, isOwnerOfReport } from '../utils/privacyUtils';
 
+/** Displays a routed pet report with owner actions and related sightings. */
 export const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

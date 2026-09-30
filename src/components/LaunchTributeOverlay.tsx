@@ -11,6 +11,7 @@ interface LaunchTributeOverlayProps {
   onClose?: () => void;
 }
 
+/** Coordinates the launch animation and authenticated first-time tribute, with manual tribute access. */
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
   const { isAuthenticated, isLoading, hasCompletedOwner } = useAuth();
   const [visible, setVisible] = useState(() => {

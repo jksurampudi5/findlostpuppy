@@ -39,6 +39,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Provides session, consent, onboarding progress, and account actions to descendant components. */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
   const [isLoading, setIsLoading] = useState(true);

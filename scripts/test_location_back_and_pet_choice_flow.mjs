@@ -13,6 +13,7 @@ function recordTest(name, passed, details = '') {
   console.log(`${icon} [${passed ? 'PASS' : 'FAIL'}] ${name} ${details ? `(${details})` : ''}`);
 }
 
+/** Runs browser checks for location navigation and pet choice, recording results and screenshots. */
 async function run() {
   console.log('🚀 Running Location Back Button & Pet Choice Flow Tests...\n');
 

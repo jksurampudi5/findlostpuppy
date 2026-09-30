@@ -8,6 +8,7 @@ import type { LostReport, Sighting } from '../types';
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { EmptyState } from '../components/fallbacks/EmptyState';
 
+/** Displays pet-status categories and grouped sightings with owner-gated safe-pet detail dialogs. */
 export const DashboardPage: React.FC = () => {
   const { user, petSafetyStatus } = useAuth();
   const { showToast } = useToast();
@@ -57,6 +58,7 @@ export const DashboardPage: React.FC = () => {
     }
   }, [location.state]);
 
+  /** Selects a pet-status category and opens its list modal. */
   const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
     setSelectedStatus(status);
     setStatusPanelOpen(true);
@@ -124,8 +126,10 @@ export const DashboardPage: React.FC = () => {
   const getSightingReport = (sighting: Sighting) =>
     reports.find((report) => report.id === sighting.reportId || report.id.toLowerCase() === sighting.reportId.toLowerCase());
 
+  /** Matches the current user against normalized owner IDs or the report's contact email. */
   const isCurrentUserPetOwner = (report: LostReport) => {
     if (!user) return false;
+    /** Removes repeated owner prefixes and normalizes whitespace and case for ID comparisons. */
     const normalizeOwnerId = (value?: string) =>
       (value || '').replace(/^(owner-)+/i, '').trim().toLowerCase();
     const userId = normalizeOwnerId(user.id);
@@ -135,15 +139,18 @@ export const DashboardPage: React.FC = () => {
     return ownerIds.includes(userId) || Boolean(userEmail && reportEmail && userEmail === reportEmail);
   };
 
+  /** Allows missing-report details for everyone and other report details only for a matching owner. */
   const canViewReportDetails = (report: LostReport) =>
     report.status === 'LOST' || isCurrentUserPetOwner(report);
 
+  /** Hides the category list and opens the selected sighting at the requested photo index. */
   const openSightingDetails = (sighting: Sighting, photoIndex: number = 0) => {
     setStatusPanelOpen(false);
     setDetailSighting(sighting);
     setActiveSightingPhotoIndex(photoIndex);
   };
 
+  /** Checks detail visibility before replacing the category list with the selected pet report. */
   const openPetDetails = (report: LostReport) => {
     if (!canViewReportDetails(report)) {
       showToast('Safe pet details are private to the pet owner.', 'info');
@@ -153,11 +160,13 @@ export const DashboardPage: React.FC = () => {
     setDetailReport(report);
   };
 
+  /** Closes pet details and restores the category list modal. */
   const closePetDetails = () => {
     setDetailReport(null);
     setStatusPanelOpen(true);
   };
 
+  /** Closes sighting details and restores the category list modal. */
   const closeSightingDetails = () => {
     setDetailSighting(null);
     setStatusPanelOpen(true);

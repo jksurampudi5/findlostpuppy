@@ -13,6 +13,7 @@ const secrets = [CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRE
 const ADMIN_EMAIL = 'jksurampudi5@gmail.com';
 const CATEGORIES = new Set(['profile', 'pet', 'missing-report', 'sighting']);
 
+/** Configures the Cloudinary SDK from the deployed Firebase secrets. */
 function configureCloudinary() {
   cloudinary.config({
     cloud_name: CLOUDINARY_CLOUD_NAME.value(),
@@ -22,23 +23,28 @@ function configureCloudinary() {
   });
 }
 
+/** Returns the callable request's auth context, or throws an unauthenticated HttpsError. */
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in is required.');
   return request.auth;
 }
 
+/** Checks the admin claim or configured administrator email in an auth context. */
 function isAdmin(auth) {
   return auth.token.email?.toLowerCase() === ADMIN_EMAIL || auth.token.admin === true;
 }
 
+/** Converts a value to an identifier with only letters, digits, underscores, and hyphens, capped at 120 characters. */
 function clean(value) {
   return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
 }
 
+/** Hashes a Cloudinary public ID into a deterministic Firestore document ID. */
 function assetDocId(publicId) {
   return crypto.createHash('sha256').update(publicId).digest('hex');
 }
 
+/** Returns the user-scoped media folder for a validated category, defaulting to sightings. */
 function folderFor(category, uid) {
   if (category === 'profile') return `findlostpuppy/private/profiles/${uid}`;
   if (category === 'pet') return `findlostpuppy/private/pets/${uid}`;
@@ -46,6 +52,7 @@ function folderFor(category, uid) {
   return `findlostpuppy/public-alerts/sightings/${uid}`;
 }
 
+/** Deletes Firestore references in sequential batches of at most 400; rejects if a commit fails. */
 async function deleteDocumentsInChunks(refs) {
   for (let index = 0; index < refs.length; index += 400) {
     const batch = db.batch();
@@ -150,6 +157,7 @@ exports.deleteMyAccount = onCall({ secrets, timeoutSeconds: 540 }, async (reques
   const uidVariants = [auth.uid, `owner-${auth.uid}`];
   const email = String(auth.token.email || '').toLowerCase().trim();
   const refs = new Map();
+  /** Collects document references from a query snapshot, deduplicating by document path. */
   const addDocs = (snapshot) => snapshot.docs.forEach((item) => refs.set(item.ref.path, item.ref));
 
   const mediaSnapshot = await db.collection('media_assets').where('ownerId', '==', auth.uid).get();

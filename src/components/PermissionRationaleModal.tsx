@@ -13,6 +13,7 @@ interface PermissionRationaleModalProps {
   onAlternative?: () => void;
 }
 
+/** Explains camera or location access and offers consent, cancellation, or the supplied alternative action. */
 export const PermissionRationaleModal: React.FC<PermissionRationaleModalProps> = ({
   isOpen,
   title,

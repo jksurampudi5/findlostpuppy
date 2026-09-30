@@ -8,6 +8,7 @@ interface StoredDraft<T> {
 const MAX_DRAFT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_DRAFT_BYTES = 4 * 1024 * 1024;
 
+/** Reads a stored draft value, removing drafts older than seven days; returns null when absent or unreadable. */
 export function readCrashSafeDraft<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
@@ -23,6 +24,7 @@ export function readCrashSafeDraft<T>(key: string): T | null {
   }
 }
 
+/** Removes the draft at the supplied storage key, ignoring storage-access failures. */
 export function clearCrashSafeDraft(key: string): void {
   try {
     localStorage.removeItem(key);

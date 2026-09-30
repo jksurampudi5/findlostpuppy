@@ -11,6 +11,7 @@ interface CameraModalProps {
   captureButtonText?: string;
 }
 
+/** Provides camera capture with permission recovery and returns the captured photo through onCapture. */
 export const CameraModal: React.FC<CameraModalProps> = ({ 
   isOpen, 
   onClose, 

@@ -18,6 +18,7 @@ interface ConsentPageProps {
   ) => void;
 }
 
+/** Presents legal consent and age confirmation before allowing the user to continue. */
 export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => {
   // Individual forms consent state
   const [acceptedForms, setAcceptedForms] = useState<Record<'terms' | 'privacy' | 'disclaimer' | 'guidelines', boolean>>({

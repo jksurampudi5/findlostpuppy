@@ -12,6 +12,7 @@ interface PermissionFallbackProps {
   extraAction?: ReactNode;
 }
 
+/** Offers retry and alternative actions for camera or location access, with optional settings access. */
 export function PermissionFallback({
   type,
   onRetry,

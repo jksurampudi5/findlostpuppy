@@ -25,6 +25,7 @@ interface ReportLostDogPageProps {
   onSuccess?: () => void;
 }
 
+/** Manages pet safety status, missing-report submission, and sharing with recovery of report drafts. */
 export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   onBackToPet,
   onSuccess,
@@ -102,6 +103,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
   // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Open broadcast form.
   // The LOST state is committed only after the form is submitted successfully.
+  /** Opens the missing-report form, or shows an existing-broadcast notice when the pet is already reported missing. */
   const handleSelectMissing = () => {
     setUserSelectedChoice('missing');
     if (existingReport?.status === 'LOST') {
@@ -114,6 +116,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   };
 
   // ACTION 3: Handle Report Submission from Modal
+  /** Builds and saves the missing report from submitted details and the owner's existing pet information. */
   const handleModalSubmitReport = (reportData: {
     dateLost: string;
     timeLost: string;
@@ -234,6 +237,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   };
 
   // ACTION 6: 1-Click WhatsApp SOS Alert Share (preserved)
+  /** Builds a WhatsApp SOS link from the active report or pet details and attempts to copy the dashboard URL. */
   const handleWhatsAppShare = () => {
     const activeReport = existingReport || (user ? storageService.getLatestReportByUserId(user.id) : null);
     const contactPhone =

@@ -19,6 +19,7 @@ interface PetParentContactPageProps {
   onSuccess?: () => void;
 }
 
+/** Displays saved owner contact details and an editing form with managed profile-photo uploads. */
 export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSuccess }) => {
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +61,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   }, [photo]);
 
   useEffect(() => {
+    /** Applies a completed queued profile upload to the current owner's stored profile, session, and form. */
     const handleRetriedUpload = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (!user || detail?.category !== 'profile' || detail?.referenceId !== user.id || !detail?.publicUrl) return;
@@ -148,6 +150,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       ? `${photoPolicy.remaining} owner photo change${photoPolicy.remaining === 1 ? '' : 's'} left this month.`
       : 'Owner photo change limit reached. Admin approval is required.';
 
+  /** Compresses and uploads a selected owner photo, queuing unsuccessful uploads for retry. */
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -216,6 +219,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
   };
 
+  /** Deletes the managed profile photo before clearing the owner's saved name, phone, and avatar. */
   const handleHardReset = async () => {
     const isAppManagedPhoto = photo.includes('cloudinary.com') || photo.includes('firebasestorage');
     if (isAppManagedPhoto) {
@@ -262,6 +266,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     setIsEditing(false);
   };
 
+  /** Validates contact fields and a completed photo upload, saves the owner profile, and returns whether it succeeded. */
   const saveProfileInternal = (showNotification = true): boolean => {
     if (!fullName.trim()) {
       showToast('Please enter your full name.', 'warning');

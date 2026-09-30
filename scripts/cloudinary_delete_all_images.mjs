@@ -22,6 +22,7 @@ if (!confirmed) {
 
 cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
 
+/** Counts image assets across all resource pages for the supplied Cloudinary delivery type. */
 async function countImages(type) {
   let count = 0;
   let nextCursor;

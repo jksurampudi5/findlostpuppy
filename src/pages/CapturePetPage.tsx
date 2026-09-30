@@ -138,6 +138,7 @@ const isMatchCity = (r: LostReport, targetState: string, targetDistrict: string,
   return combinedText.includes(tc);
 };
 
+/** Supports location-filtered missing-pet selection and sighting submission using camera or gallery photos. */
 export const CapturePetPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -463,11 +464,13 @@ export const CapturePetPage: React.FC = () => {
   // Stop camera when user switches tabs, minimizes app, or the page is hidden
   // This ensures the camera indicator light turns off when not actively using the page
   useEffect(() => {
+    /** Stops the camera when the document becomes hidden. */
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         stopCamera();
       }
     };
+    /** Stops the camera when the page is being hidden or unloaded. */
     const handlePageHide = () => {
       stopCamera();
     };
@@ -521,6 +524,7 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
+  /** Compresses the selected gallery image and adds it within the three-photo limit. */
   const handleGalleryPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -539,6 +543,7 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
+  /** Removes a captured photo, adjusts the active review index, and closes review if no photos remain. */
   const handleRemovePhoto = (idxToRemove: number) => {
     const updated = capturedPhotos.filter((_, i) => i !== idxToRemove);
     setCapturedPhotos(updated);
@@ -562,6 +567,7 @@ export const CapturePetPage: React.FC = () => {
     stopCamera();
   };
 
+  /** Clears captured photos and detected location, stops the camera, and resets camera consent. */
   const handleRetake = () => {
     setCapturedPhotos([]);
     setActiveReviewPhotoIndex(0);
@@ -576,12 +582,14 @@ export const CapturePetPage: React.FC = () => {
     stopCamera();
   };
 
+  /** Closes photo review without restarting the camera. */
   const handleCloseReview = () => {
     setShowReviewPopup(false);
     // Don't auto-restart camera — user must click "Turn on Camera" again
     // Camera should only be on when explicitly requested
   };
 
+  /** Switches the preferred camera facing mode and restarts capture if the camera was running. */
   const handleRotateCamera = () => {
     // Only switch and restart if camera is currently running
     // If camera is off, just update the mode for when they turn it on next
@@ -637,6 +645,7 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
+  /** Uploads or queues captured photos and saves a sighting for the selected report and signed-in user. */
   const handleSubmit = async () => {
     if (!user || !selectedReport) return;
     if (capturedPhotos.length === 0) {

@@ -153,7 +153,9 @@ try {
 
       if (route === 'dashboard') {
         const modalFlow = await page.evaluate(async () => {
+          /** Waits 50 milliseconds for modal updates before the next browser assertion. */
           const pause = () => new Promise(resolve => setTimeout(resolve, 50));
+          /** Clicks the first matching HTML element, throwing if the selector does not resolve to one. */
           const click = (selector) => {
             const element = document.querySelector(selector);
             if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);

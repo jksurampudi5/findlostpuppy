@@ -9,6 +9,7 @@ export const MAX_MEDIA_QUEUE_SIZE = 10;
 const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS === 'true';
 const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || '').replace(/\/$/, '');
 
+/** Re-encodes an image as JPEG with a maximum dimension of 1600 pixels, removing source metadata; returns null on failure. */
 async function sanitizePublicImage(blob: Blob): Promise<Blob | null> {
   try {
     const bitmap = await createImageBitmap(blob);
@@ -139,6 +140,7 @@ async function toBlob(input: File | Blob | string): Promise<{ blob: Blob; mimeTy
   return null;
 }
 
+/** Calls a mapped media Worker endpoint with a Firebase ID token; returns null when unavailable or unsuccessful. */
 async function callMediaFunction<T>(name: string, data: Record<string, unknown>): Promise<T | null> {
   if (!auth?.currentUser || !SECURE_CLOUDINARY_FUNCTIONS || !MEDIA_WORKER_URL) return null;
   try {
@@ -165,6 +167,7 @@ async function callMediaFunction<T>(name: string, data: Record<string, unknown>)
   }
 }
 
+/** Sanitizes and uploads an image with server authorization, then finalizes it; returns its URL or null, and may reject on network errors. */
 async function secureCloudinaryUpload(
   category: QueuedMediaItem['category'],
   referenceId: string,
@@ -414,10 +417,12 @@ export const storageBucketService = {
     } catch {}
   },
 
+  /** Removes the persisted media retry queue when local storage is available. */
   clearQueue(): void {
     if (typeof localStorage !== 'undefined') localStorage.removeItem(MEDIA_QUEUE_KEY);
   },
 
+  /** Retries queued media, emits an event for each successful upload, and retains failures; returns uploaded and pending counts. */
   async flushQueue(): Promise<{ uploaded: number; pending: number }> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { uploaded: 0, pending: this.getQueue().length };
@@ -489,6 +494,7 @@ export const storageBucketService = {
     return false;
   },
 
+  /** Requests an administrator-only Cloudinary reset with the required confirmation and returns whether it succeeded. */
   async hardResetCloudinary(): Promise<boolean> {
     const result = await callMediaFunction<{ deleted: boolean }>('hardResetCloudinary', {
       confirmation: 'DELETE ALL FINDLOSTPUPPY MEDIA',
@@ -496,6 +502,7 @@ export const storageBucketService = {
     return result?.deleted === true;
   },
 
+  /** Requests hosted-media cleanup for the current account and returns whether the server confirmed deletion. */
   async deleteMyAccountData(): Promise<boolean> {
     const result = await callMediaFunction<{ deleted: boolean }>('deleteMyAccount', {
       confirmation: 'DELETE',

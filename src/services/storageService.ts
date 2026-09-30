@@ -2398,6 +2398,7 @@ class StorageService {
     }
   }
 
+  /** Merges accessible Firebase records into local storage and signals synchronization success or failure; returns a success flag. */
   async pullFromFirebase(): Promise<boolean> {
     try {
       const data = await firebaseSyncService.fetchAllCloudData();
@@ -2705,7 +2706,9 @@ class StorageService {
     }
   }
 
+  /** Clears legacy photo references while preserving authenticated Cloudinary media and Sonu, syncs changes, and returns the removed count. */
   async clearLegacyMediaReferences(): Promise<number> {
+    /** Checks whether a media value contains a Cloudinary host and authenticated image path. */
     const isAuthenticatedCloudinary = (value?: string) =>
       Boolean(value && value.includes('res.cloudinary.com') && value.includes('/image/authenticated/'));
     let cleared = 0;

@@ -17,6 +17,7 @@ interface SettingsLegalModalProps {
   initialTab?: 'legal' | 'consent' | 'blocked' | 'delete';
 }
 
+/** Displays legal settings and account-deletion controls for the current user. */
 export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
   isOpen,
   onClose,
@@ -60,6 +61,7 @@ export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
     setBlockedUsers(storageService.getBlockedUsers());
   };
 
+  /** Confirms account deletion and awaits cleanup before closing the modal; displays failures for retry. */
   const handleDeleteAccount = async () => {
     if (deleteInputConfirmation.trim().toUpperCase() !== 'DELETE') {
       setDeleteError('Please type "DELETE" exactly to confirm.');

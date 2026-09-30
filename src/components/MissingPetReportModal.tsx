@@ -34,6 +34,7 @@ interface MissingPetReportModalProps {
   isEditing?: boolean;
 }
 
+/** Collects a pet's last-seen time and area in a modal backed by a recoverable local draft. */
 export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   isOpen,
   onClose,
@@ -83,6 +84,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   }, [isOpen, onClose]);
 
   // 1-Click Resilient Location Detection from the Place Where Pet is Lost
+  /** Fills the last-known location with a detected area name and reports detection or permission failures. */
   const autoDetectGPS = async () => {
     setIsDetectingLocation(true);
     try {
@@ -122,6 +124,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Validates the last-known location, clears the draft, and passes report details to the submission callback. */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!lastKnownLocation.trim()) {

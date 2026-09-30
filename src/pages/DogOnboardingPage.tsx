@@ -47,6 +47,7 @@ interface DogOnboardingPageProps {
   onSuccess?: () => void;
 }
 
+/** Displays saved pet details or the pet registration form, including photo upload and removal actions. */
 export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   onBackToLocation,
   onBackToOwner,
@@ -149,6 +150,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
 
   // Handle Photo File Upload with compression & storage persistence
+  /** Compresses the chosen pet photo and uploads it, queuing the image when upload cannot complete. */
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -302,6 +304,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   ], []);
 
   // Handle Save / Submit Pet Profile
+  /** Validates and saves pet details, handling media uploads before completing the form flow. */
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!user) {

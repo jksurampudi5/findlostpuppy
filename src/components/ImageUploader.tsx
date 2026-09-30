@@ -12,6 +12,7 @@ interface ImageUploaderProps {
   petId?: string;
 }
 
+/** Provides photo selection, compression, upload progress, and retry-queue handling for pet images. */
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   primaryPhoto,
   additionalPhotos,
@@ -25,6 +26,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgressText, setUploadProgressText] = useState<string>('');
 
+  /** Validates and compresses selected images, then uploads pet photos or queues unsuccessful uploads. */
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setErrorMsg('');

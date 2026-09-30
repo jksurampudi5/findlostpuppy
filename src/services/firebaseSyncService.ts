@@ -684,6 +684,7 @@ export const firebaseSyncService = {
     }
   },
 
+  /** Updates the caller's report status, or matching pet reports for an admin; returns false when unavailable or an error is caught. */
   async updatePetSafetyStatus(petId: string, isLost: boolean): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {

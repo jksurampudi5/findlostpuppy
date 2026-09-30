@@ -10,6 +10,7 @@ interface FallbackShellProps {
   loading?: boolean;
 }
 
+/** Renders the shared fallback layout as a loading status or alert, with optional recovery actions. */
 export function FallbackShell({
   title,
   message,

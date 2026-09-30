@@ -40,6 +40,7 @@ import { clearCrashSafeDraft, readCrashSafeDraft, useCrashSafeDraft } from '../h
 import { LoadingFallback } from '../components/fallbacks/LoadingFallback';
 import { EmptyState } from '../components/fallbacks/EmptyState';
 
+/** Displays a shared missing-pet report and a guest sighting form with draft recovery. */
 export const GuestSightingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
@@ -149,6 +150,7 @@ export const GuestSightingPage: React.FC = () => {
   const dogDisplayName = getDogDisplayName(report?.dog, report);
 
   // 1-Click Resilient Location Detector for Good Samaritan
+  /** Detects sighting coordinates and fills the public location field with an approximate area name. */
   const handleDetectGPS = async () => {
     setGpsDetecting(true);
     try {
@@ -212,6 +214,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Submit Sighting in GUEST MODE (No login required!)
+  /** Validates a guest sighting, uploads or queues photos, and saves the sighting before clearing its draft. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -291,6 +294,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Share Alert to WhatsApp
+  /** Builds a WhatsApp SOS link for the report and attempts to copy its dashboard URL. */
   const handleShareWhatsApp = () => {
     if (!report || !report.dog) return;
     const ownerPhone =

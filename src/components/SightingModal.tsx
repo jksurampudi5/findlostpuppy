@@ -18,6 +18,7 @@ interface SightingModalProps {
   onSightingAdded: () => void;
 }
 
+/** Collects a sighting for a missing report, restoring and saving an expiring local form draft. */
 export const SightingModal: React.FC<SightingModalProps> = ({
   isOpen,
   onClose,
@@ -92,6 +93,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
     }
   };
 
+  /** Validates sighting details, uploads or queues the photo, and saves the sighting before clearing its draft. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim() || !description.trim()) {

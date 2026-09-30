@@ -5,6 +5,7 @@ import { storageService } from '../services/storageService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { OfflineFallback } from './fallbacks/OfflineFallback';
 
+/** Shows connectivity recovery UI and retries queued media and cloud pulls after reconnection. */
 export function NetworkResilience() {
   const online = useOnlineStatus();
   const [reconnected, setReconnected] = useState(false);
@@ -13,11 +14,13 @@ export function NetworkResilience() {
   useEffect(() => {
     let hideTimer: number | undefined;
 
+    /** Marks the connection as lost and hides the reconnection notice. */
     const handleOffline = () => {
       wasOffline.current = true;
       setReconnected(false);
     };
 
+    /** After an offline period, retries queued uploads and cloud synchronization, then schedules notice dismissal. */
     const handleOnline = async () => {
       if (wasOffline.current) {
         setReconnected(true);

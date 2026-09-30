@@ -13,6 +13,7 @@ type WorkerEnv = {
 type FirebaseClaims = JWTPayload & { email?: string; admin?: boolean; user_id?: string };
 const categories = new Set(['profile', 'pet', 'missing-report', 'sighting']);
 
+/** Builds JSON and CORS headers, selecting the request origin when allowed or the first configured origin otherwise. */
 function corsHeaders(request: Request, env: WorkerEnv): HeadersInit {
   const origin = request.headers.get('Origin') || '';
   const allowed = env.ALLOWED_ORIGINS.split(',').map((item) => item.trim());
@@ -25,10 +26,12 @@ function corsHeaders(request: Request, env: WorkerEnv): HeadersInit {
   };
 }
 
+/** Serializes a response body as JSON with the supplied status and configured CORS headers. */
 function json(request: Request, env: WorkerEnv, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(request, env) });
 }
 
+/** Verifies a bearer token against Firebase's signing keys, issuer, and audience; returns claims or rejects. */
 async function authenticate(request: Request, env: WorkerEnv): Promise<FirebaseClaims> {
   const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) throw new Error('UNAUTHENTICATED');
@@ -42,20 +45,24 @@ async function authenticate(request: Request, env: WorkerEnv): Promise<FirebaseC
   return verified.payload;
 }
 
+/** Returns the Firebase user ID from verified claims, throwing UNAUTHENTICATED when absent. */
 function uidOf(claims: FirebaseClaims): string {
   const uid = String(claims.user_id || claims.sub || '');
   if (!uid) throw new Error('UNAUTHENTICATED');
   return uid;
 }
 
+/** Checks verified claims for the admin flag or configured administrator email. */
 function isAdmin(claims: FirebaseClaims, env: WorkerEnv): boolean {
   return claims.admin === true || claims.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase();
 }
 
+/** Converts a value to an identifier with only letters, digits, underscores, and hyphens, capped at 120 characters. */
 function clean(value: unknown): string {
   return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
 }
 
+/** Returns the user-scoped media folder for a validated category, defaulting to sightings. */
 function folderFor(category: string, uid: string): string {
   if (category === 'profile') return `findlostpuppy/private/profiles/${uid}`;
   if (category === 'pet') return `findlostpuppy/private/pets/${uid}`;
@@ -63,6 +70,7 @@ function folderFor(category: string, uid: string): string {
   return `findlostpuppy/recovery/sightings/${uid}`;
 }
 
+/** Checks whether a public ID belongs to one of the user's permitted media-folder prefixes. */
 function ownedBy(publicId: string, uid: string): boolean {
   return publicId.startsWith(`findlostpuppy/private/profiles/${uid}/`) ||
     publicId.startsWith(`findlostpuppy/private/pets/${uid}/`) ||
@@ -70,6 +78,7 @@ function ownedBy(publicId: string, uid: string): boolean {
     publicId.startsWith(`findlostpuppy/recovery/sightings/${uid}/`);
 }
 
+/** Configures the Cloudinary SDK with the Worker's server-side credentials. */
 function configure(env: WorkerEnv): void {
   cloudinary.config({
     cloud_name: env.CLOUDINARY_CLOUD_NAME,
@@ -79,6 +88,7 @@ function configure(env: WorkerEnv): void {
   });
 }
 
+/** Fetches authenticated image metadata from Cloudinary, rejecting unsuccessful verification requests. */
 async function getAuthenticatedImage(publicId: string, env: WorkerEnv): Promise<{ format: string; bytes: number }> {
   const credentials = btoa(`${env.CLOUDINARY_API_KEY}:${env.CLOUDINARY_API_SECRET}`);
   const response = await fetch(
@@ -89,6 +99,7 @@ async function getAuthenticatedImage(publicId: string, env: WorkerEnv): Promise<
   return response.json<{ format: string; bytes: number }>();
 }
 
+/** Builds a signed authenticated-delivery URL with automatic image format and quality transformations. */
 async function signedAuthenticatedImageUrl(publicId: string, env: WorkerEnv): Promise<string> {
   const transformation = 'f_auto,q_auto';
   const signatureInput = `${transformation}/${publicId}${env.CLOUDINARY_API_SECRET}`;
@@ -99,11 +110,13 @@ async function signedAuthenticatedImageUrl(publicId: string, env: WorkerEnv): Pr
   return `https://res.cloudinary.com/${env.CLOUDINARY_CLOUD_NAME}/image/authenticated/s--${signature}--/${transformation}/${encodedPublicId}`;
 }
 
+/** Parses JSON after rejecting a declared Content-Length above 16 KiB; rejects invalid JSON. */
 async function body(request: Request): Promise<Record<string, unknown>> {
   if (Number(request.headers.get('content-length') || 0) > 16_384) throw new Error('INVALID');
   return request.json<Record<string, unknown>>();
 }
 
+/** Deletes an image across supported delivery types with cache invalidation, throwing if any deletion fails. */
 async function deleteAsset(publicId: string, env: WorkerEnv): Promise<void> {
   for (const type of ['authenticated', 'upload', 'private']) {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -133,6 +146,7 @@ async function deleteAsset(publicId: string, env: WorkerEnv): Promise<void> {
   }
 }
 
+/** Routes media requests, verifying Firebase identity and operation-specific ownership or admin permissions. */
 async function handle(request: Request, env: WorkerEnv): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request, env) });
   if (request.method !== 'POST') return json(request, env, { error: 'Not found.' }, 404);
@@ -216,6 +230,7 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
 }
 
 export default {
+  /** Handles Worker requests and translates failures into JSON responses with CORS headers and mapped status codes. */
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     try {
       return await handle(request, env);

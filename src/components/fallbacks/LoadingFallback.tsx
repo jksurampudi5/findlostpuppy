@@ -8,6 +8,7 @@ interface LoadingFallbackProps {
   onRetry?: () => void;
 }
 
+/** Shows a loading message until the timeout, then offers a retry action that defaults to reloading. */
 export function LoadingFallback({
   message = 'Loading your pet information…',
   timeoutMs = 12000,

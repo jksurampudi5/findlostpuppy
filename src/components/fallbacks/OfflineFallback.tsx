@@ -3,6 +3,7 @@ import { FallbackShell } from './FallbackShell';
 
 interface OfflineFallbackProps { onRetry: () => void }
 
+/** Shows a full-screen offline message and invokes the supplied callback when Retry is selected. */
 export function OfflineFallback({ onRetry }: OfflineFallbackProps) {
   return (
     <FallbackShell

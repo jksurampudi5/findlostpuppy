@@ -6,6 +6,7 @@ import { storageService } from '../services/storageService';
 import { DogCard } from '../components/DogCard';
 import { EmptyState } from '../components/fallbacks/EmptyState';
 
+/** Displays searchable missing-pet reports and their discovery actions. */
 export const DiscoveryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState<LostReport[]>([]);

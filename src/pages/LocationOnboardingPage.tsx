@@ -28,6 +28,7 @@ interface LocationOnboardingPageProps {
   onBack?: () => void;
 }
 
+/** Supports manual or detected owner-location entry with separate state, district, mandal, and locality fields. */
 export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onSuccess,
   onBack,
@@ -75,6 +76,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   );
   // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
   const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes. */
   const cleanSavedStreet = (v?: string) =>
     v && !PLUS_CODE_RE.test(v.trim()) ? v.trim() : '';
 
@@ -326,6 +328,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     setActiveLocationModal('city');
   };
 
+  /** Selects a locality, fills a missing street placeholder, closes the picker, and resolves its PIN code. */
   const handleCitySelect = (newCity: string) => {
     setCity(newCity);
     // Only auto-fill street if there is no human-readable street already
@@ -415,6 +418,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   };
 
   // Hardware GPS & Native Geolocation Detection
+  /** Detects and matches location fields, requesting manual confirmation when a locality cannot be resolved. */
   const executeDetectLocation = async () => {
     hasManuallyResetRef.current = false;
     if (isDetectingRef.current) return;
