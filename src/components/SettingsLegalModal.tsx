@@ -70,7 +70,12 @@ export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
     setDeleteError('');
 
     try {
-      await deleteAccount();
+      const deleted = await deleteAccount();
+      if (!deleted) {
+        setDeleteError('We could not delete all account data. Nothing was cleared from this device. Please reconnect and try again.');
+        setIsDeleting(false);
+        return;
+      }
       setIsDeleting(false);
       onClose();
       // Page will reactively redirect to ConsentPage
@@ -341,8 +346,8 @@ export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
               <div className="warning-body">
                 <h3>Permanent Account & Data Deletion</h3>
                 <p>
-                  Deleting your account will permanently purge your personal profile, registered pet
-                  profiles, missing dog listings, photos, and associated sighting records.
+                  Deleting your account removes your personal profile, registered pet profiles,
+                  missing dog listings, associated records, and hosted images from the app.
                 </p>
               </div>
             </div>
@@ -367,8 +372,8 @@ export const SettingsLegalModal: React.FC<SettingsLegalModalProps> = ({
                 <li>
                   <span className="impact-bullet danger">✕</span>
                   <div>
-                    <strong>Photographs & Sightings:</strong> Uploaded dog photos and sighting comments
-                    submitted under this account are permanently removed.
+                    <strong>Photographs & Sightings:</strong> Sighting records and hosted images owned by
+                    your account are permanently removed before the account deletion completes.
                   </div>
                 </li>
                 <li>

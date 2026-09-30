@@ -29,6 +29,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
 
   // Master declaration checkbox
   const [masterAgreed, setMasterAgreed] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   // Active popup form modal
   const [activeModalDocId, setActiveModalDocId] = useState<
@@ -47,7 +48,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     acceptedForms.disclaimer &&
     acceptedForms.guidelines;
 
-  const canContinue = masterAgreed || allIndividualFormsChecked;
+  const canContinue = (masterAgreed || allIndividualFormsChecked) && ageConfirmed;
 
   // Toggle all forms at once
   const handleToggleAllForms = (checked: boolean) => {
@@ -280,11 +281,24 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
 
           {/* Master Signature & Acceptance Checkbox */}
           <div className="consent-form-signature-box">
-            <label className={`master-signature-label ${canContinue ? 'is-checked' : ''}`}>
+            <label className={`master-signature-label ${ageConfirmed ? 'is-checked' : ''}`}>
+              <input
+                type="checkbox"
+                id="adult-age-confirmation-checkbox"
+                checked={ageConfirmed}
+                onChange={(e) => setAgeConfirmed(e.target.checked)}
+                className="master-signature-checkbox"
+              />
+              <span className="master-signature-custom" aria-hidden="true"></span>
+              <span className="master-signature-text">
+                <strong>I confirm that I am at least 18 years old.</strong>
+              </span>
+            </label>
+            <label className={`master-signature-label ${masterAgreed || allIndividualFormsChecked ? 'is-checked' : ''}`}>
               <input
                 type="checkbox"
                 id="consent-acknowledgment-checkbox"
-                checked={canContinue}
+                checked={masterAgreed || allIndividualFormsChecked}
                 onChange={(e) => handleToggleAllForms(e.target.checked)}
                 className="master-signature-checkbox"
               />

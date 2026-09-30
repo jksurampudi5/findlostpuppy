@@ -4,6 +4,7 @@ import { Search, PawPrint, PlusCircle, X } from 'lucide-react';
 import type { LostReport, ReportStatus } from '../types';
 import { storageService } from '../services/storageService';
 import { DogCard } from '../components/DogCard';
+import { EmptyState } from '../components/fallbacks/EmptyState';
 
 export const DiscoveryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -246,23 +247,20 @@ export const DiscoveryPage: React.FC = () => {
 
         {/* Dogs Grid or Empty State */}
         {filteredReports.length === 0 ? (
-          <div className="empty-state-card card">
-            <div className="empty-icon-circle">
-              <PawPrint size={40} />
-            </div>
-            <h3 className="empty-title">🐾 No lost pups found matching your filters</h3>
-            <p className="empty-desc">
-              Try adjusting your search term, selecting "All Breeds", or resetting your filters.
-            </p>
-            <div className="empty-actions">
+          <EmptyState
+            className="empty-state-card card"
+            icon={<PawPrint size={40} />}
+            title="No search results"
+            message="Try changing your search or resetting the filters."
+            action={<>
               <button type="button" className="btn btn-primary" onClick={clearFilters}>
                 Clear All Filters
               </button>
               <Link to="/report" className="btn btn-outline">
                 Report a Missing Pup
               </Link>
-            </div>
-          </div>
+            </>}
+          />
         ) : (
           <div className="dogs-grid">
             {filteredReports.map((report) => (

@@ -12,7 +12,7 @@ export interface LegalDocument {
 export const TERMS_AND_CONDITIONS: LegalDocument = {
   id: 'terms',
   title: 'Terms & Conditions',
-  version: '1.0',
+  version: '1.1',
   lastUpdated: 'September 2026',
   sections: [
     {
@@ -111,13 +111,16 @@ export const TERMS_AND_CONDITIONS: LegalDocument = {
     },
     {
       heading: '15. Legal Compliance',
-      content:
-        'Users are required to comply with all applicable local, state, and national laws, including animal welfare regulations and privacy rules.',
+      content: [
+        'You must be at least 18 years old to create an account or submit personal data. This service is not directed to children.',
+        'Users must comply with applicable local, state, and national laws, including animal welfare, intellectual-property, privacy, and online-safety rules.',
+        'Nothing in these Terms limits rights that cannot legally be waived under applicable law.',
+      ],
     },
     {
       heading: '16. Contact Information & Support',
       content:
-        'For inquiries, concerns, or legal notices, please reach out to the community team at support@findlostpuppy.local or through the official GitHub project repository.',
+        'For support, privacy requests, grievances, or legal notices, contact the service operator at jksurampudi5@gmail.com. We will verify the requester before disclosing, correcting, or deleting protected data.',
     },
   ],
 };
@@ -125,7 +128,7 @@ export const TERMS_AND_CONDITIONS: LegalDocument = {
 export const PRIVACY_POLICY: LegalDocument = {
   id: 'privacy',
   title: 'Privacy Policy',
-  version: '1.0',
+  version: '1.1',
   lastUpdated: 'September 2026',
   sections: [
     {
@@ -146,13 +149,15 @@ export const PRIVACY_POLICY: LegalDocument = {
         'To help reunite pet parents with sighted dogs.',
         'To verify community search radiuses without exposing exact private addresses.',
         'To enforce community guidelines, prevent fraud, and moderate reported content.',
+        'We process data only for the stated service, safety, security, support, and legal-compliance purposes. We do not use pet or location data for targeted advertising.',
       ],
     },
     {
       heading: '3. Data Storage & Architecture',
       content: [
-        'In the current version (v1.0), application state, session data, user profiles, dog listings, and consent records are stored locally within your browser/device localStorage.',
-        'Your private home address is never collected or shown. Only broad, safe public administrative units (e.g. Village, Mandal, District) are shown on alerts.',
+        'Application state and cached records may be stored locally on your device. Account, profile, dog, missing-report, and sighting records may also be synchronized through Firebase.',
+        'Uploaded images may be stored through Firebase Storage or Cloudinary. The app does not send a full local database export to a separate community relay.',
+        'Precise address and coordinates are treated as private profile data. Public alerts use broad administrative areas such as Village, Mandal, and District.',
       ],
     },
     {
@@ -161,26 +166,50 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Public Data: Missing dog photos, names, breed, last-seen approximate area, and sighting notes are publicly visible to visitors.',
         'Protected Data: Your private telephone number and email are kept hidden by default and only revealed through protected contact mechanism actions.',
         'Third-Party Sharing: We do not sell, rent, or trade your personal information to third parties or advertisers.',
+        'Processors: Firebase, Cloudinary, and location lookup providers may process limited data to provide authentication, database, image hosting, and approximate-area lookup services under their own terms and applicable contracts.',
+        'Legal and Safety Disclosures: We may disclose information when required by valid law or when reasonably necessary to address fraud, abuse, or an immediate safety risk.',
       ],
     },
     {
-      heading: '5. Account & Data Deletion Rights',
+      heading: '5. Your Privacy Choices and Rights',
       content: [
-        'You have the complete right to delete your account and associated data at any time.',
-        'Navigate to Settings → Delete Account in the application.',
-        'Upon deletion, your profile, dog profiles, missing reports, photos, and active session are purged.',
+        'Depending on where you live and which law applies, you may request access to a summary of your data, correction, deletion, withdrawal of consent, or information about how it is processed. You may also nominate another person where Indian law provides that right.',
+        'Navigate to Settings → Delete Account to withdraw consent and request deletion, or contact jksurampudi5@gmail.com for access, correction, grievance, or appeal requests.',
+        'Account deletion removes associated application and database records. Some previously uploaded media may require separate provider-side deletion and can remain until that cleanup completes.',
         'Minimal anonymized moderation logs may be retained solely where necessary to prevent repeated abuse or comply with legal requirements.',
+        'Where applicable under U.S. state law, you may exercise privacy rights without discriminatory treatment. We do not sell personal information or share it for cross-context behavioral advertising.',
       ],
     },
     {
-      heading: '6. Cookies & Tracking',
-      content:
-        'Find Lost Puppy uses standard browser storage strictly for functional application state (authentication remembrance and saved pet data). We do not employ third-party advertising trackers.',
+      heading: '6. Retention and Security',
+      content: [
+        'We retain personal data only while it is reasonably needed for the purpose described here, account operation, safety and abuse prevention, or a legal obligation. Draft forms stored on your device expire after seven days.',
+        'We use access controls, owner-scoped database rules, private contact fields, bounded local image queues, and reasonable technical and organizational safeguards. No internet service can promise absolute security.',
+        'If a personal-data breach requires notice under applicable law, we will notify affected people and the relevant authority in the required manner.',
+      ],
     },
     {
-      heading: '7. Updates to this Policy',
+      heading: '7. Children',
       content:
-        'We may revise this Privacy Policy to reflect application enhancements. Changes will be posted with an updated version number and date.',
+        'FindLostPuppy is intended for adults aged 18 or older and is not directed to children. Do not create an account or submit personal data for a child. If we learn that a child’s personal data was submitted without legally required authorization, contact us and we will review and delete it as required.',
+    },
+    {
+      heading: '8. Cookies, Local Storage & Offline Recovery',
+      content:
+        'FindLostPuppy uses browser or app storage for authentication remembrance, consent, pet data, seven-day form recovery, and a bounded retry queue for compressed images. These features help prevent data loss after a crash or network interruption. We do not employ third-party advertising trackers.',
+    },
+    {
+      heading: '9. India and United States Requests',
+      content: [
+        'For users in India, this notice is intended to describe the personal data, purposes, consent choices, grievance channel, security measures, and deletion process relevant to the Digital Personal Data Protection Act, 2023 and rules brought into force from time to time.',
+        'For users in the United States, state privacy rights and thresholds differ. We honor applicable requests and maintain the no-sale/no-targeted-advertising practice stated above. The service is not directed to children under 13 and also requires all account holders to be at least 18.',
+        'Send requests to jksurampudi5@gmail.com. If an issue is not resolved, you may use any complaint or appeal route available under the law that applies to you.',
+      ],
+    },
+    {
+      heading: '10. Updates to this Policy',
+      content:
+        'We may revise this Privacy Policy to reflect application, provider, or legal changes. Material changes will be posted with an updated version and will require renewed acceptance when appropriate.',
     },
   ],
 };

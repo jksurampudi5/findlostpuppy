@@ -3,7 +3,7 @@ import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import logoTopHandImg from '../assets/logo_top_hand.png';
 import logoBottomHandImg from '../assets/logo_bottom_hand.png';
 import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
-import { consentService } from '../services/consentService';
+import { useAuth } from '../context/AuthContext';
 import './LaunchTributeOverlay.css';
 
 interface LaunchTributeOverlayProps {
@@ -12,6 +12,7 @@ interface LaunchTributeOverlayProps {
 }
 
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
+  const { isAuthenticated, isLoading, hasCompletedOwner } = useAuth();
   const [visible, setVisible] = useState(() => {
     if (forceOpen) return true;
     return sessionStorage.getItem('findlostpuppy_launch_seen') !== 'true';
@@ -53,12 +54,12 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     setPhase('logo');
     setIsFadingOut(false);
 
-    // Splash screen animation: 2 seconds, then check Gratitude + Safety
+    // The animated logo is the only app-controlled launch artwork. The
+    // inauguration is shown separately after a first-time user authenticates.
     const logoTimer = setTimeout(() => {
       const isGratitudeAccepted = localStorage.getItem('findlostpuppy_gratitude_seen') === 'true';
-      const isConsentAccepted = consentService.hasAcceptedCurrentConsent();
 
-      if (!isGratitudeAccepted || !isConsentAccepted) {
+      if (!isLoading && isAuthenticated && !hasCompletedOwner && !isGratitudeAccepted) {
         setPhase('tribute');
         setCurrentWordIndex(0);
         setShowProceedBtn(false);
@@ -75,7 +76,24 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     }, 2000);
 
     return () => clearTimeout(logoTimer);
-  }, [forceOpen, onClose, replayKey]);
+  }, [forceOpen, hasCompletedOwner, isAuthenticated, isLoading, onClose, replayKey]);
+
+  // Authentication can complete after the launch animation has closed. Show
+  // the inauguration then, but only for a genuinely new owner profile.
+  useEffect(() => {
+    if (
+      !forceOpen &&
+      !isLoading &&
+      isAuthenticated &&
+      !hasCompletedOwner &&
+      localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true'
+    ) {
+      setVisible(true);
+      setPhase('tribute');
+      setCurrentWordIndex(0);
+      setShowProceedBtn(false);
+    }
+  }, [forceOpen, hasCompletedOwner, isAuthenticated, isLoading]);
 
   // Global event listener to re-open from footer button
   useEffect(() => {

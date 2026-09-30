@@ -20,12 +20,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
+import { storageBucketService } from '../services/storageBucketService';
 import { locationService } from '../services/locationService';
 import type { LostReport, Sighting, OwnerProfile, LocationLocality } from '../types';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
+import { compressImage } from '../utils/imageCompressor';
 
 interface ReportGeoLocation {
   state: string;
@@ -136,44 +138,6 @@ const isMatchCity = (r: LostReport, targetState: string, targetDistrict: string,
   return combinedText.includes(tc);
 };
 
-const inferMandalForLocality = (
-  localityName: string,
-  stateName: string,
-  districtName: string,
-  reportsList: LostReport[],
-  profilesList: OwnerProfile[]
-): string => {
-  if (!localityName) return '';
-  const cleanLoc = localityName.trim().toLowerCase();
-
-  // 1. If locality itself matches a mandal name in this district
-  if (districtName) {
-    const subs = locationService.getSubDistricts(districtName, stateName);
-    const exactSub = subs.find(
-      (s) =>
-        s.subDistrictName.toLowerCase() === cleanLoc ||
-        s.subDistrictName.toLowerCase().includes(cleanLoc) ||
-        cleanLoc.includes(s.subDistrictName.toLowerCase())
-    );
-    if (exactSub) return exactSub.subDistrictName;
-  }
-
-  // 2. Look in reports and profiles for matching locality
-  for (const r of reportsList) {
-    const geo = getReportGeo(r, profilesList);
-    if (geo.village && (geo.village.toLowerCase() === cleanLoc || cleanLoc.includes(geo.village.toLowerCase()))) {
-      if (geo.mandal) return geo.mandal;
-    }
-  }
-
-  // 3. Known regional mandal fallbacks
-  if (/undrajavaram|palangi/i.test(cleanLoc)) return 'Undrajavaram';
-  if (/vikarabad|yennaepally/i.test(cleanLoc)) return 'Vikarabad';
-  if (/tanuku/i.test(cleanLoc)) return 'Tanuku';
-
-  return '';
-};
-
 export const CapturePetPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -181,6 +145,7 @@ export const CapturePetPage: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
@@ -211,60 +176,17 @@ export const CapturePetPage: React.FC = () => {
   const [latitude, setLatitude] = useState<number | undefined>();
   const [longitude, setLongitude] = useState<number | undefined>();
 
-  // 4 Location Grid Containers (Pre-populated from user's saved location/profile on startup)
-  const userProfile = useMemo(() => {
-    return user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
-  }, [user]);
-
-  const [state, setState] = useState<string>(() => userProfile?.state || 'Andhra Pradesh');
-  const [district, setDistrict] = useState<string>(() => userProfile?.district || 'West Godavari');
-  const [mandalOrMunicipality, setMandalOrMunicipality] = useState<string>(() => userProfile?.mandalOrMunicipality || 'Undrajavaram');
-  const [city, setCity] = useState<string>(() => userProfile?.city || userProfile?.streetOrLocality || 'Palangi');
+  // Capture filters always start blank. The person reporting the sighting must
+  // deliberately choose each level for the area where the pet was seen.
+  const [state, setState] = useState('');
+  const [district, setDistrict] = useState('');
+  const [mandalOrMunicipality, setMandalOrMunicipality] = useState('');
+  const [city, setCity] = useState('');
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
 
-  // Guard refs: ensure auto-detect/profile only populates ONCE at starting
-  // and NEVER overwrites after user hits the Reset button
-  const hasInitializedLocationRef = useRef(false);
-  const hasManuallyResetRef = useRef(false);
-
-  // Update from user profile ONLY ONCE on initial startup if not manually reset
-  useEffect(() => {
-    if (hasInitializedLocationRef.current || hasManuallyResetRef.current) return;
-    if (userProfile) {
-      if (userProfile.state) setState(userProfile.state);
-      if (userProfile.district) setDistrict(userProfile.district);
-      const inferredMandal =
-        userProfile.mandalOrMunicipality ||
-        inferMandalForLocality(
-          userProfile.city || userProfile.streetOrLocality || '',
-          userProfile.state || '',
-          userProfile.district || '',
-          reports,
-          profiles
-        );
-      if (inferredMandal) setMandalOrMunicipality(inferredMandal);
-      if (userProfile.city || userProfile.streetOrLocality) {
-        setCity(userProfile.city || userProfile.streetOrLocality || '');
-      }
-      hasInitializedLocationRef.current = true;
-    }
-  }, [userProfile, reports, profiles]);
-
-  // Keep mandal populated whenever city is present but mandal is empty (unless user has manually reset)
-  useEffect(() => {
-    if (hasManuallyResetRef.current) return;
-    if (!mandalOrMunicipality && city) {
-      const inferred = inferMandalForLocality(city, state, district, reports, profiles);
-      if (inferred) {
-        setMandalOrMunicipality(inferred);
-      }
-    }
-  }, [city, state, district, mandalOrMunicipality, reports, profiles]);
-
   const handleResetAreaFilters = () => {
-    hasManuallyResetRef.current = true;
     setState('');
     setDistrict('');
     setMandalOrMunicipality('');
@@ -446,15 +368,10 @@ export const CapturePetPage: React.FC = () => {
       }
     });
 
-    if (mandalOrMunicipality) {
-      villageNames.add(mandalOrMunicipality);
-    }
-
-    const list = Array.from(villageNames);
-    if (list.length === 0) {
-      if (mandalOrMunicipality) list.push(mandalOrMunicipality);
-      else list.push('Palangi');
-    }
+    const selectedMandal = mandalOrMunicipality.trim().toLowerCase();
+    const list = Array.from(villageNames).filter(
+      (villageName) => villageName.trim().toLowerCase() !== selectedMandal
+    );
 
     return list.map((vName) => {
       const count = reports.filter((r) => isMatchCity(r, state, district, mandalOrMunicipality, vName, profiles)).length;
@@ -604,6 +521,24 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
+  const handleGalleryPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (capturedPhotos.length >= 3) {
+      showToast('Maximum 3 photos can be added.', 'info');
+      return;
+    }
+    try {
+      const compressed = await compressImage(file, 900, 900, 0.82);
+      setCapturedPhotos((current) => [...current, compressed].slice(0, 3));
+      setShowCameraPermissionDialog(false);
+      showToast('Photo added from gallery.', 'success');
+    } catch {
+      showToast('We could not process that image. Please choose another photo.', 'error');
+    }
+  };
+
   const handleRemovePhoto = (idxToRemove: number) => {
     const updated = capturedPhotos.filter((_, i) => i !== idxToRemove);
     setCapturedPhotos(updated);
@@ -702,7 +637,7 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user || !selectedReport) return;
     if (capturedPhotos.length === 0) {
       showToast('Please capture at least 1 pet photo first.', 'warning');
@@ -714,8 +649,36 @@ export const CapturePetPage: React.FC = () => {
 
     setSubmitting(true);
     const now = new Date();
+    const sightingId = `sight-${Date.now()}`;
+    const uploadedPhotos: string[] = [];
+    for (let index = 0; index < capturedPhotos.length; index += 1) {
+      const capturedPhoto = capturedPhotos[index];
+      try {
+        const uploadedUrl = await storageBucketService.uploadSightingPhoto(selectedReport.id, capturedPhoto);
+        if (uploadedUrl) {
+          uploadedPhotos.push(uploadedUrl);
+        } else {
+          storageBucketService.enqueueItem({
+            category: 'sighting',
+            referenceId: selectedReport.id,
+            ownerId: user.id,
+            index,
+            base64Data: capturedPhoto,
+          });
+        }
+      } catch {
+        storageBucketService.enqueueItem({
+          category: 'sighting',
+          referenceId: selectedReport.id,
+          ownerId: user.id,
+          index,
+          base64Data: capturedPhoto,
+        });
+      }
+    }
+
     const sighting: Sighting = {
-      id: `sight-${Date.now()}`,
+      id: sightingId,
       reportId: selectedReport.id,
       dogName: getDogDisplayName(selectedReport.dog, selectedReport),
       date: now.toISOString().slice(0, 10),
@@ -728,8 +691,8 @@ export const CapturePetPage: React.FC = () => {
       pinCode: detectedLocation.pinCode,
       latitude,
       longitude,
-      photo: capturedPhotos[0],
-      photos: capturedPhotos,
+      photo: uploadedPhotos[0],
+      photos: uploadedPhotos,
       description: 'Photo sighting submitted from Capture Pet. Reporter contact remains private.',
       reporterUserId: user.id,
       isGuest: false,
@@ -744,7 +707,12 @@ export const CapturePetPage: React.FC = () => {
     setDetectedLocation({ state: '', district: '', mandal: '', village: '', pinCode: '' });
     setSubmitting(false);
     stopCamera();
-    showToast('Sighting captured privately and shared with the pet alert.', 'success');
+    showToast(
+      uploadedPhotos.length === capturedPhotos.length
+        ? 'Sighting captured privately and shared with the pet alert.'
+        : 'Sighting saved. Pending photos are queued for secure upload.',
+      uploadedPhotos.length === capturedPhotos.length ? 'success' : 'info',
+    );
     setShowSuccessTick(true);
     setTimeout(() => {
       setShowSuccessTick(false);
@@ -1247,39 +1215,9 @@ export const CapturePetPage: React.FC = () => {
         selectedValue={state}
         onSelect={(newState) => {
           setState(newState);
-          if (!hasManuallyResetRef.current) {
-            const distsInState = locationService.getDistricts(newState);
-            const alertDist = distsInState.find((d) =>
-              reports.some((r) => isMatchDistrict(r, newState, d.districtName, profiles))
-            );
-            if (alertDist) {
-              setDistrict(alertDist.districtName);
-              const mandalsInDist = locationService.getSubDistricts(alertDist.districtName, newState);
-              const alertMandal = mandalsInDist.find((m) =>
-                reports.some((r) => isMatchMandal(r, newState, alertDist.districtName, m.subDistrictName, profiles))
-              );
-              if (alertMandal) {
-                setMandalOrMunicipality(alertMandal.subDistrictName);
-                const alertReport = reports.find((r) =>
-                  isMatchMandal(r, newState, alertDist.districtName, alertMandal.subDistrictName, profiles)
-                );
-                const alertVillage = alertReport ? getReportGeo(alertReport, profiles).village : '';
-                setCity(alertVillage || alertMandal.subDistrictName);
-              } else {
-                setMandalOrMunicipality('');
-                setCity('');
-              }
-            } else {
-              setDistrict('');
-              setMandalOrMunicipality('');
-              setCity('');
-            }
-          } else {
-            // When user clicked reset, clear child levels so user manually chooses dropdowns
-            setDistrict('');
-            setMandalOrMunicipality('');
-            setCity('');
-          }
+          setDistrict('');
+          setMandalOrMunicipality('');
+          setCity('');
           setSelectedReportId('');
           setActiveLocationModal(null);
         }}
@@ -1295,27 +1233,8 @@ export const CapturePetPage: React.FC = () => {
         selectedValue={district}
         onSelect={(newDistrict) => {
           setDistrict(newDistrict);
-          if (!hasManuallyResetRef.current) {
-            const mandals = locationService.getSubDistricts(newDistrict, state);
-            const alertMandal = mandals.find((m) =>
-              reports.some((r) => isMatchMandal(r, state, newDistrict, m.subDistrictName, profiles))
-            );
-            if (alertMandal) {
-              setMandalOrMunicipality(alertMandal.subDistrictName);
-              const alertReport = reports.find((r) =>
-                isMatchMandal(r, state, newDistrict, alertMandal.subDistrictName, profiles)
-              );
-              const alertVillage = alertReport ? getReportGeo(alertReport, profiles).village : '';
-              setCity(alertVillage || alertMandal.subDistrictName);
-            } else {
-              setMandalOrMunicipality('');
-              setCity('');
-            }
-          } else {
-            // When user clicked reset, clear child levels so user manually chooses dropdowns
-            setMandalOrMunicipality('');
-            setCity('');
-          }
+          setMandalOrMunicipality('');
+          setCity('');
           setSelectedReportId('');
           setActiveLocationModal(null);
         }}
@@ -1331,15 +1250,7 @@ export const CapturePetPage: React.FC = () => {
         selectedValue={mandalOrMunicipality}
         onSelect={(newMandal) => {
           setMandalOrMunicipality(newMandal);
-          if (!hasManuallyResetRef.current) {
-            const alertReport = reports.find((r) =>
-              isMatchMandal(r, state, district, newMandal, profiles)
-            );
-            const alertVillage = alertReport ? getReportGeo(alertReport, profiles).village : '';
-            setCity(alertVillage || newMandal);
-          } else {
-            setCity('');
-          }
+          setCity('');
           setSelectedReportId('');
           setActiveLocationModal(null);
         }}
@@ -1355,10 +1266,6 @@ export const CapturePetPage: React.FC = () => {
         selectedValue={city}
         onSelect={(newCity) => {
           setCity(newCity);
-          const inferred = inferMandalForLocality(newCity, state, district, reports, profiles);
-          if (inferred && !mandalOrMunicipality) {
-            setMandalOrMunicipality(inferred);
-          }
           setSelectedReportId('');
           setActiveLocationModal(null);
         }}
@@ -1522,6 +1429,16 @@ export const CapturePetPage: React.FC = () => {
           setShowCameraPermissionDialog(false);
           startCamera();
         }}
+        alternativeLabel="Upload from Gallery"
+        onAlternative={() => galleryInputRef.current?.click()}
+      />
+
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleGalleryPhoto}
+        hidden
       />
 
       {/* 1 SEC SUCCESS TICK ANIMATION */}

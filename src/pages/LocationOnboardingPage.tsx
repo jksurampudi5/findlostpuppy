@@ -68,7 +68,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [mandalOrMunicipality, setMandalOrMunicipality] = useState<string>(
     existingProfile?.mandalOrMunicipality || ''
   );
-  const [city, setCity] = useState<string>(existingProfile?.city || '');
+  const savedMandal = existingProfile?.mandalOrMunicipality?.trim() || '';
+  const savedCity = existingProfile?.city?.trim() || '';
+  const [city, setCity] = useState<string>(
+    savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase() ? savedCity : ''
+  );
   // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
   const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
   const cleanSavedStreet = (v?: string) =>
@@ -99,7 +103,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       if (!mandalOrMunicipality && existingProfile.mandalOrMunicipality) {
         setMandalOrMunicipality(existingProfile.mandalOrMunicipality);
       }
-      if (!city && existingProfile.city) setCity(existingProfile.city);
+      if (
+        !city &&
+        existingProfile.city &&
+        existingProfile.city.trim().toLowerCase() !==
+          (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
+      ) {
+        setCity(existingProfile.city.trim());
+      }
       if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
     }
   }, [existingProfile]);
@@ -213,13 +224,18 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
   // 4. City / Village Options (Cascades under Mandal)
   const villageOptions: SelectorOption[] = useMemo(() => {
-    return localities.map((l) => ({
+    return localities
+      .filter(
+        (l) =>
+          l.localityName.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase()
+      )
+      .map((l) => ({
       id: l.localityName,
       label: l.localityName,
       secondaryLabel: l.localityType ? `${l.localityType}` : undefined,
       icon: <Home size={18} />,
-    }));
-  }, [localities]);
+      }));
+  }, [localities, mandalOrMunicipality]);
 
   // Auto-lookup postal pincode for village / mandal
   const resolvePinCodeForLocality = async (
@@ -448,9 +464,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         setState(match.state.name);
         setDistrict(match.district.districtName);
         setMandalOrMunicipality(match.subDistrict.subDistrictName);
-        if (finalCity) {
-          setCity(finalCity);
-        }
+        setCity(finalCity);
         // Only set street if it doesn't look like a Plus Code
         const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
         const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
@@ -497,7 +511,15 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         if (detectedState) setState(detectedState);
         if (rawDistrict) setDistrict(rawDistrict);
         if (detectedMandal) setMandalOrMunicipality(detectedMandal);
-        if (detectedCity) setCity(detectedCity);
+        if (
+          detectedCity &&
+          detectedCity.trim().toLowerCase() !== detectedMandal.trim().toLowerCase()
+        ) {
+          setCity(detectedCity.trim());
+        } else {
+          setCity('');
+          setActiveLocationModal('city');
+        }
         const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
         setStreetOrLocality(resolvedStreet);
         if (detectedPin) setPinCode(detectedPin);
@@ -849,10 +871,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     <div className="loc-gsq-icon">
                       <Home size={20} />
                     </div>
-                    <span className="loc-gsq-label">Home Base</span>
+                    <span className="loc-gsq-label">Village / Home Base</span>
                   </div>
                   <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Home Base</span>}</strong>
+                    <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Village</span>}</strong>
                     <span className="loc-gsq-pin-btn">
                       {loadingVillages
                         ? 'Loading home bases...'
@@ -1008,12 +1030,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       <PetProfileSelector
         isOpen={activeLocationModal === 'city'}
         onClose={() => setActiveLocationModal(null)}
-        title="Select Home Base"
+        title="Select Village / Home Base"
         options={villageOptions}
         selectedValue={city}
         onSelect={handleCitySelect}
         searchable
-        searchPlaceholder={mandalOrMunicipality ? 'Search home base...' : 'Select mandal first'}
+        searchPlaceholder={mandalOrMunicipality ? 'Search village...' : 'Select mandal first'}
       />
 
       <PermissionRationaleModal
@@ -1042,11 +1064,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
       <PermissionRationaleModal
         isOpen={showPermissionDeniedDialog}
-        title="Enable Precise Location in Settings"
-        message="Location permission was denied. To protect pets and detect your exact community (State, District, Mandal, Home Base), please enable Location in your device or browser settings, then tap Try Again."
+        title="Location Permission Needed"
+        message="Location helps us capture the correct last-seen place for your pet. Enable it in device or browser settings, or enter your location manually."
         continueLabel="Try Again"
-        cancelLabel="Stay on Page"
-        onCancel={() => setShowPermissionDeniedDialog(false)}
+        cancelLabel="Enter Location Manually"
+        onCancel={() => {
+          setShowPermissionDeniedDialog(false);
+          setActiveLocationModal('state');
+        }}
         onContinue={() => {
           setShowPermissionDeniedDialog(false);
           executeDetectLocation();

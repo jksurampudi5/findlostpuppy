@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, X, Video } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { PermissionFallback } from './fallbacks/PermissionFallback';
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraError, setHasCameraError] = useState(false);
@@ -43,12 +45,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
         };
       }
     } catch (err: any) {
-      console.error('Camera access denied or failed', err);
+      if (import.meta.env.DEV) console.error('Camera access denied or failed', err);
       setHasCameraError(true);
-      const isDenied = err?.name === 'NotAllowedError' || /permission|denied/i.test(err?.message || '');
-      if (isDenied) {
-        alert('Camera access denied. Please allow camera permissions in your browser settings (usually the lock icon in the address bar) to proceed.');
-      }
       showToast('Could not access camera. Please check permissions.', 'error');
     }
   }, [facingMode, showToast]);
@@ -174,11 +172,12 @@ export const CameraModal: React.FC<CameraModalProps> = ({
             </button>
           </div>
         ) : hasCameraError ? (
-          <div style={{ color: '#ff4d4f', textAlign: 'center', padding: '20px' }}>
-            <Video size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-            <p>Camera access failed.</p>
-            <p style={{ fontSize: '14px', opacity: 0.8, marginTop: '8px' }}>Please ensure you have granted camera permissions to this site.</p>
-          </div>
+          <PermissionFallback
+            compact
+            type="camera"
+            onRetry={startCamera}
+            onAlternative={() => uploadInputRef.current?.click()}
+          />
         ) : (
           <video
             ref={videoRef}
@@ -269,6 +268,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
             Screenshot / Gallery
           </button>
           <input
+            ref={uploadInputRef}
             type="file"
             accept="image/*"
             onChange={handleFileUpload}

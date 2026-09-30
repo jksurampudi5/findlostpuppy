@@ -26,18 +26,33 @@ import { CapturePetPage } from './pages/CapturePetPage';
 
 import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
 import { SuggestionWidget } from './components/SuggestionWidget';
+import { NetworkResilience } from './components/NetworkResilience';
+import { ServerFailureNotice } from './components/fallbacks/ServerFailureNotice';
+import { LoadingFallback } from './components/fallbacks/LoadingFallback';
+
+function DevelopmentErrorProbe() {
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('forceErrorBoundary')) {
+    throw new Error('Intentional development-only error boundary check');
+  }
+  return null;
+}
 
 import './App.css';
 
 function MainAppFlow() {
   const {
     isAuthenticated,
+    isLoading,
     activeOnboardingTab,
     setActiveOnboardingTab,
     hasValidConsent,
     agreeToConsent,
   } = useAuth();
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return <LoadingFallback message="Checking your saved session…" />;
+  }
 
   return (
     <Routes>
@@ -252,6 +267,9 @@ export function App() {
     <Router basename={basename}>
       <ToastProvider>
         <AuthProvider>
+          <DevelopmentErrorProbe />
+          <NetworkResilience />
+          <ServerFailureNotice />
           <LaunchTributeOverlay />
           <div className="app-layout-sidebar">
             <SidebarNav />

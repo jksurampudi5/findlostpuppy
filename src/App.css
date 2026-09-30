@@ -16325,7 +16325,7 @@
 .missing-report-modal-card {
   width: 100%;
   max-width: 580px;
-  max-height: 88vh;
+  max-height: min(88dvh, 760px);
   display: flex;
   flex-direction: column;
   background: #FFFFFF;
@@ -16350,6 +16350,7 @@
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .missing-icon-wrap {
@@ -16373,6 +16374,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .missing-modal-badge {
@@ -16388,6 +16390,7 @@
   color: #0F172A;
   margin: 0;
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
 }
 
 .missing-modal-form {
@@ -16581,7 +16584,7 @@
 
 @media (max-width: 640px) {
   .missing-report-modal-card {
-    max-height: 94vh;
+    max-height: calc(100dvh - 1rem);
     border-radius: 16px;
   }
 
@@ -23335,6 +23338,14 @@ canvas {
   text-decoration-color: #F3F4F6;
 }
 
+.pet-skip-top-btn {
+  align-self: flex-end;
+  min-height: 44px;
+  margin: 0 0 0.85rem auto;
+  color: #FDBA74;
+  font-weight: 700;
+}
+
 .pet-profile-remove-btn {
   display: inline-flex;
   align-items: center;
@@ -23358,6 +23369,177 @@ canvas {
   transform: translateY(-1px);
 }
 
+/* Pet-status categories open as bounded panels instead of pushing the page
+   downward. The preview image makes each mobile container immediately useful. */
+.dashboard-status-filter-btn {
+  container-type: inline-size;
+}
+
+.dashboard-status-card-preview {
+  width: clamp(64px, 24cqi, 92px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+.dashboard-list-modal-backdrop {
+  z-index: 10020;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 7, 18, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.dashboard-status-list-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(84svh, 760px);
+  margin: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: clamp(18px, 4vw, 28px);
+}
+
+.dashboard-status-list-modal .dashboard-status-pets-panel-header {
+  padding-right: 3rem;
+  flex: 0 0 auto;
+}
+
+.dashboard-list-modal-close {
+  top: 0.85rem;
+  right: 0.85rem;
+}
+
+.dashboard-status-list-modal .dashboard-status-pets-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.dashboard-view-sightings-btn {
+  white-space: nowrap;
+}
+
+.dashboard-status-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.dashboard-owner-only-label {
+  color: rgba(167, 243, 208, 0.9);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.dashboard-status-pet-modal .dashboard-status-popover-photo-stage {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  align-self: start;
+}
+
+.dashboard-status-pet-modal .dashboard-status-popover-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(68dvh, 640px);
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Let uploaded photos define the media panel's height. This keeps the whole
+   photo visible without leaving a landscape image inside a tall empty frame. */
+.dashboard-status-pet-modal .dashboard-status-popover-photo-stage,
+.capture-pet-detail-photo-stage {
+  aspect-ratio: auto;
+  overflow: hidden;
+}
+
+.capture-pet-detail-photo-stage {
+  height: auto;
+  max-height: none;
+}
+
+.capture-pet-detail-photo-stage .capture-pet-detail-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(68dvh, 640px);
+  object-fit: contain;
+  object-position: center;
+}
+
+.dashboard-sighting-tabs {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  overflow-x: auto;
+  padding: 0.15rem 0 0.35rem;
+  scrollbar-width: thin;
+}
+
+.dashboard-sighting-tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #E5E7EB;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-sighting-tab.active {
+  background: #F97316;
+  border-color: #F97316;
+  color: #FFFFFF;
+}
+
+@media (max-width: 640px) {
+  .dashboard-status-filter-btn {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    justify-content: initial;
+    min-height: 116px !important;
+    text-align: left;
+  }
+
+  .dashboard-status-card-icon {
+    display: none;
+  }
+
+  .dashboard-status-card-preview {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dashboard-status-card-copy {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dashboard-status-select-mark {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .dashboard-status-list-modal {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+  }
+}
+
 .pill-remove-pet-link {
   display: inline-flex;
   align-items: center;
@@ -23378,4 +23560,30 @@ canvas {
 .pill-remove-pet-link:hover {
   background: rgba(239, 68, 68, 0.32);
   color: #FFFFFF;
+}
+
+/* Owner fields stay visually neutral while viewing and editing. */
+.owner-combined-card .owner-modern-input-wrapper,
+.owner-combined-card .owner-modern-input-wrapper:hover,
+.owner-combined-card .owner-modern-input-wrapper:focus-within {
+  border-color: #64748B !important;
+  background-color: #101214 !important;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16), inset 0 2px 4px rgba(0, 0, 0, 0.35) !important;
+}
+
+.owner-combined-card .owner-modern-input-wrapper:focus-within .owner-input-icon-prefix,
+.owner-combined-card .owner-modern-input-wrapper:focus-within .owner-select-chevron {
+  color: #CBD5E1 !important;
+}
+
+.owner-combined-card .owner-modern-input-wrapper:focus-within .owner-input-badge-prefix {
+  border-right-color: #64748B !important;
+  background: #171A1F !important;
+  color: #FFFFFF !important;
+}
+
+.owner-combined-card .owner-modern-input-wrapper.input-error,
+.owner-combined-card .owner-modern-input-wrapper.input-error:focus-within {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }

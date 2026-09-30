@@ -14,32 +14,66 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function sharedReportIsSanitized(data) {
+      return data.contactMechanism.safeContactPhone == ''
+        && data.contactMechanism.safeContactEmail == ''
+        && data.contactMechanism.contactNote == ''
+        && data.lastKnownLatitude == null
+        && data.lastKnownLongitude == null;
+    }
+
+    function isPublicLostReport(data) {
+      return data.status == 'LOST' && sharedReportIsSanitized(data);
+    }
+
+    function sharedSightingIsSanitized(data) {
+      return data.reporterPhone == null
+        && data.reporterEmail == null
+        && data.latitude == null
+        && data.longitude == null;
+    }
+
     match /profiles/{userId} {
-      allow read: if signedIn();
-      allow create, update: if signedIn()
+      allow read: if owns(userId) || isAdmin();
+      allow create, update: if owns(userId)
+        && request.resource.data.userId == request.auth.uid
         && request.resource.data.email == request.auth.token.email;
       allow delete: if owns(userId) || isAdmin();
     }
 
     match /pets/{userId} {
-      allow read: if signedIn();
+      allow read: if owns(userId) || isAdmin();
       allow create, update: if owns(userId) && request.resource.data.ownerId == request.auth.uid;
       allow delete: if owns(userId) || isAdmin();
     }
 
+    // Cloudinary ownership registry is server-managed through Firebase Admin SDK.
+    // Client reads and writes are always denied.
+    match /media_assets/{assetId} {
+      allow read, write: if false;
+    }
+
     match /missing_reports/{userId} {
-      allow read: if true;
-      allow create, update: if owns(userId) && request.resource.data.ownerId == request.auth.uid;
+      allow read: if owns(userId) || isAdmin() || (signedIn() && isPublicLostReport(resource.data));
+      allow create, update: if owns(userId)
+        && request.resource.data.ownerId == request.auth.uid
+        && sharedReportIsSanitized(request.resource.data);
       allow delete: if owns(userId) || isAdmin();
     }
 
     match /sightings/{sightingId} {
-      allow read: if signedIn();
+      allow read: if isAdmin() || (signedIn() && sharedSightingIsSanitized(resource.data));
       allow create: if signedIn()
         && request.resource.data.id == sightingId
+        && request.resource.data.reporterUserId == request.auth.uid
         && request.resource.data.reportId is string
-        && request.resource.data.location is string;
-      allow update, delete: if isAdmin() || (signedIn() && resource.data.reporterUserId == request.auth.uid);
+        && request.resource.data.location is string
+        && sharedSightingIsSanitized(request.resource.data);
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.reporterUserId == request.auth.uid
+        && request.resource.data.reporterUserId == request.auth.uid
+        && sharedSightingIsSanitized(request.resource.data));
+      allow delete: if isAdmin() || (signedIn() && resource.data.reporterUserId == request.auth.uid);
     }
 
     match /app_suggestions/{suggestionId} {

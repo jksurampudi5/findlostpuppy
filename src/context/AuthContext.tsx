@@ -3,7 +3,10 @@ import type { User } from '../types';
 import { authService, isEmailAdmin } from '../services/authService';
 import { storageService } from '../services/storageService';
 import { consentService, type AcceptedFormsState } from '../services/consentService';
+import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
+import { auth } from '../services/firebaseConfig';
+import { deleteUser } from 'firebase/auth';
 
 export type OnboardingTab = 'owner' | 'location' | 'choice' | 'dog' | 'pet' | 'report' | 'dashboard' | 'completed';
 
@@ -230,8 +233,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const userId = user.id;
     const userEmail = user.email;
 
+    const cloudDeleted = await storageBucketService.deleteMyAccountData();
+    if (!cloudDeleted) return false;
+    storageBucketService.clearQueue();
+    const recordsDeleted = await firebaseSyncService.deleteUserDataByEmail(userEmail);
+    if (!recordsDeleted) return false;
     storageService.deleteUserAccount(userId);
-    firebaseSyncService.deleteUserDataByEmail(userEmail).catch(() => {});
+    if (auth?.currentUser) await deleteUser(auth.currentUser);
     await authService.logout();
 
     setUser(null);

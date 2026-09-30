@@ -222,7 +222,7 @@ export const DogDetailPage: React.FC = () => {
                   }
                 } catch {}
                 showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
-                window.open(whatsappUrl, '_blank');
+                window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
               }}
               className="btn btn-whatsapp btn-sm"
               style={{

@@ -103,6 +103,7 @@ export class NativeLocationError extends Error {
  * Print safe, structured diagnostic matching task specification (no secrets exposed)
  */
 export function printLocationDiagnostic(d: LocationDiagnostic) {
+  if (!import.meta.env.DEV) return;
   const lines = [
     '=== FINDLOSTPUPPY LOCATION DIAGNOSTIC ===',
     `Platform: ${d.platform}`,

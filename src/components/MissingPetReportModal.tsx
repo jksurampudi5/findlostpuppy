@@ -14,6 +14,7 @@ import {
 import { useToast } from '../context/ToastContext';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import type { DogProfile, OwnerProfile } from '../types';
+import { clearCrashSafeDraft, readCrashSafeDraft, useCrashSafeDraft } from '../hooks/useCrashSafeDraft';
 
 interface MissingPetReportModalProps {
   isOpen: boolean;
@@ -54,17 +55,23 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [detectedSuccess, setDetectedSuccess] = useState(false);
+  const draftKey = `findlostpuppy_draft_missing_report_${dog?.id || 'new'}`;
+
+  useCrashSafeDraft(draftKey, { dateLost, timeLost, lastKnownLocation }, isOpen && !isEditing);
 
   // Sync state whenever modal opens or initialData changes
   useEffect(() => {
     if (isOpen) {
       const now = new Date();
-      setDateLost(initialData?.dateLost || now.toISOString().split('T')[0]);
-      setTimeLost(initialData?.timeLost || now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
-      setLastKnownLocation(initialData?.lastKnownLocation || '');
+      const draft = !initialData && !isEditing
+        ? readCrashSafeDraft<{ dateLost: string; timeLost: string; lastKnownLocation: string }>(draftKey)
+        : null;
+      setDateLost(initialData?.dateLost || draft?.dateLost || now.toISOString().split('T')[0]);
+      setTimeLost(initialData?.timeLost || draft?.timeLost || now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+      setLastKnownLocation(initialData?.lastKnownLocation || draft?.lastKnownLocation || '');
       setDetectedSuccess(false);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, isEditing, draftKey]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -81,13 +88,15 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     try {
       const geo = await detectResilientLocation();
       const area = (geo as any).village || geo.city || geo.mandal || geo.district || geo.state || '';
-      const detected = area
-        ? `${area} (GPS: ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`
-        : `GPS (${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`;
+      if (!area) {
+        showToast('Location was detected, but no safe public area name was available. Please enter a nearby landmark.', 'warning');
+        return;
+      }
 
-      setLastKnownLocation(detected);
+      // Exact coordinates must never be copied into the public report text.
+      setLastKnownLocation(area);
       setDetectedSuccess(true);
-      showToast('📍 Current lost location detected! You can edit or add landmark details in the box below.', 'success');
+      showToast('📍 Approximate lost area detected. You can add a nearby public landmark.', 'success');
     } catch (err: any) {
       if (err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '')) {
         alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
@@ -120,6 +129,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
       return;
     }
 
+    clearCrashSafeDraft(draftKey);
     onSubmitReport({
       dateLost,
       timeLost,

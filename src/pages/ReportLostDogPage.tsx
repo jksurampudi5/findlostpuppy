@@ -79,8 +79,8 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   // Modal State for reporting or updating missing pet
   const [isMissingModalOpen, setIsMissingModalOpen] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
-  void setIsEditingExisting;
   const [showSuccessTick, setShowSuccessTick] = useState(false);
+  const [showAlreadyBroadcast, setShowAlreadyBroadcast] = useState(false);
 
   // Dog Info (Pre-populated from Pet Profile or fallback)
   const dogName = existingReport?.dog?.name || existingPet?.name || 'My Dog';
@@ -100,11 +100,17 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     navigate('/homepage', { state: { activeTab: 'SAFE' } });
   };
 
-  // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Open Report / Capture
+  // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Open broadcast form.
+  // The LOST state is committed only after the form is submitted successfully.
   const handleSelectMissing = () => {
-    markPetLost();
     setUserSelectedChoice('missing');
-    navigate('/capture');
+    if (existingReport?.status === 'LOST') {
+      setIsMissingModalOpen(false);
+      setShowAlreadyBroadcast(true);
+      return;
+    }
+    setIsEditingExisting(false);
+    setIsMissingModalOpen(true);
   };
 
   // ACTION 3: Handle Report Submission from Modal
@@ -114,6 +120,11 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     lastKnownLocation: string;
   }) => {
     if (!user) return;
+    if (existingReport?.status === 'LOST' && !isEditingExisting) {
+      setIsMissingModalOpen(false);
+      setShowAlreadyBroadcast(true);
+      return;
+    }
 
     const reportId = existingReport?.id || `LOST-${Date.now()}`;
     const ownerId = user.id;
@@ -263,7 +274,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     }
 
     showToast('📲 WhatsApp SOS alert prepared! Live Public Dashboard link copied.', 'success');
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Back navigation
@@ -445,6 +456,32 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
       </div>
 
       {/* POPUP MISSING PET REPORT MODAL — preserved exactly */}
+      {showAlreadyBroadcast && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setShowAlreadyBroadcast(false)}>
+          <div
+            className="modal-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="already-broadcast-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="already-broadcast-title">Missing alert already sent</h2>
+            </div>
+            <div className="modal-body">
+              <p>
+                The missing-pet broadcast for {dogName} is already active. You do not need to send it again while the pet remains listed as missing.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-primary" onClick={() => setShowAlreadyBroadcast(false)} autoFocus>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <MissingPetReportModal
         isOpen={isMissingModalOpen}
         onClose={() => setIsMissingModalOpen(false)}

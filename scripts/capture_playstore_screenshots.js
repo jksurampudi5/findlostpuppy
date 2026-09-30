@@ -66,7 +66,7 @@ async function captureScreenshots() {
       id: userId,
       email: email,
       name: 'Jksurampudi',
-      phone: '8639452948',
+      phone: '9848013579',
       isAdmin: true,
       createdAt: '2026-09-08T00:00:00.000Z',
     };
@@ -79,7 +79,7 @@ async function captureScreenshots() {
       id: `owner-${userId}`,
       userId: userId,
       fullName: 'Jksurampudi',
-      phone: '8639452948',
+      phone: '9848013579',
       email: email,
       state: 'Andhra Pradesh',
       district: 'West Godavari',
