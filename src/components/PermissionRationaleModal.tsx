@@ -9,8 +9,11 @@ interface PermissionRationaleModalProps {
   cancelLabel?: string;
   onContinue: () => void;
   onCancel: () => void;
+  alternativeLabel?: string;
+  onAlternative?: () => void;
 }
 
+/** Explains camera or location access and offers consent, cancellation, or the supplied alternative action. */
 export const PermissionRationaleModal: React.FC<PermissionRationaleModalProps> = ({
   isOpen,
   title,
@@ -19,6 +22,8 @@ export const PermissionRationaleModal: React.FC<PermissionRationaleModalProps> =
   cancelLabel = 'Cancel',
   onContinue,
   onCancel,
+  alternativeLabel,
+  onAlternative,
 }) => {
   if (!isOpen) return null;
 
@@ -40,6 +45,11 @@ export const PermissionRationaleModal: React.FC<PermissionRationaleModalProps> =
           <button type="button" className="capture-main-button" onClick={onContinue}>
             {continueLabel}
           </button>
+          {alternativeLabel && onAlternative && (
+            <button type="button" className="capture-rotate-button" onClick={onAlternative}>
+              {alternativeLabel}
+            </button>
+          )}
         </div>
       </section>
     </div>

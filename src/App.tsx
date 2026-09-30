@@ -26,18 +26,35 @@ import { CapturePetPage } from './pages/CapturePetPage';
 
 import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
 import { SuggestionWidget } from './components/SuggestionWidget';
+import { NetworkResilience } from './components/NetworkResilience';
+import { ServerFailureNotice } from './components/fallbacks/ServerFailureNotice';
+import { LoadingFallback } from './components/fallbacks/LoadingFallback';
+
+/** Throws when the development-only forceErrorBoundary query flag is present; otherwise renders nothing. */
+function DevelopmentErrorProbe() {
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('forceErrorBoundary')) {
+    throw new Error('Intentional development-only error boundary check');
+  }
+  return null;
+}
 
 import './App.css';
 
+/** Renders application routes according to session loading, authentication, consent, and onboarding state. */
 function MainAppFlow() {
   const {
     isAuthenticated,
+    isLoading,
     activeOnboardingTab,
     setActiveOnboardingTab,
     hasValidConsent,
     agreeToConsent,
   } = useAuth();
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return <LoadingFallback message="Checking your saved session…" />;
+  }
 
   return (
     <Routes>
@@ -240,6 +257,7 @@ function MainAppFlow() {
   );
 }
 
+/** Composes routing, session providers, recovery notices, and the app shell, and starts cloud synchronization. */
 export function App() {
   const basename = import.meta.env.BASE_URL;
 
@@ -252,6 +270,9 @@ export function App() {
     <Router basename={basename}>
       <ToastProvider>
         <AuthProvider>
+          <DevelopmentErrorProbe />
+          <NetworkResilience />
+          <ServerFailureNotice />
           <LaunchTributeOverlay />
           <div className="app-layout-sidebar">
             <SidebarNav />

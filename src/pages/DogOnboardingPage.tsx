@@ -47,6 +47,7 @@ interface DogOnboardingPageProps {
   onSuccess?: () => void;
 }
 
+/** Displays saved pet details or the pet registration form, including photo upload and removal actions. */
 export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   onBackToLocation,
   onBackToOwner,
@@ -149,6 +150,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
 
   // Handle Photo File Upload with compression & storage persistence
+  /** Compresses the chosen pet photo and uploads it, queuing the image when upload cannot complete. */
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -176,17 +178,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         throw new Error('Compression failed');
       }
 
-      if (user) {
-        try {
-          const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, compressed, 0);
-          setPrimaryPhoto(uploadedUrl || compressed);
-        } catch (uploadErr) {
-          console.warn('[DogOnboardingPage] Storage upload fallback to local data:', uploadErr);
-          setPrimaryPhoto(compressed);
-        }
-      } else {
-        setPrimaryPhoto(compressed);
-      }
+      if (!user) throw new Error('AUTH_REQUIRED');
+      setPrimaryPhoto(compressed);
 
       showToast('🐾 Pet photo updated!', 'success');
     } catch (err) {
@@ -299,6 +292,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   ], []);
 
   // Handle Save / Submit Pet Profile
+  /** Validates and saves pet details, handling media uploads before completing the form flow. */
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!user) {
@@ -312,13 +306,26 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     // Convert any remaining base64 images if not yet uploaded
     let finalPrimary = primaryPhoto;
     const finalAdditionals = [...additionalPhotos];
+    const recoveredPrimaryQueueItem = storageBucketService.getQueue().find((item) =>
+      item.category === 'pet' && item.referenceId === petId && (item.index || 0) === 0 &&
+      item.base64Data === finalPrimary && Boolean(item.uploadedUrl)
+    );
+    if (recoveredPrimaryQueueItem?.uploadedUrl) finalPrimary = recoveredPrimaryQueueItem.uploadedUrl;
 
     if (finalPrimary && finalPrimary.startsWith('data:')) {
       try {
         const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0);
         if (uploaded) finalPrimary = uploaded;
+        else throw new Error('PRIMARY_UPLOAD_FAILED');
       } catch (err) {
-        console.warn('[DogOnboardingPage] Primary photo upload retry fallback:', err);
+        console.warn('[DogOnboardingPage] Primary photo queued for retry:', err);
+        storageBucketService.enqueueItem({
+          category: 'pet', referenceId: petId, ownerId, index: 0,
+          base64Data: finalPrimary, previousUrl: existingPet?.primaryPhoto,
+        });
+        showToast('Pet photo is still uploading. Please retry saving when the connection is available.', 'info');
+        setSubmitting(false);
+        return;
       }
     }
 
@@ -327,8 +334,20 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         try {
           const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalAdditionals[i], i + 1);
           if (uploaded) finalAdditionals[i] = uploaded;
+          else {
+            storageBucketService.enqueueItem({
+              category: 'pet', referenceId: petId, ownerId, index: i + 1,
+              base64Data: finalAdditionals[i],
+            });
+            finalAdditionals[i] = '';
+          }
         } catch (err) {
-          console.warn('[DogOnboardingPage] Gallery photo upload retry fallback:', err);
+          console.warn('[DogOnboardingPage] Gallery photo queued for retry:', err);
+          storageBucketService.enqueueItem({
+            category: 'pet', referenceId: petId, ownerId, index: i + 1,
+            base64Data: finalAdditionals[i],
+          });
+          finalAdditionals[i] = '';
         }
       }
     }
@@ -356,7 +375,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       distinguishingMarks: distinguishingMarks.trim() || '',
       collarInfo: finalCollar,
       primaryPhoto: finalPrimary || '',
-      photos: finalAdditionals,
+      photos: finalAdditionals.filter(Boolean),
       createdAt: existingPet?.createdAt || new Date().toISOString(),
     };
     const photoChanged = Boolean(finalPrimary) && finalPrimary !== existingPet?.primaryPhoto;
@@ -364,6 +383,10 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
     try {
       storageService.savePetProfile(profileToSave);
+      if (recoveredPrimaryQueueItem) storageBucketService.removeFromQueue(recoveredPrimaryQueueItem.id);
+      if (photoChanged && existingPet?.primaryPhoto) {
+        await storageBucketService.deleteMedia(existingPet.primaryPhoto).catch(() => false);
+      }
       refreshProgress();
       setSubmitting(false);
 
@@ -556,23 +579,23 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={handleExitToDashboard}
+            className="pet-skip-direct-btn pet-skip-top-btn"
+            title="Skip pet details and go to dashboard"
+          >
+            <span>Skip to Dashboard</span>
+          </button>
+
           {!isEditing ? (
             <div className="pet-profile-view-content">
               {/* Existing Pet Status Pill */}
               <div className="existing-pet-status-pill pet-view-status-pill">
                 <span className="existing-pet-status-dot"></span>
                 <span>
-                  🐾 You already have a pet: <strong>{dogName || 'Buddy'}</strong> {breed ? `(${breed})` : ''}
+                  🐾 You already had a pet: <strong>{dogName || 'Buddy'}</strong> {breed ? `(${breed})` : ''}
                 </span>
-                <button
-                  type="button"
-                  className="pill-remove-pet-link"
-                  onClick={handleDeletePetProfile}
-                  title="Remove this pet"
-                >
-                  <Trash2 size={12} />
-                  <span>Remove</span>
-                </button>
               </div>
 
               {/* Clean Pet Photo Circle (No floating camera/upload badges) */}
@@ -716,14 +739,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   <span>Modify Pet Details / Photo</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleExitToDashboard}
-                  className="pet-skip-direct-btn"
-                  title="I don't have a pet / Skip to Homepage"
-                >
-                  <span>I don’t have a pet / Skip to Homepage</span>
-                </button>
               </div>
             </div>
           ) : (
@@ -1036,16 +1051,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   </button>
                 </div>
 
-                <div style={{ textAlign: 'center', marginTop: '0.65rem' }}>
-                  <button
-                    type="button"
-                    onClick={handleExitToDashboard}
-                    className="pet-skip-direct-btn"
-                    title="I don't have a pet / Skip to Homepage"
-                  >
-                    <span>I don’t have a pet / Skip to Homepage</span>
-                  </button>
-                </div>
               </form>
             </>
           )}
@@ -1191,16 +1196,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
             const compressed = await compressImage(file, 800, 800, 0.82);
             if (!compressed) throw new Error('Compression failed');
 
-            if (user) {
-              try {
-                const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, compressed, 0);
-                setPrimaryPhoto(uploadedUrl || compressed);
-              } catch (uploadErr) {
-                setPrimaryPhoto(compressed);
-              }
-            } else {
-              setPrimaryPhoto(compressed);
-            }
+            if (!user) throw new Error('AUTH_REQUIRED');
+            setPrimaryPhoto(compressed);
             showToast('🐾 Pet photo updated!', 'success');
           } catch (e) {
             console.error('Failed to process camera photo', e);

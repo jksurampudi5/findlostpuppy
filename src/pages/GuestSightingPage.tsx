@@ -36,7 +36,11 @@ import { detectResilientLocation } from '../utils/geolocationHelper';
 import { useAuth } from '../context/AuthContext';
 import { storageBucketService } from '../services/storageBucketService';
 import type { LostReport, Sighting } from '../types';
+import { clearCrashSafeDraft, readCrashSafeDraft, useCrashSafeDraft } from '../hooks/useCrashSafeDraft';
+import { LoadingFallback } from '../components/fallbacks/LoadingFallback';
+import { EmptyState } from '../components/fallbacks/EmptyState';
 
+/** Displays a shared missing-pet report and a guest sighting form with draft recovery. */
 export const GuestSightingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
@@ -72,6 +76,29 @@ export const GuestSightingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftKey = `findlostpuppy_draft_guest_sighting_${id || 'unknown'}`;
+
+  useCrashSafeDraft(draftKey, {
+    locationText, date, time, description, reporterName, reporterPhone, photos, latitude, longitude,
+  }, !isSubmitted);
+
+  useEffect(() => {
+    const draft = readCrashSafeDraft<{
+      locationText: string; date: string; time: string; description: string;
+      reporterName: string; reporterPhone: string; photos: string[];
+      latitude?: number; longitude?: number;
+    }>(draftKey);
+    if (!draft) return;
+    setLocationText(draft.locationText || '');
+    setDate(draft.date || today);
+    setTime(draft.time || currentTime);
+    setDescription(draft.description || '');
+    setReporterName(draft.reporterName || '');
+    setReporterPhone(draft.reporterPhone || '');
+    setPhotos(Array.isArray(draft.photos) ? draft.photos : []);
+    setLatitude(draft.latitude);
+    setLongitude(draft.longitude);
+  }, [draftKey]);
 
   const loadData = () => {
     if (!id) {
@@ -123,6 +150,7 @@ export const GuestSightingPage: React.FC = () => {
   const dogDisplayName = getDogDisplayName(report?.dog, report);
 
   // 1-Click Resilient Location Detector for Good Samaritan
+  /** Detects sighting coordinates and fills the public location field with an approximate area name. */
   const handleDetectGPS = async () => {
     setGpsDetecting(true);
     try {
@@ -133,11 +161,15 @@ export const GuestSightingPage: React.FC = () => {
       const street = geo.city || '';
       const locality = geo.mandal || geo.district || geo.state || '';
       const finalStr =
-        [street, locality].filter(Boolean).join(', ') ||
-        `GPS: ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)}`;
+        [street, locality].filter(Boolean).join(', ');
+
+      if (!finalStr) {
+        showToast('Location was detected, but no safe public area name was available. Please enter a nearby landmark.', 'warning');
+        return;
+      }
 
       setLocationText(finalStr);
-      showToast('📍 Exact location locked!', 'success');
+      showToast('📍 Approximate sighting area detected!', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Could not acquire location. Please enter details manually.', 'warning');
     } finally {
@@ -182,6 +214,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Submit Sighting in GUEST MODE (No login required!)
+  /** Validates a guest sighting, uploads or queues photos, and saves the sighting before clearing its draft. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -207,23 +240,29 @@ export const GuestSightingPage: React.FC = () => {
 
     setSubmitting(true);
 
+    const sightingId = `sight-${Date.now()}`;
+
     // Upload photos to sightings/{report_id}/
     const uploadedPhotos: string[] = [];
     for (const p of photos) {
       if (p.startsWith('data:')) {
         try {
           const publicUrl = await storageBucketService.uploadSightingPhoto(report.id, p);
-          uploadedPhotos.push(publicUrl || p);
+          if (publicUrl) {
+            uploadedPhotos.push(publicUrl);
+          } else {
+            // Secure Cloudinary delivery requires authentication. Guest reports
+            // still submit safely without retaining an undeliverable photo.
+          }
         } catch (err) {
-          console.warn('[GuestSightingPage] Sighting photo upload fallback:', err);
-          uploadedPhotos.push(p);
+          console.warn('[GuestSightingPage] Sighting photo queued for retry:', err);
+          // Keep the guest report usable without filling the signed-in retry queue.
         }
       } else {
         uploadedPhotos.push(p);
       }
     }
 
-    const sightingId = `sight-${Date.now()}`;
     const sighting: Sighting = {
       id: sightingId,
       reportId: report.id,
@@ -243,6 +282,7 @@ export const GuestSightingPage: React.FC = () => {
     };
 
     storageService.addSighting(sighting);
+    clearCrashSafeDraft(draftKey);
     setIsSubmitted(true);
     setSubmitting(false);
     loadData();
@@ -251,6 +291,7 @@ export const GuestSightingPage: React.FC = () => {
   };
 
   // Share Alert to WhatsApp
+  /** Builds a WhatsApp SOS link for the report and attempts to copy its dashboard URL. */
   const handleShareWhatsApp = () => {
     if (!report || !report.dog) return;
     const ownerPhone =
@@ -269,16 +310,11 @@ export const GuestSightingPage: React.FC = () => {
     } catch {}
 
     showToast('📲 WhatsApp SOS alert opened! Live Public Dashboard link copied.', 'success');
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
-    return (
-      <div className="guest-sighting-loading app-container text-center py-12">
-        <div className="loading-spinner mb-4" />
-        <p className="text-secondary font-medium">Loading missing dog alert details...</p>
-      </div>
-    );
+    return <LoadingFallback message="Loading missing dog alert details…" onRetry={loadData} />;
   }
 
   if (!report || !report.dog) {
@@ -286,17 +322,17 @@ export const GuestSightingPage: React.FC = () => {
       <div className="onboarding-page">
         <div className="app-container onboarding-container">
           <div className="card text-center py-12 px-6">
-            <Heart size={48} className="text-emerald-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Report Not Found or Already Safe at Home! 🏡</h2>
-            <p className="text-secondary max-w-md mx-auto mb-6">
-              This alert may have been resolved, or the puppy has already safely returned home with family.
-            </p>
-            <div className="flex justify-center gap-3">
+            <EmptyState
+              icon={<Heart size={38} />}
+              title="This report is unavailable"
+              message="The alert may have been resolved, or the puppy may already be safe at home."
+              action={
               <Link to="/dashboard" className="btn btn-primary">
                 <LayoutDashboard size={16} />
-                <span>Explore Community Dashboard 🐾</span>
+                <span>View Dashboard</span>
               </Link>
-            </div>
+              }
+            />
           </div>
         </div>
       </div>
@@ -741,7 +777,8 @@ export const GuestSightingPage: React.FC = () => {
                           `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
                             notifyMsg
                           )}`,
-                          '_blank'
+                          '_blank',
+                          'noopener,noreferrer'
                         );
                       }}
                       className="btn btn-whatsapp btn-lg"
@@ -1067,23 +1104,12 @@ export const GuestSightingPage: React.FC = () => {
               </div>
 
               {sightings.length === 0 ? (
-                <div className="empty-state-card text-center py-8">
-                  <Eye size={40} className="empty-icon text-blue-500 mx-auto mb-3" />
-                  <h3 className="font-bold text-lg mb-1">No sightings recorded yet</h3>
-                  <p className="text-secondary max-w-sm mx-auto mb-4">
-                    Be the first vigilant neighbor to spot {dog.name} and share the location with the family!
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('report');
-                      setIsSubmitted(false);
-                    }}
-                    className="btn btn-primary btn-md"
-                  >
-                    <span>📸 Report First Sighting of {dog.name}</span>
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<Eye size={36} />}
+                  title="No sightings reported yet."
+                  message="Be the first person to share a helpful sighting."
+                  action={<button type="button" className="btn btn-primary" onClick={() => setActiveTab('report')}>Report a Sighting</button>}
+                />
               ) : (
                 <div className="guest-sightings-list">
                   {sightings.map((sighting, idx) => (

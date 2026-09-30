@@ -12,6 +12,7 @@ interface ImageUploaderProps {
   petId?: string;
 }
 
+/** Provides photo selection, compression, upload progress, and retry-queue handling for pet images. */
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   primaryPhoto,
   additionalPhotos,
@@ -25,6 +26,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgressText, setUploadProgressText] = useState<string>('');
 
+  /** Validates and compresses selected images, then uploads pet photos or queues unsuccessful uploads. */
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setErrorMsg('');
@@ -68,7 +70,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         setUploadProgressText('Uploading to secure cloud storage...');
         const startingIndex = (primaryPhoto ? 1 : 0) + additionalPhotos.length;
 
-        const uploadPromises = nonNullImages.map(async (compressed, idx) => {
+        const uploadPromises = nonNullImages.map(async (compressed, idx): Promise<string | null> => {
           try {
             const publicUrl = await storageBucketService.uploadPetPhoto(
               userId,
@@ -76,14 +78,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               compressed,
               startingIndex + idx
             );
-            return publicUrl || compressed; // Fallback to compressed Base64 if offline/error
+            if (publicUrl) return publicUrl;
+            storageBucketService.enqueueItem({
+              category: 'pet', referenceId: petId, ownerId: userId,
+              index: startingIndex + idx, base64Data: compressed,
+            });
+            return null;
           } catch (uploadErr) {
-            console.warn('[ImageUploader] Upload fallback to local media:', uploadErr);
-            return compressed;
+            console.warn('[ImageUploader] Upload queued for retry:', uploadErr);
+            storageBucketService.enqueueItem({
+              category: 'pet', referenceId: petId, ownerId: userId,
+              index: startingIndex + idx, base64Data: compressed,
+            });
+            return null;
           }
         });
 
-        finalUrls = await Promise.all(uploadPromises);
+        finalUrls = (await Promise.all(uploadPromises)).filter((url): url is string => Boolean(url));
       } else {
         finalUrls = nonNullImages;
       }

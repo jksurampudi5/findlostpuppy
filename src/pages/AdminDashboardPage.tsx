@@ -24,7 +24,6 @@ import {
   Cloud,
   CheckCircle2,
   Clock,
-  AlertCircle,
   Lightbulb,
   Star,
   Radar,
@@ -32,7 +31,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
-import { cloudSyncService, type CloudSyncStatus } from '../services/cloudSyncService';
+import { storageBucketService } from '../services/storageBucketService';
 import { StatusBadge } from '../components/StatusBadge';
 import { AdminUserProximityMap } from '../components/AdminUserProximityMap';
 import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion, OwnerProfile } from '../types';
@@ -40,6 +39,7 @@ import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 
+/** Displays administrative records, synchronization controls, and confirmed cleanup actions. */
 export const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -57,7 +57,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [suggestions, setSuggestions] = useState<AppSuggestion[]>([]);
-  const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>(cloudSyncService.getStatus());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -73,8 +74,6 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     loadAllAdminData();
 
-    const unsubscribeSync = cloudSyncService.onStatusChange(setSyncStatus);
-
     const handleDataUpdate = () => {
       loadAllAdminData();
     };
@@ -84,25 +83,28 @@ export const AdminDashboardPage: React.FC = () => {
     window.addEventListener('storage', handleDataUpdate);
 
     return () => {
-      unsubscribeSync();
       window.removeEventListener('findlostpuppy_reports_updated', handleDataUpdate);
       window.removeEventListener('findlostpuppy_session_updated', handleDataUpdate);
       window.removeEventListener('storage', handleDataUpdate);
     };
   }, []);
 
-  // Quick Manual Cloud Sync
+  // Quick Manual Firebase Sync
+  /** Pulls Firebase data, refreshes the admin lists, and reports whether cloud data or local cache was used. */
   const handleManualSync = async () => {
-    showToast('🔄 Syncing with Firebase Cloud Database & Relay...', 'info');
-    const [FirebaseSuccess, cloudResult] = await Promise.all([
-      storageService.pullFromFirebase(),
-      cloudSyncService.syncCommunityData(true),
-    ]);
-    loadAllAdminData();
-    if (FirebaseSuccess || cloudResult.success) {
-      showToast('✅ Firebase Cloud Sync Complete! All pet records updated.', 'success');
-    } else {
-      showToast('⚠️ Sync completed with local cache.', 'info');
+    setIsSyncing(true);
+    showToast('🔄 Syncing with Firebase Cloud Database...', 'info');
+    try {
+      const firebaseSuccess = await storageService.pullFromFirebase();
+      loadAllAdminData();
+      if (firebaseSuccess) {
+        setLastSyncedAt(new Date().toISOString());
+        showToast('✅ Firebase Cloud Sync Complete! All pet records updated.', 'success');
+      } else {
+        showToast('⚠️ Sync completed with local cache.', 'info');
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -129,6 +131,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // Import / Merge Backup JSON
+  /** Reads a selected JSON backup, imports its records, and refreshes the admin lists on success. */
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -146,8 +149,6 @@ export const AdminDashboardPage: React.FC = () => {
             'success'
           );
           loadAllAdminData();
-          // Also sync merged state to cloud relay
-          cloudSyncService.syncCommunityData(true);
         } else {
           showToast(`❌ Import failed: ${res.error}`, 'error');
         }
@@ -163,17 +164,65 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Reset all test data from Firebase & Local to start fresh
   const [isWiping, setIsWiping] = useState(false);
+  const [isWipingCloudinary, setIsWipingCloudinary] = useState(false);
+  const [isClearingLegacyMedia, setIsClearingLegacyMedia] = useState(false);
+  /** Confirms removal of legacy photo references and reports the cleanup result. */
+  const handleClearLegacyMedia = async () => {
+    const confirmed = window.confirm(
+      'Remove all legacy owner, pet, report, and sighting photo references? Authenticated Cloudinary images and Sonu will be preserved.'
+    );
+    if (!confirmed) return;
+    setIsClearingLegacyMedia(true);
+    try {
+      const cleared = await storageService.clearLegacyMediaReferences();
+      loadAllAdminData();
+      showToast(`${cleared} legacy photo reference${cleared === 1 ? '' : 's'} removed.`, 'success');
+    } catch {
+      showToast('Could not clear legacy photo references.', 'error');
+    } finally {
+      setIsClearingLegacyMedia(false);
+    }
+  };
+  /** Requires typed confirmation before requesting Cloudinary image deletion and reporting its result. */
+  const handleClearCloudinaryImages = async () => {
+    const typedConfirmation = window.prompt(
+      'Permanently delete every image in the connected Cloudinary environment. Type DELETE ALL FINDLOSTPUPPY MEDIA to continue.'
+    );
+    if (typedConfirmation !== 'DELETE ALL FINDLOSTPUPPY MEDIA') {
+      showToast('Cloudinary cleanup cancelled.', 'info');
+      return;
+    }
+    setIsWipingCloudinary(true);
+    try {
+      const deleted = await storageBucketService.hardResetCloudinary();
+      if (!deleted) throw new Error('RESET_FAILED');
+      storageBucketService.clearQueue();
+      showToast('All Cloudinary images were permanently deleted.', 'success');
+    } catch {
+      showToast('Cloudinary cleanup failed. No app records were changed.', 'error');
+    } finally {
+      setIsWipingCloudinary(false);
+    }
+  };
+  /** Confirms test-data cleanup, awaits deletion, and refreshes the admin view. */
   const handleClearAllTestData = async () => {
     const confirmed = window.confirm(
       '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Firebase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
     );
     if (!confirmed) return;
+    const typedConfirmation = window.prompt(
+      'This also permanently deletes every FindLostPuppy image from Cloudinary. Type DELETE ALL FINDLOSTPUPPY MEDIA to continue.'
+    );
+    if (typedConfirmation !== 'DELETE ALL FINDLOSTPUPPY MEDIA') {
+      showToast('Clean slate cancelled. The confirmation phrase did not match.', 'info');
+      return;
+    }
 
     setIsWiping(true);
     try {
       await storageService.clearAllAdminTestData();
       loadAllAdminData();
-      showToast('🧹 Clean Slate Active! All test data wiped from Admin Portal & Firebase.', 'success');
+      showToast('🧹 Clean Slate complete. Test data and Cloudinary images were permanently removed.', 'success');
     } catch {
       showToast('Failed to complete clean slate wipe.', 'error');
     } finally {
@@ -182,6 +231,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // Actions on Pet & Report Status
+  /** Toggles a report's safety status through the admin storage action and refreshes the records. */
   const handleToggleReportStatus = (reportId: string, currentStatus: ReportStatus) => {
     const nextStatus = currentStatus === 'LOST' ? 'SAFE' : 'LOST';
     storageService.updateReportStatus(reportId, nextStatus);
@@ -192,9 +242,9 @@ export const AdminDashboardPage: React.FC = () => {
       showToast('🚨 Alert marked as actively Missing.', 'info');
     }
     loadAllAdminData();
-    cloudSyncService.syncCommunityData(true);
   };
 
+  /** Confirms user deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteUser = (userId: string, userName: string) => {
     const confirmed = window.confirm(`Admin Action: Permanently delete user "${userName}" and all associated data?`);
     if (!confirmed) return;
@@ -202,9 +252,9 @@ export const AdminDashboardPage: React.FC = () => {
     storageService.deleteUserAsAdmin(userId);
     showToast(`🗑️ User ${userName} deleted.`, 'info');
     loadAllAdminData();
-    cloudSyncService.syncCommunityData(true);
   };
 
+  /** Confirms pet deletion, runs the admin storage action, and refreshes the records. */
   const handleDeletePet = (petId: string, petName: string) => {
     const confirmed = window.confirm(`Admin Action: Remove pet profile "${petName}"?`);
     if (!confirmed) return;
@@ -212,9 +262,9 @@ export const AdminDashboardPage: React.FC = () => {
     storageService.deletePetAsAdmin(petId);
     showToast(`🗑️ Pet ${petName} removed.`, 'info');
     loadAllAdminData();
-    cloudSyncService.syncCommunityData(true);
   };
 
+  /** Confirms report deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteAlert = (reportId: string, dogName: string) => {
     const confirmed = window.confirm(`Admin Action: Remove missing alert for "${dogName}"?`);
     if (!confirmed) return;
@@ -222,9 +272,9 @@ export const AdminDashboardPage: React.FC = () => {
     storageService.deleteReport(reportId);
     showToast(`🗑️ Alert for ${dogName} removed.`, 'info');
     loadAllAdminData();
-    cloudSyncService.syncCommunityData(true);
   };
 
+  /** Confirms sighting deletion, runs the admin storage action, and refreshes the records. */
   const handleDeleteSighting = (sightingId: string) => {
     const confirmed = window.confirm('Admin Action: Delete this sighting report?');
     if (!confirmed) return;
@@ -232,7 +282,6 @@ export const AdminDashboardPage: React.FC = () => {
     storageService.deleteSightingAsAdmin(sightingId);
     showToast('🗑️ Sighting deleted.', 'info');
     loadAllAdminData();
-    cloudSyncService.syncCommunityData(true);
   };
 
   // Copy helper
@@ -363,14 +412,13 @@ export const AdminDashboardPage: React.FC = () => {
               <div>
                 <div className="admin-badge-row">
                   <span className="admin-master-badge">🛡️ Designated Admin Portal</span>
-                  {syncStatus.isOnline ? (
+                  {navigator.onLine ? (
                     <span className="cloud-status-pill online">
                       <CheckCircle2 size={12} />
-                      <span>Cloud Relay Online</span>
+                      <span>Firebase Online</span>
                     </span>
                   ) : (
                     <span className="cloud-status-pill offline">
-                      <AlertCircle size={12} />
                       <span>Offline Mode</span>
                     </span>
                   )}
@@ -385,13 +433,36 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="admin-header-actions">
               <button
                 type="button"
-                onClick={handleManualSync}
-                disabled={syncStatus.isSyncing}
-                className="btn btn-secondary btn-sm"
-                title="Sync latest reports and members across community devices"
+                onClick={handleClearLegacyMedia}
+                disabled={isClearingLegacyMedia}
+                className="btn btn-outline btn-sm admin-wipe-btn"
+                title="Clear old non-Cloudinary photo references while preserving authenticated images and Sonu"
               >
-                <RefreshCw size={15} className={syncStatus.isSyncing ? 'animate-spin' : ''} />
-                <span>{syncStatus.isSyncing ? 'Syncing...' : 'Sync Cloud Relay'}</span>
+                <Trash2 size={15} />
+                <span>{isClearingLegacyMedia ? 'Clearing Legacy Photos...' : 'Clear Legacy Photo References'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearCloudinaryImages}
+                disabled={isWipingCloudinary}
+                className="btn btn-outline btn-sm admin-wipe-btn"
+                style={{ borderColor: 'rgba(239, 68, 68, 0.65)', color: '#EF4444' }}
+                title="Permanently delete all images from Cloudinary without changing app records"
+              >
+                <Trash2 size={15} />
+                <span>{isWipingCloudinary ? 'Deleting Images...' : 'Delete All Cloudinary Images'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="btn btn-secondary btn-sm"
+                title="Sync latest reports and members from Firebase"
+              >
+                <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync Firebase'}</span>
               </button>
 
               <button
@@ -576,7 +647,7 @@ export const AdminDashboardPage: React.FC = () => {
               role="tab"
             >
               <Cloud size={17} />
-              <span>☁️ Cloud Sync & Backups</span>
+              <span>☁️ Firebase & Backups</span>
             </button>
 
             <button
@@ -1036,7 +1107,7 @@ export const AdminDashboardPage: React.FC = () => {
                                 );
                                 if (navigator.clipboard) navigator.clipboard.writeText(dashboardUrl);
                                 showToast('📲 WhatsApp SOS alert opened & Dashboard link copied!', 'success');
-                                window.open(whatsappUrl, '_blank');
+                                window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
                               }}
                               className="btn btn-whatsapp btn-sm"
                               style={{
@@ -1382,22 +1453,22 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="admin-tab-content">
             <div className="admin-section-header">
               <div>
-                <h2 className="admin-section-title">☁️ Community Cloud Relay & Database Management</h2>
+                <h2 className="admin-section-title">☁️ Firebase & Database Management</h2>
                 <p className="admin-section-desc">
-                  Cross-device sync relay, full database export/import backups, and cross-platform integrity verification.
+                  Firebase synchronization, full database export/import backups, and cross-platform integrity verification.
                 </p>
               </div>
             </div>
 
             <div className="admin-backup-grid">
-              {/* Card 1: Cloud Relay Status */}
+              {/* Card 1: Firebase status */}
               <div className="backup-panel-card card">
                 <div className="panel-card-header">
                   <Cloud size={24} className="text-blue-600" />
-                  <h3 className="panel-card-title">Live Cloud Relay Sync</h3>
+                  <h3 className="panel-card-title">Firebase Sync</h3>
                 </div>
                 <p className="panel-card-text">
-                  The Community Cloud Relay automatically synchronizes missing pet alerts, registrations, and sightings across devices, so your friends on other phones see changes in real time.
+                  Firebase synchronizes authorized missing pet alerts, registrations, and sightings across devices.
                 </p>
 
                 <div className="cloud-relay-stats-box">
@@ -1406,35 +1477,29 @@ export const AdminDashboardPage: React.FC = () => {
                     <span className="stat-val text-emerald-600 font-bold">⚡ Firebase Database</span>
                   </div>
                   <div className="relay-stat-item">
-                    <span className="stat-label">Project URL:</span>
-                    <span className="stat-val font-mono text-xs text-gray-700">kfmtlrmttskqaepoznwy.Firebase.co</span>
-                  </div>
-                  <div className="relay-stat-item">
-                    <span className="stat-label">Relay Status:</span>
-                    <span className="stat-val text-emerald-600 font-bold">● Active & Connected</span>
+                    <span className="stat-label">Sync Status:</span>
+                    <span className="stat-val text-emerald-600 font-bold">● Firebase configured</span>
                   </div>
                   <div className="relay-stat-item">
                     <span className="stat-label">Last Synchronized:</span>
                     <span className="stat-val">
-                      {syncStatus.lastSyncedAt
-                        ? new Date(syncStatus.lastSyncedAt).toLocaleString()
-                        : 'Live / Synchronized'}
+                      {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : 'Not synced in this session'}
                     </span>
                   </div>
                   <div className="relay-stat-item">
                     <span className="stat-label">Network:</span>
-                    <span className="stat-val">{syncStatus.isOnline ? 'Online (Real-time)' : 'Offline'}</span>
+                    <span className="stat-val">{navigator.onLine ? 'Online' : 'Offline'}</span>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleManualSync}
-                  disabled={syncStatus.isSyncing}
+                  disabled={isSyncing}
                   className="btn btn-primary btn-block"
                 >
-                  <RefreshCw size={16} className={syncStatus.isSyncing ? 'animate-spin' : ''} />
-                  <span>{syncStatus.isSyncing ? 'Synchronizing...' : 'Force Firebase Cloud Sync Now'}</span>
+                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                  <span>{isSyncing ? 'Synchronizing...' : 'Sync Firebase Now'}</span>
                 </button>
               </div>
 

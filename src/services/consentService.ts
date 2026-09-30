@@ -19,9 +19,9 @@ export interface ConsentRecord {
   consentMethod: 'all_forms_accepted' | 'master_declaration';
 }
 
-export const CURRENT_CONSENT_VERSION = '1.0';
-export const CURRENT_TERMS_VERSION = '1.0';
-export const CURRENT_PRIVACY_VERSION = '1.0';
+export const CURRENT_CONSENT_VERSION = '1.1';
+export const CURRENT_TERMS_VERSION = '1.1';
+export const CURRENT_PRIVACY_VERSION = '1.1';
 export const CURRENT_DISCLAIMER_VERSION = '1.0';
 export const CURRENT_GUIDELINES_VERSION = '1.0';
 export const CURRENT_APP_VERSION = '0.1.0';
@@ -68,6 +68,7 @@ class ConsentService {
       this.consentRecord.termsVersion === CURRENT_TERMS_VERSION &&
       this.consentRecord.privacyVersion === CURRENT_PRIVACY_VERSION &&
       this.consentRecord.disclaimerVersion === CURRENT_DISCLAIMER_VERSION &&
+      this.consentRecord.guidelinesVersion === CURRENT_GUIDELINES_VERSION &&
       !!this.consentRecord.agreedAt
     );
   }

@@ -2,15 +2,18 @@ import {
   doc,
   setDoc,
   getDocs,
+  getDoc,
   collection,
   deleteDoc,
+  query,
+  where,
 } from 'firebase/firestore';
 import {
   ref as storageRef,
   uploadString,
   getDownloadURL,
 } from 'firebase/storage';
-import { db, storage, isFirebaseConfigured } from './firebaseConfig';
+import { auth, db, storage, isFirebaseConfigured } from './firebaseConfig';
 import { storageBucketService } from './storageBucketService';
 import type {
   OwnerProfile,
@@ -276,7 +279,7 @@ export const firebaseSyncService = {
       let reportPhoto = report.dog?.primaryPhoto || '';
       if (isInlineImage(reportPhoto)) {
         try {
-          reportPhoto = await uploadInlineImage(`missing-reports/${cleanReportId}/photo.jpg`, reportPhoto);
+          reportPhoto = await uploadInlineImage(`missing-reports/${cleanOwnerId}/${cleanReportId}/photo.jpg`, reportPhoto);
           if (report.dog) report.dog.primaryPhoto = reportPhoto;
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Report photo upload notice:', uploadErr);
@@ -295,8 +298,8 @@ export const firebaseSyncService = {
         petPhoto: cloudPhotoOrEmpty(reportPhoto),
         ownerApproximateLocation: report.ownerApproximateLocation || '',
         lastKnownLocation: report.lastKnownLocation || '',
-        lastKnownLatitude: report.lastKnownLatitude || null,
-        lastKnownLongitude: report.lastKnownLongitude || null,
+        lastKnownLatitude: null,
+        lastKnownLongitude: null,
         dateLost: report.dateLost || new Date().toISOString().slice(0, 10),
         timeLost: report.timeLost || '12:00 PM',
         additionalNotes: report.additionalNotes || '',
@@ -304,9 +307,11 @@ export const firebaseSyncService = {
         contactMechanism: {
           showPhone: report.contactMechanism?.showPhone ?? true,
           showEmail: report.contactMechanism?.showEmail ?? true,
-          safeContactPhone: report.contactMechanism?.safeContactPhone || '',
-          safeContactEmail: report.contactMechanism?.safeContactEmail || '',
-          contactNote: report.contactMechanism?.contactNote || '',
+          // Public report documents never contain contact details. Owners keep
+          // their contact information in their private profile document.
+          safeContactPhone: '',
+          safeContactEmail: '',
+          contactNote: '',
         },
         sightingCount: report.sightingCount || 0,
         createdAt: report.createdAt || new Date().toISOString(),
@@ -335,7 +340,8 @@ export const firebaseSyncService = {
       let photoUrl = sighting.photo || '';
       if (isInlineImage(photoUrl) && sighting.reportId) {
         try {
-          photoUrl = await uploadInlineImage(`sightings/${sighting.reportId}/${cleanSightingId}.jpg`, photoUrl);
+          const reporterId = (sighting.reporterUserId || '').replace(/^owner-/, '') || 'unknown-reporter';
+          photoUrl = await uploadInlineImage(`sightings/${reporterId}/${sighting.reportId}/${cleanSightingId}.jpg`, photoUrl);
           sighting.photo = photoUrl;
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Sighting photo upload notice:', uploadErr);
@@ -358,11 +364,13 @@ export const firebaseSyncService = {
         mandal: sighting.mandal || '',
         village: sighting.village || '',
         pinCode: sighting.pinCode || '',
-        latitude: sighting.latitude || null,
-        longitude: sighting.longitude || null,
-        reporterName: sighting.reporterName || 'Anonymous',
-        reporterPhone: sighting.reporterPhone || null,
-        reporterEmail: sighting.reporterEmail || null,
+        // Exact coordinates and reporter identity/contact stay on the reporter's
+        // device. The shared sighting contains only the approximate place text.
+        latitude: null,
+        longitude: null,
+        reporterName: 'Community member',
+        reporterPhone: null,
+        reporterEmail: null,
         reporterUserId: sighting.reporterUserId || null,
         isGuest: sighting.isGuest ?? false,
         isCurrent: sighting.isCurrent ?? true,
@@ -393,17 +401,63 @@ export const firebaseSyncService = {
   } | null> {
     if (!db || !isFirebaseConfigured()) return null;
     try {
-      const [profilesSnap, petsSnap, reportsSnap, sightingsSnap] = await Promise.all([
-        getDocs(collection(db, 'profiles')),
-        getDocs(collection(db, 'pets')),
-        getDocs(collection(db, 'missing_reports')),
-        getDocs(collection(db, 'sightings')),
-      ]);
+      const currentUser = auth?.currentUser;
+      if (!currentUser) return null;
+      const isAdmin = currentUser.email?.toLowerCase() === 'jksurampudi5@gmail.com';
+      let profiles: any[];
+      let pets: any[];
+      let reports: any[];
+      let sightings: any[];
 
-      const profiles = profilesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const pets = petsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const reports = reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const sightings = sightingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (isAdmin) {
+        const [profilesSnap, petsSnap, reportsSnap, sightingsSnap] = await Promise.all([
+          getDocs(collection(db, 'profiles')),
+          getDocs(collection(db, 'pets')),
+          getDocs(collection(db, 'missing_reports')),
+          getDocs(collection(db, 'sightings')),
+        ]);
+        profiles = profilesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        pets = petsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        reports = reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        sightings = sightingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      } else {
+        // Normal users receive only their private profile/pet/SAFE report plus
+        // public records that satisfy the same privacy predicates as the rules.
+        const publicLostReportsQuery = query(
+          collection(db, 'missing_reports'),
+          where('status', '==', 'LOST'),
+          where('contactMechanism.safeContactPhone', '==', ''),
+          where('contactMechanism.safeContactEmail', '==', ''),
+          where('contactMechanism.contactNote', '==', ''),
+          where('lastKnownLatitude', '==', null),
+          where('lastKnownLongitude', '==', null),
+        );
+        const publicSightingsQuery = query(
+          collection(db, 'sightings'),
+          where('reporterPhone', '==', null),
+          where('reporterEmail', '==', null),
+          where('latitude', '==', null),
+          where('longitude', '==', null),
+        );
+        const [profileSnap, petSnap, ownReportSnap, publicReportsSnap, sightingsSnap] = await Promise.all([
+          getDoc(doc(db, 'profiles', currentUser.uid)),
+          getDoc(doc(db, 'pets', currentUser.uid)),
+          getDoc(doc(db, 'missing_reports', currentUser.uid)),
+          getDocs(publicLostReportsQuery),
+          getDocs(publicSightingsQuery),
+        ]);
+
+        profiles = profileSnap.exists() ? [{ id: profileSnap.id, ...profileSnap.data() }] : [];
+        pets = petSnap.exists() ? [{ id: petSnap.id, ...petSnap.data() }] : [];
+        const reportsById = new Map(
+          publicReportsSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]),
+        );
+        if (ownReportSnap.exists()) {
+          reportsById.set(ownReportSnap.id, { id: ownReportSnap.id, ...ownReportSnap.data() });
+        }
+        reports = [...reportsById.values()];
+        sightings = sightingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
 
       lastSyncTimestamp = new Date().toISOString();
       lastSyncCounts = {
@@ -630,9 +684,22 @@ export const firebaseSyncService = {
     }
   },
 
+  /** Updates the caller's report status, or matching pet reports for an admin; returns false when unavailable or an error is caught. */
   async updatePetSafetyStatus(petId: string, isLost: boolean): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {
+      const currentUser = auth?.currentUser;
+      if (!currentUser) return false;
+      const isAdmin = currentUser.email?.toLowerCase() === 'jksurampudi5@gmail.com';
+      if (!isAdmin) {
+        await setDoc(
+          doc(db, 'missing_reports', currentUser.uid),
+          { status: isLost ? 'LOST' : 'SAFE', updatedAt: new Date().toISOString() },
+          { merge: true },
+        );
+        return true;
+      }
+
       const reportsSnap = await getDocs(collection(db, 'missing_reports'));
       const updates = reportsSnap.docs
         .filter((d) => {

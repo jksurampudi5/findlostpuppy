@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import { getDogPhotoUrl } from '../utils/dogPhotoHelper';
 
+/** Offers pet registration or the existing-pet flow, with an option to skip to the dashboard. */
 export const OnboardingChoicePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, setActiveOnboardingTab } = useAuth();
@@ -67,22 +68,7 @@ export const OnboardingChoicePage: React.FC = () => {
 
           <div className="section-card-title-block">
             <h1>{hasExistingPet ? 'Pet Registered' : 'Pet Choice'}</h1>
-            <p>
-              {hasExistingPet
-                ? `You already have a pet registered (${existingPet?.name || 'Buddy'}). Review pet details or skip to community.`
-                : 'Choose the next step. You can add your pet now or continue to the community homepage.'}
-            </p>
           </div>
-
-          {hasExistingPet && existingPet && (
-            <div className="existing-pet-status-pill">
-              <span className="existing-pet-status-dot"></span>
-              <span>
-                ✓ You already have a pet: <strong>{existingPet.name}</strong>{' '}
-                {existingPet.breed ? `(${existingPet.breed})` : ''}
-              </span>
-            </div>
-          )}
 
           <div className="onboarding-choice-grid">
             {hasExistingPet && existingPet ? (
@@ -103,10 +89,7 @@ export const OnboardingChoicePage: React.FC = () => {
                   )}
                 </span>
                 <span className="choice-copy">
-                  <strong>You already have a pet: {existingPet.name}</strong>
-                  <small>
-                    View & edit {existingPet.name}'s details, then continue to Pet Safety Status.
-                  </small>
+                  <strong>You already had a pet: {existingPet.name}</strong>
                 </span>
                 <ArrowRight size={20} />
               </button>
@@ -136,8 +119,7 @@ export const OnboardingChoicePage: React.FC = () => {
                 <LayoutDashboard size={30} />
               </span>
               <span className="choice-copy">
-                <strong>I don’t have a pet / Skip</strong>
-                <small>Skip directly to community homepage. You can add pet details anytime.</small>
+                <strong>Skip</strong>
               </span>
               <ArrowRight size={20} />
             </button>

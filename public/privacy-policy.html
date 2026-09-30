@@ -58,13 +58,13 @@
 
       <h2>3. Data Storage and Architecture</h2>
       <p>FindLostPuppy uses both local device/browser storage and cloud services. Certain application state, sessions, cached information and locally managed records may be stored in browser/device localStorage. Core account, profile, dog, missing-report and sighting information may also be synchronized to cloud infrastructure operated through Firebase.</p>
-      <p>Uploaded images are stored in the Firebase Storage bucket used by FindLostPuppy. The application also uses a community synchronization relay for public community listing data.</p>
+      <p>Uploaded images may be stored through Firebase Storage or Cloudinary. Community records are synchronized through Firebase; the application does not send a full local database export to a separate community relay.</p>
       <p>FindLostPuppy is designed to display broad administrative areas such as Locality/Village, Mandal/Taluk, District and State rather than exposing a user's precise home address or exact GPS coordinates in public community views.</p>
 
       <h2>4. Information Sharing and Disclosure</h2>
       <p><strong>Public community information:</strong> Missing-dog photos, dog names, breed information, approximate area information and sighting notes may be visible to visitors or other users so they can help locate a dog.</p>
       <p><strong>Protected contact information:</strong> Email addresses, phone numbers and owner names are masked in public views where the application provides privacy masking. Certain protected contact actions may reveal information only where the application permits them.</p>
-      <p><strong>Service providers:</strong> FindLostPuppy uses third-party infrastructure and APIs to provide authentication, cloud database and storage, reverse-geocoding, PIN-code lookup, community synchronization and web hosting. These providers may process information necessary to provide their services.</p>
+      <p><strong>Service providers:</strong> FindLostPuppy uses third-party infrastructure and APIs to provide authentication, cloud database and image storage, reverse-geocoding, PIN-code lookup and web hosting. These providers may process information necessary to provide their services.</p>
       <p><strong>No sale of personal information:</strong> We do not sell, rent or trade your personal information to advertisers.</p>
       <p>We may disclose information when required by applicable law, legal process, or when reasonably necessary to protect users, the service, or others from fraud, abuse or security threats.</p>
 
@@ -72,9 +72,9 @@
       <p>FindLostPuppy currently uses the following external services:</p>
       <ul>
         <li><strong>Firebase:</strong> authentication, Firestore database synchronization and image storage.</li>
+        <li><strong>Cloudinary:</strong> storage and delivery of user-uploaded images.</li>
         <li><strong>OpenStreetMap Nominatim:</strong> reverse-geocoding when a user chooses device-based area detection. GPS coordinates may be sent to the service for this lookup.</li>
         <li><strong>Postal Pincode API:</strong> PIN-code lookup used to populate Indian administrative/locality information. A user-entered six-digit PIN code may be sent for the lookup.</li>
-        <li><strong>KVDB.io:</strong> community synchronization relay used for public community listing data.</li>
         <li><strong>GitHub Pages:</strong> web hosting for the FindLostPuppy web application and public documentation.</li>
       </ul>
       <p>FindLostPuppy does not currently use third-party advertising trackers, tracking pixels, Google Analytics or Meta Pixel.</p>

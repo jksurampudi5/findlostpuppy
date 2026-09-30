@@ -13,6 +13,7 @@ function recordTest(name, passed, details = '') {
   console.log(`${icon} [${passed ? 'PASS' : 'FAIL'}] ${name} ${details ? `(${details})` : ''}`);
 }
 
+/** Runs browser checks for location navigation and pet choice, recording results and screenshots. */
 async function run() {
   console.log('🚀 Running Location Back Button & Pet Choice Flow Tests...\n');
 
@@ -61,9 +62,9 @@ async function run() {
       sessionStorage.setItem('findlostpuppy_user_session', JSON.stringify(user));
 
       const consentRecord = {
-        consentVersion: '1.0',
-        termsVersion: '1.0',
-        privacyVersion: '1.0',
+        consentVersion: '1.1',
+        termsVersion: '1.1',
+        privacyVersion: '1.1',
         disclaimerVersion: '1.0',
         guidelinesVersion: '1.0',
         agreedAt: new Date().toISOString(),
@@ -160,12 +161,12 @@ async function run() {
     }
 
     // -------------------------------------------------------------
-    // TEST 3: Pet Choice recognizes existing pet ("You already have a pet")
+    // TEST 3: Pet Choice recognizes the registered pet
     // -------------------------------------------------------------
     console.log('\n--- TEST 3: Pet Choice with Existing Pet ---');
     const choicePageText = await page.evaluate(() => document.body.innerText);
-    const hasAlreadyPetText = choicePageText.includes('You already have a pet');
-    recordTest('Pet Choice recognizes "You already have a pet"', hasAlreadyPetText);
+    const hasAlreadyPetText = choicePageText.includes('You already had a pet:');
+    recordTest('Pet Choice shows "You already had a pet: <name>"', hasAlreadyPetText);
 
     const hasPetNameBuddy = choicePageText.includes('Buddy');
     recordTest('Pet Choice displays existing pet name (Buddy)', hasPetNameBuddy);
@@ -186,7 +187,7 @@ async function run() {
       recordTest('Clicking pet card navigates to /pet (Pet Details component)', petUrl.includes('/pet'), `URL: ${petUrl}`);
 
       const petText = await page.evaluate(() => document.body.innerText);
-      recordTest('Pet Details shows "You already have a pet" indicator', petText.includes('You already have a pet'));
+      recordTest('Pet Details shows "You already had a pet" indicator', petText.includes('You already had a pet'));
       recordTest('Pet Details shows Buddy and Golden Retriever in view mode', petText.includes('Buddy') && petText.includes('Golden Retriever'));
 
       const continueToSafetyBtn = await page.$('.pet-view-continue-btn');
@@ -217,9 +218,9 @@ async function run() {
     }
 
     // -------------------------------------------------------------
-    // TEST 4: Pet Choice when user has NO pet (Skip directly to next component)
+    // TEST 4: Pet Choice when user has no pet (Skip directly to dashboard)
     // -------------------------------------------------------------
-    console.log('\n--- TEST 4: Pet Choice without Pet & Skip to Homepage ---');
+    console.log('\n--- TEST 4: Pet Choice without Pet & Skip to Dashboard ---');
     await page.evaluate(() => {
       localStorage.removeItem('findlostpuppy_pets_v1');
       localStorage.removeItem('findlostpuppy_pet_profile');
@@ -232,9 +233,9 @@ async function run() {
 
     const noPetChoiceText = await page.evaluate(() => document.body.innerText);
     recordTest('When no pet exists, displays "Add My Pet"', noPetChoiceText.includes('Add My Pet'));
-    recordTest('Displays "I don’t have a pet / Skip"', noPetChoiceText.includes('Skip') || noPetChoiceText.includes('I don’t have a pet'));
+    recordTest('Displays the concise "Skip" choice', noPetChoiceText.includes('Skip') && !noPetChoiceText.includes('I don’t have a pet'));
 
-    // Click "I don't have a pet / Skip"
+    // Click "Skip"
     const skipOptionBtn = await page.$('.skip-option');
     recordTest('Skip option button exists on Choice page', !!skipOptionBtn);
 
@@ -243,7 +244,7 @@ async function run() {
       await new Promise(r => setTimeout(r, 600));
       await snap('after_skip_to_homepage');
       const skippedUrl = page.url();
-      recordTest('Clicking "I don\'t have a pet / Skip" navigates directly to Homepage', skippedUrl.includes('/homepage') || skippedUrl.includes('/dashboard'), `URL: ${skippedUrl}`);
+      recordTest('Clicking "Skip" navigates directly to Dashboard', skippedUrl.includes('/homepage') || skippedUrl.includes('/dashboard'), `URL: ${skippedUrl}`);
     }
 
     // -------------------------------------------------------------
@@ -260,7 +261,7 @@ async function run() {
       await petDirectSkipBtn.click();
       await new Promise(r => setTimeout(r, 600));
       const directSkipUrl = page.url();
-      recordTest('Direct skip button navigates to Homepage', directSkipUrl.includes('/homepage') || directSkipUrl.includes('/dashboard'), `URL: ${directSkipUrl}`);
+      recordTest('Skip to Dashboard navigates to Dashboard', directSkipUrl.includes('/homepage') || directSkipUrl.includes('/dashboard'), `URL: ${directSkipUrl}`);
     }
 
     // -------------------------------------------------------------

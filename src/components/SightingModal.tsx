@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { storageBucketService } from '../services/storageBucketService';
+import { clearCrashSafeDraft, readCrashSafeDraft, useCrashSafeDraft } from '../hooks/useCrashSafeDraft';
 
 interface SightingModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface SightingModalProps {
   onSightingAdded: () => void;
 }
 
+/** Collects a sighting for a missing report, restoring and saving an expiring local form draft. */
 export const SightingModal: React.FC<SightingModalProps> = ({
   isOpen,
   onClose,
@@ -43,6 +45,27 @@ export const SightingModal: React.FC<SightingModalProps> = ({
   const [reporterContact, setReporterContact] = useState(user?.email || user?.phone || '');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const draftKey = `findlostpuppy_draft_sighting_${reportId}`;
+
+  useCrashSafeDraft(draftKey, {
+    date, time, location, description, photo, reporterName, reporterContact,
+  }, isOpen && !submitted);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const draft = readCrashSafeDraft<{
+      date: string; time: string; location: string; description: string;
+      photo: string; reporterName: string; reporterContact: string;
+    }>(draftKey);
+    if (!draft) return;
+    setDate(draft.date || today);
+    setTime(draft.time || time);
+    setLocation(draft.location || '');
+    setDescription(draft.description || '');
+    setPhoto(draft.photo || '');
+    setReporterName(draft.reporterName || user?.name || '');
+    setReporterContact(draft.reporterContact || user?.email || user?.phone || '');
+  }, [isOpen, draftKey]);
 
   useEffect(() => {
     if (user) {
@@ -70,6 +93,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
     }
   };
 
+  /** Validates sighting details, uploads or queues the photo, and saves the sighting before clearing its draft. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim() || !description.trim()) {
@@ -92,6 +116,8 @@ export const SightingModal: React.FC<SightingModalProps> = ({
       phoneCandidate = phoneCheck.cleanDigits;
     }
 
+    const sightingId = `sight-${Date.now()}`;
+
     // Upload sighting photo if provided
     let finalPhoto = photo;
     if (photo && photo.startsWith('data:')) {
@@ -99,14 +125,23 @@ export const SightingModal: React.FC<SightingModalProps> = ({
         const publicUrl = await storageBucketService.uploadSightingPhoto(reportId, photo);
         if (publicUrl) {
           finalPhoto = publicUrl;
+        } else {
+          storageBucketService.enqueueItem({
+            category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
+          });
+          finalPhoto = '';
         }
       } catch (err) {
-        console.warn('[SightingModal] Sighting photo upload fallback to local media:', err);
+        console.warn('[SightingModal] Sighting photo queued for retry:', err);
+        storageBucketService.enqueueItem({
+          category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
+        });
+        finalPhoto = '';
       }
     }
 
     const newSighting: Sighting = {
-      id: `sight-${Date.now()}`,
+      id: sightingId,
       reportId,
       dogName,
       date,
@@ -123,6 +158,7 @@ export const SightingModal: React.FC<SightingModalProps> = ({
 
     try {
       storageService.addSighting(newSighting);
+      clearCrashSafeDraft(draftKey);
       setLoading(false);
       setSubmitted(true);
 

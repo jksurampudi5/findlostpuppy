@@ -7,6 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:android": "node scripts/validate_firebase_env.mjs && CAPACITOR_BUILD=true tsc -b && CAPACITOR_BUILD=true vite build",
+    "sync:android": "npx cap copy android && node scripts/verify_android_assets.mjs",
+    "verify:firestore-privacy": "node scripts/verify_firestore_privacy.mjs",
+    "verify:cloudinary-privacy": "node scripts/verify_cloudinary_privacy.mjs",
+    "cloudinary:delete-all-images": "node scripts/cloudinary_delete_all_images.mjs",
+    "worker:types": "wrangler types worker-configuration.d.ts",
+    "worker:check": "wrangler deploy --dry-run",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -21,6 +27,7 @@
     "cloudinary": "^2.11.0",
     "firebase": "^12.19.0",
     "gsap": "^3.15.0",
+    "jose": "^6.2.12",
     "lucide-react": "^1.42.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -29,6 +36,7 @@
   "devDependencies": {
     "@capacitor/android": "^8.5.2",
     "@capacitor/cli": "^8.5.2",
+    "@cloudflare/workers-types": "^5.20260929.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
@@ -37,6 +45,7 @@
     "oxlint": "^1.79.0",
     "puppeteer-core": "^25.11.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wrangler": "^4.143.1"
   }
 }

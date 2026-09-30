@@ -17,39 +17,33 @@ service firebase.storage {
     }
 
     match /users/{userId}/{fileName} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if signedIn() && request.auth.uid == userId && isImage();
       allow delete: if signedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     match /profiles/{userId}/{fileName} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if signedIn() && request.auth.uid == userId && isImage();
       allow delete: if signedIn() && (request.auth.uid == userId || isAdmin());
     }
 
-    match /pets/{path=**} {
-      allow read: if signedIn();
-      allow write: if signedIn() && isImage();
-      allow delete: if isAdmin();
+    match /pets/{userId}/{path=**} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if signedIn() && (request.auth.uid == userId || isAdmin()) && isImage();
+      allow delete: if signedIn() && (request.auth.uid == userId || isAdmin());
     }
 
-    match /reports/{path=**} {
+    match /missing-reports/{userId}/{path=**} {
       allow read: if true;
-      allow write: if signedIn() && isImage();
-      allow delete: if isAdmin();
+      allow write: if signedIn() && (request.auth.uid == userId || isAdmin()) && isImage();
+      allow delete: if signedIn() && (request.auth.uid == userId || isAdmin());
     }
 
-    match /missing-reports/{path=**} {
-      allow read: if true;
-      allow write: if signedIn() && isImage();
-      allow delete: if isAdmin();
-    }
-
-    match /sightings/{path=**} {
+    match /sightings/{userId}/{path=**} {
       allow read: if signedIn();
-      allow write: if signedIn() && isImage();
-      allow delete: if isAdmin();
+      allow write: if signedIn() && (request.auth.uid == userId || isAdmin()) && isImage();
+      allow delete: if signedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     match /suggestions/{suggestionId}/{fileName} {

@@ -6,7 +6,9 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { LostReport, Sighting } from '../types';
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
+import { EmptyState } from '../components/fallbacks/EmptyState';
 
+/** Displays pet-status categories and grouped sightings with owner-gated safe-pet detail dialogs. */
 export const DashboardPage: React.FC = () => {
   const { user, petSafetyStatus } = useAuth();
   const { showToast } = useToast();
@@ -18,6 +20,7 @@ export const DashboardPage: React.FC = () => {
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
   const [detailSighting, setDetailSighting] = useState<Sighting | null>(null);
   const [activeSightingPhotoIndex, setActiveSightingPhotoIndex] = useState(0);
+  const [statusPanelOpen, setStatusPanelOpen] = useState(false);
   const isDashboardAdmin = Boolean(
     user?.isAdmin ||
     user?.email?.toLowerCase().trim() === 'jksurmpudi5@gmail.com' ||
@@ -55,11 +58,10 @@ export const DashboardPage: React.FC = () => {
     }
   }, [location.state]);
 
+  /** Selects a pet-status category and opens its list modal. */
   const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
     setSelectedStatus(status);
-    window.setTimeout(() => {
-      listPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
+    setStatusPanelOpen(true);
   };
 
   useEffect(() => {
@@ -124,13 +126,50 @@ export const DashboardPage: React.FC = () => {
   const getSightingReport = (sighting: Sighting) =>
     reports.find((report) => report.id === sighting.reportId || report.id.toLowerCase() === sighting.reportId.toLowerCase());
 
+  /** Matches the current user against normalized owner IDs or the report's contact email. */
+  const isCurrentUserPetOwner = (report: LostReport) => {
+    if (!user) return false;
+    /** Removes repeated owner prefixes and normalizes whitespace and case for ID comparisons. */
+    const normalizeOwnerId = (value?: string) =>
+      (value || '').replace(/^(owner-)+/i, '').trim().toLowerCase();
+    const userId = normalizeOwnerId(user.id);
+    const ownerIds = [report.ownerId, report.dog?.ownerId].map(normalizeOwnerId).filter(Boolean);
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const reportEmail = (report.contactMechanism?.safeContactEmail || '').trim().toLowerCase();
+    return ownerIds.includes(userId) || Boolean(userEmail && reportEmail && userEmail === reportEmail);
+  };
+
+  /** Allows missing-report details for everyone and other report details only for a matching owner. */
+  const canViewReportDetails = (report: LostReport) =>
+    report.status === 'LOST' || isCurrentUserPetOwner(report);
+
+  /** Hides the category list and opens the selected sighting at the requested photo index. */
   const openSightingDetails = (sighting: Sighting, photoIndex: number = 0) => {
+    setStatusPanelOpen(false);
     setDetailSighting(sighting);
     setActiveSightingPhotoIndex(photoIndex);
   };
 
+  /** Checks detail visibility before replacing the category list with the selected pet report. */
   const openPetDetails = (report: LostReport) => {
+    if (!canViewReportDetails(report)) {
+      showToast('Safe pet details are private to the pet owner.', 'info');
+      return;
+    }
+    setStatusPanelOpen(false);
     setDetailReport(report);
+  };
+
+  /** Closes pet details and restores the category list modal. */
+  const closePetDetails = () => {
+    setDetailReport(null);
+    setStatusPanelOpen(true);
+  };
+
+  /** Closes sighting details and restores the category list modal. */
+  const closeSightingDetails = () => {
+    setDetailSighting(null);
+    setStatusPanelOpen(true);
   };
 
   const refreshSightings = () => {
@@ -234,8 +273,9 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {selectedStatus && (
-            <div className="dashboard-status-pets-panel" ref={listPanelRef}>
+          {selectedStatus && statusPanelOpen && (
+            <div className="dashboard-status-modal-backdrop dashboard-list-modal-backdrop" role="presentation">
+            <div className="dashboard-status-pets-panel dashboard-status-list-modal" ref={listPanelRef} role="dialog" aria-modal="true">
               <div className="dashboard-status-pets-panel-header">
                 <h2>
                   {selectedStatus === 'SIGHTINGS'
@@ -245,6 +285,14 @@ export const DashboardPage: React.FC = () => {
                       : 'Pets Missing'}
                 </h2>
                 <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : visiblePets.length} listed</span>
+                <button
+                  type="button"
+                  className="dashboard-status-modal-close dashboard-list-modal-close"
+                  onClick={() => setStatusPanelOpen(false)}
+                  aria-label="Close pet status list"
+                >
+                  <X size={22} />
+                </button>
               </div>
               {selectedStatus === 'LOST' && (
                 <button
@@ -296,18 +344,6 @@ export const DashboardPage: React.FC = () => {
                         // Original pet photo from the missing dog report
                         const originalPetPhoto = report ? getDogPhotoUrl(report.dog, report) : (firstSighting.photo || firstSighting.photos?.[0] || '');
                         
-                        // Collect all captured sighting photos from this group
-                        const allSightingPhotos: { sighting: Sighting; photoIndex: number }[] = [];
-                        group.forEach((s) => {
-                          if (s.photos && s.photos.length > 0) {
-                            s.photos.forEach((p, idx) => {
-                              if (p) allSightingPhotos.push({ sighting: s, photoIndex: idx });
-                            });
-                          } else if (s.photo) {
-                            allSightingPhotos.push({ sighting: s, photoIndex: 0 });
-                          }
-                        });
-                        
                         return (
                           <article key={firstSighting.reportId} className={`dashboard-status-pet-row ${isDashboardAdmin ? 'has-admin-action' : ''}`}>
                             <div className="dashboard-status-pet-photo-wrap">
@@ -325,20 +361,14 @@ export const DashboardPage: React.FC = () => {
                                 {firstSighting.village || firstSighting.mandal || firstSighting.district || firstSighting.location || 'Location shared'}
                               </span>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingRight: '8px', flexShrink: 0, alignItems: 'center' }}>
-                              {allSightingPhotos.slice(0, 3).map((item, idx) => (
-                                <button
-                                  key={`${item.sighting.id}-${item.photoIndex}`}
-                                  type="button"
-                                  className="dashboard-status-view-details-btn"
-                                  onClick={() => openSightingDetails(item.sighting, item.photoIndex)}
-                                  style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}
-                                >
-                                  <Eye size={14} />
-                                  <span>Sighting {idx + 1}</span>
-                                </button>
-                              ))}
-                            </div>
+                            <button
+                              type="button"
+                              className="dashboard-status-view-details-btn dashboard-view-sightings-btn"
+                              onClick={() => openSightingDetails(firstSighting, 0)}
+                            >
+                              <Eye size={14} />
+                              <span>View sightings ({group.length})</span>
+                            </button>
                             {isDashboardAdmin && (
                               <button
                                 type="button"
@@ -355,60 +385,38 @@ export const DashboardPage: React.FC = () => {
                       });
                     })()
                   ) : (
-                    <div className="dashboard-status-empty">No missing pet sightings are listed yet.</div>
+                    <EmptyState
+                      icon={<Eye size={30} />}
+                      title="No sightings reported yet."
+                      message="Open a missing pet alert to report a sighting."
+                      action={<button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/find')}>View Missing Pets</button>}
+                    />
                   )
                 ) : visiblePets.length > 0 ? (
                   visiblePets.map((report) => {
                     const displayName = getDogDisplayName(report.dog, report);
-                    const photoUrl = getDogPhotoUrl(report.dog, report);
+                    const photoUrl = selectedStatus === 'LOST' ? getDogPhotoUrl(report.dog, report) : '';
+                    const canViewDetails = canViewReportDetails(report);
                     return (
                       <article
                         key={report.id}
                         className="dashboard-status-pet-row"
                       >
-                        <div className="dashboard-status-pet-photo-wrap">
-                          <img
-                            src={photoUrl}
-                            alt={displayName}
-                            className="dashboard-status-pet-photo"
-                            onError={handleDogImageError}
-                          />
-                        </div>
+                        {selectedStatus === 'LOST' && (
+                          <div className="dashboard-status-pet-photo-wrap">
+                            <img
+                              src={photoUrl}
+                              alt={displayName}
+                              className="dashboard-status-pet-photo"
+                              onError={handleDogImageError}
+                            />
+                          </div>
+                        )}
                         <div className="dashboard-status-pet-copy">
                           <strong>{displayName}</strong>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          {selectedStatus === 'SAFE' && (
-                            <>
-                              <button
-                                type="button"
-                                className="dashboard-status-view-details-btn"
-                                onClick={() => navigate('/pet')}
-                                title="Edit Pet Details"
-                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
-                              >
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="dashboard-status-view-details-btn"
-                                onClick={() => navigate('/alert')}
-                                title="Mark Missing"
-                                style={{ padding: '6px 10px', fontSize: '0.8rem', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                              >
-                                <span>Mark Missing</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="dashboard-status-view-details-btn"
-                                onClick={() => navigate('/capture')}
-                                title="Report Other Pet"
-                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
-                              >
-                                <span>Report Other Pet</span>
-                              </button>
-                            </>
-                          )}
+                        {canViewDetails ? (
+                          <div className="dashboard-status-row-actions">
                           <button
                             type="button"
                             className="dashboard-status-view-details-btn"
@@ -417,24 +425,37 @@ export const DashboardPage: React.FC = () => {
                             <Eye size={14} />
                             <span>View details</span>
                           </button>
-                        </div>
+                          </div>
+                        ) : (
+                          <span className="dashboard-owner-only-label">Owner-only details</span>
+                        )}
                       </article>
                     );
                   })
                 ) : (
-                  <div className="dashboard-status-empty">
-                    {selectedStatus === 'SAFE'
-                      ? 'No pets at home are listed yet.'
-                      : 'No missing pets are listed yet.'}
-                  </div>
+                  <EmptyState
+                    icon={selectedStatus === 'SAFE' ? <Home size={30} /> : <AlertTriangle size={30} />}
+                    title={selectedStatus === 'SAFE' ? 'No pets added yet.' : 'No missing pet reports right now.'}
+                    message={selectedStatus === 'SAFE' ? 'Add your pet profile to keep its details ready.' : 'Create an alert if your registered pet is missing.'}
+                    action={
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => navigate(selectedStatus === 'SAFE' ? '/pet' : '/report')}
+                      >
+                        {selectedStatus === 'SAFE' ? 'Add Pet' : 'Create Report'}
+                      </button>
+                    }
+                  />
                 )}
               </div>
+            </div>
             </div>
           )}
         </section>
       </div>
 
-      {detailReport && (() => {
+      {detailReport && canViewReportDetails(detailReport) && (() => {
         const displayName = getDogDisplayName(detailReport.dog, detailReport);
         const photoUrl = getDogPhotoUrl(detailReport.dog, detailReport);
         const isMissing = detailReport.status === 'LOST';
@@ -459,7 +480,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 className="dashboard-status-modal-close"
-                onClick={() => setDetailReport(null)}
+                onClick={closePetDetails}
                 aria-label="Close pet details"
               >
                 <X size={22} />
@@ -500,7 +521,7 @@ export const DashboardPage: React.FC = () => {
                 {detailReport.additionalNotes && (
                   <p>{detailReport.additionalNotes}</p>
                 )}
-                {isMissing ? (
+                {isMissing && (
                   <a
                     href={`/report-sighting/${detailReport.id}`}
                     className="dashboard-status-popover-action"
@@ -508,43 +529,6 @@ export const DashboardPage: React.FC = () => {
                     <Eye size={16} />
                     <span>Report if found / sighted</span>
                   </a>
-                ) : (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px' }}>
-                    <button
-                      type="button"
-                      className="dashboard-status-popover-action"
-                      style={{ flex: 1, minWidth: '100px', textAlign: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        setDetailReport(null);
-                        navigate('/pet');
-                      }}
-                    >
-                      <span>Edit Details</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="dashboard-status-popover-action"
-                      style={{ flex: 1, minWidth: '110px', textAlign: 'center', justifyContent: 'center', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                      onClick={() => {
-                        setDetailReport(null);
-                        navigate('/alert');
-                      }}
-                    >
-                      <span>Mark Missing</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="dashboard-status-popover-action"
-                      style={{ flex: 1, minWidth: '130px', textAlign: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        setDetailReport(null);
-                        navigate('/capture');
-                      }}
-                    >
-                      <Camera size={15} />
-                      <span>Report Other Pet</span>
-                    </button>
-                  </div>
                 )}
               </div>
             </section>
@@ -555,6 +539,7 @@ export const DashboardPage: React.FC = () => {
       {detailSighting && (() => {
         const report = getSightingReport(detailSighting);
         const displayName = detailSighting.dogName || report?.dog?.name || 'Missing Pet';
+        const petSightings = sightings.filter((item) => item.reportId === detailSighting.reportId);
         
         let allPhotos: string[] = [];
         if (detailSighting.photos && detailSighting.photos.length > 0) {
@@ -584,13 +569,32 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 className="dashboard-status-modal-close"
-                onClick={() => setDetailSighting(null)}
+                onClick={closeSightingDetails}
                 aria-label="Close sighting details"
               >
                 <X size={22} />
               </button>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {petSightings.length > 1 && (
+                  <div className="dashboard-sighting-tabs" role="tablist" aria-label="Sightings for this pet">
+                    {petSightings.map((item, index) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={item.id === detailSighting.id}
+                        className={`dashboard-sighting-tab ${item.id === detailSighting.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setDetailSighting(item);
+                          setActiveSightingPhotoIndex(0);
+                        }}
+                      >
+                        Sighting {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="dashboard-status-popover-photo-stage" style={{ marginBottom: 0 }}>
                   <img
                     src={photoUrl}
@@ -653,7 +657,6 @@ export const DashboardPage: React.FC = () => {
                     type="button"
                     className="dashboard-sighting-delete-wide-btn"
                     onClick={() => {
-                      const petSightings = sightings.filter((s) => s.reportId === detailSighting.reportId);
                       handleDeleteSightingGroup(petSightings.length > 0 ? petSightings.map((s) => s.id) : [detailSighting.id]);
                     }}
                     title="Delete all sightings for this pet"
@@ -668,7 +671,7 @@ export const DashboardPage: React.FC = () => {
                     className="dashboard-status-popover-action"
                     onClick={() => {
                       setDetailSighting(null);
-                      setDetailReport(report);
+                      openPetDetails(report);
                     }}
                   >
                     <Eye size={16} />

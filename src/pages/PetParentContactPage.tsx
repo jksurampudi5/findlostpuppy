@@ -19,6 +19,7 @@ interface PetParentContactPageProps {
   onSuccess?: () => void;
 }
 
+/** Displays saved owner contact details and an editing form with managed profile-photo uploads. */
 export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSuccess }) => {
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
@@ -58,6 +59,29 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   useEffect(() => {
     if (!photo) setShowAvatarIcons(true);
   }, [photo]);
+
+  useEffect(() => {
+    /** Applies a completed queued profile upload to the current owner's stored profile, session, and form. */
+    const handleRetriedUpload = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (!user || detail?.category !== 'profile' || detail?.referenceId !== user.id || !detail?.publicUrl) return;
+      const currentProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
+      if (!currentProfile) return;
+      const updated = applyPhotoChangeTracking({
+        ...currentProfile,
+        photo: detail.publicUrl,
+        updatedAt: new Date().toISOString(),
+      }, currentProfile);
+      storageService.saveOwnerProfile(updated);
+      authService.updateCurrentUser({ avatar: detail.publicUrl });
+      setPhoto(detail.publicUrl);
+      setSavedSnapshot((prev) => ({ ...prev, photo: detail.publicUrl }));
+      refreshProgress();
+      showToast('✓ Queued owner photo uploaded!', 'success');
+    };
+    window.addEventListener('findlostpuppy_media_uploaded', handleRetriedUpload);
+    return () => window.removeEventListener('findlostpuppy_media_uploaded', handleRetriedUpload);
+  }, [refreshProgress, showToast, user]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -126,6 +150,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       ? `${photoPolicy.remaining} owner photo change${photoPolicy.remaining === 1 ? '' : 's'} left this month.`
       : 'Owner photo change limit reached. Admin approval is required.';
 
+  /** Compresses and uploads a selected owner photo, queuing unsuccessful uploads for retry. */
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -147,20 +172,24 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     try {
       showToast('Compressing photo for lightning-fast save...', 'info');
       const compressed = await compressImage(file, 600, 600, 0.85);
-      setPhoto(compressed);
-
-      let finalPhotoUrl = compressed;
-      if (user?.id) {
-        try {
-          const publicUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
-          if (publicUrl) {
-            finalPhotoUrl = publicUrl;
-            setPhoto(publicUrl);
-          }
-        } catch (uploadErr) {
-          console.warn('[PetParentContactPage] Cloud upload fallback to local preview:', uploadErr);
-        }
+      if (!user?.id) throw new Error('AUTH_REQUIRED');
+      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
+      if (!finalPhotoUrl) {
+        const queued = storageBucketService.enqueueItem({
+          category: 'profile',
+          referenceId: user.id,
+          base64Data: compressed,
+          previousUrl: existingOwnerProfile?.photo,
+        });
+        showToast(
+          queued
+            ? 'Photo upload is queued and will retry when the connection is available.'
+            : 'Could not upload the photo. Please check your connection and try again.',
+          queued ? 'info' : 'error',
+        );
+        return;
       }
+      setPhoto(finalPhotoUrl);
 
       authService.updateCurrentUser({ avatar: finalPhotoUrl });
       if (user) {
@@ -181,6 +210,9 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           updatedAt: new Date().toISOString(),
         };
         storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, existingOwnerProfile));
+        if (existingOwnerProfile?.photo && existingOwnerProfile.photo !== finalPhotoUrl) {
+          await storageBucketService.deleteMedia(existingOwnerProfile.photo).catch(() => false);
+        }
         refreshProgress();
       }
       setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));
@@ -190,7 +222,33 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
   };
 
-  const handleHardReset = () => {
+  /** Deletes the managed profile photo before clearing the owner's saved name, phone, and avatar. */
+  const handleHardReset = async () => {
+    const isAppManagedPhoto = photo.includes('cloudinary.com') || photo.includes('firebasestorage');
+    const publicId = storageBucketService.extractPublicId(photo);
+    const cleanUserId = user?.id.replace(/^(owner-)+/, '') || '';
+    const isCurrentWorkerPhoto = Boolean(publicId && cleanUserId && (
+      publicId.startsWith(`findlostpuppy/private/profiles/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/private/pets/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/recovery/missing-reports/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/recovery/sightings/${cleanUserId}/`)
+    ));
+    if (isAppManagedPhoto) {
+      try {
+        const deleted = await storageBucketService.deleteMedia(photo);
+        if (!deleted && isCurrentWorkerPhoto) {
+          showToast('Could not remove the stored photo. Check your connection and try again.', 'error');
+          return;
+        } else if (!deleted) {
+          showToast('The legacy hosted photo could not be removed, but your local profile was reset.', 'warning');
+        }
+      } catch {
+        if (isCurrentWorkerPhoto) {
+          showToast('Could not remove the stored photo. Check your connection and try again.', 'error');
+          return;
+        }
+      }
+    }
     setFullName('');
     setPhone('');
     setPhoneError(null);
@@ -223,6 +281,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     setIsEditing(false);
   };
 
+  /** Validates contact fields and a completed photo upload, saves the owner profile, and returns whether it succeeded. */
   const saveProfileInternal = (showNotification = true): boolean => {
     if (!fullName.trim()) {
       showToast('Please enter your full name.', 'warning');
@@ -235,6 +294,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     }
     if (!photo.trim()) {
       showToast('Please upload a profile photo. A photo is required to verify your identity.', 'warning');
+      return false;
+    }
+    if (photo.startsWith('data:')) {
+      showToast('This photo has not finished uploading. Please reconnect or choose the photo again.', 'warning');
       return false;
     }
 
@@ -370,30 +433,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                 </div>
               </div>
 
-              {/* Clean Profile Details Card (Click input bar or card to edit) */}
+              {/* Saved owner details are read-only; use the single Modify action below. */}
               <div className="owner-profile-view-wrap">
-                <div
-                  className="owner-view-details-card"
-                  onClick={() => setIsEditing(true)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
-                  title="Click to edit details"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div
-                    className="owner-view-row"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEditing(true);
-                      setTimeout(() => document.getElementById('owner-full-name')?.focus(), 50);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setIsEditing(true); setTimeout(() => document.getElementById('owner-full-name')?.focus(), 50); } }}
-                    title="Click to edit name"
-                    style={{ cursor: 'pointer' }}
-                  >
+                <div className="owner-view-details-card">
+                  <div className="owner-view-row">
                     <div className="owner-view-icon-badge">
                       <UserIcon size={20} />
                     </div>
@@ -401,22 +444,9 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                       <span className="owner-view-label">Full Name</span>
                       <span className="owner-view-value">{fullName || user?.name || 'Owner Name'}</span>
                     </div>
-                    <Edit3 size={15} style={{ marginLeft: 'auto', color: 'var(--color-primary)', opacity: 0.7 }} />
                   </div>
 
-                  <div
-                    className="owner-view-row"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEditing(true);
-                      setTimeout(() => document.getElementById('owner-phone')?.focus(), 50);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setIsEditing(true); setTimeout(() => document.getElementById('owner-phone')?.focus(), 50); } }}
-                    title="Click to edit phone number"
-                    style={{ cursor: 'pointer' }}
-                  >
+                  <div className="owner-view-row">
                     <div className="owner-view-icon-badge">
                       <Phone size={20} />
                     </div>
@@ -436,19 +466,10 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                         )}
                       </div>
                     </div>
-                    <Edit3 size={15} style={{ marginLeft: 'auto', color: 'var(--color-primary)', opacity: 0.7 }} />
                   </div>
 
                   {(user?.email || existingProfile?.email) && (
-                    <div
-                      className="owner-view-row"
-                      onClick={() => setIsEditing(true)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
-                      title="Click to edit details"
-                      style={{ cursor: 'pointer' }}
-                    >
+                    <div className="owner-view-row">
                       <div className="owner-view-icon-badge">
                         <Mail size={20} />
                       </div>
@@ -689,15 +710,56 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         captureButtonText="Capture Owner Photo"
         onCapture={async (photoData) => {
           try {
-            // we compress the captured data URL to ensure it fits in storage
             const res = await fetch(photoData);
             const blob = await res.blob();
             const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
-            const compressed = await compressImage(file, 250);
-            setPhoto(compressed);
-          } catch (e) {
-            console.error('Failed to compress camera photo', e);
-            setPhoto(photoData);
+            const compressed = await compressImage(file, 600, 600, 0.85);
+            if (!user?.id) throw new Error('AUTH_REQUIRED');
+            const currentProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
+            if (!compressed) throw new Error('COMPRESSION_FAILED');
+            const uploadedUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
+            if (!uploadedUrl) {
+              const queued = storageBucketService.enqueueItem({
+                category: 'profile',
+                referenceId: user.id,
+                base64Data: compressed,
+                previousUrl: currentProfile?.photo,
+              });
+              showToast(
+                queued
+                  ? 'Photo upload is queued and will retry when the connection is available.'
+                  : 'Could not upload the photo. Please check your connection and try again.',
+                queued ? 'info' : 'error',
+              );
+              return;
+            }
+            setPhoto(uploadedUrl);
+            authService.updateCurrentUser({ avatar: uploadedUrl });
+            const updated: OwnerProfile = {
+              ...(currentProfile || {}),
+              id: user.id,
+              userId: user.id,
+              fullName: fullName.trim() || user.name || '',
+              phone: phone.trim() || user.phone || '',
+              email: user.email,
+              photo: uploadedUrl,
+              preferredContact,
+              address: currentProfile?.address || '',
+              state: currentProfile?.state || '',
+              district: currentProfile?.district || '',
+              city: currentProfile?.city || '',
+              hasLocationConsent: currentProfile?.hasLocationConsent ?? true,
+              updatedAt: new Date().toISOString(),
+            };
+            storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, currentProfile));
+            setSavedSnapshot((prev) => ({ ...prev, photo: uploadedUrl }));
+            if (currentProfile?.photo && currentProfile.photo !== uploadedUrl) {
+              await storageBucketService.deleteMedia(currentProfile.photo).catch(() => false);
+            }
+            refreshProgress();
+            showToast('✓ Owner photo uploaded securely!', 'success');
+          } catch {
+            showToast('Could not process the camera photo. Please try again.', 'error');
           }
         }} 
       />

@@ -28,6 +28,7 @@ interface LocationOnboardingPageProps {
   onBack?: () => void;
 }
 
+/** Supports manual or detected owner-location entry with separate state, district, mandal, and locality fields. */
 export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   onSuccess,
   onBack,
@@ -68,9 +69,19 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [mandalOrMunicipality, setMandalOrMunicipality] = useState<string>(
     existingProfile?.mandalOrMunicipality || ''
   );
-  const [city, setCity] = useState<string>(existingProfile?.city || '');
+  const savedMandal = existingProfile?.mandalOrMunicipality?.trim() || '';
+  const savedCity = existingProfile?.city?.trim() || '';
+  const [city, setCity] = useState<string>(
+    savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase() ? savedCity : ''
+  );
+  // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
+  const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes. */
+  const cleanSavedStreet = (v?: string) =>
+    v && !PLUS_CODE_RE.test(v.trim()) ? v.trim() : '';
+
   const [streetOrLocality, setStreetOrLocality] = useState<string>(
-    existingProfile?.streetOrLocality || (existingProfile as any)?.street || ''
+    cleanSavedStreet(existingProfile?.streetOrLocality || (existingProfile as any)?.street)
   );
   const [pinCode, setPinCode] = useState(existingProfile?.pinCode || '');
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
@@ -82,7 +93,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   useEffect(() => {
     if (hasManuallyResetRef.current) return;
     if (existingProfile) {
-      const pStreet = existingProfile.streetOrLocality || (existingProfile as any).street || '';
+      const rawStreet = existingProfile.streetOrLocality || (existingProfile as any).street || '';
+      // Strip Plus Codes from previously saved street values
+      const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+      const pStreet = rawStreet && !PLUS_CODE_RE.test(rawStreet.trim()) ? rawStreet.trim() : '';
       if (!streetOrLocality && pStreet) {
         setStreetOrLocality(pStreet);
       }
@@ -91,7 +105,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       if (!mandalOrMunicipality && existingProfile.mandalOrMunicipality) {
         setMandalOrMunicipality(existingProfile.mandalOrMunicipality);
       }
-      if (!city && existingProfile.city) setCity(existingProfile.city);
+      if (
+        !city &&
+        existingProfile.city &&
+        existingProfile.city.trim().toLowerCase() !==
+          (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
+      ) {
+        setCity(existingProfile.city.trim());
+      }
       if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
     }
   }, [existingProfile]);
@@ -205,13 +226,18 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
   // 4. City / Village Options (Cascades under Mandal)
   const villageOptions: SelectorOption[] = useMemo(() => {
-    return localities.map((l) => ({
+    return localities
+      .filter(
+        (l) =>
+          l.localityName.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase()
+      )
+      .map((l) => ({
       id: l.localityName,
       label: l.localityName,
       secondaryLabel: l.localityType ? `${l.localityType}` : undefined,
       icon: <Home size={18} />,
-    }));
-  }, [localities]);
+      }));
+  }, [localities, mandalOrMunicipality]);
 
   // Auto-lookup postal pincode for village / mandal
   const resolvePinCodeForLocality = async (
@@ -302,9 +328,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     setActiveLocationModal('city');
   };
 
+  /** Selects a locality, fills a missing street placeholder, closes the picker, and resolves its PIN code. */
   const handleCitySelect = (newCity: string) => {
     setCity(newCity);
-    if (!streetOrLocality.trim()) {
+    // Only auto-fill street if there is no human-readable street already
+    // (and the existing value is not a Plus Code which we should treat as empty)
+    const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+    const currentStreet = streetOrLocality.trim();
+    if (!currentStreet || PLUS_CODE_RE.test(currentStreet)) {
       setStreetOrLocality(`${newCity} Main Road`);
     }
     setActiveLocationModal(null);
@@ -387,6 +418,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   };
 
   // Hardware GPS & Native Geolocation Detection
+  /** Detects and matches location fields, requesting manual confirmation when a locality cannot be resolved. */
   const executeDetectLocation = async () => {
     hasManuallyResetRef.current = false;
     if (isDetectingRef.current) return;
@@ -427,32 +459,45 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       });
 
       if (match && match.state && match.district && match.subDistrict) {
-        const finalCity = match.locality ? match.locality.localityName : match.subDistrict.subDistrictName;
+        // If geocoder detected a specific village/city use it; otherwise leave blank so user picks it.
+        // NEVER set city = mandal name — that causes village and mandal squares to show the same value.
+        const geocoderCity = detectedCity && detectedCity.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
+          ? detectedCity
+          : undefined;
+        const finalCity = match.locality ? match.locality.localityName : (geocoderCity || '');
         setState(match.state.name);
         setDistrict(match.district.districtName);
         setMandalOrMunicipality(match.subDistrict.subDistrictName);
         setCity(finalCity);
-        const resolvedStreet = detectedStreet || (finalCity ? `${finalCity} Main Road` : '');
-        setStreetOrLocality(resolvedStreet);
+        // Only set street if it doesn't look like a Plus Code
+        const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+        const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
+        const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
+        if (resolvedStreet) setStreetOrLocality(resolvedStreet);
         if (detectedPin) {
           setPinCode(detectedPin);
-        } else {
+        } else if (finalCity) {
           resolvePinCodeForLocality(finalCity, match.subDistrict.subDistrictName, match.district.districtName);
         }
 
         setHasDetected(true);
         setShowPermissionDeniedDialog(false);
-        setActiveLocationModal(null);
+        // If city/village is still unknown, open the village picker after detection
+        setActiveLocationModal(finalCity ? null : 'city');
 
         const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
         if (geo.confidence === 'HIGH') {
           showToast(
-            `🎯 Detected${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Directly edit any square below!`,
+            finalCity
+              ? `🎯 Detected${accText}: ${finalCity}, ${match.subDistrict.subDistrictName}. Directly edit any square below!`
+              : `🎯 Mandal detected${accText}: ${match.subDistrict.subDistrictName}. Please select your village below!`,
             'success'
           );
         } else if (geo.confidence === 'MEDIUM') {
           showToast(
-            `📍 Detected${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Tap to adjust any square.`,
+            finalCity
+              ? `📍 Detected${accText}: ${finalCity}, ${match.subDistrict.subDistrictName}. Tap to adjust any square.`
+              : `📍 Mandal detected${accText}: ${match.subDistrict.subDistrictName}. Please select your village.`,
             'info'
           );
         } else {
@@ -470,7 +515,15 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         if (detectedState) setState(detectedState);
         if (rawDistrict) setDistrict(rawDistrict);
         if (detectedMandal) setMandalOrMunicipality(detectedMandal);
-        if (detectedCity) setCity(detectedCity);
+        if (
+          detectedCity &&
+          detectedCity.trim().toLowerCase() !== detectedMandal.trim().toLowerCase()
+        ) {
+          setCity(detectedCity.trim());
+        } else {
+          setCity('');
+          setActiveLocationModal('city');
+        }
         const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
         setStreetOrLocality(resolvedStreet);
         if (detectedPin) setPinCode(detectedPin);
@@ -822,10 +875,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
                     <div className="loc-gsq-icon">
                       <Home size={20} />
                     </div>
-                    <span className="loc-gsq-label">Home Base</span>
+                    <span className="loc-gsq-label">Village / Home Base</span>
                   </div>
                   <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Home Base</span>}</strong>
+                    <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Village</span>}</strong>
                     <span className="loc-gsq-pin-btn">
                       {loadingVillages
                         ? 'Loading home bases...'
@@ -981,12 +1034,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       <PetProfileSelector
         isOpen={activeLocationModal === 'city'}
         onClose={() => setActiveLocationModal(null)}
-        title="Select Home Base"
+        title="Select Village / Home Base"
         options={villageOptions}
         selectedValue={city}
         onSelect={handleCitySelect}
         searchable
-        searchPlaceholder={mandalOrMunicipality ? 'Search home base...' : 'Select mandal first'}
+        searchPlaceholder={mandalOrMunicipality ? 'Search village...' : 'Select mandal first'}
       />
 
       <PermissionRationaleModal
@@ -1015,11 +1068,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
       <PermissionRationaleModal
         isOpen={showPermissionDeniedDialog}
-        title="Enable Precise Location in Settings"
-        message="Location permission was denied. To protect pets and detect your exact community (State, District, Mandal, Home Base), please enable Location in your device or browser settings, then tap Try Again."
+        title="Location Permission Needed"
+        message="Location helps us capture the correct last-seen place for your pet. Enable it in device or browser settings, or enter your location manually."
         continueLabel="Try Again"
-        cancelLabel="Stay on Page"
-        onCancel={() => setShowPermissionDeniedDialog(false)}
+        cancelLabel="Enter Location Manually"
+        onCancel={() => {
+          setShowPermissionDeniedDialog(false);
+          setActiveLocationModal('state');
+        }}
         onContinue={() => {
           setShowPermissionDeniedDialog(false);
           executeDetectLocation();

@@ -16,6 +16,7 @@ import { consentService } from './consentService';
 import { isFirebaseConfigured } from './firebaseConfig';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { storageBucketService } from './storageBucketService';
 
 import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
@@ -94,11 +95,11 @@ export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
     additionalNotes: 'Very friendly and gentle Indie dog. Reunited and safe at home with family!',
     status: 'SAFE',
     contactMechanism: {
-      showPhone: true,
-      showEmail: true,
-      safeContactPhone: '07396868941',
-      safeContactEmail: 'priyankashrama80@gmail.com',
-      contactNote: 'Please reach out immediately if spotted!',
+      showPhone: false,
+      showEmail: false,
+      safeContactPhone: '',
+      safeContactEmail: '',
+      contactNote: '',
     },
     sightingCount: 1,
     createdAt: '2026-09-08T16:30:00.505Z',
@@ -170,13 +171,9 @@ class StorageService {
         }
       });
 
-      // Single source of truth: Immediately pull original data from Firebase
-      this.pullFromFirebase()
-        .then(() => {
-          // Then sync any local pending records if needed
-          return this.pushLocalToFirebase();
-        })
-        .catch(() => {});
+      // Firebase is authoritative at startup. Do not automatically push stale
+      // device snapshots back to the cloud after a deletion or reset.
+      this.pullFromFirebase().catch(() => {});
 
       // Periodic cloud background sync (every 20s)
       setInterval(() => {
@@ -2401,10 +2398,16 @@ class StorageService {
     }
   }
 
+  /** Merges accessible Firebase records into local storage and signals synchronization success or failure; returns a success flag. */
   async pullFromFirebase(): Promise<boolean> {
     try {
       const data = await firebaseSyncService.fetchAllCloudData();
-      if (!data) return false;
+      if (!data) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('findlostpuppy_cloud_sync_failed'));
+        }
+        return false;
+      }
 
       const { profiles, pets, reports, sightings } = data;
 
@@ -2578,7 +2581,10 @@ class StorageService {
 
       return true;
     } catch (e) {
-      console.warn('Failed to pull from Firebase:', e);
+      if (import.meta.env.DEV) console.warn('Failed to pull from Firebase:', e);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_cloud_sync_failed'));
+      }
       return false;
     }
   }
@@ -2588,6 +2594,11 @@ class StorageService {
    * Retains only the memorial/tribute dog Sonu (#1788885000505) as mandated by repo invariant.
    */
   async clearAllAdminTestData(): Promise<boolean> {
+    const cloudinaryReset = await storageBucketService.hardResetCloudinary();
+    if (!cloudinaryReset) {
+      throw new Error('Cloud image cleanup could not be completed. No application data was removed.');
+    }
+    storageBucketService.clearQueue();
     this.executeTransaction(() => {
       // 1. Keep only memorial dog Sonu
       const sonuReport = COMMUNITY_BASELINE_REPORTS.find((r) => r.id === 'LOST-1788885000505');
@@ -2693,6 +2704,63 @@ class StorageService {
     } catch (e) {
       console.warn('Auto local-to-cloud migration notice:', e);
     }
+  }
+
+  /** Clears legacy photo references while preserving authenticated Cloudinary media and Sonu, syncs changes, and returns the removed count. */
+  async clearLegacyMediaReferences(): Promise<number> {
+    /** Checks whether a media value contains a Cloudinary host and authenticated image path. */
+    const isAuthenticatedCloudinary = (value?: string) =>
+      Boolean(value && value.includes('res.cloudinary.com') && value.includes('/image/authenticated/'));
+    let cleared = 0;
+
+    this.executeTransaction(() => {
+      this.profiles = this.profiles.map((profile) => {
+        if (!profile.photo || isAuthenticatedCloudinary(profile.photo)) return profile;
+        cleared += 1;
+        return { ...profile, photo: undefined, updatedAt: new Date().toISOString() };
+      });
+
+      this.pets = this.pets.map((pet) => {
+        if (pet.id === 'pet-1788871495754') return pet;
+        const primaryPhoto = isAuthenticatedCloudinary(pet.primaryPhoto) ? pet.primaryPhoto : '';
+        const photos = (pet.photos || []).filter(isAuthenticatedCloudinary);
+        cleared += Number(Boolean(pet.primaryPhoto && !primaryPhoto));
+        cleared += Math.max(0, (pet.photos || []).length - photos.length);
+        return { ...pet, primaryPhoto, photos };
+      });
+
+      this.reports = this.reports.map((report) => {
+        if (report.dog?.id === 'pet-1788871495754' || report.id === 'LOST-1788885000505') return report;
+        const primaryPhoto = isAuthenticatedCloudinary(report.dog?.primaryPhoto) ? report.dog.primaryPhoto : '';
+        const photos = (report.dog?.photos || []).filter(isAuthenticatedCloudinary);
+        cleared += Number(Boolean(report.dog?.primaryPhoto && !primaryPhoto));
+        cleared += Math.max(0, (report.dog?.photos || []).length - photos.length);
+        return { ...report, dog: { ...report.dog, primaryPhoto, photos }, updatedAt: new Date().toISOString() };
+      });
+
+      this.sightings = this.sightings.map((sighting) => {
+        const photo = isAuthenticatedCloudinary(sighting.photo) ? sighting.photo : undefined;
+        const photos = (sighting.photos || []).filter(isAuthenticatedCloudinary);
+        cleared += Number(Boolean(sighting.photo && !photo));
+        cleared += Math.max(0, (sighting.photos || []).length - photos.length);
+        return { ...sighting, photo, photos };
+      });
+
+      try {
+        const rawUser = localStorage.getItem('findlostpuppy_active_user');
+        if (rawUser) {
+          const activeUser = JSON.parse(rawUser);
+          if (activeUser.avatar && !isAuthenticatedCloudinary(activeUser.avatar)) {
+            delete activeUser.avatar;
+            localStorage.setItem('findlostpuppy_active_user', JSON.stringify(activeUser));
+            cleared += 1;
+          }
+        }
+      } catch {}
+    });
+
+    await this.pushLocalToFirebase();
+    return cleared;
   }
 
   // ACCOUNT DELETION
