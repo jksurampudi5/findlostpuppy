@@ -116,6 +116,8 @@ export const SightingModal: React.FC<SightingModalProps> = ({
       phoneCandidate = phoneCheck.cleanDigits;
     }
 
+    const sightingId = `sight-${Date.now()}`;
+
     // Upload sighting photo if provided
     let finalPhoto = photo;
     if (photo && photo.startsWith('data:')) {
@@ -125,21 +127,21 @@ export const SightingModal: React.FC<SightingModalProps> = ({
           finalPhoto = publicUrl;
         } else {
           storageBucketService.enqueueItem({
-            category: 'sighting', referenceId: reportId, base64Data: photo,
+            category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
           });
           finalPhoto = '';
         }
       } catch (err) {
         console.warn('[SightingModal] Sighting photo queued for retry:', err);
         storageBucketService.enqueueItem({
-          category: 'sighting', referenceId: reportId, base64Data: photo,
+          category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
         });
         finalPhoto = '';
       }
     }
 
     const newSighting: Sighting = {
-      id: `sight-${Date.now()}`,
+      id: sightingId,
       reportId,
       dogName,
       date,

@@ -202,7 +202,7 @@ export const CapturePetPage: React.FC = () => {
     setCameraReady(false);
   }, []);
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (requestedFacingMode?: 'environment' | 'user') => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('Camera capture is not available in this browser.');
       return;
@@ -213,7 +213,7 @@ export const CapturePetPage: React.FC = () => {
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: cameraFacingMode },
+          facingMode: { ideal: requestedFacingMode || cameraFacingMode },
           width: { ideal: 1280 },
           height: { ideal: 960 },
         },
@@ -535,6 +535,7 @@ export const CapturePetPage: React.FC = () => {
     }
     try {
       const compressed = await compressImage(file, 900, 900, 0.82);
+      if (!compressed) throw new Error('COMPRESSION_FAILED');
       setCapturedPhotos((current) => [...current, compressed].slice(0, 3));
       setShowCameraPermissionDialog(false);
       showToast('Photo added from gallery.', 'success');
@@ -594,14 +595,15 @@ export const CapturePetPage: React.FC = () => {
     // Only switch and restart if camera is currently running
     // If camera is off, just update the mode for when they turn it on next
     const wasRunning = cameraReady;
-    setCameraFacingMode((current) => (current === 'environment' ? 'user' : 'environment'));
+    const nextMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+    setCameraFacingMode(nextMode);
     if (wasRunning) {
       // startCamera will pick up the new facingMode in the next render cycle
       // We stop immediately and let the user see the "Turn on Camera" button briefly,
       // then restart automatically since they clearly want the camera on (they just rotated it)
       stopCamera();
       // Small timeout so facingMode state update is committed before startCamera reads it
-      setTimeout(() => { startCamera(); }, 80);
+      setTimeout(() => { startCamera(nextMode); }, 80);
     }
   };
 
@@ -670,6 +672,7 @@ export const CapturePetPage: React.FC = () => {
           storageBucketService.enqueueItem({
             category: 'sighting',
             referenceId: selectedReport.id,
+            recordId: sightingId,
             ownerId: user.id,
             index,
             base64Data: capturedPhoto,
@@ -679,6 +682,7 @@ export const CapturePetPage: React.FC = () => {
         storageBucketService.enqueueItem({
           category: 'sighting',
           referenceId: selectedReport.id,
+          recordId: sightingId,
           ownerId: user.id,
           index,
           base64Data: capturedPhoto,
@@ -1110,7 +1114,7 @@ export const CapturePetPage: React.FC = () => {
             </button>
           )}
           {cameraConsentAccepted && !cameraReady && (
-            <button type="button" className="capture-location-button" onClick={startCamera}>
+            <button type="button" className="capture-location-button" onClick={() => startCamera()}>
               <Video size={18} />
               <span>Open Camera</span>
             </button>

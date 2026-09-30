@@ -60,6 +60,13 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   }, [stream]);
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream || hasCameraError) return;
+    video.srcObject = stream;
+    video.play().catch(() => undefined);
+  }, [stream, hasCameraError]);
+
+  useEffect(() => {
     if (isOpen && cameraConsentAccepted) {
       startCamera();
     } else if (!isOpen) {

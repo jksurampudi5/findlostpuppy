@@ -25,7 +25,7 @@ export function NetworkResilience() {
       if (wasOffline.current) {
         setReconnected(true);
         wasOffline.current = false;
-        await storageBucketService.flushQueue();
+        await storageBucketService.flushQueue().catch(() => ({ uploaded: 0, pending: storageBucketService.getQueue().length }));
         await storageService.pullFromFirebase().catch(() => undefined);
         hideTimer = window.setTimeout(() => setReconnected(false), 4500);
       }
@@ -34,7 +34,7 @@ export function NetworkResilience() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
     if (navigator.onLine && storageBucketService.getQueue().length > 0) {
-      storageBucketService.flushQueue();
+      storageBucketService.flushQueue().catch(() => undefined);
     }
 
     return () => {

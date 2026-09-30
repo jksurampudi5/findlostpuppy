@@ -737,13 +737,10 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     // If city is truly unknown, leave it undefined and let matchLocation/locality picker resolve it.
     city = mergedCity || undefined;
     let street = mergedStreet;
-    // Street Guarantee: If street is still not detected, compute a clean locality/street name.
-    // Use city if known, otherwise use mandal (not as the city value, only for the street label).
-    if (!street) {
-      const streetBase = city || mandal;
-      if (streetBase) {
-        street = `${streetBase} Main Road`;
-      }
+    // Only create a locality-style road label when a city/locality was actually
+    // resolved. A mandal-only result must leave this blank for manual selection.
+    if (!street && city) {
+      street = `${city} Main Road`;
     }
     pinCode = mergedPin;
 

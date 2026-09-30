@@ -65,9 +65,9 @@ async function captureScreenshots() {
     // 2. Active User
     const user = {
       id: userId,
-      email: email,
+      email: 'playstore-tester@example.com',
       name: 'Jksurampudi',
-      phone: '9848013579',
+      phone: '9876543210',
       isAdmin: true,
       createdAt: '2026-09-08T00:00:00.000Z',
     };

@@ -251,15 +251,12 @@ export const GuestSightingPage: React.FC = () => {
           if (publicUrl) {
             uploadedPhotos.push(publicUrl);
           } else {
-            storageBucketService.enqueueItem({
-              category: 'sighting', referenceId: report.id, base64Data: p,
-            });
+            // Secure Cloudinary delivery requires authentication. Guest reports
+            // still submit safely without retaining an undeliverable photo.
           }
         } catch (err) {
           console.warn('[GuestSightingPage] Sighting photo queued for retry:', err);
-          storageBucketService.enqueueItem({
-            category: 'sighting', referenceId: report.id, base64Data: p,
-          });
+          // Keep the guest report usable without filling the signed-in retry queue.
         }
       } else {
         uploadedPhotos.push(p);

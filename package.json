@@ -10,7 +10,7 @@
     "sync:android": "npx cap copy android && node scripts/verify_android_assets.mjs",
     "verify:firestore-privacy": "node scripts/verify_firestore_privacy.mjs",
     "verify:cloudinary-privacy": "node scripts/verify_cloudinary_privacy.mjs",
-    "cloudinary:delete-all-images": "node scripts/cloudinary_delete_all_images.mjs --confirm-delete-all",
+    "cloudinary:delete-all-images": "node scripts/cloudinary_delete_all_images.mjs",
     "worker:types": "wrangler types worker-configuration.d.ts",
     "worker:check": "wrangler deploy --dry-run",
     "lint": "oxlint",

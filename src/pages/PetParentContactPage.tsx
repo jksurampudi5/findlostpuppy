@@ -173,7 +173,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       showToast('Compressing photo for lightning-fast save...', 'info');
       const compressed = await compressImage(file, 600, 600, 0.85);
       if (!user?.id) throw new Error('AUTH_REQUIRED');
-      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed, existingOwnerProfile?.photo);
+      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
       if (!finalPhotoUrl) {
         const queued = storageBucketService.enqueueItem({
           category: 'profile',
@@ -210,6 +210,9 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           updatedAt: new Date().toISOString(),
         };
         storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, existingOwnerProfile));
+        if (existingOwnerProfile?.photo && existingOwnerProfile.photo !== finalPhotoUrl) {
+          await storageBucketService.deleteMedia(existingOwnerProfile.photo).catch(() => false);
+        }
         refreshProgress();
       }
       setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));
@@ -222,16 +225,28 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   /** Deletes the managed profile photo before clearing the owner's saved name, phone, and avatar. */
   const handleHardReset = async () => {
     const isAppManagedPhoto = photo.includes('cloudinary.com') || photo.includes('firebasestorage');
+    const publicId = storageBucketService.extractPublicId(photo);
+    const cleanUserId = user?.id.replace(/^(owner-)+/, '') || '';
+    const isCurrentWorkerPhoto = Boolean(publicId && cleanUserId && (
+      publicId.startsWith(`findlostpuppy/private/profiles/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/private/pets/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/recovery/missing-reports/${cleanUserId}/`) ||
+      publicId.startsWith(`findlostpuppy/recovery/sightings/${cleanUserId}/`)
+    ));
     if (isAppManagedPhoto) {
       try {
         const deleted = await storageBucketService.deleteMedia(photo);
-        if (!deleted) {
+        if (!deleted && isCurrentWorkerPhoto) {
+          showToast('Could not remove the stored photo. Check your connection and try again.', 'error');
+          return;
+        } else if (!deleted) {
+          showToast('The legacy hosted photo could not be removed, but your local profile was reset.', 'warning');
+        }
+      } catch {
+        if (isCurrentWorkerPhoto) {
           showToast('Could not remove the stored photo. Check your connection and try again.', 'error');
           return;
         }
-      } catch {
-        showToast('Could not remove the stored photo. Check your connection and try again.', 'error');
-        return;
       }
     }
     setFullName('');
@@ -701,11 +716,8 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
             const compressed = await compressImage(file, 600, 600, 0.85);
             if (!user?.id) throw new Error('AUTH_REQUIRED');
             const currentProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
-            const uploadedUrl = await storageBucketService.uploadProfileAvatar(
-              user.id,
-              compressed,
-              currentProfile?.photo,
-            );
+            if (!compressed) throw new Error('COMPRESSION_FAILED');
+            const uploadedUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
             if (!uploadedUrl) {
               const queued = storageBucketService.enqueueItem({
                 category: 'profile',
@@ -722,6 +734,29 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
               return;
             }
             setPhoto(uploadedUrl);
+            authService.updateCurrentUser({ avatar: uploadedUrl });
+            const updated: OwnerProfile = {
+              ...(currentProfile || {}),
+              id: user.id,
+              userId: user.id,
+              fullName: fullName.trim() || user.name || '',
+              phone: phone.trim() || user.phone || '',
+              email: user.email,
+              photo: uploadedUrl,
+              preferredContact,
+              address: currentProfile?.address || '',
+              state: currentProfile?.state || '',
+              district: currentProfile?.district || '',
+              city: currentProfile?.city || '',
+              hasLocationConsent: currentProfile?.hasLocationConsent ?? true,
+              updatedAt: new Date().toISOString(),
+            };
+            storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, currentProfile));
+            setSavedSnapshot((prev) => ({ ...prev, photo: uploadedUrl }));
+            if (currentProfile?.photo && currentProfile.photo !== uploadedUrl) {
+              await storageBucketService.deleteMedia(currentProfile.photo).catch(() => false);
+            }
+            refreshProgress();
             showToast('✓ Owner photo uploaded securely!', 'success');
           } catch {
             showToast('Could not process the camera photo. Please try again.', 'error');

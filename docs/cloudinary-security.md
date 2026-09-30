@@ -10,12 +10,12 @@ Cloudinary does not apply Firebase/Firestore security rules. FindLostPuppy route
 - Accepted source types are JPEG, PNG, and WebP, with a 5 MB client limit.
 - Generated public IDs contain no user ID, email, phone number, pet name, location, or report description.
 - Assets are restricted to category-specific folders owned by the signed-in user.
-- The backend fetches the resulting Cloudinary resource and checks its type, JPEG format, folder and 5 MB limit before recording it.
+- The Worker fetches the resulting Cloudinary resource and checks its authenticated delivery type, JPEG format, owner-scoped public-ID prefix, and 5 MB limit before returning a signed URL.
 - API secrets and deletion signatures are never included in the client.
-- Firestore records each Cloudinary public ID with its owner. Delete requests require that owner or an administrator.
+- Delete requests require a public ID under the signed-in user's folder prefix or an administrator claim.
 - Replacing a photo deletes and invalidates the prior Cloudinary asset after the new upload succeeds.
-- User account deletion removes that user's registered Cloudinary assets, Firestore records, and Firebase Authentication account before local data is cleared.
-- The admin clean-slate action permanently deletes every image resource in the connected Cloudinary account across `upload`, `authenticated`, and `private` delivery types, then clears the private registry.
+- `/account/media-cleanup` removes the signed-in user's Cloudinary images only. The client separately deletes Firestore records and the Firebase Authentication account before clearing local data.
+- The admin clean-slate action permanently deletes every image resource in the connected Cloudinary account across `upload`, `authenticated`, and `private` delivery types.
 
 ## Required deployment configuration
 

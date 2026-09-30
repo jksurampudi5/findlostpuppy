@@ -204,9 +204,14 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
       `findlostpuppy/recovery/sightings/${uid}/`,
     ];
     for (const prefix of prefixes) {
-      await cloudinary.api.delete_resources_by_prefix(prefix, {
-        resource_type: 'image', type: 'authenticated', invalidate: true,
-      });
+      let nextCursor: string | undefined;
+      do {
+        const result = await cloudinary.api.delete_resources_by_prefix(prefix, {
+          resource_type: 'image', type: 'authenticated', invalidate: true,
+          ...(nextCursor ? { next_cursor: nextCursor } : {}),
+        });
+        nextCursor = result.next_cursor;
+      } while (nextCursor);
     }
     return json(request, env, { deleted: true });
   }

@@ -178,20 +178,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         throw new Error('Compression failed');
       }
 
-      if (user) {
-        const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, compressed, 0, existingPet?.primaryPhoto);
-        if (!uploadedUrl) {
-          storageBucketService.enqueueItem({
-            category: 'pet', referenceId: petId, ownerId: user.id, index: 0,
-            base64Data: compressed, previousUrl: existingPet?.primaryPhoto,
-          });
-          showToast('Pet photo is queued for secure upload. Please retry after the connection returns.', 'info');
-          return;
-        }
-        setPrimaryPhoto(uploadedUrl);
-      } else {
-        throw new Error('AUTH_REQUIRED');
-      }
+      if (!user) throw new Error('AUTH_REQUIRED');
+      setPrimaryPhoto(compressed);
 
       showToast('🐾 Pet photo updated!', 'success');
     } catch (err) {
@@ -318,10 +306,15 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     // Convert any remaining base64 images if not yet uploaded
     let finalPrimary = primaryPhoto;
     const finalAdditionals = [...additionalPhotos];
+    const recoveredPrimaryQueueItem = storageBucketService.getQueue().find((item) =>
+      item.category === 'pet' && item.referenceId === petId && (item.index || 0) === 0 &&
+      item.base64Data === finalPrimary && Boolean(item.uploadedUrl)
+    );
+    if (recoveredPrimaryQueueItem?.uploadedUrl) finalPrimary = recoveredPrimaryQueueItem.uploadedUrl;
 
     if (finalPrimary && finalPrimary.startsWith('data:')) {
       try {
-        const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0, existingPet?.primaryPhoto);
+        const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0);
         if (uploaded) finalPrimary = uploaded;
         else throw new Error('PRIMARY_UPLOAD_FAILED');
       } catch (err) {
@@ -390,6 +383,10 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
     try {
       storageService.savePetProfile(profileToSave);
+      if (recoveredPrimaryQueueItem) storageBucketService.removeFromQueue(recoveredPrimaryQueueItem.id);
+      if (photoChanged && existingPet?.primaryPhoto) {
+        await storageBucketService.deleteMedia(existingPet.primaryPhoto).catch(() => false);
+      }
       refreshProgress();
       setSubmitting(false);
 
@@ -1199,20 +1196,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
             const compressed = await compressImage(file, 800, 800, 0.82);
             if (!compressed) throw new Error('Compression failed');
 
-            if (user) {
-              const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, compressed, 0, existingPet?.primaryPhoto);
-              if (!uploadedUrl) {
-                storageBucketService.enqueueItem({
-                  category: 'pet', referenceId: petId, ownerId: user.id, index: 0,
-                  base64Data: compressed, previousUrl: existingPet?.primaryPhoto,
-                });
-                showToast('Pet photo is queued for secure upload. Please retry after the connection returns.', 'info');
-                return;
-              }
-              setPrimaryPhoto(uploadedUrl);
-            } else {
-              throw new Error('AUTH_REQUIRED');
-            }
+            if (!user) throw new Error('AUTH_REQUIRED');
+            setPrimaryPhoto(compressed);
             showToast('🐾 Pet photo updated!', 'success');
           } catch (e) {
             console.error('Failed to process camera photo', e);

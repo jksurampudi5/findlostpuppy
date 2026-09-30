@@ -62,9 +62,9 @@ async function run() {
       sessionStorage.setItem('findlostpuppy_user_session', JSON.stringify(user));
 
       const consentRecord = {
-        consentVersion: '1.0',
-        termsVersion: '1.0',
-        privacyVersion: '1.0',
+        consentVersion: '1.1',
+        termsVersion: '1.1',
+        privacyVersion: '1.1',
         disclaimerVersion: '1.0',
         guidelinesVersion: '1.0',
         agreedAt: new Date().toISOString(),

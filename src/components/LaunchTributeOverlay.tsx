@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import logoTopHandImg from '../assets/logo_top_hand.png';
 import logoBottomHandImg from '../assets/logo_bottom_hand.png';
@@ -22,6 +22,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [showProceedBtn, setShowProceedBtn] = useState(false);
   const [replayKey] = useState(0);
+  const dismissalTimerRef = useRef<number | undefined>(undefined);
 
   const paragraph1Words = [
     "A", "very", "special", "note", "of", "gratitude", "to", "Priyanka", "Sharma", "—",
@@ -68,7 +69,7 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       }
 
       setIsFadingOut(true);
-      setTimeout(() => {
+      dismissalTimerRef.current = window.setTimeout(() => {
         setVisible(false);
         sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
         setIsFadingOut(false);
@@ -76,7 +77,10 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       }, 400);
     }, 2000);
 
-    return () => clearTimeout(logoTimer);
+    return () => {
+      clearTimeout(logoTimer);
+      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
+    };
   }, [forceOpen, hasCompletedOwner, isAuthenticated, isLoading, onClose, replayKey]);
 
   // Authentication can complete after the launch animation has closed. Show
@@ -89,7 +93,10 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
       !hasCompletedOwner &&
       localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true'
     ) {
+      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
+      dismissalTimerRef.current = undefined;
       setVisible(true);
+      setIsFadingOut(false);
       setPhase('tribute');
       setCurrentWordIndex(0);
       setShowProceedBtn(false);
@@ -99,7 +106,10 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
   // Global event listener to re-open from footer button
   useEffect(() => {
     const handleReopen = () => {
+      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
+      dismissalTimerRef.current = undefined;
       setVisible(true);
+      setIsFadingOut(false);
       setPhase('tribute');
       setShowProceedBtn(false);
       setCurrentWordIndex(0);

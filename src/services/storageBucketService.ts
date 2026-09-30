@@ -5,6 +5,8 @@ import { auth } from './firebaseConfig';
 export const PET_MEDIA_BUCKET = 'pet-media';
 export const MEDIA_QUEUE_KEY = 'findlostpuppy_media_queue_v1';
 export const MAX_MEDIA_QUEUE_SIZE = 10;
+const MAX_MEDIA_RETRY_COUNT = 3;
+let queueFlushPromise: Promise<{ uploaded: number; pending: number }> | null = null;
 
 const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS === 'true';
 const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || '').replace(/\/$/, '');
@@ -32,15 +34,58 @@ export interface QueuedMediaItem {
   id: string;
   category: 'profile' | 'pet' | 'missing-report' | 'sighting';
   referenceId: string; // userId, petId, or reportId
+  recordId?: string; // target local record for retry persistence
   ownerId?: string; // required for pet photos
   index?: number;
   base64Data: string;
   previousUrl?: string;
+  uploadedUrl?: string;
   createdAt: string;
   retryCount: number;
 }
 
 const generateRandomSuffix = (): string => Math.random().toString(36).substring(2, 9);
+
+function persistQueuedMediaUrl(item: QueuedMediaItem, publicUrl: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  let matched = false;
+  const updateList = (key: string, update: (record: any) => any) => {
+    const records = JSON.parse(localStorage.getItem(key) || '[]');
+    localStorage.setItem(key, JSON.stringify(records.map(update)));
+  };
+  if (item.category === 'profile') {
+    updateList('findlostpuppy_profiles_v1', (record) =>
+      record.userId === item.referenceId || record.id === item.referenceId
+        ? (matched = true, { ...record, photo: publicUrl, updatedAt: new Date().toISOString() })
+        : record
+    );
+  } else if (item.category === 'pet') {
+    updateList('findlostpuppy_pets_v1', (record) => {
+      if (record.id !== item.referenceId) return record;
+      matched = true;
+      const photos = [...(record.photos || [])];
+      if ((item.index || 0) === 0) return { ...record, primaryPhoto: publicUrl };
+      photos[(item.index || 1) - 1] = publicUrl;
+      return { ...record, photos: photos.filter(Boolean) };
+    });
+  } else if (item.category === 'missing-report') {
+    updateList('findlostpuppy_reports_v1', (record) =>
+      record.id === (item.recordId || item.referenceId)
+        ? (matched = true, { ...record, dog: { ...record.dog, primaryPhoto: publicUrl }, updatedAt: new Date().toISOString() })
+        : record
+    );
+  } else if (item.category === 'sighting') {
+    updateList('findlostpuppy_sightings_v1', (record) => {
+      if (record.id !== item.recordId) return record;
+      matched = true;
+      const photos = [...(record.photos || [])];
+      photos[item.index || 0] = publicUrl;
+      return { ...record, photo: photos[0] || record.photo, photos: photos.filter(Boolean) };
+    });
+  }
+  window.dispatchEvent(new Event('findlostpuppy_reports_updated'));
+  return matched;
+}
 
 /**
  * Extracts the Cloudinary public_id from any Cloudinary URL,
@@ -174,6 +219,9 @@ async function secureCloudinaryUpload(
   input: File | Blob | string,
   previousUrl?: string,
 ): Promise<string | null> {
+  // The previous asset is intentionally deleted only after the caller has
+  // persisted the replacement URL, so cancelling or save failures remain safe.
+  void previousUrl;
   const blobData = await toBlob(input);
   if (!blobData || blobData.blob.size > 5 * 1024 * 1024) return null;
   const sanitized = await sanitizePublicImage(blobData.blob);
@@ -199,12 +247,12 @@ async function secureCloudinaryUpload(
     deliveryType: authorization.type,
     bytes: uploaded.bytes,
     format: uploaded.format,
-    previousPublicId: extractCloudinaryPublicId(previousUrl || ''),
   });
   return finalized?.secureUrl || null;
 }
 
 export const storageBucketService = {
+  extractPublicId: extractCloudinaryPublicId,
   /**
    * Generates a public HTTPS URL for an object stored in pet-media
    */
@@ -386,8 +434,13 @@ export const storageBucketService = {
 
   enqueueItem(item: Omit<QueuedMediaItem, 'id' | 'createdAt' | 'retryCount'>): boolean {
     if (typeof localStorage === 'undefined') return false;
+    if (item.category === 'sighting' && !auth?.currentUser) return false;
     try {
       const queue = this.getQueue();
+      if (queue.some((queued) =>
+        queued.category === item.category && queued.referenceId === item.referenceId &&
+        queued.recordId === item.recordId && queued.index === item.index && queued.base64Data === item.base64Data
+      )) return true;
       if (queue.length >= MAX_MEDIA_QUEUE_SIZE) {
         console.warn(`[storageBucketService] Offline media queue is full (${MAX_MEDIA_QUEUE_SIZE} items). Preserving existing queue.`);
         return false;
@@ -424,6 +477,8 @@ export const storageBucketService = {
 
   /** Retries queued media, emits an event for each successful upload, and retains failures; returns uploaded and pending counts. */
   async flushQueue(): Promise<{ uploaded: number; pending: number }> {
+    if (queueFlushPromise) return queueFlushPromise;
+    queueFlushPromise = (async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { uploaded: 0, pending: this.getQueue().length };
     }
@@ -433,33 +488,54 @@ export const storageBucketService = {
     const pending: QueuedMediaItem[] = [];
 
     for (const item of queue) {
-      let publicUrl: string | null = null;
+      let publicUrl: string | null = item.uploadedUrl || null;
       try {
-        if (item.category === 'profile') {
+        if (!publicUrl && item.category === 'profile') {
           publicUrl = await this.uploadProfileAvatar(item.referenceId, item.base64Data, item.previousUrl);
-        } else if (item.category === 'pet' && item.ownerId) {
-          publicUrl = await this.uploadPetPhoto(item.ownerId, item.referenceId, item.base64Data, item.index || 0);
-        } else if (item.category === 'missing-report') {
-          publicUrl = await this.uploadMissingReportPhoto(item.referenceId, item.base64Data);
-        } else if (item.category === 'sighting') {
-          publicUrl = await this.uploadSightingPhoto(item.referenceId, item.base64Data);
+        } else if (!publicUrl && item.category === 'pet' && item.ownerId) {
+          publicUrl = await this.uploadPetPhoto(item.ownerId, item.referenceId, item.base64Data, item.index || 0, item.previousUrl);
+        } else if (!publicUrl && item.category === 'missing-report') {
+          publicUrl = await this.uploadMissingReportPhoto(item.referenceId, item.base64Data, item.previousUrl);
+        } else if (!publicUrl && item.category === 'sighting') {
+          publicUrl = await this.uploadSightingPhoto(item.referenceId, item.base64Data, item.previousUrl);
         }
       } catch {}
 
       if (publicUrl) {
-        uploaded += 1;
-        window.dispatchEvent(new CustomEvent('findlostpuppy_media_uploaded', {
-          detail: { ...item, publicUrl },
-        }));
+        let persisted = false;
+        try {
+          persisted = persistQueuedMediaUrl(item, publicUrl);
+        } catch {
+          persisted = false;
+        }
+        if (persisted) {
+          uploaded += 1;
+          if (item.previousUrl) await this.deleteMedia(item.previousUrl).catch(() => false);
+          window.dispatchEvent(new CustomEvent('findlostpuppy_media_uploaded', {
+            detail: { ...item, publicUrl },
+          }));
+        } else {
+          pending.push({ ...item, uploadedUrl: publicUrl });
+        }
       } else {
-        pending.push({ ...item, retryCount: item.retryCount + 1 });
+        if (item.retryCount + 1 < MAX_MEDIA_RETRY_COUNT) {
+          pending.push({ ...item, retryCount: item.retryCount + 1 });
+        }
       }
     }
 
     try {
-      localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify(pending));
+      const snapshotIds = new Set(queue.map((item) => item.id));
+      const newlyQueued = this.getQueue().filter((item) => !snapshotIds.has(item.id));
+      localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify([...newlyQueued, ...pending]));
     } catch {}
-    return { uploaded, pending: pending.length };
+    return { uploaded, pending: this.getQueue().length };
+    })();
+    try {
+      return await queueFlushPromise;
+    } finally {
+      queueFlushPromise = null;
+    }
   },
 
   /**

@@ -671,7 +671,7 @@ export const DashboardPage: React.FC = () => {
                     className="dashboard-status-popover-action"
                     onClick={() => {
                       setDetailSighting(null);
-                      setDetailReport(report);
+                      openPetDetails(report);
                     }}
                   >
                     <Eye size={16} />

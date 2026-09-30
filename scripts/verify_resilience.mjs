@@ -1,7 +1,10 @@
 import puppeteer from 'puppeteer-core';
 
+// Requires a running Vite development server because forceErrorBoundary is a
+// development-only probe. Override FINDLOSTPUPPY_TEST_URL when needed.
+
 const browser = await puppeteer.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   headless: true,
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
 });
@@ -56,6 +59,7 @@ try {
   }));
 
   await page.goto(`${baseUrl}/?forceErrorBoundary=1`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.fallback-shell--fullscreen', { timeout: 10000 });
   const errorBoundary = await page.evaluate(() => ({
     visible: Boolean(document.querySelector('.fallback-shell--fullscreen')),
     retry: Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.includes('Retry')),

@@ -2721,7 +2721,7 @@ class StorageService {
       });
 
       this.pets = this.pets.map((pet) => {
-        if (pet.id === '1788885000505' || pet.id === '#1788885000505') return pet;
+        if (pet.id === 'pet-1788871495754') return pet;
         const primaryPhoto = isAuthenticatedCloudinary(pet.primaryPhoto) ? pet.primaryPhoto : '';
         const photos = (pet.photos || []).filter(isAuthenticatedCloudinary);
         cleared += Number(Boolean(pet.primaryPhoto && !primaryPhoto));
@@ -2730,7 +2730,7 @@ class StorageService {
       });
 
       this.reports = this.reports.map((report) => {
-        if (report.dog?.id === '1788885000505' || report.id === 'LOST-1788885000505') return report;
+        if (report.dog?.id === 'pet-1788871495754' || report.id === 'LOST-1788885000505') return report;
         const primaryPhoto = isAuthenticatedCloudinary(report.dog?.primaryPhoto) ? report.dog.primaryPhoto : '';
         const photos = (report.dog?.photos || []).filter(isAuthenticatedCloudinary);
         cleared += Number(Boolean(report.dog?.primaryPhoto && !primaryPhoto));

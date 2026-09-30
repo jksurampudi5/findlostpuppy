@@ -23,9 +23,14 @@ export function ServerFailureNotice() {
   /** Retries the Firebase pull and keeps the notice visible if the pull reports failure. */
   const retry = async () => {
     setRetrying(true);
-    const success = await storageService.pullFromFirebase();
-    setRetrying(false);
-    setVisible(!success);
+    try {
+      const success = await storageService.pullFromFirebase();
+      setVisible(!success);
+    } catch {
+      setVisible(true);
+    } finally {
+      setRetrying(false);
+    }
   };
 
   if (!visible || !navigator.onLine) return null;
