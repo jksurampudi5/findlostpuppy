@@ -51,11 +51,12 @@ function MainAppFlow() {
     user,
     isAuthenticated,
     isLoading,
-    activeOnboardingTab,
     setActiveOnboardingTab,
     hasValidConsent,
     isFirstTimeUser,
     agreeToConsent,
+    hasCompletedOwner,
+    hasCompletedLocation,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -227,12 +228,12 @@ function MainAppFlow() {
           !isAuthenticated ? (
             <Navigate to="/login" replace />
           ) : !needsConsent ? (
-            <Navigate to={activeOnboardingTab === 'completed' ? '/homepage' : `/${activeOnboardingTab === 'dog' ? 'pet' : activeOnboardingTab}`} replace />
+            <Navigate to={hasCompletedOwner && hasCompletedLocation ? '/homepage' : '/owner'} replace />
           ) : (
             <ConsentPage
               onConsentAgreed={(forms, method) => {
                 agreeToConsent(forms, method);
-                navigate(activeOnboardingTab === 'completed' ? '/homepage' : '/owner', { replace: true });
+                navigate(hasCompletedOwner && hasCompletedLocation ? '/homepage' : '/owner', { replace: true });
               }}
             />
           )
@@ -248,50 +249,12 @@ function MainAppFlow() {
             <EmailAuthPage />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
-          ) : activeOnboardingTab === 'owner' ? (
-            <PetParentContactPage
-              onSuccess={() => {
-                setActiveOnboardingTab('location');
-                navigate('/location');
-              }}
-            />
-          ) : activeOnboardingTab === 'location' ? (
-            <LocationOnboardingPage
-              onSuccess={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onBack={() => {
-                setActiveOnboardingTab('owner');
-                navigate('/owner');
-              }}
-            />
-          ) : activeOnboardingTab === 'choice' ? (
-            <OnboardingChoicePage />
-          ) : activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? (
-            <DogOnboardingPage
-              onBackToLocation={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('report');
-                navigate('/alert');
-              }}
-            />
-          ) : activeOnboardingTab === 'report' ? (
-            <ReportLostDogPage
-              onBackToPet={() => {
-                setActiveOnboardingTab('dog');
-                navigate('/pet');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('dashboard');
-                navigate('/homepage');
-              }}
-            />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
-            <DashboardPage />
+            <Navigate to="/homepage" replace />
           )
         }
       />

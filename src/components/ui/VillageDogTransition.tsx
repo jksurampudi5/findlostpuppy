@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import dogImg from "./dog_only.png";
 import "./village-dog-transition.css";
 
 export type FlowDirection = "forward" | "backward";
@@ -14,19 +15,25 @@ export interface VillageDogTransitionProps {
   onComplete: () => void;
 }
 
-const DEFAULT_DURATION_MS = 2200;
+const DEFAULT_FORWARD_DURATION_MS = 1600;
+const DEFAULT_BACKWARD_DURATION_MS = 1100;
 
 export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
   direction = "forward",
   fromStep = "Owner Profile",
   toStep = "Location",
-  durationMs = DEFAULT_DURATION_MS,
+  durationMs,
   message,
   subtext,
   onComplete,
 }) => {
   const isBackward = direction === "backward";
+  const effectiveDuration =
+    durationMs ?? (isBackward ? DEFAULT_BACKWARD_DURATION_MS : DEFAULT_FORWARD_DURATION_MS);
+
   const [progress, setProgress] = useState(0);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -47,7 +54,9 @@ export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
   // Try to ensure video auto-plays smoothly
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => {
+        // Autoplay may be restricted in some mobile WebViews; animated runner fallback handles this seamlessly
+      });
     }
   }, []);
 
@@ -61,7 +70,7 @@ export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
       if (!startTime) startTime = now;
 
       const elapsed = now - startTime;
-      const fraction = Math.min(elapsed / durationMs, 1);
+      const fraction = Math.min(elapsed / effectiveDuration, 1);
       setProgress(fraction);
 
       if (fraction >= 1) {
@@ -74,7 +83,7 @@ export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
 
     animFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animFrame);
-  }, [durationMs]);
+  }, [effectiveDuration]);
 
   const defaultMessage =
     message || (isBackward ? `Going Back to ${toStep}` : `Advancing to ${toStep}`);
@@ -82,13 +91,16 @@ export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
   const defaultSubtext =
     subtext || (isBackward ? `Returning from ${fromStep} to ${toStep}...` : `Moving from ${fromStep} to ${toStep}...`);
 
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+
   const videoSrc = isBackward
-    ? "/animations/dog_village_run_back.mp4"
-    : "/animations/dog_village_run_opt.mp4";
+    ? `${cleanBase}animations/dog_village_run_back.mp4`
+    : `${cleanBase}animations/dog_village_run_opt.mp4`;
 
   const posterSrc = isBackward
-    ? "/animations/dog_village_poster_back.jpg"
-    : "/animations/dog_village_poster.jpg";
+    ? `${cleanBase}animations/dog_village_poster_back.jpg`
+    : `${cleanBase}animations/dog_village_poster.jpg`;
 
   if (typeof document === "undefined") return null;
 
@@ -106,21 +118,45 @@ export const VillageDogTransition: React.FC<VillageDogTransitionProps> = ({
         FindLostPuppy
       </div>
 
-      {/* Responsive Centered 9:16 Mobile Canvas */}
+      {/* Responsive Centered Mobile Canvas */}
       <div className="flp-village-video-wrapper">
-        <video
-          key={videoSrc}
-          ref={videoRef}
-          className="flp-village-video"
-          poster={posterSrc}
-          autoPlay
-          playsInline
-          muted
-          loop
-          preload="auto"
+        {/* Animated Dog Runner Fallback Stage — Guarantees continuous puppy running even before/without video */}
+        <div
+          className={`flp-village-fallback-stage ${videoPlaying ? 'is-video-active' : ''}`}
+          data-direction={direction}
+          aria-hidden="true"
         >
-          <source src={videoSrc} type="video/mp4" />
-        </video>
+          <div className="flp-village-fallback-glow" />
+          <div className="flp-village-fallback-path" />
+          <div className="flp-village-dog-runner">
+            <div className="flp-village-dog-shadow" />
+            <img
+              src={dogImg}
+              alt=""
+              className="flp-village-dog-sprite"
+            />
+          </div>
+          <div className="flp-village-paws-dust" />
+        </div>
+
+        {/* Natural Video Overlay */}
+        {!videoError && (
+          <video
+            key={videoSrc}
+            ref={videoRef}
+            className={`flp-village-video ${videoPlaying ? 'is-playing' : ''}`}
+            poster={posterSrc}
+            autoPlay
+            playsInline
+            muted
+            loop
+            preload="auto"
+            onPlaying={() => setVideoPlaying(true)}
+            onError={() => setVideoError(true)}
+          >
+            <source src={videoSrc} type="video/mp4" />
+          </video>
+        )}
 
         {/* Soft Vignette Overlay to blend edges into background */}
         <div className="flp-village-vignette" />

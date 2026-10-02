@@ -562,7 +562,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
           direction="backward"
           fromStep="SOS Alert"
           toStep={onBackToPet ? "Pet Details" : "Dashboard"}
-          durationMs={2400}
+          durationMs={1100}
           onComplete={handleBackTransitionComplete}
         />
       )}

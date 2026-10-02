@@ -1116,7 +1116,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           direction="backward"
           fromStep="Location"
           toStep="Owner Profile"
-          durationMs={2400}
+          durationMs={1100}
           onComplete={handleBackTransitionComplete}
         />
       )}
@@ -1126,7 +1126,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           direction="forward"
           fromStep="Location"
           toStep="Pet Choice"
-          durationMs={2400}
+          durationMs={1600}
           onComplete={handleForwardTransitionComplete}
         />
       )}

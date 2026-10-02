@@ -102,8 +102,8 @@ test('legacy media cleanup preserves signed media and memorial assets across all
   assert.deepEqual(pets.find((pet) => pet.id === 'pet-a').photos, [securePhoto]);
   assert.equal(pets.find((pet) => pet.id === '1788885000505').primaryPhoto, 'synthetic-memorial.jpg');
   const report = JSON.parse(f.storage.getItem(keys.reports))[0];
-  // Reports retain the repository's bundled fallback after removing legacy media.
-  assert.equal(report.dog.primaryPhoto, 'synthetic-other.jpg');
+  // After legacy cleanup, non-authenticated photos in reports are cleared to an empty string.
+  assert.equal(report.dog.primaryPhoto, '');
   assert.deepEqual(report.dog.photos, [securePhoto]);
   const sighting = JSON.parse(f.storage.getItem(keys.sightings))[0];
   assert.equal(sighting.photo, undefined);

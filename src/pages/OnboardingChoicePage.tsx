@@ -147,7 +147,7 @@ export const OnboardingChoicePage: React.FC = () => {
           direction="backward"
           fromStep="Pet Choice"
           toStep="Location"
-          durationMs={2400}
+          durationMs={1100}
           onComplete={handleBackTransitionComplete}
         />
       )}
@@ -157,7 +157,7 @@ export const OnboardingChoicePage: React.FC = () => {
           direction="forward"
           fromStep="Pet Choice"
           toStep="Pet Details"
-          durationMs={2400}
+          durationMs={1600}
           onComplete={handleForwardTransitionComplete}
         />
       )}

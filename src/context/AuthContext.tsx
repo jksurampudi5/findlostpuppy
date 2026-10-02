@@ -112,9 +112,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setActiveOnboardingTab((prev) => {
         if (!hasOwner) return 'owner';
         if (!hasLoc) return 'location';
-        if (!hasDog) return 'dog';
-        if (!hasReport) return 'report';
-        return prev === 'owner' || prev === 'location' || prev === 'choice' || prev === 'dog' || prev === 'report' ? 'completed' : prev;
+        if (prev === 'choice' || prev === 'dog' || prev === 'pet' || prev === 'report') return prev;
+        return 'dashboard';
       });
     } else {
       setHasCompletedOwner(false);

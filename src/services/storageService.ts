@@ -420,6 +420,14 @@ class StorageService {
         }));
         localStorage.setItem(REPORTS_KEY, JSON.stringify(cleanReports));
 
+        // Save clean sightings ensuring ZERO base64 strings
+        const cleanSightings = this.sightings.map((s) => ({
+          ...s,
+          photo: s.photo && !s.photo.startsWith('data:image/') ? s.photo : undefined,
+          photos: (s.photos || []).filter((ph) => ph && !ph.startsWith('data:image/')),
+        }));
+        localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(cleanSightings));
+
         // Persist minimal deleted tombstones and skipped states
         localStorage.setItem(DELETED_REPORTS_KEY, JSON.stringify(this.deletedReportIds));
         localStorage.setItem(DELETED_PETS_KEY, JSON.stringify(this.deletedPetIds));

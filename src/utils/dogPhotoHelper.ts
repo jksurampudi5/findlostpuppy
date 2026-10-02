@@ -1,13 +1,15 @@
 import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
+import safePuppyImg from '../assets/safe_puppy.jpg';
+import missingPuppyImg from '../assets/missing_puppy.jpg';
 import { storageService } from '../services/storageService';
 import type { DogProfile, LostReport } from '../types';
 
 /**
  * Tiered generic media resolver:
- * Tier 1 — Remote HTTPS/HTTP URL (Firebase Storage CDN, public URLs)
+ * Tier 1 — Remote HTTPS/HTTP URL, Blob URLs, Capacitor/file device protocols
  * Tier 2 — Bundled/static assets (resolves correctly on localhost & GitHub Pages via import.meta.env.BASE_URL)
- * Tier 3 — Legacy Base64 data URL (data:image/...)
+ * Tier 3 — Base64 data URL (data:image/...)
  * Tier 4 — Neutral fallback placeholder
  */
 export const resolveGenericMediaUrl = (url?: string | null): string => {
@@ -20,21 +22,34 @@ export const resolveGenericMediaUrl = (url?: string | null): string => {
     return '';
   }
 
-  // Tier 1 — Remote HTTPS/HTTP URL
-  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+  // Tier 1 — Remote HTTPS/HTTP URL or local device/blob/Capacitor protocols
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('capacitor://') ||
+    trimmed.startsWith('content://') ||
+    trimmed.startsWith('file://')
+  ) {
     return trimmed;
   }
 
   // Tier 2 — Bundled static assets
-  // 1. Direct bundled imports or legacy source paths
-  if (trimmed === sonuImg || trimmed === '/src/assets/sonu.jpg' || trimmed.endsWith('/sonu.jpg')) {
+  const lower = trimmed.toLowerCase();
+  if (lower === sonuImg.toLowerCase() || lower.endsWith('/sonu.jpg') || lower === 'sonu.jpg' || lower.includes('sonu')) {
     return sonuImg;
   }
-  if (trimmed === abulluImg || trimmed === '/src/assets/abullu.jpg' || trimmed.endsWith('/abullu.jpg')) {
+  if (lower === abulluImg.toLowerCase() || lower.endsWith('/abullu.jpg') || lower === 'abullu.jpg' || lower.includes('abullu')) {
     return abulluImg;
   }
+  if (lower === safePuppyImg.toLowerCase() || lower.endsWith('/safe_puppy.jpg') || lower === 'safe_puppy.jpg' || lower.includes('safe_puppy')) {
+    return safePuppyImg;
+  }
+  if (lower === missingPuppyImg.toLowerCase() || lower.endsWith('/missing_puppy.jpg') || lower === 'missing_puppy.jpg' || lower.includes('missing_puppy')) {
+    return missingPuppyImg;
+  }
 
-  // 2. Production build asset paths (e.g. /findlostpuppy/assets/... or /assets/...)
+  // Production build asset paths (e.g. /findlostpuppy/assets/... or /assets/... or /images/...)
   const baseUrl = import.meta.env.BASE_URL || '/';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
@@ -48,12 +63,16 @@ export const resolveGenericMediaUrl = (url?: string | null): string => {
     return `${cleanBase}${relativeAsset}`;
   }
 
-  // Tier 3 — Legacy Base64 Data URL (data:image/...)
-  if (trimmed.startsWith('data:image/')) {
+  if (trimmed.startsWith('/images/')) {
+    const relativeAsset = trimmed.replace(/^\/images\//, 'images/');
+    return `${cleanBase}${relativeAsset}`;
+  }
+
+  // Tier 3 — Base64 Data URL (data:image/...)
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('data:')) {
     return trimmed;
   }
 
-  // Tier 4 — Return empty for unrecognized string instead of forcing placeholder
   return '';
 };
 
@@ -143,7 +162,7 @@ export const getDogPhotoUrl = (
   }
 
   for (const candidate of candidates) {
-    if (candidate && typeof candidate === 'string' && candidate.trim().length > 5) {
+    if (candidate && typeof candidate === 'string' && candidate.trim().length > 3) {
       const resolved = resolveGenericMediaUrl(candidate);
       if (resolved) return resolved;
     }
@@ -154,8 +173,13 @@ export const getDogPhotoUrl = (
   if (name === 'SONU' || id.includes('1788871495754') || id.includes('1788885000505')) {
     return sonuImg;
   }
+  if (name.includes('ABULLU') || id.includes('abullu')) {
+    return abulluImg;
+  }
 
-  return '';
+  // Gracefully fallback to an authentic dog photo based on status
+  const isSafe = report?.status === 'SAFE' || (report?.status as any) === 'REUNITED' || id.includes('safe');
+  return isSafe ? safePuppyImg : missingPuppyImg;
 };
 
 export const NEUTRAL_PET_PLACEHOLDER_SVG =

@@ -945,7 +945,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           direction="forward"
           fromStep="Owner Profile"
           toStep="Location"
-          durationMs={2400}
+          durationMs={1600}
           onComplete={handleTransitionComplete}
         />
       )}

@@ -1448,7 +1448,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
           direction="backward"
           fromStep="Pet Details"
           toStep={onBackToLocation ? "Location" : onBackToOwner ? "Owner Profile" : "Pet Choice"}
-          durationMs={2400}
+          durationMs={1100}
           onComplete={handleBackTransitionComplete}
         />
       )}
