@@ -7,7 +7,6 @@ import {
   PawPrint,
   House,
   Siren,
-  ArrowLeft,
   LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -16,9 +15,10 @@ import { storageService } from '../services/storageService';
 import type { LostReport, DogProfile } from '../types';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { MissingPetReportModal } from '../components/MissingPetReportModal';
-import abulluImg from '../assets/abullu.jpg';
 import { getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
+import { BackButton } from '../components/ui/back-button';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
 interface ReportLostDogPageProps {
   onBackToPet?: () => void;
@@ -40,6 +40,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [isTransitioningBack, setIsTransitioningBack] = useState(false);
 
   const [, setForceUpdate] = useState(0);
   useEffect(() => {
@@ -136,13 +137,13 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     const dogPhoto =
       existingPet?.primaryPhoto ||
       existingReport?.dog?.primaryPhoto ||
-      abulluImg;
+      '';
 
     const dogData: DogProfile = existingPet
       ? {
           ...existingPet,
           primaryPhoto: existingPet.primaryPhoto || dogPhoto,
-          photos: existingPet.photos && existingPet.photos.length > 0 ? existingPet.photos : [dogPhoto],
+          photos: existingPet.photos && existingPet.photos.length > 0 ? existingPet.photos : (dogPhoto ? [dogPhoto] : []),
         }
       : {
           id: dogId,
@@ -283,6 +284,12 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
   // Back navigation
   const handleBack = () => {
+    if (isTransitioningBack) return;
+    setIsTransitioningBack(true);
+  };
+
+  const handleBackTransitionComplete = () => {
+    setIsTransitioningBack(false);
     if (onBackToPet) {
       onBackToPet();
     } else if (onSuccess) {
@@ -290,6 +297,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     } else {
       navigate(-1);
     }
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   // Keyboard handler for cards
@@ -315,15 +323,11 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
           {/* ── BACK BUTTON ── */}
           <div className="ps-top-bar">
-            <button
-              type="button"
-              className="pet-profile-back-btn"
+            <BackButton
               onClick={handleBack}
               title="Go back"
               aria-label="Go back"
-            >
-              <ArrowLeft size={18} />
-            </button>
+            />
           </div>
 
           {/* ── CENTERED HEADER ── */}
@@ -551,6 +555,16 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
             </p>
           </div>
         </div>
+      )}
+
+      {isTransitioningBack && (
+        <VillageDogTransition
+          direction="backward"
+          fromStep="SOS Alert"
+          toStep={onBackToPet ? "Pet Details" : "Dashboard"}
+          durationMs={2400}
+          onComplete={handleBackTransitionComplete}
+        />
       )}
     </div>
   );

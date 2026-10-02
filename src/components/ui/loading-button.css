@@ -1,0 +1,204 @@
+/* ==========================================================================
+   21st.dev INSPIRED ANIMATED LOADING BUTTON & MICRO-INTERACTION SYSTEM
+   Implements Emil Kowalski physics: cubic-bezier(0.16, 1, 0.3, 1)
+   ========================================================================== */
+
+.btn-21st-loading {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  overflow: hidden;
+  user-select: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  text-decoration: none;
+  
+  /* Emil Kowalski fluid spring transitions */
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.2s ease,
+              border-color 0.2s ease,
+              opacity 0.2s ease;
+  will-change: transform, box-shadow;
+}
+
+/* Tactile press feedback */
+.btn-21st-loading:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-21st-loading:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+/* ==========================================================================
+   VARIANTS
+   ========================================================================== */
+
+/* Primary Action / Launch (Brand Orange Shimmer) */
+.btn-21st-loading.variant-primary {
+  background: linear-gradient(135deg, #FF7900 0%, #E65100 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(255, 121, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.btn-21st-loading.variant-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(255, 121, 0, 0.48), 0 0 0 1px rgba(255, 152, 0, 0.5);
+  transform: translateY(-1px) scale(1.015);
+}
+
+/* Secondary Action / Dark Surface */
+.btn-21st-loading.variant-secondary {
+  background: rgba(30, 41, 59, 0.85);
+  color: #F1F5F9;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.btn-21st-loading.variant-secondary:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: rgba(255, 121, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Outline / Ghost */
+.btn-21st-loading.variant-outline {
+  background: transparent;
+  color: #E2E8F0;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.btn-21st-loading.variant-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 121, 0, 0.4);
+  color: #FFFFFF;
+}
+
+/* Refresh / Quick Trigger */
+.btn-21st-loading.variant-refresh {
+  background: rgba(255, 121, 0, 0.1);
+  color: #FF9800;
+  border-color: rgba(255, 121, 0, 0.3);
+}
+.btn-21st-loading.variant-refresh:hover:not(:disabled) {
+  background: rgba(255, 121, 0, 0.2);
+  border-color: #FF7900;
+  color: #FFA726;
+  box-shadow: 0 0 12px rgba(255, 121, 0, 0.3);
+}
+
+/* ==========================================================================
+   SIZES
+   ========================================================================== */
+.btn-21st-loading.size-sm {
+  padding: 6px 12px;
+  font-size: 11px;
+  border-radius: 8px;
+}
+.btn-21st-loading.size-md {
+  padding: 9px 18px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.btn-21st-loading.size-lg {
+  padding: 13px 26px;
+  font-size: 15px;
+  border-radius: 12px;
+}
+.btn-21st-loading.size-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 9px;
+}
+
+/* ==========================================================================
+   21st.dev SHIMMER BEAM (Animated Border & Sweep)
+   ========================================================================== */
+.btn-21st-loading.is-loading {
+  pointer-events: none;
+}
+
+.btn-21st-loading .shimmer-beam {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  transform: skewX(-22deg);
+  animation: shimmerSweep 1.2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes shimmerSweep {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+/* Spinner icon rotation */
+.btn-21st-spinner {
+  display: inline-block;
+  animation: spin21st 0.75s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes spin21st {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 21st.dev Fluid Pulsing Dots */
+.btn-21st-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-21st-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.4;
+  animation: dotPulse 0.9s infinite ease-in-out;
+}
+
+.btn-21st-dots span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.btn-21st-dots span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}

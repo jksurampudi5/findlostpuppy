@@ -3,7 +3,10 @@ import fs from 'fs';
 import path from 'path';
 
 const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const artifactDir = '/Users/jayakrishna/.gemini/antigravity-ide/brain/cf958b31-6d2b-47af-a191-6faa9469f81e';
+const artifactDir = process.env.ARTIFACT_DIR || '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
+if (!fs.existsSync(artifactDir)) {
+  fs.mkdirSync(artifactDir, { recursive: true });
+}
 
 const testResults = [];
 
@@ -100,6 +103,7 @@ async function run() {
       localStorage.setItem('findlostpuppy_owner_profile', JSON.stringify(profile));
       localStorage.setItem('findlostpuppy_parent_profile', JSON.stringify(profile));
       localStorage.setItem('findlostpuppy_owner_profiles', JSON.stringify([profile]));
+      localStorage.setItem('findlostpuppy_profiles_v1', JSON.stringify([profile]));
 
       // Existing Pet: Buddy
       const pet = {
@@ -130,12 +134,13 @@ async function run() {
     await new Promise(r => setTimeout(r, 600));
     await snap('location_page');
 
-    const locationBackBtn = await page.$('.location-onboarding-card .pet-profile-back-btn');
+    const locationBackBtn = await page.$('.location-header-bar .back-button-root');
     recordTest('Location Back Button rendered on top left inside container', !!locationBackBtn);
 
     if (locationBackBtn) {
       await locationBackBtn.click();
-      await new Promise(r => setTimeout(r, 500));
+      await page.waitForFunction(() => window.location.pathname.includes('/owner'), { timeout: 4000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 400));
       await snap('after_location_back_click');
       const currentUrl = page.url();
       recordTest('Clicking Location Back Button navigates to /owner', currentUrl.includes('/owner'), `URL: ${currentUrl}`);
@@ -154,7 +159,8 @@ async function run() {
 
     if (continueBtn) {
       await continueBtn.click();
-      await new Promise(r => setTimeout(r, 600));
+      await page.waitForFunction(() => window.location.pathname.includes('/choice'), { timeout: 4000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 400));
       await snap('after_location_continue_to_choice');
       const currentUrl = page.url();
       recordTest('Location Continue button navigates to /choice', currentUrl.includes('/choice'), `URL: ${currentUrl}`);
@@ -174,13 +180,14 @@ async function run() {
     const existingPetBtn = await page.$('.existing-pet-active-option');
     recordTest('Existing pet option card is rendered with active styling', !!existingPetBtn);
 
-    const choiceBackBtn = await page.$('.choice-back-btn');
+    const choiceBackBtn = await page.$('.choice-header-bar .back-button-root');
     recordTest('Pet Choice has back button to return to Location', !!choiceBackBtn);
 
     // Click on existing pet card to go to Pet Details component
     if (existingPetBtn) {
       await existingPetBtn.click();
-      await new Promise(r => setTimeout(r, 600));
+      await page.waitForFunction(() => window.location.pathname.includes('/pet'), { timeout: 4000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 400));
       await snap('pet_details_view_mode');
 
       const petUrl = page.url();
@@ -208,10 +215,11 @@ async function run() {
       // Test Back from Pet Details to Choice
       await page.goto('http://localhost:5173/pet', { waitUntil: 'domcontentloaded' });
       await new Promise(r => setTimeout(r, 500));
-      const petBackBtn = await page.$('.pet-combined-card .pet-profile-back-btn');
+      const petBackBtn = await page.$('.pet-header-bar .back-button-root');
       if (petBackBtn) {
         await petBackBtn.click();
-        await new Promise(r => setTimeout(r, 500));
+        await page.waitForFunction(() => window.location.pathname.includes('/choice'), { timeout: 4000 }).catch(() => {});
+        await new Promise(r => setTimeout(r, 400));
         const backUrl = page.url();
         recordTest('Back button on Pet Details navigates back to /choice', backUrl.includes('/choice'), `URL: ${backUrl}`);
       }

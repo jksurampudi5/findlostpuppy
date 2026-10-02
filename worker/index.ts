@@ -176,7 +176,7 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
     const publicId = String(data.publicId || '');
     if (!ownedBy(publicId, uid)) throw new Error('FORBIDDEN');
     const asset = await getAuthenticatedImage(publicId, env);
-    if (!['jpg', 'jpeg'].includes(String(asset.format).toLowerCase()) || asset.bytes > 5 * 1024 * 1024) {
+    if (!['jpg', 'jpeg'].includes(String(asset.format).toLowerCase()) || asset.bytes <= 0 || asset.bytes > 5 * 1024 * 1024) {
       await deleteAsset(publicId, env);
       throw new Error('INVALID');
     }

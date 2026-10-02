@@ -110,6 +110,7 @@ export interface DogProfile {
   photoLastChangedAt?: string;
   photoChangeApprovalRequired?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface LostReport {

@@ -1,0 +1,108 @@
+/* ==========================================================================
+   21st.dev INSPIRED COMPONENT & PAGE TRANSITION SYSTEM
+   Adheres to Emil Kowalski animation physics:
+   - cubic-bezier(0.16, 1, 0.3, 1) fluid deceleration curve
+   - Avoids scale(0), starts from scale(0.985)
+   - GPU-accelerated: will-change opacity, transform
+   ========================================================================== */
+
+/* Top Navigation Progress Shimmer Bar */
+.route-progress-bar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 999999;
+  pointer-events: none;
+  background: transparent;
+}
+
+.route-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FF7900, #FFA726, #FFD54F, #FF7900);
+  background-size: 200% 100%;
+  box-shadow: 0 0 12px rgba(255, 121, 0, 0.8), 0 0 6px rgba(255, 167, 38, 0.6);
+  border-radius: 0 3px 3px 0;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  animation: progressGlow 1.2s infinite linear;
+}
+
+@keyframes progressGlow {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Page / Component Wrapper */
+.page-transition-wrapper {
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+  will-change: opacity, transform;
+}
+
+/* Natural Vertical Float Entrance */
+.page-enter-vertical {
+  animation: emilPageEnterVertical 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes emilPageEnterVertical {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Forward Sequential Step (Slide in from Right) */
+.page-enter-forward {
+  animation: emilPageEnterForward 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes emilPageEnterForward {
+  0% {
+    opacity: 0;
+    transform: translateX(18px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Backward Sequential Step (Slide in from Left) */
+.page-enter-backward {
+  animation: emilPageEnterBackward 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes emilPageEnterBackward {
+  0% {
+    opacity: 0;
+    transform: translateX(-18px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Accessibility: honor prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .route-progress-bar-container {
+    display: none !important;
+  }
+  .page-enter-vertical,
+  .page-enter-forward,
+  .page-enter-backward {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

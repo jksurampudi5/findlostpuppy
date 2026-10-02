@@ -1,0 +1,182 @@
+/* ==========================================================================
+   Village Dog Video Transition Styles
+   Natural black Indie puppy running on soft village mud ground
+   Responsive for localhost web & Android Play Store (Capacitor)
+   ========================================================================== */
+
+.flp-village-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #060708;
+  color: #f5f2ed;
+  overflow: hidden;
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Responsive Video Container - Centered Mobile 9:16 Portrait Canvas */
+.flp-village-video-wrapper {
+  position: relative;
+  width: min(440px, 100vw);
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flp-village-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  /* Smooth transition when loaded */
+  opacity: 1;
+  transition: transform 0.2s ease;
+}
+
+/* Backward mode plays native right-to-left video asset directly with zero transform distortion */
+
+/* Soft Vignette Overlay to blend video edges into obsidian background */
+.flp-village-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    transparent 45%,
+    rgba(6, 7, 8, 0.4) 75%,
+    rgba(6, 7, 8, 0.95) 100%
+  );
+  box-shadow:
+    inset 0 60px 80px rgba(6, 7, 8, 0.85),
+    inset 0 -60px 80px rgba(6, 7, 8, 0.85);
+}
+
+/* Top Floating Brand Card */
+.flp-village-header {
+  position: absolute;
+  top: max(env(safe-area-inset-top, 24px), 24px);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(14, 16, 19, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f5f2ed;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.flp-village-header__badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399; /* Refreshing natural green pulse */
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.8);
+  animation: villageDotPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes villageDotPulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Bottom Mission Floating Card */
+.flp-village-card {
+  position: absolute;
+  bottom: max(env(safe-area-inset-bottom, 24px), 24px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(400px, calc(100vw - 36px));
+  padding: 18px 20px 16px;
+  border-radius: 20px;
+  background: rgba(12, 14, 17, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.flp-village-message {
+  margin: 0;
+  font-size: clamp(17px, 3.8vw, 20px);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.flp-village-subtext {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #a09d98;
+  font-weight: 500;
+}
+
+/* Steps Flow */
+.flp-village-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.flp-village-step--from {
+  color: #8b8882;
+}
+
+.flp-village-arrow {
+  color: #e2dfd9;
+  font-size: 14px;
+}
+
+.flp-village-step--to {
+  color: #ffffff;
+}
+
+/* Clean Progress Bar */
+.flp-village-progress-track {
+  width: 100%;
+  height: 4px;
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.flp-village-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #e2dfd9, #ffffff);
+  border-radius: 999px;
+  transform-origin: left center;
+  transform: scaleX(var(--village-progress, 0));
+  transition: transform 0.05s linear;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+.flp-village-transition[data-direction="backward"] .flp-village-progress-bar {
+  transform-origin: right center;
+}

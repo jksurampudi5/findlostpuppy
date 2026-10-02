@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Calendar, Camera, Check, Eye, Home, MapPin, Navigation, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, Calendar, Camera, Check, Dog, Eye, Home, MapPin, Navigation, RotateCcw, ShieldCheck, Sparkles, Star, Trash2, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
-import type { LostReport, Sighting } from '../types';
+import { locationService } from '../services/locationService';
+import type { LostReport, Sighting, OwnerProfile, DogProfile, LocationLocality } from '../types';
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
+import { isMatchState, isMatchDistrict, isMatchMandal, isMatchCity, getReportGeo } from '../utils/locationMatchHelper';
 import { EmptyState } from '../components/fallbacks/EmptyState';
 
 /** Displays pet-status categories and grouped sightings with owner-gated safe-pet detail dialogs. */
@@ -16,11 +19,21 @@ export const DashboardPage: React.FC = () => {
   const location = useLocation();
   const listPanelRef = useRef<HTMLDivElement | null>(null);
   const [reports, setReports] = useState<LostReport[]>([]);
+  const [allPets, setAllPets] = useState<DogProfile[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
+  const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
   const [detailSighting, setDetailSighting] = useState<Sighting | null>(null);
   const [activeSightingPhotoIndex, setActiveSightingPhotoIndex] = useState(0);
   const [statusPanelOpen, setStatusPanelOpen] = useState(false);
+
+  // Cascading location filter states for Pets Missing
+  const [missingFilterState, setMissingFilterState] = useState('');
+  const [missingFilterDistrict, setMissingFilterDistrict] = useState('');
+  const [missingFilterMandal, setMissingFilterMandal] = useState('');
+  const [missingFilterVillage, setMissingFilterVillage] = useState('');
+  const [missingLocalities, setMissingLocalities] = useState<LocationLocality[]>([]);
+
   const isDashboardAdmin = Boolean(
     user?.isAdmin ||
     user?.email?.toLowerCase().trim() === 'jksurmpudi5@gmail.com' ||
@@ -55,6 +68,7 @@ export const DashboardPage: React.FC = () => {
     const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
     if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
       setSelectedStatus(stateTab);
+      setStatusPanelOpen(true);
     }
   }, [location.state]);
 
@@ -67,7 +81,9 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     const loadDashboardData = () => {
       setReports(storageService.getAllReports());
+      setAllPets(storageService.getAllPets());
       setSightings(storageService.getAllSightings().filter((sighting) => sighting.isCurrent !== false));
+      setProfiles(storageService.getAllOwnerProfiles());
     };
 
     loadDashboardData();
@@ -79,27 +95,171 @@ export const DashboardPage: React.FC = () => {
     };
   }, []);
 
+  // Fetch localities when district and mandal are selected
+  useEffect(() => {
+    let isMounted = true;
+    if (missingFilterState && missingFilterDistrict && missingFilterMandal) {
+      const distObj = locationService.getDistrict(missingFilterState, missingFilterDistrict);
+      if (distObj) {
+        const subObj = locationService.getSubDistrict(distObj.districtCode, missingFilterMandal);
+        if (subObj) {
+          locationService
+            .getLocalities(distObj.districtCode, subObj.subDistrictCode)
+            .then((list) => {
+              if (isMounted) setMissingLocalities(list);
+            })
+            .catch(() => {
+              if (isMounted) setMissingLocalities([]);
+            });
+          return () => {
+            isMounted = false;
+          };
+        }
+      }
+    }
+    setMissingLocalities([]);
+    return () => {
+      isMounted = false;
+    };
+  }, [missingFilterState, missingFilterDistrict, missingFilterMandal]);
+
   const visiblePets = useMemo(() => {
     if (selectedStatus === 'LOST') {
       return reports.filter((report) => report.status === 'LOST');
     }
-    const safeReports = reports.filter(
-      (report) => report.status === 'SAFE' || report.status === 'REUNITED'
+
+    // 1. Identify pets with active LOST reports so they are strictly excluded from Pets at Home
+    const activeLostPetIds = new Set(
+      reports
+        .filter((r) => r.status === 'LOST')
+        .map((r) => (r.dogId || r.dog?.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim())
+        .filter(Boolean)
     );
-    if (user && (effectiveSafetyStatus === 'SAFE' || userReport?.status === 'SAFE')) {
-      const alreadyInList = safeReports.some(
-        (r) => r.id === userReport?.id || r.ownerId === user.id || r.ownerId === `owner-${user.id}`
-      );
-      if (!alreadyInList && userReport) {
-        return [userReport, ...safeReports];
+    const activeLostOwnerIds = new Set(
+      reports
+        .filter((r) => r.status === 'LOST')
+        .map((r) => (r.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim())
+        .filter(Boolean)
+    );
+
+    // Canonical key generator for strict 1:1 pet deduplication
+    const getPetKey = (petId?: string, ownerId?: string, petName?: string): string => {
+      const cleanP = (petId || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+      const cleanO = (ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+      const cleanN = (petName || '').toLowerCase().trim();
+      if (cleanP && cleanP !== 'unknown') return `pet:${cleanP}`;
+      if (cleanO && cleanN) return `owner:${cleanO}:${cleanN}`;
+      if (cleanO) return `owner:${cleanO}`;
+      return `unknown:${cleanN || Math.random()}`;
+    };
+
+    const petMap = new Map<string, LostReport>();
+
+    // 2. Gather safe/reunited reports and enrich with latest dog profile data
+    reports
+      .filter((r) => r.status === 'SAFE' || (r.status as any) === 'REUNITED')
+      .forEach((report) => {
+        const cleanPetId = (report.dogId || report.dog?.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+        const cleanOwnerId = (report.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+        if (activeLostPetIds.has(cleanPetId) || activeLostOwnerIds.has(cleanOwnerId)) return;
+
+        // Find freshest pet from allPets
+        const matchedPet = allPets.find((p) => {
+          const pId = (p.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+          const pOwner = (p.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+          return (pId && pId === cleanPetId) || (pOwner && pOwner === cleanOwnerId);
+        });
+
+        const key = getPetKey(
+          report.dogId || report.dog?.id || matchedPet?.id,
+          report.ownerId || matchedPet?.ownerId,
+          matchedPet?.name || report.dog?.name
+        );
+
+        const enrichedDog: DogProfile = matchedPet
+          ? { ...report.dog, ...matchedPet, primaryPhoto: matchedPet.primaryPhoto || '' }
+          : { ...report.dog, primaryPhoto: report.dog?.primaryPhoto || '' };
+
+        petMap.set(key, {
+          ...report,
+          dogId: matchedPet?.id || report.dogId,
+          ownerId: matchedPet?.ownerId || report.ownerId,
+          dog: enrichedDog,
+        });
+      });
+
+    // 3. Include all registered companion pets from allPets that are safe at home
+    allPets.forEach((pet) => {
+      const cleanPetId = (pet.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+      const cleanOwnerId = (pet.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+      if (activeLostPetIds.has(cleanPetId) || activeLostOwnerIds.has(cleanOwnerId)) return;
+
+      const key = getPetKey(pet.id, pet.ownerId, pet.name);
+
+      if (petMap.has(key)) {
+        // Update existing report with latest pet photo and details
+        const existing = petMap.get(key)!;
+        petMap.set(key, {
+          ...existing,
+          dog: { ...existing.dog, ...pet, primaryPhoto: pet.primaryPhoto || '' },
+        });
+        return;
       }
-    }
-    if (safeReports.length === 0 && selectedStatus === 'SAFE' && userPetProfile) {
-      return [
-        {
+
+      // If not yet in map, create a companion safe report
+      const owner = profiles.find((p) => {
+        const cleanPId = (p.id || '').toLowerCase().replace(/^(owner-)/, '').trim();
+        const cleanPUId = (p.userId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+        return cleanPId === cleanOwnerId || cleanPUId === cleanOwnerId;
+      });
+
+      const loc =
+        owner?.approximateArea ||
+        [owner?.city, owner?.district, owner?.state].filter(Boolean).join(', ') ||
+        'Safe at Home';
+
+      petMap.set(key, {
+        id: `safe-pet-${pet.id}`,
+        dogId: pet.id,
+        ownerId: pet.ownerId,
+        dog: pet,
+        ownerApproximateLocation: loc,
+        lastKnownLocation: loc,
+        dateLost: '',
+        timeLost: '',
+        additionalNotes: pet.distinguishingMarks || 'Safe companion pet.',
+        status: 'SAFE' as const,
+        sightingCount: 0,
+        createdAt: pet.createdAt || new Date().toISOString(),
+        updatedAt: (pet as any).updatedAt || pet.createdAt || new Date().toISOString(),
+        contactMechanism: {
+          showPhone: true,
+          showEmail: true,
+          safeContactPhone: owner?.phone || '',
+          safeContactEmail: owner?.email || '',
+          contactNote: 'Safe at home with family.',
+        },
+      });
+    });
+
+    // Convert map to array
+    const safeList = Array.from(petMap.values());
+
+    // 4. Prioritize current user's safe pet at the top of the list without creating duplicates
+    if (user && userPetProfile && effectiveSafetyStatus === 'SAFE') {
+      const userKey = getPetKey(userPetProfile.id, user.id, userPetProfile.name);
+      const userIdx = safeList.findIndex(
+        (r) => getPetKey(r.dogId || r.dog?.id, r.ownerId, r.dog?.name) === userKey
+      );
+
+      if (userIdx > 0) {
+        const [userItem] = safeList.splice(userIdx, 1);
+        safeList.unshift(userItem);
+      } else if (userIdx === -1) {
+        safeList.unshift({
           id: `local-safe-${userPetProfile.id}`,
           dogId: userPetProfile.id,
-          ownerId: user?.id || 'owner',
+          ownerId: user.id,
           dog: userPetProfile,
           ownerApproximateLocation: 'Safe at home',
           lastKnownLocation: 'Safe at home',
@@ -117,11 +277,118 @@ export const DashboardPage: React.FC = () => {
             safeContactEmail: '',
             contactNote: 'Safe at home',
           },
-        },
-      ];
+        });
+      }
     }
-    return safeReports;
-  }, [reports, selectedStatus, user, effectiveSafetyStatus, userReport, userPetProfile]);
+
+    return safeList;
+  }, [reports, allPets, selectedStatus, user, effectiveSafetyStatus, userPetProfile, profiles]);
+
+  const handleResetMissingFilters = () => {
+    setMissingFilterState('');
+    setMissingFilterDistrict('');
+    setMissingFilterMandal('');
+    setMissingFilterVillage('');
+  };
+
+  const filteredMissingPets = useMemo(() => {
+    if (selectedStatus !== 'LOST') return visiblePets;
+    let list = visiblePets;
+    if (missingFilterState) {
+      list = list.filter((r) => isMatchState(r, missingFilterState, profiles));
+    }
+    if (missingFilterDistrict) {
+      list = list.filter((r) => isMatchDistrict(r, missingFilterState, missingFilterDistrict, profiles));
+    }
+    if (missingFilterMandal) {
+      list = list.filter((r) => isMatchMandal(r, missingFilterState, missingFilterDistrict, missingFilterMandal, profiles));
+    }
+    if (missingFilterVillage) {
+      list = list.filter((r) => isMatchCity(r, missingFilterState, missingFilterDistrict, missingFilterMandal, missingFilterVillage, profiles));
+    }
+    return list;
+  }, [visiblePets, selectedStatus, missingFilterState, missingFilterDistrict, missingFilterMandal, missingFilterVillage, profiles]);
+
+  const missingStateOptions = useMemo(() => {
+    const lostReports = reports.filter((r) => r.status === 'LOST');
+    return locationService.getStates().map((s) => {
+      const count = lostReports.filter((r) => isMatchState(r, s.name, profiles)).length;
+      return {
+        name: s.name,
+        hasPetAlert: count > 0,
+        count,
+      };
+    }).sort((a, b) => {
+      if (a.hasPetAlert && !b.hasPetAlert) return -1;
+      if (!a.hasPetAlert && b.hasPetAlert) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [reports, profiles]);
+
+  const missingDistrictOptions = useMemo(() => {
+    if (!missingFilterState) return [];
+    const lostReports = reports.filter((r) => r.status === 'LOST');
+    return locationService.getDistricts(missingFilterState).map((d) => {
+      const count = lostReports.filter((r) => isMatchDistrict(r, missingFilterState, d.districtName, profiles)).length;
+      return {
+        name: d.districtName,
+        hasPetAlert: count > 0,
+        count,
+      };
+    }).sort((a, b) => {
+      if (a.hasPetAlert && !b.hasPetAlert) return -1;
+      if (!a.hasPetAlert && b.hasPetAlert) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [missingFilterState, reports, profiles]);
+
+  const missingMandalOptions = useMemo(() => {
+    if (!missingFilterState || !missingFilterDistrict) return [];
+    const lostReports = reports.filter((r) => r.status === 'LOST');
+    return locationService.getSubDistricts(missingFilterDistrict, missingFilterState).map((m) => {
+      const count = lostReports.filter((r) => isMatchMandal(r, missingFilterState, missingFilterDistrict, m.subDistrictName, profiles)).length;
+      return {
+        name: m.subDistrictName,
+        hasPetAlert: count > 0,
+        count,
+      };
+    }).sort((a, b) => {
+      if (a.hasPetAlert && !b.hasPetAlert) return -1;
+      if (!a.hasPetAlert && b.hasPetAlert) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [missingFilterState, missingFilterDistrict, reports, profiles]);
+
+  const missingVillageOptions = useMemo(() => {
+    if (!missingFilterState || !missingFilterDistrict || !missingFilterMandal) return [];
+    const lostReports = reports.filter((r) => r.status === 'LOST');
+    const villageSet = new Set<string>();
+    missingLocalities.forEach((l) => {
+      if (l.localityName.toLowerCase().trim() !== missingFilterMandal.toLowerCase().trim()) {
+        villageSet.add(l.localityName);
+      }
+    });
+    lostReports.forEach((r) => {
+      const geo = getReportGeo(r, profiles);
+      if (geo.village && isMatchMandal(r, missingFilterState, missingFilterDistrict, missingFilterMandal, profiles)) {
+        if (geo.village.toLowerCase().trim() !== missingFilterMandal.toLowerCase().trim()) {
+          villageSet.add(geo.village);
+        }
+      }
+    });
+    return Array.from(villageSet).map((v) => {
+      const count = lostReports.filter((r) => isMatchCity(r, missingFilterState, missingFilterDistrict, missingFilterMandal, v, profiles)).length;
+      return {
+        name: v,
+        hasPetAlert: count > 0,
+        count,
+      };
+    }).sort((a, b) => {
+      if (a.hasPetAlert && !b.hasPetAlert) return -1;
+      if (!a.hasPetAlert && b.hasPetAlert) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [missingFilterState, missingFilterDistrict, missingFilterMandal, missingLocalities, reports, profiles]);
 
   const getSightingReport = (sighting: Sighting) =>
     reports.find((report) => report.id === sighting.reportId || report.id.toLowerCase() === sighting.reportId.toLowerCase());
@@ -139,9 +406,9 @@ export const DashboardPage: React.FC = () => {
     return ownerIds.includes(userId) || Boolean(userEmail && reportEmail && userEmail === reportEmail);
   };
 
-  /** Allows missing-report details for everyone and other report details only for a matching owner. */
+  /** Allows viewing companion pet details for community awareness and reunion. */
   const canViewReportDetails = (report: LostReport) =>
-    report.status === 'LOST' || isCurrentUserPetOwner(report);
+    Boolean(report && (report.status === 'LOST' || report.status === 'SAFE' || isCurrentUserPetOwner(report)));
 
   /** Hides the category list and opens the selected sighting at the requested photo index. */
   const openSightingDetails = (sighting: Sighting, photoIndex: number = 0) => {
@@ -150,14 +417,21 @@ export const DashboardPage: React.FC = () => {
     setActiveSightingPhotoIndex(photoIndex);
   };
 
-  /** Checks detail visibility before replacing the category list with the selected pet report. */
+  /** Replaces the category list with the selected pet report. */
   const openPetDetails = (report: LostReport) => {
-    if (!canViewReportDetails(report)) {
-      showToast('Safe pet details are private to the pet owner.', 'info');
-      return;
-    }
     setStatusPanelOpen(false);
-    setDetailReport(report);
+    // Find freshest matching pet in allPets to guarantee latest photo and traits
+    const cleanPetId = (report.dogId || report.dog?.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+    const cleanOwnerId = (report.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+    const matchedPet = allPets.find((p) => {
+      const pId = (p.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
+      const pOwner = (p.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+      return (pId && pId === cleanPetId) || (pOwner && pOwner === cleanOwnerId);
+    });
+    const enriched = matchedPet
+      ? { ...report, dog: { ...report.dog, ...matchedPet, primaryPhoto: matchedPet.primaryPhoto || '' } }
+      : report;
+    setDetailReport(enriched);
   };
 
   /** Closes pet details and restores the category list modal. */
@@ -273,9 +547,19 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {selectedStatus && statusPanelOpen && (
-            <div className="dashboard-status-modal-backdrop dashboard-list-modal-backdrop" role="presentation">
-            <div className="dashboard-status-pets-panel dashboard-status-list-modal" ref={listPanelRef} role="dialog" aria-modal="true">
+          {selectedStatus && statusPanelOpen && createPortal(
+            <div
+              className="dashboard-status-modal-backdrop dashboard-list-modal-backdrop"
+              role="presentation"
+              onClick={() => setStatusPanelOpen(false)}
+            >
+            <div
+              className="dashboard-status-pets-panel dashboard-status-list-modal"
+              ref={listPanelRef}
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="dashboard-status-pets-panel-header">
                 <h2>
                   {selectedStatus === 'SIGHTINGS'
@@ -284,7 +568,7 @@ export const DashboardPage: React.FC = () => {
                       ? 'Pets at Home'
                       : 'Pets Missing'}
                 </h2>
-                <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : visiblePets.length} listed</span>
+                <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : (selectedStatus === 'LOST' ? filteredMissingPets.length : visiblePets.length)} listed</span>
                 <button
                   type="button"
                   className="dashboard-status-modal-close dashboard-list-modal-close"
@@ -295,14 +579,127 @@ export const DashboardPage: React.FC = () => {
                 </button>
               </div>
               {selectedStatus === 'LOST' && (
-                <button
-                  type="button"
-                  className="dashboard-capture-shortcut-btn"
-                  onClick={() => navigate('/capture')}
-                >
-                  <Camera size={16} />
-                  <span>Capture Missing Pet Photo</span>
-                </button>
+                <>
+                  <div className="dashboard-missing-filter-bar">
+                    <div className="dashboard-missing-filter-header">
+                      <div className="dashboard-missing-filter-title">
+                        <MapPin size={15} className="text-amber-500" />
+                        <span>Filter by Location</span>
+                        {(missingFilterState || missingFilterDistrict || missingFilterMandal || missingFilterVillage) && (
+                          <button
+                            type="button"
+                            className="dashboard-missing-filter-reset-btn"
+                            onClick={handleResetMissingFilters}
+                            title="Clear location filters"
+                          >
+                            <RotateCcw size={12} />
+                            <span>Clear Filters</span>
+                          </button>
+                        )}
+                      </div>
+                      <span className="dashboard-missing-filter-status">
+                        {filteredMissingPets.length} of {visiblePets.length} pets
+                      </span>
+                    </div>
+                    <div className="dashboard-missing-filter-grid">
+                      {/* State Selector */}
+                      <div className="missing-filter-select-wrap">
+                        <label htmlFor="missing-filter-state">State</label>
+                        <select
+                          id="missing-filter-state"
+                          className="missing-filter-select"
+                          value={missingFilterState}
+                          onChange={(e) => {
+                            setMissingFilterState(e.target.value);
+                            setMissingFilterDistrict('');
+                            setMissingFilterMandal('');
+                            setMissingFilterVillage('');
+                          }}
+                        >
+                          <option value="">All States</option>
+                          {missingStateOptions.map((s) => (
+                            <option key={s.name} value={s.name}>
+                              {s.hasPetAlert ? `🟢 ${s.name} (${s.count})` : s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* District Selector */}
+                      <div className="missing-filter-select-wrap">
+                        <label htmlFor="missing-filter-district">District</label>
+                        <select
+                          id="missing-filter-district"
+                          className="missing-filter-select"
+                          value={missingFilterDistrict}
+                          disabled={!missingFilterState}
+                          onChange={(e) => {
+                            setMissingFilterDistrict(e.target.value);
+                            setMissingFilterMandal('');
+                            setMissingFilterVillage('');
+                          }}
+                        >
+                          <option value="">{missingFilterState ? 'All Districts' : 'Select State first'}</option>
+                          {missingDistrictOptions.map((d) => (
+                            <option key={d.name} value={d.name}>
+                              {d.hasPetAlert ? `🟢 ${d.name} (${d.count})` : d.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Mandal Selector */}
+                      <div className="missing-filter-select-wrap">
+                        <label htmlFor="missing-filter-mandal">Mandal / Municipality</label>
+                        <select
+                          id="missing-filter-mandal"
+                          className="missing-filter-select"
+                          value={missingFilterMandal}
+                          disabled={!missingFilterDistrict}
+                          onChange={(e) => {
+                            setMissingFilterMandal(e.target.value);
+                            setMissingFilterVillage('');
+                          }}
+                        >
+                          <option value="">{missingFilterDistrict ? 'All Mandals' : 'Select District first'}</option>
+                          {missingMandalOptions.map((m) => (
+                            <option key={m.name} value={m.name}>
+                              {m.hasPetAlert ? `🟢 ${m.name} (${m.count})` : m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Village Selector */}
+                      <div className="missing-filter-select-wrap">
+                        <label htmlFor="missing-filter-village">Village / Locality</label>
+                        <select
+                          id="missing-filter-village"
+                          className="missing-filter-select"
+                          value={missingFilterVillage}
+                          disabled={!missingFilterMandal}
+                          onChange={(e) => setMissingFilterVillage(e.target.value)}
+                        >
+                          <option value="">{missingFilterMandal ? 'All Localities' : 'Select Mandal first'}</option>
+                          {missingVillageOptions.map((v) => (
+                            <option key={v.name} value={v.name}>
+                              {v.hasPetAlert ? `🟢 ${v.name} (${v.count})` : v.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="dashboard-capture-shortcut-btn"
+                    onClick={() => navigate('/capture?mode=unknown')}
+                  >
+                    <Camera size={16} />
+                    <span>Quick Capture Roaming Pet Photo</span>
+                  </button>
+                </>
               )}
               {selectedStatus === 'SAFE' && (
                 <button
@@ -392,39 +789,64 @@ export const DashboardPage: React.FC = () => {
                       action={<button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/find')}>View Missing Pets</button>}
                     />
                   )
-                ) : visiblePets.length > 0 ? (
-                  visiblePets.map((report) => {
+                ) : (selectedStatus === 'LOST' ? filteredMissingPets : visiblePets).length > 0 ? (
+                  (selectedStatus === 'LOST' ? filteredMissingPets : visiblePets).map((report) => {
                     const displayName = getDogDisplayName(report.dog, report);
-                    const photoUrl = selectedStatus === 'LOST' ? getDogPhotoUrl(report.dog, report) : '';
+                    const photoUrl = getDogPhotoUrl(report.dog, report);
                     const canViewDetails = canViewReportDetails(report);
+                    const isUnknownRoaming = report.dog?.name?.toLowerCase().includes('unknown') || report.id.includes('UNKNOWN');
+                    const isSafe = selectedStatus === 'SAFE' || report.status === 'SAFE' || (report.status as any) === 'REUNITED';
                     return (
                       <article
                         key={report.id}
-                        className="dashboard-status-pet-row"
+                        className={`dashboard-status-pet-row ${isUnknownRoaming ? 'dashboard-roaming-pet-row' : ''}`}
+                        onClick={() => canViewDetails && openPetDetails(report)}
+                        style={{ cursor: canViewDetails ? 'pointer' : 'default' }}
                       >
-                        {selectedStatus === 'LOST' && (
-                          <div className="dashboard-status-pet-photo-wrap">
+                        <div className="dashboard-status-pet-photo-wrap">
+                          {photoUrl ? (
                             <img
                               src={photoUrl}
                               alt={displayName}
                               className="dashboard-status-pet-photo"
                               onError={handleDogImageError}
                             />
-                          </div>
-                        )}
+                          ) : (
+                            <div className="dashboard-status-pet-photo-placeholder" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+                              <Dog size={24} style={{ opacity: 0.5, color: '#f97316' }} />
+                            </div>
+                          )}
+                        </div>
                         <div className="dashboard-status-pet-copy">
-                          <strong>{displayName}</strong>
+                          <div className="dashboard-pet-name-row">
+                            <strong>{displayName}</strong>
+                            {isSafe && (
+                              <span className="dashboard-safe-tag" style={{ fontSize: '0.75rem', color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                <Check size={13} /> Safe at Home
+                              </span>
+                            )}
+                            {isUnknownRoaming && (
+                              <span className="dashboard-roaming-tag">🐾 Roaming Pet</span>
+                            )}
+                          </div>
+                          <span className="dashboard-pet-location-snippet">
+                            <MapPin size={12} />
+                            {isSafe
+                              ? `${report.dog?.breed || 'Companion Pet'} • ${report.ownerApproximateLocation || report.lastKnownLocation || 'Safe at Home'}`
+                              : (report.lastKnownLocation || report.ownerApproximateLocation || 'Public Sighting Area')
+                            }
+                          </span>
                         </div>
                         {canViewDetails ? (
                           <div className="dashboard-status-row-actions">
-                          <button
-                            type="button"
-                            className="dashboard-status-view-details-btn"
-                            onClick={() => openPetDetails(report)}
-                          >
-                            <Eye size={14} />
-                            <span>View details</span>
-                          </button>
+                            <button
+                              type="button"
+                              className="dashboard-status-view-details-btn"
+                              onClick={() => openPetDetails(report)}
+                            >
+                              <Eye size={14} />
+                              <span>View details</span>
+                            </button>
                           </div>
                         ) : (
                           <span className="dashboard-owner-only-label">Owner-only details</span>
@@ -432,6 +854,21 @@ export const DashboardPage: React.FC = () => {
                       </article>
                     );
                   })
+                ) : selectedStatus === 'LOST' && (missingFilterState || missingFilterDistrict || missingFilterMandal || missingFilterVillage) ? (
+                  <EmptyState
+                    icon={<AlertTriangle size={30} />}
+                    title="No missing pets found in selected area."
+                    message="Try choosing another district/state or clear the filters to view all missing pets."
+                    action={
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleResetMissingFilters}
+                      >
+                        Clear Location Filters
+                      </button>
+                    }
+                  />
                 ) : (
                   <EmptyState
                     icon={selectedStatus === 'SAFE' ? <Home size={30} /> : <AlertTriangle size={30} />}
@@ -450,122 +887,173 @@ export const DashboardPage: React.FC = () => {
                 )}
               </div>
             </div>
-            </div>
+            </div>,
+            document.body
           )}
         </section>
+
+        {/* Rate Our App Button */}
+        <section className="dashboard-bottom-feedback-section" aria-label="Rate Our App">
+          <button
+            type="button"
+            id="dashboard-feedback-btn"
+            className="dashboard-rate-app-btn"
+            onClick={() => {
+              navigate('/feedback');
+              window.dispatchEvent(new CustomEvent('open-suggestion-modal'));
+            }}
+            aria-label="Rate Our App"
+          >
+            <Star size={18} fill="#FFB800" stroke="#FFB800" />
+            <span>Rate Our App ⭐</span>
+          </button>
+        </section>
+
+        {/* Floating Camera Quick Capture Action Button for Travelers */}
+        <button
+          type="button"
+          id="dashboard-floating-capture-fab"
+          className="dashboard-floating-capture-fab"
+          onClick={() => navigate('/capture?mode=unknown')}
+          aria-label="Quick Capture Roaming Pet while travelling"
+          title="Quick Capture Roaming Pet"
+        >
+          <Camera size={26} />
+          <span className="fab-pulse-ring" aria-hidden="true" />
+        </button>
       </div>
 
-      {detailReport && canViewReportDetails(detailReport) && (() => {
-        const displayName = getDogDisplayName(detailReport.dog, detailReport);
-        const photoUrl = getDogPhotoUrl(detailReport.dog, detailReport);
-        const isMissing = detailReport.status === 'LOST';
-        const location =
-          detailReport.ownerApproximateLocation ||
-          detailReport.lastKnownLocation ||
-          'Location not shared';
-        const traits = [
-          detailReport.dog?.color,
-          detailReport.dog?.size,
-          detailReport.dog?.gender,
-        ].filter(Boolean).join(' • ');
+      {detailReport && canViewReportDetails(detailReport) && createPortal(
+        (() => {
+          const displayName = getDogDisplayName(detailReport.dog, detailReport);
+          const photoUrl = getDogPhotoUrl(detailReport.dog, detailReport);
+          const isMissing = detailReport.status === 'LOST';
+          const location =
+            detailReport.ownerApproximateLocation ||
+            detailReport.lastKnownLocation ||
+            'Safe at home';
+          const traits = [
+            detailReport.dog?.color,
+            detailReport.dog?.size,
+            detailReport.dog?.gender,
+          ].filter(Boolean).join(' • ');
 
-        return (
-          <div className="dashboard-status-modal-backdrop" role="presentation">
-            <section
-              className="dashboard-status-pet-popover dashboard-status-pet-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`${displayName} details`}
+          return (
+            <div
+              className="dashboard-status-modal-backdrop"
+              role="presentation"
+              onClick={closePetDetails}
             >
-              <button
-                type="button"
-                className="dashboard-status-modal-close"
-                onClick={closePetDetails}
-                aria-label="Close pet details"
+              <section
+                className="dashboard-status-pet-popover dashboard-status-pet-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${displayName} details`}
+                onClick={(e) => e.stopPropagation()}
               >
-                <X size={22} />
-              </button>
+                <button
+                  type="button"
+                  className="dashboard-status-modal-close"
+                  onClick={closePetDetails}
+                  aria-label="Close pet details"
+                >
+                  <X size={22} />
+                </button>
 
-              <div className="dashboard-status-popover-photo-stage">
-                <img
-                  src={photoUrl}
-                  alt={displayName}
-                  className="dashboard-status-popover-photo"
-                  onError={handleDogImageError}
-                />
-              </div>
-              <div className="dashboard-status-popover-copy">
-                <div className="dashboard-status-modal-title-block">
-                  <strong>{displayName}</strong>
-                  <span>{detailReport.dog?.breed || 'Companion Pet'}</span>
+                <div className="dashboard-status-popover-photo-stage">
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={displayName}
+                      className="dashboard-status-popover-photo"
+                      onError={handleDogImageError}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: '12px' }}>
+                      <Dog size={56} style={{ opacity: 0.5, color: '#f97316' }} />
+                    </div>
+                  )}
                 </div>
-                {traits && (
+                <div className="dashboard-status-popover-copy">
+                  <div className="dashboard-status-modal-title-block">
+                    <strong>{displayName}</strong>
+                    <span>{detailReport.dog?.breed || 'Companion Pet'}</span>
+                  </div>
+                  {traits && (
+                    <span className="dashboard-status-popover-line">
+                      <Sparkles size={15} />
+                      {traits}
+                    </span>
+                  )}
                   <span className="dashboard-status-popover-line">
-                    <Sparkles size={15} />
-                    {traits}
+                    <MapPin size={15} />
+                    {isMissing ? detailReport.lastKnownLocation || location : location}
                   </span>
-                )}
-                <span className="dashboard-status-popover-line">
-                  <MapPin size={15} />
-                  {isMissing ? detailReport.lastKnownLocation || location : location}
-                </span>
-                {isMissing && (
-                  <span className="dashboard-status-popover-line">
-                    <Calendar size={15} />
-                    {detailReport.dateLost || 'Date unknown'} {detailReport.timeLost ? `• ${detailReport.timeLost}` : ''}
-                  </span>
-                )}
-                {detailReport.dog?.distinguishingMarks && (
-                  <p>{detailReport.dog.distinguishingMarks}</p>
-                )}
-                {detailReport.additionalNotes && (
-                  <p>{detailReport.additionalNotes}</p>
-                )}
-                {isMissing && (
-                  <a
-                    href={`/report-sighting/${detailReport.id}`}
-                    className="dashboard-status-popover-action"
-                  >
-                    <Eye size={16} />
-                    <span>Report if found / sighted</span>
-                  </a>
-                )}
-              </div>
-            </section>
-          </div>
-        );
-      })()}
+                  {isMissing && (
+                    <span className="dashboard-status-popover-line">
+                      <Calendar size={15} />
+                      {detailReport.dateLost || 'Date unknown'} {detailReport.timeLost ? `• ${detailReport.timeLost}` : ''}
+                    </span>
+                  )}
+                  {detailReport.dog?.distinguishingMarks && (
+                    <p>{detailReport.dog.distinguishingMarks}</p>
+                  )}
+                  {detailReport.additionalNotes && (
+                    <p>{detailReport.additionalNotes}</p>
+                  )}
+                  {isMissing && (
+                    <a
+                      href={`/report-sighting/${detailReport.id}`}
+                      className="dashboard-status-popover-action"
+                    >
+                      <Eye size={16} />
+                      <span>Report if found / sighted</span>
+                    </a>
+                  )}
+                </div>
+              </section>
+            </div>
+          );
+        })(),
+        document.body
+      )}
 
-      {detailSighting && (() => {
-        const report = getSightingReport(detailSighting);
-        const displayName = detailSighting.dogName || report?.dog?.name || 'Missing Pet';
-        const petSightings = sightings.filter((item) => item.reportId === detailSighting.reportId);
-        
-        let allPhotos: string[] = [];
-        if (detailSighting.photos && detailSighting.photos.length > 0) {
-          allPhotos = detailSighting.photos;
-        } else if (detailSighting.photo) {
-          allPhotos = [detailSighting.photo];
-        }
-        
-        const photoUrl = resolveGenericMediaUrl(allPhotos[activeSightingPhotoIndex] || allPhotos[0] || '');
-        
-        const locationRows = [
-          ['State', detailSighting.state],
-          ['District', detailSighting.district],
-          ['Mandal', detailSighting.mandal],
-          ['Village', detailSighting.village],
-          ['PIN Code', detailSighting.pinCode],
-        ].filter(([, value]) => Boolean(value));
+      {detailSighting && createPortal(
+        (() => {
+          const report = getSightingReport(detailSighting);
+          const displayName = detailSighting.dogName || report?.dog?.name || 'Missing Pet';
+          const petSightings = sightings.filter((item) => item.reportId === detailSighting.reportId);
+          
+          let allPhotos: string[] = [];
+          if (detailSighting.photos && detailSighting.photos.length > 0) {
+            allPhotos = detailSighting.photos;
+          } else if (detailSighting.photo) {
+            allPhotos = [detailSighting.photo];
+          }
+          
+          const photoUrl = resolveGenericMediaUrl(allPhotos[activeSightingPhotoIndex] || allPhotos[0] || '');
+          
+          const locationRows = [
+            ['State', detailSighting.state],
+            ['District', detailSighting.district],
+            ['Mandal', detailSighting.mandal],
+            ['Village', detailSighting.village],
+            ['PIN Code', detailSighting.pinCode],
+          ].filter(([, value]) => Boolean(value));
 
-        return (
-          <div className="dashboard-status-modal-backdrop" role="presentation">
-            <section
-              className="dashboard-status-pet-popover dashboard-status-pet-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`${displayName} sighting details`}
+          return (
+            <div
+              className="dashboard-status-modal-backdrop"
+              role="presentation"
+              onClick={closeSightingDetails}
             >
+              <section
+                className="dashboard-status-pet-popover dashboard-status-pet-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${displayName} sighting details`}
+                onClick={(e) => e.stopPropagation()}
+              >
               <button
                 type="button"
                 className="dashboard-status-modal-close"
@@ -682,7 +1170,9 @@ export const DashboardPage: React.FC = () => {
             </section>
           </div>
         );
-      })()}
+      })(),
+      document.body
+    )}
     </div>
   );
 };

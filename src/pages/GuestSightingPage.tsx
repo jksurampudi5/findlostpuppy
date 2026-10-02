@@ -24,7 +24,6 @@ import {
 import { storageService } from '../services/storageService';
 import { useToast } from '../context/ToastContext';
 import { compressImage } from '../utils/imageCompressor';
-import abulluImg from '../assets/abullu.jpg';
 import {
   getDogPhotoUrl,
   getDogDisplayName,
@@ -132,21 +131,20 @@ export const GuestSightingPage: React.FC = () => {
 
   // All photos for gallery
   const allDogPhotos = React.useMemo(() => {
-    if (!report?.dog) return [abulluImg];
+    if (!report?.dog) return [];
     const fallbackPhoto = getDogPhotoUrl(report.dog, report);
     const photosList = [
       report.dog.primaryPhoto,
       ...(report.dog.photos || []),
       fallbackPhoto,
     ].filter(Boolean) as string[];
-    if (photosList.length === 0) return [abulluImg];
     return Array.from(new Set(photosList));
   }, [report]);
 
   const currentDogPhoto =
     allDogPhotos[activePhotoIndex] ||
     getDogPhotoUrl(report?.dog, report) ||
-    abulluImg;
+    '';
   const dogDisplayName = getDogDisplayName(report?.dog, report);
 
   // 1-Click Resilient Location Detector for Good Samaritan
@@ -244,10 +242,12 @@ export const GuestSightingPage: React.FC = () => {
 
     // Upload photos to sightings/{report_id}/
     const uploadedPhotos: string[] = [];
+    let photoIndex = 0;
     for (const p of photos) {
       if (p.startsWith('data:')) {
         try {
-          const publicUrl = await storageBucketService.uploadSightingPhoto(report.id, p);
+          const publicUrl = await storageBucketService.uploadSightingPhoto(report.id, p, photoIndex);
+          photoIndex++;
           if (publicUrl) {
             uploadedPhotos.push(publicUrl);
           } else {

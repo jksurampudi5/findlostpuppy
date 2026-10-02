@@ -3,7 +3,6 @@ import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import logoTopHandImg from '../assets/logo_top_hand.png';
 import logoBottomHandImg from '../assets/logo_bottom_hand.png';
 import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
-import { useAuth } from '../context/AuthContext';
 import './LaunchTributeOverlay.css';
 
 interface LaunchTributeOverlayProps {
@@ -13,9 +12,17 @@ interface LaunchTributeOverlayProps {
 
 /** Coordinates the launch animation and authenticated first-time tribute, with manual tribute access. */
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
-  const { isAuthenticated, isLoading, hasCompletedOwner } = useAuth();
   const [visible, setVisible] = useState(() => {
     if (forceOpen) return true;
+    const isFeedbackPath = typeof window !== 'undefined' && (
+      window.location.pathname === '/feedback' || 
+      window.location.pathname === '/suggest' ||
+      window.location.search.includes('feedback')
+    );
+    if (isFeedbackPath) {
+      sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
+      return false;
+    }
     return sessionStorage.getItem('findlostpuppy_launch_seen') !== 'true';
   });
   const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
@@ -56,52 +63,23 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
     setPhase('logo');
     setIsFadingOut(false);
 
-    // The animated logo is the only app-controlled launch artwork. The
-    // inauguration is shown separately after a first-time user authenticates.
+    // The animated logo is the only app-controlled launch artwork.
+    // Automatic inauguration notes popup is disabled so launch timing is fast for all users.
     const logoTimer = setTimeout(() => {
-      const isGratitudeAccepted = localStorage.getItem('findlostpuppy_gratitude_seen') === 'true';
-
-      if (!isLoading && isAuthenticated && !hasCompletedOwner && !isGratitudeAccepted) {
-        setPhase('tribute');
-        setCurrentWordIndex(0);
-        setShowProceedBtn(false);
-        return;
-      }
-
       setIsFadingOut(true);
       dismissalTimerRef.current = window.setTimeout(() => {
         setVisible(false);
         sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
         setIsFadingOut(false);
         if (onClose) onClose();
-      }, 400);
-    }, 2000);
+      }, 350);
+    }, 1200);
 
     return () => {
       clearTimeout(logoTimer);
       if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
     };
-  }, [forceOpen, hasCompletedOwner, isAuthenticated, isLoading, onClose, replayKey]);
-
-  // Authentication can complete after the launch animation has closed. Show
-  // the inauguration then, but only for a genuinely new owner profile.
-  useEffect(() => {
-    if (
-      !forceOpen &&
-      !isLoading &&
-      isAuthenticated &&
-      !hasCompletedOwner &&
-      localStorage.getItem('findlostpuppy_gratitude_seen') !== 'true'
-    ) {
-      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
-      dismissalTimerRef.current = undefined;
-      setVisible(true);
-      setIsFadingOut(false);
-      setPhase('tribute');
-      setCurrentWordIndex(0);
-      setShowProceedBtn(false);
-    }
-  }, [forceOpen, hasCompletedOwner, isAuthenticated, isLoading]);
+  }, [forceOpen, onClose, replayKey]);
 
   // Global event listener to re-open from footer button
   useEffect(() => {

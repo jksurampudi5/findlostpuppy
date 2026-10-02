@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Megaphone,
@@ -110,15 +111,21 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
     }
   };
 
+  const homeAreaLabel =
+    (ownerProfile as any)?.approximateArea ||
+    ownerProfile?.city ||
+    ownerProfile?.streetOrLocality ||
+    ownerProfile?.mandalOrMunicipality ||
+    ownerProfile?.district ||
+    '';
+  const homeAreaDisplay = homeAreaLabel.split(',')[0].trim();
+
   // Optional 1-Click Shortcut: Use Saved Home Location
   const handleUseHomeArea = () => {
-    if (ownerProfile?.approximateArea) {
-      setLastKnownLocation(`Near Home (${ownerProfile.approximateArea})`);
+    if (homeAreaDisplay) {
+      setLastKnownLocation(`Near Home (${homeAreaDisplay})`);
       setDetectedSuccess(true);
       showToast('🏠 Filled with your home area. You can edit or modify it below.', 'info');
-    } else if (ownerProfile?.city) {
-      setLastKnownLocation(`Near ${ownerProfile.city}`);
-      setDetectedSuccess(true);
     }
   };
 
@@ -143,7 +150,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   const dogName = dog?.name || 'Your Dog';
   const dogBreed = dog?.breed || 'Companion Pet';
 
-  return (
+  const modalContent = (
     <div
       className="modal-backdrop missing-report-modal-backdrop"
       onClick={onClose}
@@ -190,9 +197,9 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                   <strong>Reporting For:</strong> {dogName} ({dogBreed})
                 </span>
               </div>
-              {ownerProfile?.approximateArea && (
+              {homeAreaDisplay && (
                 <span className="pet-strip-home-tag">
-                  Home: {ownerProfile.approximateArea.split(',')[0]}
+                  Home: {homeAreaDisplay}
                 </span>
               )}
             </div>
@@ -266,7 +273,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                     )}
                   </button>
 
-                  {ownerProfile?.approximateArea && (
+                  {homeAreaDisplay && (
                     <button
                       type="button"
                       onClick={handleUseHomeArea}
@@ -332,4 +339,6 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

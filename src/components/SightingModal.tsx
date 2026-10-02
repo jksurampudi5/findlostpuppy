@@ -118,24 +118,14 @@ export const SightingModal: React.FC<SightingModalProps> = ({
 
     const sightingId = `sight-${Date.now()}`;
 
-    // Upload sighting photo if provided
+    // Upload sighting photo if provided directly to Cloudinary
     let finalPhoto = photo;
     if (photo && photo.startsWith('data:')) {
       try {
         const publicUrl = await storageBucketService.uploadSightingPhoto(reportId, photo);
-        if (publicUrl) {
-          finalPhoto = publicUrl;
-        } else {
-          storageBucketService.enqueueItem({
-            category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
-          });
-          finalPhoto = '';
-        }
+        finalPhoto = publicUrl || '';
       } catch (err) {
-        console.warn('[SightingModal] Sighting photo queued for retry:', err);
-        storageBucketService.enqueueItem({
-          category: 'sighting', referenceId: reportId, recordId: sightingId, index: 0, base64Data: photo,
-        });
+        console.warn('[SightingModal] Sighting photo upload notice:', err);
         finalPhoto = '';
       }
     }

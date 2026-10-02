@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
   Tag,
@@ -24,10 +23,13 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { storageBucketService } from '../services/storageBucketService';
+import { firebaseSyncService } from '../services/firebaseSyncService';
 import type { DogGender, DogSize, DogProfile } from '../types';
-import { handleDogImageError, getDogPhotoUrl, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
+import { handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { compressImage } from '../utils/imageCompressor';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
+import { BackButton } from '../components/ui/back-button';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import {
   DOG_AGE_OPTIONS,
   DOG_SIZE_OPTIONS,
@@ -56,6 +58,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [isTransitioningBack, setIsTransitioningBack] = useState(false);
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const photoPolicy = canChangePhoto(existingPet);
@@ -72,9 +75,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   // Form Field States
   const [dogName, setDogName] = useState(existingPet?.name || '');
   const [breed, setBreed] = useState(existingPet?.breed || '');
-  const [gender, setGender] = useState<DogGender>(existingPet?.gender || 'Male');
+  const [gender, setGender] = useState<DogGender | ''>(existingPet?.gender || '');
   const [age, setAge] = useState(existingPet?.age || '');
-  const [size, setSize] = useState<DogSize>(existingPet?.size || ('Large (25-40 kg)' as DogSize));
+  const [size, setSize] = useState<DogSize | ''>(existingPet?.size || '');
   const [color, setColor] = useState(existingPet?.color || '');
   const [distinguishingMarks, setDistinguishingMarks] = useState(
     existingPet?.distinguishingMarks || ''
@@ -85,6 +88,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const initialPetModeSetRef = useRef(false);
 
   // Collar, Tag, or Microchip: Yes/No + companion detail
+  const [collarChoice, setCollarChoice] = useState<'Yes' | 'No' | ''>(() => {
+    if (!existingPet?.collarInfo) return '';
+    const lower = existingPet.collarInfo.toLowerCase().trim();
+    if (lower === 'no' || lower === 'none' || lower === 'no collar') return 'No';
+    return 'Yes';
+  });
   const [hasCollarOrChip, setHasCollarOrChip] = useState<boolean>(() => {
     if (!existingPet?.collarInfo) return false;
     const lower = existingPet.collarInfo.toLowerCase().trim();
@@ -125,19 +134,21 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     if (existingPet) {
       setDogName(existingPet.name || '');
       setBreed(existingPet.breed || '');
-      setGender(existingPet.gender || 'Male');
+      setGender(existingPet.gender || '');
       setAge(existingPet.age || '');
-      setSize(existingPet.size || ('Large (25-40 kg)' as DogSize));
+      setSize(existingPet.size || '');
       setColor(existingPet.color || '');
       setDistinguishingMarks(existingPet.distinguishingMarks || '');
       setPrimaryPhoto(existingPet.primaryPhoto || '');
       setAdditionalPhotos(existingPet.photos || []);
       if (existingPet.collarInfo) {
         const lower = existingPet.collarInfo.toLowerCase().trim();
-        const hasCollar = lower !== 'no' && lower !== 'none' && lower !== 'no collar';
-        setHasCollarOrChip(hasCollar);
+        const isNo = lower === 'no' || lower === 'none' || lower === 'no collar';
+        setCollarChoice(isNo ? 'No' : 'Yes');
+        setHasCollarOrChip(!isNo);
         setCollarDetails(lower === 'yes' ? '' : existingPet.collarInfo);
       } else {
+        setCollarChoice('');
         setHasCollarOrChip(false);
         setCollarDetails('');
       }
@@ -149,20 +160,92 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     }
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
 
+  // Strict validation and compression for pet photos from camera or gallery
+  const processAndValidateImage = async (
+    input: File | Blob | string
+  ): Promise<{ valid: boolean; error?: string; compressed?: string }> => {
+    if (!input) {
+      return { valid: false, error: 'Photo cannot be uploaded: No image provided. Please select or capture a photo.' };
+    }
+
+    if (input instanceof File || input instanceof Blob) {
+      const type = (input.type || '').toLowerCase();
+      if (!type.startsWith('image/')) {
+        return { valid: false, error: 'Photo cannot be uploaded: Unsupported file format. Please upload a clear JPG, PNG, or WebP photo of your pet.' };
+      }
+      if (input.size <= 0) {
+        return { valid: false, error: 'Photo cannot be uploaded: Selected photo is empty (0 bytes). Please choose or capture a valid photo.' };
+      }
+      if (input.size > 5 * 1024 * 1024) {
+        return { valid: false, error: 'Photo cannot be uploaded due to size problem: File exceeds 5MB limit. Please choose a smaller photo.' };
+      }
+    } else if (typeof input === 'string') {
+      if (!input.startsWith('data:image/') && !input.startsWith('http://') && !input.startsWith('https://')) {
+        return { valid: false, error: 'Photo cannot be uploaded: Invalid photo data format. Please upload or capture a new photo.' };
+      }
+      if (input.startsWith('data:image/')) {
+        const approxBytes = Math.round((input.length - input.indexOf(',') - 1) * 0.75);
+        if (approxBytes > 5 * 1024 * 1024) {
+          return { valid: false, error: 'Photo cannot be uploaded due to size problem: File exceeds 5MB limit. Please choose a smaller photo.' };
+        }
+      }
+    }
+
+    // Integrity and decoding test (catches corrupt bytes, invalid headers)
+    try {
+      let testSrc = '';
+      let revokeUrl = false;
+      if (typeof input === 'string') {
+        testSrc = input;
+      } else {
+        testSrc = URL.createObjectURL(input);
+        revokeUrl = true;
+      }
+
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const testImg = new Image();
+        testImg.onload = () => resolve({ width: testImg.naturalWidth, height: testImg.naturalHeight });
+        testImg.onerror = () => reject(new Error('IMAGE_DECODE_FAILED'));
+        testImg.src = testSrc;
+      });
+
+      if (revokeUrl) {
+        URL.revokeObjectURL(testSrc);
+      }
+
+      if (dimensions.width < 50 || dimensions.height < 50) {
+        return { valid: false, error: 'Photo cannot be uploaded: Resolution is too low. Please upload a clear photo of your pet.' };
+      }
+    } catch {
+      return { valid: false, error: 'Photo cannot be uploaded: File is corrupted or unreadable. Please choose or capture a new clear photo.' };
+    }
+
+    // Compress image
+    try {
+      let fileToCompress: File | string;
+      if (typeof input === 'string') {
+        fileToCompress = input;
+      } else if (input instanceof File) {
+        fileToCompress = input;
+      } else {
+        fileToCompress = new File([input], 'pet_photo.jpg', { type: input.type || 'image/jpeg' });
+      }
+
+      const compressed = await compressImage(fileToCompress, 800, 800, 0.82);
+      if (!compressed) {
+        return { valid: false, error: 'Photo cannot be uploaded: Could not process image. Please try another photo.' };
+      }
+      return { valid: true, compressed };
+    } catch {
+      return { valid: false, error: 'Photo cannot be uploaded: Failed to process image. Please try another photo.' };
+    }
+  };
+
   // Handle Photo File Upload with compression & storage persistence
-  /** Compresses the chosen pet photo and uploads it, queuing the image when upload cannot complete. */
+  /** Validates and compresses the chosen pet photo, uploading directly to Cloudinary. */
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      showToast('Please select a valid image file (JPG, PNG, WebP)', 'error');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Image must be under 10MB', 'error');
-      return;
-    }
 
     const policy = canChangePhoto(existingPet);
     if (!policy.allowed) {
@@ -171,23 +254,103 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       return;
     }
 
+    // Fast-path checks before doing heavy async work
+    if (!file.type.startsWith('image/')) {
+      showToast('Photo cannot be uploaded: Unsupported file format. Please upload a JPG, PNG, or WebP photo.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (file.size <= 0) {
+      showToast('Photo cannot be uploaded: File is empty (0 bytes).', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Photo cannot be uploaded due to size problem: File exceeds 5MB limit. Please choose a smaller photo.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setUploadingPhoto(true);
+    showToast('🐾 Uploading pet photo to Cloudinary... Please wait.', 'info');
     try {
-      const compressed = await compressImage(file, 800, 800, 0.82);
-      if (!compressed) {
-        throw new Error('Compression failed');
+      const result = await processAndValidateImage(file);
+      if (!result.valid || !result.compressed) {
+        showToast(result.error || 'Photo cannot be uploaded. Please choose a clear JPG or PNG photo.', 'error');
+        setUploadingPhoto(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
       }
 
       if (!user) throw new Error('AUTH_REQUIRED');
-      setPrimaryPhoto(compressed);
 
-      showToast('🐾 Pet photo updated!', 'success');
-    } catch (err) {
+      // Set instantaneous preview
+      setPrimaryPhoto(result.compressed);
+
+      // Upload directly to Cloudinary and await result
+      const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, result.compressed, 0);
+      if (uploadedUrl) {
+        setPrimaryPhoto(uploadedUrl);
+        showToast('🐾 Pet photo saved to Cloudinary!', 'success');
+      } else {
+        showToast('Photo saved locally and queued for Cloudinary sync.', 'info');
+      }
+    } catch (err: any) {
       console.error('[DogOnboardingPage] Photo error:', err);
-      showToast('Could not process photo. Please try another image.', 'error');
+      showToast(err?.message || 'Could not process photo. Please choose or capture a new clear image.', 'error');
     } finally {
       setUploadingPhoto(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+
+  /** Deletes the pet's profile picture from Cloudinary and clears it from Firestore and local storage. */
+  const handleRemovePetPhoto = async () => {
+    if (!primaryPhoto && !existingPet?.primaryPhoto) return;
+    const photoToDelete = primaryPhoto || existingPet?.primaryPhoto || '';
+
+    // 1. Optimistically clear local state immediately so UI updates without lag
+    setPrimaryPhoto('');
+    setAdditionalPhotos([]);
+    if (existingPet) {
+      existingPet.primaryPhoto = '';
+      existingPet.photos = [];
+      const updatedPet: DogProfile = {
+        ...existingPet,
+        primaryPhoto: '',
+        photos: [],
+        updatedAt: new Date().toISOString(),
+      };
+      storageService.savePetProfile(updatedPet);
+    }
+
+    refreshProgress();
+    window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+    window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced'));
+    window.dispatchEvent(new Event('storage'));
+
+    try {
+      showToast('🐾 Deleting pet photo from Cloudinary & Firestore... Please wait.', 'info');
+
+      // 2. Delete from Cloudinary
+      if (photoToDelete) {
+        await storageBucketService.deleteMedia(photoToDelete).catch((err) => {
+          console.warn('[DogOnboardingPage] Cloudinary delete notice:', err);
+        });
+      }
+
+      // 3. Delete from Firestore & update pet records
+      if (user?.id) {
+        await firebaseSyncService.deletePetPhoto(user.id, petId, photoToDelete).catch((err) => {
+          console.warn('[DogOnboardingPage] Firestore delete notice:', err);
+        });
+      }
+
+      showToast('🐾 Pet photo deleted from Cloudinary & Firestore!', 'success');
+    } catch (err) {
+      console.error('[DogOnboardingPage] Delete pet photo error:', err);
+      showToast('Failed to delete pet photo. Please try again.', 'error');
     }
   };
 
@@ -206,16 +369,17 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       }
     }
 
-    // 2. Clear all pet details EXCEPT gender and size category
+    // 2. Clear all pet details
     setPrimaryPhoto('');
     setAdditionalPhotos([]);
     setDogName('');
     setBreed('');
-    // Gender is preserved as per user requirement
+    setGender('');
     setAge('');
-    // Size Category is preserved as per user requirement
+    setSize('');
     setColor('');
     setDistinguishingMarks('');
+    setCollarChoice('');
     setHasCollarOrChip(false);
     setCollarDetails('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -230,7 +394,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced'));
     window.dispatchEvent(new Event('storage'));
 
-    showToast('Pet details reset (gender & size category preserved)', 'info');
+    showToast('Pet details reset', 'info');
   };
 
 
@@ -239,11 +403,15 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     if (primaryPhoto) {
       return resolveGenericMediaUrl(primaryPhoto);
     }
-    if (existingPet) {
-      return getDogPhotoUrl(existingPet);
+    // If primaryPhoto is empty string, user deleted the photo
+    if (primaryPhoto === '') {
+      return '';
+    }
+    if (existingPet?.primaryPhoto) {
+      return resolveGenericMediaUrl(existingPet.primaryPhoto);
     }
     return '';
-  }, [primaryPhoto, existingPet]);
+  }, [primaryPhoto, existingPet?.primaryPhoto]);
 
   // Selector Options
   const breedOptions: SelectorOption[] = useMemo(() => {
@@ -303,29 +471,23 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     setSubmitting(true);
     const ownerId = user.id;
 
-    // Convert any remaining base64 images if not yet uploaded
+    if (!dogName.trim()) {
+      showToast('Please provide a name for your pet.', 'error');
+      setSubmitting(false);
+      return;
+    }
+
+    // Convert any remaining base64 images to Cloudinary URLs if not yet uploaded
     let finalPrimary = primaryPhoto;
     const finalAdditionals = [...additionalPhotos];
-    const recoveredPrimaryQueueItem = storageBucketService.getQueue().find((item) =>
-      item.category === 'pet' && item.referenceId === petId && (item.index || 0) === 0 &&
-      item.base64Data === finalPrimary && Boolean(item.uploadedUrl)
-    );
-    if (recoveredPrimaryQueueItem?.uploadedUrl) finalPrimary = recoveredPrimaryQueueItem.uploadedUrl;
 
     if (finalPrimary && finalPrimary.startsWith('data:')) {
       try {
         const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0);
-        if (uploaded) finalPrimary = uploaded;
-        else throw new Error('PRIMARY_UPLOAD_FAILED');
+        finalPrimary = uploaded || '';
       } catch (err) {
-        console.warn('[DogOnboardingPage] Primary photo queued for retry:', err);
-        storageBucketService.enqueueItem({
-          category: 'pet', referenceId: petId, ownerId, index: 0,
-          base64Data: finalPrimary, previousUrl: existingPet?.primaryPhoto,
-        });
-        showToast('Pet photo is still uploading. Please retry saving when the connection is available.', 'info');
-        setSubmitting(false);
-        return;
+        console.warn('[DogOnboardingPage] Primary photo upload notice:', err);
+        finalPrimary = '';
       }
     }
 
@@ -333,34 +495,19 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       if (finalAdditionals[i] && finalAdditionals[i].startsWith('data:')) {
         try {
           const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalAdditionals[i], i + 1);
-          if (uploaded) finalAdditionals[i] = uploaded;
-          else {
-            storageBucketService.enqueueItem({
-              category: 'pet', referenceId: petId, ownerId, index: i + 1,
-              base64Data: finalAdditionals[i],
-            });
-            finalAdditionals[i] = '';
-          }
+          finalAdditionals[i] = uploaded || '';
         } catch (err) {
-          console.warn('[DogOnboardingPage] Gallery photo queued for retry:', err);
-          storageBucketService.enqueueItem({
-            category: 'pet', referenceId: petId, ownerId, index: i + 1,
-            base64Data: finalAdditionals[i],
-          });
+          console.warn('[DogOnboardingPage] Gallery photo upload notice:', err);
           finalAdditionals[i] = '';
         }
       }
     }
 
-    const finalCollar = hasCollarOrChip
+    const finalCollar = collarChoice === 'Yes'
       ? (collarDetails.trim() || 'Collar / Tag / Microchip equipped')
-      : undefined;
-
-    if (!dogName.trim()) {
-      showToast('Please provide a name for your pet.', 'error');
-      setSubmitting(false);
-      return;
-    }
+      : collarChoice === 'No'
+        ? 'No'
+        : undefined;
 
     const profile: DogProfile = {
       ...(existingPet || {}),
@@ -368,9 +515,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       ownerId,
       name: dogName.trim(),
       breed: breed.trim() || 'Street Dog / Desi / Indie',
-      gender,
+      gender: (gender || 'Male') as DogGender,
       age: age.trim() || 'Young Adult (1-3 yrs)',
-      size,
+      size: (size || 'Medium (10-25kg)') as DogSize,
       color: color.trim() || 'Golden / Fawn',
       distinguishingMarks: distinguishingMarks.trim() || '',
       collarInfo: finalCollar,
@@ -383,19 +530,30 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
     try {
       storageService.savePetProfile(profileToSave);
-      if (recoveredPrimaryQueueItem) storageBucketService.removeFromQueue(recoveredPrimaryQueueItem.id);
       if (photoChanged && existingPet?.primaryPhoto) {
         await storageBucketService.deleteMedia(existingPet.primaryPhoto).catch(() => false);
       }
+
+      // Explicit direct sync to Firebase Firestore backend
+      await firebaseSyncService.syncPet(profileToSave).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
+      const allReports = storageService.getAllReports();
+      const associatedReport = allReports.find(
+        (r) => r.dogId === petId || r.dog?.id === petId || r.ownerId === ownerId
+      );
+      if (associatedReport) {
+        await firebaseSyncService.syncLostReport(associatedReport).catch((e) => console.warn('[Firebase Sync Report Notice]:', e));
+      }
+
       refreshProgress();
       setSubmitting(false);
 
-      showToast(`🐾 ${profileToSave.name}'s profile saved!`, 'success');
+      showToast(`🐾 ${profileToSave.name}'s profile saved & synced to Firestore!`, 'success');
       setIsEditing(false);
       if (onSuccess) {
         onSuccess();
       }
-    } catch {
+    } catch (saveErr) {
+      console.error('[DogOnboardingPage] Save pet profile error:', saveErr);
       setSubmitting(false);
       showToast('Could not save pet profile. Please try again.', 'error');
     }
@@ -406,19 +564,21 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     if (existingPet) {
       setDogName(existingPet.name || 'Buddy');
       setBreed(existingPet.breed || 'Golden Retriever');
-      setGender(existingPet.gender || 'Male');
-      setAge(existingPet.age || '2 years');
-      setSize(existingPet.size || ('Large (25-40 kg)' as DogSize));
+      setGender(existingPet.gender || '');
+      setAge(existingPet.age || '');
+      setSize(existingPet.size || '');
       setColor(existingPet.color || 'Golden / Fawn');
       setDistinguishingMarks(existingPet.distinguishingMarks || 'White chest patch, one floppy ear');
       setPrimaryPhoto(existingPet.primaryPhoto || '');
       setAdditionalPhotos(existingPet.photos || []);
       if (existingPet.collarInfo) {
         const lower = existingPet.collarInfo.toLowerCase().trim();
-        const hasCollar = lower !== 'no' && lower !== 'none' && lower !== 'no collar';
-        setHasCollarOrChip(hasCollar);
+        const isNo = lower === 'no' || lower === 'none' || lower === 'no collar';
+        setCollarChoice(isNo ? 'No' : 'Yes');
+        setHasCollarOrChip(!isNo);
         setCollarDetails(lower === 'yes' ? '' : existingPet.collarInfo);
       } else {
+        setCollarChoice('');
         setHasCollarOrChip(false);
         setCollarDetails('');
       }
@@ -435,11 +595,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
     setDogName('');
     setBreed('');
-    setGender('Male');
+    setGender('');
     setAge('');
-    setSize('Medium (10-25kg)' as DogSize);
+    setSize('');
     setColor('');
     setDistinguishingMarks('');
+    setCollarChoice('');
     setHasCollarOrChip(false);
     setCollarDetails('');
     setPrimaryPhoto('');
@@ -504,6 +665,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   void handleResetPetForm;
 
   const handleBack = () => {
+    if (isTransitioningBack) return;
+    setIsTransitioningBack(true);
+  };
+
+  const handleBackTransitionComplete = () => {
+    setIsTransitioningBack(false);
     if (onBackToLocation) {
       onBackToLocation();
     } else if (onBackToOwner) {
@@ -512,6 +679,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       setActiveOnboardingTab('choice');
       navigate('/choice');
     }
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleExitToDashboard = () => {
@@ -554,15 +722,11 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
           {/* 1. Header Bar */}
           <div className="pet-profile-header-bar">
             <div className="pet-profile-header-left">
-              <button
-                type="button"
-                className="pet-profile-back-btn"
+              <BackButton
                 onClick={handleBack}
                 title="Go back"
                 aria-label="Back"
-              >
-                <ArrowLeft size={18} />
-              </button>
+              />
             </div>
 
             {isPetFilled && (
@@ -644,9 +808,11 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   <div className="pet-view-header">
                     <div className="pet-view-name-wrap">
                       <h2 className="pet-view-name">{dogName || 'Buddy'}</h2>
-                      <span className={`pet-view-gender-badge gender-${gender.toLowerCase()}`}>
-                        {gender === 'Male' ? '♂ Male' : '♀ Female'}
-                      </span>
+                      {gender && (
+                        <span className={`pet-view-gender-badge gender-${gender.toLowerCase()}`}>
+                          {gender === 'Male' ? '♂ Male' : '♀ Female'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -701,11 +867,11 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                     <div className="pet-view-stat-info">
                       <span className="pet-view-stat-label">Collar / Tag / ID</span>
                       <span className="pet-view-stat-value">
-                        {hasCollarOrChip
+                        {collarChoice === 'Yes' || hasCollarOrChip
                           ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes'
                             ? `Yes (${collarDetails})`
                             : 'Yes (Equipped with collar / ID tag)')
-                          : 'No collar or microchip'}
+                          : (collarChoice === 'No' ? 'No collar or microchip' : 'Not specified')}
                       </span>
                     </div>
                   </div>
@@ -761,17 +927,36 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   onFocus={() => setShowPetAvatarIcons(true)}
                   tabIndex={0}
                 >
-                  <div className="pet-photo-circle-inner">
+                  <div className="pet-photo-circle-inner" style={{ position: 'relative' }}>
                     {displayPhotoUrl ? (
                       <img
                         src={displayPhotoUrl}
                         alt={dogName || 'Pet Photo'}
                         className="pet-photo-main-img"
                         onError={handleDogImageError}
+                        style={{ filter: uploadingPhoto ? 'brightness(0.6)' : undefined }}
                       />
                     ) : (
                       <div className="pet-photo-main-placeholder">
                         <Dog size={56} />
+                      </div>
+                    )}
+                    {uploadingPhoto && (
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.5)',
+                        borderRadius: '50%',
+                        color: '#ffffff',
+                        gap: '4px',
+                        zIndex: 10,
+                      }}>
+                        <Loader2 size={28} className="animate-spin" />
+                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }}>UPLOADING</span>
                       </div>
                     )}
                   </div>
@@ -796,9 +981,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                       style={{ position: 'static', transform: 'none' }}
                       onClick={() => {
                         setShowPetAvatarIcons(true);
-                        if (photoPolicy.allowed) fileInputRef.current?.click();
+                        if (photoPolicy.allowed && !uploadingPhoto) fileInputRef.current?.click();
                       }}
-                      disabled={!photoPolicy.allowed}
+                      disabled={!photoPolicy.allowed || uploadingPhoto}
                       title={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
                       aria-label={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
                     >
@@ -810,9 +995,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                       style={{ position: 'static', transform: 'none' }}
                       onClick={() => {
                         setShowPetAvatarIcons(true);
-                        if (photoPolicy.allowed) setIsCameraOpen(true);
+                        if (photoPolicy.allowed && !uploadingPhoto) setIsCameraOpen(true);
                       }}
-                      disabled={!photoPolicy.allowed}
+                      disabled={!photoPolicy.allowed || uploadingPhoto}
                       title={photoPolicy.allowed ? 'Change pet photo' : 'Photo change limit reached'}
                       aria-label={photoPolicy.allowed ? 'Upload photo' : 'Photo change limit reached'}
                     >
@@ -825,22 +1010,37 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                   {photoLimitText}
                 </div>
 
-                {/* Remove Photo Link */}
-                {displayPhotoUrl && (
+                {/* Remove / Delete Photo Actions */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                  {displayPhotoUrl && (
+                    <button
+                      type="button"
+                      className="pet-photo-remove-btn"
+                      onClick={handleRemovePetPhoto}
+                      disabled={uploadingPhoto || submitting}
+                      title="Delete pet photo from Cloudinary and Firestore"
+                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete Photo</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="pet-photo-remove-btn"
                     onClick={handleHardReset}
-                    title="Remove current pet photo and reset form"
+                    disabled={uploadingPhoto || submitting}
+                    title="Reset all pet form fields"
+                    style={{ opacity: 0.75 }}
                   >
-                    <Trash2 size={13} />
-                    <span>Hard Reset</span>
+                    <X size={13} />
+                    <span>Reset Fields</span>
                   </button>
-                )}
+                </div>
 
                 {uploadingPhoto && (
-                  <span className="pet-photo-upload-status">
-                    <Loader2 size={12} className="animate-spin" /> Uploading & compressing photo...
+                  <span className="pet-photo-upload-status" style={{ color: 'var(--color-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <Loader2 size={13} className="animate-spin" /> Uploading to Cloudinary... Please wait
                   </span>
                 )}
               </div>
@@ -921,7 +1121,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                         Gender <span className="required-star">*</span>
                       </span>
                       <span className={`pet-info-value ${!gender ? 'placeholder' : ''}`}>
-                        {gender || 'Male'}
+                        {gender || 'Select Gender'}
                       </span>
                     </div>
                     <div className="pet-info-action">
@@ -942,7 +1142,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                         Size Category <span className="required-star">*</span>
                       </span>
                       <span className={`pet-info-value ${!size ? 'placeholder' : ''}`}>
-                        {size && size.includes('Large') && !size.includes('Extra') ? 'Large (> 25 kg)' : size || 'Large (> 25 kg)'}
+                        {size ? (size.includes('Large') && !size.includes('Extra') ? 'Large (> 25 kg)' : size) : 'Select size'}
                       </span>
                     </div>
                     <div className="pet-info-action">
@@ -1001,8 +1201,12 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                       <span className="pet-info-label">
                         Collar, Tag, or Microchip
                       </span>
-                      <span className="pet-info-value">
-                        {hasCollarOrChip ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes' ? `Yes (${collarDetails})` : 'Yes') : 'No'}
+                      <span className={`pet-info-value ${!collarChoice ? 'placeholder' : ''}`}>
+                        {collarChoice
+                          ? (collarChoice === 'Yes'
+                              ? (collarDetails && collarDetails.toLowerCase().trim() !== 'yes' ? `Yes (${collarDetails})` : 'Yes')
+                              : 'No')
+                          : 'Select Collar, Tag or Microchip'}
                       </span>
                     </div>
                     <div className="pet-info-action">
@@ -1039,15 +1243,25 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || uploadingPhoto}
                     className="pet-save-btn"
                   >
                     {submitting ? (
-                      <Loader2 size={18} className="animate-spin" />
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        <span>Syncing to Firestore...</span>
+                      </>
+                    ) : uploadingPhoto ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        <span>Uploading to Cloudinary...</span>
+                      </>
                     ) : (
-                      <Check size={18} />
+                      <>
+                        <Check size={18} />
+                        <span>Save Pet Details</span>
+                      </>
                     )}
-                    <span>Save Pet Details</span>
                   </button>
                 </div>
 
@@ -1093,7 +1307,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         options={genderOptions}
         selectedValue={gender}
         onSelect={(val) => setGender(val as DogGender)}
-        searchable={false}
+        searchable={true}
+        searchPlaceholder="Search gender..."
       />
 
       {/* 4. Size Category Selector Popup (Smallest to Largest) */}
@@ -1104,7 +1319,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         options={sizeOptions}
         selectedValue={size}
         onSelect={(val) => setSize(val as DogSize)}
-        searchable={false}
+        searchable={true}
+        searchPlaceholder="Search size..."
       />
 
       {/* 5. Color & Markings Selector Popup (With Visual Swatches) */}
@@ -1124,8 +1340,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         onClose={() => setActiveModal(null)}
         title="Collar, Tag, or Microchip"
         options={collarOptions}
-        selectedValue={hasCollarOrChip ? 'Yes' : 'No'}
+        selectedValue={collarChoice}
         onSelect={(val) => {
+          setCollarChoice(val as 'Yes' | 'No');
           if (val === 'Yes') {
             setHasCollarOrChip(true);
           } else {
@@ -1133,7 +1350,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
             setCollarDetails('');
           }
         }}
-        searchable={false}
+        searchable={true}
+        searchPlaceholder="Search collar status..."
       />
 
       {activeTextModal && (
@@ -1187,26 +1405,53 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         title="Pet Profile Photo"
         captureButtonText="Capture Pet Photo"
         onCapture={async (photoData) => {
+          const policy = canChangePhoto(existingPet);
+          if (!policy.allowed) {
+            showToast('Pet photo can be changed twice per month. Please contact admin approval for another update.', 'warning');
+            return;
+          }
+
+          setUploadingPhoto(true);
+          showToast('🐾 Uploading captured photo to Cloudinary... Please wait.', 'info');
           try {
-            setUploadingPhoto(true);
-            const res = await fetch(photoData);
-            const blob = await res.blob();
-            const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
-            
-            const compressed = await compressImage(file, 800, 800, 0.82);
-            if (!compressed) throw new Error('Compression failed');
+            const result = await processAndValidateImage(photoData);
+            if (!result.valid || !result.compressed) {
+              showToast(result.error || 'Captured photo could not be verified. Please capture again.', 'error');
+              setUploadingPhoto(false);
+              return;
+            }
 
             if (!user) throw new Error('AUTH_REQUIRED');
-            setPrimaryPhoto(compressed);
-            showToast('🐾 Pet photo updated!', 'success');
-          } catch (e) {
+
+            // Set instantaneous preview
+            setPrimaryPhoto(result.compressed);
+
+            // Upload directly to Cloudinary and await
+            const uploadedUrl = await storageBucketService.uploadPetPhoto(user.id, petId, result.compressed, 0);
+            if (uploadedUrl) {
+              setPrimaryPhoto(uploadedUrl);
+              showToast('🐾 Pet photo captured and saved to Cloudinary!', 'success');
+            } else {
+              showToast('Photo saved locally and queued for Cloudinary sync.', 'info');
+            }
+          } catch (e: any) {
             console.error('Failed to process camera photo', e);
-            showToast('Could not process photo. Please try another image.', 'error');
+            showToast(e?.message || 'Could not process camera photo. Please try capturing again.', 'error');
           } finally {
             setUploadingPhoto(false);
           }
         }} 
       />
+
+      {isTransitioningBack && (
+        <VillageDogTransition
+          direction="backward"
+          fromStep="Pet Details"
+          toStep={onBackToLocation ? "Location" : onBackToOwner ? "Owner Profile" : "Pet Choice"}
+          durationMs={2400}
+          onComplete={handleBackTransitionComplete}
+        />
+      )}
     </div>
   );
 };

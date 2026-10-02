@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Camera, X, Star, AlertCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { compressImage } from '../utils/imageCompressor';
 import { storageBucketService } from '../services/storageBucketService';
+import { firebaseSyncService } from '../services/firebaseSyncService';
 
 interface ImageUploaderProps {
   primaryPhoto: string;
@@ -40,8 +41,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         setErrorMsg('Please upload valid image files (JPG, PNG, WebP).');
         continue;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        setErrorMsg('Images must be under 10MB each.');
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMsg('Image cannot be uploaded due to size problem: File exceeds 5MB limit.');
         continue;
       }
       validFiles.push(file);
@@ -78,18 +79,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               compressed,
               startingIndex + idx
             );
-            if (publicUrl) return publicUrl;
-            storageBucketService.enqueueItem({
-              category: 'pet', referenceId: petId, ownerId: userId,
-              index: startingIndex + idx, base64Data: compressed,
-            });
-            return null;
+            return publicUrl || null;
           } catch (uploadErr) {
-            console.warn('[ImageUploader] Upload queued for retry:', uploadErr);
-            storageBucketService.enqueueItem({
-              category: 'pet', referenceId: petId, ownerId: userId,
-              index: startingIndex + idx, base64Data: compressed,
-            });
+            console.warn('[ImageUploader] Upload notice:', uploadErr);
             return null;
           }
         });
@@ -127,6 +119,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const handleRemovePhoto = (photoUrl: string, isPrimary: boolean) => {
+    if (photoUrl && (photoUrl.includes('cloudinary.com') || photoUrl.includes('findlostpuppy/'))) {
+      storageBucketService.deleteMedia(photoUrl).catch(() => false);
+      if (userId && petId) {
+        firebaseSyncService.deletePetPhoto(userId, petId, photoUrl).catch(() => false);
+      }
+    }
     if (isPrimary) {
       if (additionalPhotos.length > 0) {
         const nextPrimary = additionalPhotos[0];

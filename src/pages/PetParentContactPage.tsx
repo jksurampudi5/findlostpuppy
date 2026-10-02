@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X, Upload, Phone, Mail } from 'lucide-react';
+import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X, Upload, Phone, Mail, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
@@ -14,6 +14,7 @@ import { firebaseSyncService } from '../services/firebaseSyncService';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
 interface PetParentContactPageProps {
   onSuccess?: () => void;
@@ -55,6 +56,8 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [showAvatarIcons, setShowAvatarIcons] = useState(!photo);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!photo) setShowAvatarIcons(true);
@@ -150,43 +153,48 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       ? `${photoPolicy.remaining} owner photo change${photoPolicy.remaining === 1 ? '' : 's'} left this month.`
       : 'Owner photo change limit reached. Admin approval is required.';
 
-  /** Compresses and uploads a selected owner photo, queuing unsuccessful uploads for retry. */
+  /** Compresses and uploads a selected owner photo directly to Cloudinary and syncs to Firestore. */
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!file.type.startsWith('image/')) {
-      showToast('Please select an image file (JPG, PNG, WebP).', 'warning');
+      showToast('Image cannot be uploaded: Unsupported file format. Please select a JPG, PNG, or WebP photo.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      return;
+    }
+    if (file.size <= 0) {
+      showToast('Image cannot be uploaded: File is empty (0 bytes).', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Image size should be under 5MB.', 'warning');
+      showToast('Image cannot be uploaded due to size problem: File exceeds 5MB limit. Please choose a smaller photo.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
       return;
     }
+
     const existingOwnerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
     const policy = canChangePhoto(existingOwnerProfile);
     if (!policy.allowed) {
       showToast('Owner photo can be changed twice per month. Please contact admin approval for another update.', 'warning');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
       return;
     }
+
+    setIsUploadingPhoto(true);
+    showToast('Uploading profile picture to Cloudinary... Please wait.', 'info');
+
     try {
-      showToast('Compressing photo for lightning-fast save...', 'info');
       const compressed = await compressImage(file, 600, 600, 0.85);
       if (!user?.id) throw new Error('AUTH_REQUIRED');
       const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
       if (!finalPhotoUrl) {
-        const queued = storageBucketService.enqueueItem({
-          category: 'profile',
-          referenceId: user.id,
-          base64Data: compressed,
-          previousUrl: existingOwnerProfile?.photo,
-        });
-        showToast(
-          queued
-            ? 'Photo upload is queued and will retry when the connection is available.'
-            : 'Could not upload the photo. Please check your connection and try again.',
-          queued ? 'info' : 'error',
-        );
+        showToast('Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
         return;
       }
       setPhoto(finalPhotoUrl);
@@ -209,16 +217,79 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
           hasLocationConsent: existingOwnerProfile?.hasLocationConsent ?? true,
           updatedAt: new Date().toISOString(),
         };
-        storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, existingOwnerProfile));
+        const saved = applyPhotoChangeTracking(updated, existingOwnerProfile);
+        storageService.saveOwnerProfile(saved);
+        // Direct sync to Firestore
+        await firebaseSyncService.syncOwnerProfile(saved, user.id).catch((e) => {
+          console.warn('[Firebase Sync Owner Profile Notice]:', e);
+        });
         if (existingOwnerProfile?.photo && existingOwnerProfile.photo !== finalPhotoUrl) {
           await storageBucketService.deleteMedia(existingOwnerProfile.photo).catch(() => false);
         }
         refreshProgress();
       }
       setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));
-      showToast('✓ Photo updated!', 'success');
-    } catch {
-      showToast('Could not process photo. Please try another image.', 'error');
+      showToast('✓ Owner photo saved to Cloudinary & synced to Firestore!', 'success');
+    } catch (err: any) {
+      console.error('[PetParentContactPage] Photo upload error:', err);
+      showToast(err?.message || 'Could not process photo. Please try another image.', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+    }
+  };
+
+  /** Deletes the owner profile picture from Cloudinary and clears it from Firestore and local storage. */
+  const handleRemoveOwnerPhoto = async () => {
+    if (!photo) return;
+    const photoToDelete = photo;
+
+    // Optimistically clear UI immediately so the user sees instant feedback
+    setPhoto('');
+    setSavedSnapshot((prev) => ({ ...prev, photo: '' }));
+    authService.updateCurrentUser({ avatar: undefined });
+    if (user) {
+      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+      if (p) {
+        storageService.saveOwnerProfile({ ...p, photo: undefined, updatedAt: new Date().toISOString() }, true);
+        refreshProgress();
+      }
+    }
+
+    showToast('Removing profile picture…', 'info');
+
+    try {
+      // 1. Attempt Cloudinary deletion (requires delete token saved at upload time)
+      let cloudinaryDeleted = false;
+      if (photoToDelete) {
+        cloudinaryDeleted = await storageBucketService.deleteMedia(photoToDelete).catch((err) => {
+          console.warn('[PetParentContactPage] Cloudinary delete notice:', err);
+          return false;
+        });
+      }
+
+      // 2. Clear Firestore record regardless of Cloudinary result
+      if (user?.id) {
+        await firebaseSyncService.deleteOwnerPhoto(user.id, photoToDelete).catch((err) => {
+          console.warn('[PetParentContactPage] Firestore delete notice:', err);
+        });
+      }
+
+      if (cloudinaryDeleted) {
+        showToast('✓ Profile picture removed from Cloudinary & Firestore.', 'success');
+      } else {
+        // Token not available for photos from previous sessions — local state is still cleared
+        showToast(
+          '✓ Profile picture cleared locally. ' +
+          'If it still appears in Cloudinary, it will be cleaned up automatically on your next upload.',
+          'success'
+        );
+      }
+    } catch (err) {
+      console.error('[PetParentContactPage] Delete photo error:', err);
+      // Local state is already cleared above; just warn about remote
+      showToast('Photo removed locally. Remote cleanup may be pending.', 'warning');
     }
   };
 
@@ -282,7 +353,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
   };
 
   /** Validates contact fields and a completed photo upload, saves the owner profile, and returns whether it succeeded. */
-  const saveProfileInternal = (showNotification = true): boolean => {
+  const saveProfileInternal = async (showNotification = true): Promise<boolean> => {
     if (!fullName.trim()) {
       showToast('Please enter your full name.', 'warning');
       return false;
@@ -297,7 +368,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       return false;
     }
     if (photo.startsWith('data:')) {
-      showToast('This photo has not finished uploading. Please reconnect or choose the photo again.', 'warning');
+      showToast('This photo has not finished uploading. Please wait or upload again.', 'warning');
       return false;
     }
 
@@ -340,6 +411,12 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       phone: cleanPhoneNumber,
       avatar: photo.trim() || undefined,
     });
+
+    // Explicit direct sync to Firebase Firestore backend
+    await firebaseSyncService.syncOwnerProfile(profile, effectiveUserId).catch((e) => {
+      console.warn('[Firebase Sync Owner Profile Notice]:', e);
+    });
+
     refreshProgress();
     setSavedSnapshot({
       name: fullName.trim(),
@@ -348,34 +425,45 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       contact: preferredContact,
     });
     if (showNotification) {
-      showToast('🐾 Pet Parent profile updated successfully!', 'success');
+      showToast('🐾 Pet Parent profile saved & synced to Firestore!', 'success');
     }
     setIsEditing(false);
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveProfileInternal(true);
+    if (isUploadingPhoto) {
+      showToast('Please wait for photo upload to finish.', 'info');
+      return;
+    }
+    await saveProfileInternal(true);
   };
 
   const handleContinueToLocation = async () => {
+    if (isTransitioning || isUploadingPhoto) return;
+
     // Auto-sync profile and avatar to Cloudinary & Firebase cloud
     try {
       const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '');
       if (currentProfile) {
-        firebaseSyncService.syncOwnerProfile(currentProfile, currentProfile.id || '').catch(() => {});
-        showToast('✓ Pet Parent details & photo synced to cloud!', 'success');
+        await firebaseSyncService.syncOwnerProfile(currentProfile, currentProfile.id || user?.id || '').catch(() => { });
+        showToast('✓ Pet Parent details & photo synced to Firestore!', 'success');
       }
-    } catch {}
+    } catch { }
 
+    setIsTransitioning(true);
+  };
+
+  const handleTransitionComplete = () => {
+    setIsTransitioning(false);
     if (onSuccess) {
       onSuccess();
     } else {
       setActiveOnboardingTab('location');
       navigate('/location');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleExitToDashboard = () => {
@@ -496,6 +584,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                 <button
                   type="button"
                   onClick={handleContinueToLocation}
+                  disabled={isTransitioning}
                   className="btn btn-primary btn-lg continue-to-location-orange-btn"
                 >
                   <span>Continue to Location</span>
@@ -519,10 +608,11 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                     className={`owner-center-avatar-ring ${!photoPolicy.allowed ? 'photo-upload-locked' : ''}`}
                     onClick={() => {
                       setShowAvatarIcons(true);
-                      if (photoPolicy.allowed) fileInputRef.current?.click();
+                      if (photoPolicy.allowed && !isUploadingPhoto) fileInputRef.current?.click();
                     }}
                     role="button"
                     tabIndex={0}
+                    style={{ position: 'relative' }}
                     title={photoPolicy.allowed ? 'Tap to change profile picture' : 'Photo change limit reached'}
                   >
                     {photo ? (
@@ -530,10 +620,29 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                         src={photo}
                         alt={fullName || 'Owner Profile'}
                         className="owner-center-avatar-img"
+                        style={{ filter: isUploadingPhoto ? 'brightness(0.6)' : undefined }}
                       />
                     ) : (
                       <div className="owner-center-avatar-placeholder">
                         <UserIcon size={64} />
+                      </div>
+                    )}
+                    {isUploadingPhoto && (
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.5)',
+                        borderRadius: '50%',
+                        color: '#ffffff',
+                        gap: '4px',
+                        zIndex: 10,
+                      }}>
+                        <Loader2 size={28} className="animate-spin" />
+                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }}>UPLOADING</span>
                       </div>
                     )}
                   </div>
@@ -555,11 +664,11 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                     <button
                       type="button"
                       onClick={() => {
-                        if (photoPolicy.allowed) fileInputRef.current?.click();
+                        if (photoPolicy.allowed && !isUploadingPhoto) fileInputRef.current?.click();
                       }}
                       className="owner-center-camera-btn"
                       style={{ position: 'static', transform: 'none' }}
-                      disabled={!photoPolicy.allowed}
+                      disabled={!photoPolicy.allowed || isUploadingPhoto}
                       title={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
                       aria-label={photoPolicy.allowed ? 'Upload from Gallery' : 'Photo change limit reached'}
                     >
@@ -568,15 +677,15 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                     <button
                       type="button"
                       onClick={() => {
-                        if (photoPolicy.allowed) setIsCameraOpen(true);
+                        if (photoPolicy.allowed && !isUploadingPhoto) setIsCameraOpen(true);
                       }}
                       className="owner-center-camera-btn"
                       style={{ position: 'static', transform: 'none' }}
-                      disabled={!photoPolicy.allowed}
+                      disabled={!photoPolicy.allowed || isUploadingPhoto}
                       title={photoPolicy.allowed ? 'Take Photo with Camera' : 'Photo change limit reached'}
                       aria-label={photoPolicy.allowed ? 'Take Photo with Camera' : 'Photo change limit reached'}
                     >
-                      <Camera size={18} />
+                      {isUploadingPhoto ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                     </button>
                   </div>
 
@@ -601,14 +710,37 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
                   {photoLimitText}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleHardReset}
-                  className="btn btn-ghost btn-xs remove-photo-link"
-                >
-                  <Trash2 size={13} />
-                  <span>Hard Reset</span>
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                  {photo && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveOwnerPhoto}
+                      disabled={isUploadingPhoto}
+                      className="btn btn-ghost btn-xs remove-photo-link"
+                      style={{ color: '#ef4444' }}
+                      title="Delete profile picture from Cloudinary & Firestore"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete Photo</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleHardReset}
+                    disabled={isUploadingPhoto}
+                    className="btn btn-ghost btn-xs remove-photo-link"
+                    style={{ opacity: 0.75 }}
+                    title="Reset all profile fields"
+                  >
+                    <X size={13} />
+                    <span>Reset Fields</span>
+                  </button>
+                </div>
+                {isUploadingPhoto && (
+                  <span style={{ color: 'var(--color-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '6px', fontSize: '12px' }}>
+                    <Loader2 size={13} className="animate-spin" /> Uploading to Cloudinary... Please wait
+                  </span>
+                )}
               </div>
 
               {/* 2. FORM INPUTS (Flows Directly from Avatar in the Same Card) */}
@@ -692,26 +824,74 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
                 <button
                   type="submit"
+                  disabled={isUploadingPhoto}
                   className="owner-save-btn"
                 >
-                  <Check size={16} />
-                  <span>Save & Update Details</span>
+                  {isUploadingPhoto ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Uploading to Cloudinary...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} />
+                      <span>Save Profile</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isTransitioning || isUploadingPhoto}
+                  onClick={async () => {
+                    if (isTransitioning || isUploadingPhoto) return;
+                    const ok = await saveProfileInternal(false);
+                    if (ok) {
+                      handleContinueToLocation();
+                    }
+                  }}
+                  className="btn btn-primary continue-to-location-orange-btn"
+                  style={{
+                    background: 'linear-gradient(135deg, #FF7900, #E65100)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: (isTransitioning || isUploadingPhoto) ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(255, 121, 0, 0.35)',
+                    opacity: (isTransitioning || isUploadingPhoto) ? 0.7 : 1,
+                  }}
+                >
+                  <span>Continue to Location</span>
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </form>
           )}
         </div>
       </div>
-      
-      <CameraModal 
-        isOpen={isCameraOpen} 
-        onClose={() => setIsCameraOpen(false)} 
+
+      <CameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
         title="Owner Profile Photo"
         captureButtonText="Capture Owner Photo"
         onCapture={async (photoData) => {
+          setIsUploadingPhoto(true);
+          showToast('Uploading captured owner photo to Cloudinary... Please wait.', 'info');
           try {
             const res = await fetch(photoData);
             const blob = await res.blob();
+            if (blob.size > 5 * 1024 * 1024) {
+              showToast('Image cannot be uploaded due to size problem: Captured photo exceeds 5MB limit.', 'error');
+              setIsUploadingPhoto(false);
+              return;
+            }
             const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
             const compressed = await compressImage(file, 600, 600, 0.85);
             if (!user?.id) throw new Error('AUTH_REQUIRED');
@@ -719,18 +899,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
             if (!compressed) throw new Error('COMPRESSION_FAILED');
             const uploadedUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
             if (!uploadedUrl) {
-              const queued = storageBucketService.enqueueItem({
-                category: 'profile',
-                referenceId: user.id,
-                base64Data: compressed,
-                previousUrl: currentProfile?.photo,
-              });
-              showToast(
-                queued
-                  ? 'Photo upload is queued and will retry when the connection is available.'
-                  : 'Could not upload the photo. Please check your connection and try again.',
-                queued ? 'info' : 'error',
-              );
+              showToast('Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
               return;
             }
             setPhoto(uploadedUrl);
@@ -751,18 +920,35 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
               hasLocationConsent: currentProfile?.hasLocationConsent ?? true,
               updatedAt: new Date().toISOString(),
             };
-            storageService.saveOwnerProfile(applyPhotoChangeTracking(updated, currentProfile));
+            const saved = applyPhotoChangeTracking(updated, currentProfile);
+            storageService.saveOwnerProfile(saved);
+            await firebaseSyncService.syncOwnerProfile(saved, user.id).catch((e) => {
+              console.warn('[Firebase Sync Owner Profile Notice]:', e);
+            });
             setSavedSnapshot((prev) => ({ ...prev, photo: uploadedUrl }));
             if (currentProfile?.photo && currentProfile.photo !== uploadedUrl) {
               await storageBucketService.deleteMedia(currentProfile.photo).catch(() => false);
             }
             refreshProgress();
-            showToast('✓ Owner photo uploaded securely!', 'success');
-          } catch {
-            showToast('Could not process the camera photo. Please try again.', 'error');
+            showToast('✓ Owner photo saved to Cloudinary & synced to Firestore!', 'success');
+          } catch (e: any) {
+            console.error('[PetParentContactPage] Camera capture error:', e);
+            showToast(e?.message || 'Could not process the camera photo. Please try again.', 'error');
+          } finally {
+            setIsUploadingPhoto(false);
           }
-        }} 
+        }}
       />
+
+      {isTransitioning && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Owner Profile"
+          toStep="Location"
+          durationMs={2400}
+          onComplete={handleTransitionComplete}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getFirestore, type Firestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAuth, type Auth } from 'firebase/auth';
 
@@ -45,11 +45,3 @@ if (isFirebaseConfigured()) {
 }
 
 export { app, db, storage, auth, firebaseConfig };
-
-if (typeof window !== 'undefined' && db) {
-  (window as any).firebaseDB = db;
-  (window as any).fsCollection = collection;
-  (window as any).fsGetDocs = getDocs;
-  (window as any).fsDeleteDoc = deleteDoc;
-  (window as any).fsDoc = doc;
-}

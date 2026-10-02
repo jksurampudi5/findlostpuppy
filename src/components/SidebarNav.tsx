@@ -8,13 +8,13 @@ import {
   AlertTriangle,
   Shield,
   LogOut,
-  Menu,
   X,
   Check,
   Lightbulb,
   ShieldCheck,
   Camera,
 } from 'lucide-react';
+import { AlignJustifyIcon } from './ui/align-justify-icon';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
@@ -384,7 +384,7 @@ export const SidebarNav: React.FC = () => {
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   aria-label="Toggle navigation menu"
                 >
-                  {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                  {isMobileMenuOpen ? <X size={22} /> : <AlignJustifyIcon size={22} />}
                 </button>
               </>
             </div>

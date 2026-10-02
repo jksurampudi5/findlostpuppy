@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
   Navigation,
   RefreshCw,
   Building,
@@ -21,7 +20,10 @@ import { PetProfileSelector, type SelectorOption } from '../components/PetProfil
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { BackButton } from '../components/ui/back-button';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { detectResilientLocation } from '../utils/geolocationHelper';
+import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
 interface LocationOnboardingPageProps {
   onSuccess?: () => void;
@@ -36,6 +38,9 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const { user, hasCompletedLocation, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  const [isTransitioningBack, setIsTransitioningBack] = useState(false);
+  const [isTransitioningForward, setIsTransitioningForward] = useState(false);
 
   const [, setForceUpdate] = useState(0);
   useEffect(() => {
@@ -76,9 +81,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   );
   // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
   const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes. */
-  const cleanSavedStreet = (v?: string) =>
-    v && !PLUS_CODE_RE.test(v.trim()) ? v.trim() : '';
+  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes, and normalizes Indic scripts to English. */
+  const cleanSavedStreet = (v?: string) => {
+    if (!v || PLUS_CODE_RE.test(v.trim())) return '';
+    return normalizeToEnglishText(v.trim());
+  };
 
   const [streetOrLocality, setStreetOrLocality] = useState<string>(
     cleanSavedStreet(existingProfile?.streetOrLocality || (existingProfile as any)?.street)
@@ -94,28 +101,35 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     if (hasManuallyResetRef.current) return;
     if (existingProfile) {
       const rawStreet = existingProfile.streetOrLocality || (existingProfile as any).street || '';
-      // Strip Plus Codes from previously saved street values
-      const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-      const pStreet = rawStreet && !PLUS_CODE_RE.test(rawStreet.trim()) ? rawStreet.trim() : '';
-      if (!streetOrLocality && pStreet) {
+      const pStreet = cleanSavedStreet(rawStreet);
+      if (pStreet && (!streetOrLocality || hasNonLatinScript(streetOrLocality))) {
         setStreetOrLocality(pStreet);
       }
-      if (!state && existingProfile.state) setState(existingProfile.state);
-      if (!district && existingProfile.district) setDistrict(existingProfile.district);
-      if (!mandalOrMunicipality && existingProfile.mandalOrMunicipality) {
-        setMandalOrMunicipality(existingProfile.mandalOrMunicipality);
+      if (existingProfile.state) setState(normalizeToEnglishText(existingProfile.state));
+      if (existingProfile.district) setDistrict(normalizeToEnglishText(existingProfile.district));
+      if (existingProfile.mandalOrMunicipality) {
+        setMandalOrMunicipality(normalizeToEnglishText(existingProfile.mandalOrMunicipality));
       }
       if (
-        !city &&
         existingProfile.city &&
         existingProfile.city.trim().toLowerCase() !==
-          (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
+        (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
       ) {
-        setCity(existingProfile.city.trim());
+        const normCity = normalizeToEnglishText(existingProfile.city.trim());
+        if (!city || hasNonLatinScript(city)) {
+          setCity(normCity);
+        }
       }
       if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
     }
   }, [existingProfile]);
+
+  // Ensure current street is always in English if non-Latin script was present
+  useEffect(() => {
+    if (streetOrLocality && hasNonLatinScript(streetOrLocality)) {
+      setStreetOrLocality(normalizeToEnglishText(streetOrLocality));
+    }
+  }, [streetOrLocality]);
 
   // Dynamic localities loaded for currently selected district and mandal
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
@@ -232,10 +246,10 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           l.localityName.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase()
       )
       .map((l) => ({
-      id: l.localityName,
-      label: l.localityName,
-      secondaryLabel: l.localityType ? `${l.localityType}` : undefined,
-      icon: <Home size={18} />,
+        id: l.localityName,
+        label: l.localityName,
+        secondaryLabel: l.localityType ? `${l.localityType}` : undefined,
+        icon: <Home size={18} />,
       }));
   }, [localities, mandalOrMunicipality]);
 
@@ -440,11 +454,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       setLatitude(geo.latitude);
       setLongitude(geo.longitude);
 
-      const detectedState = geo.state || state;
-      const rawDistrict = geo.district || district;
-      const detectedMandal = geo.mandal || mandalOrMunicipality;
-      const detectedCity = geo.city || city;
-      const detectedStreet = geo.street || streetOrLocality || (detectedCity ? `${detectedCity} Main Road` : '');
+      const detectedState = normalizeToEnglishText(geo.state || state);
+      const rawDistrict = normalizeToEnglishText(geo.district || district);
+      const detectedMandal = normalizeToEnglishText(geo.mandal || mandalOrMunicipality);
+      const detectedCity = normalizeToEnglishText(geo.city || city);
+      const rawDetectedStreet = geo.street || streetOrLocality || (detectedCity ? `${detectedCity} Main Road` : '');
+      const detectedStreet = normalizeToEnglishText(rawDetectedStreet);
       const detectedPin = geo.pinCode || pinCode;
 
       const match = await locationService.matchLocation({
@@ -473,7 +488,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
         const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
         const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
-        if (resolvedStreet) setStreetOrLocality(resolvedStreet);
+        if (resolvedStreet) setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
         if (detectedPin) {
           setPinCode(detectedPin);
         } else if (finalCity) {
@@ -510,7 +525,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         setHasDetected(true);
         setActiveLocationModal('district');
         showToast('Please select your District and Mandal from the squares below.', 'info');
-        
+
         // Fallback: populate raw detected values
         if (detectedState) setState(detectedState);
         if (rawDistrict) setDistrict(rawDistrict);
@@ -525,7 +540,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           setActiveLocationModal('city');
         }
         const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
-        setStreetOrLocality(resolvedStreet);
+        setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
         if (detectedPin) setPinCode(detectedPin);
       }
     } catch (hardErr: any) {
@@ -620,12 +635,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
         phone: existingProfile?.phone || user.phone || '',
         photo: (!isPetPhotoUrl(existingProfile?.photo) ? existingProfile?.photo : undefined) || (!isPetPhotoUrl(user.avatar) ? user.avatar : undefined),
         email: user.email,
-        state: state.trim(),
-        district: district.trim(),
-        mandalOrMunicipality: mandalOrMunicipality.trim(),
-        city: city.trim(),
-        streetOrLocality: streetOrLocality.trim(),
-        street: streetOrLocality.trim(),
+        state: normalizeToEnglishText(state.trim()),
+        district: normalizeToEnglishText(district.trim()),
+        mandalOrMunicipality: normalizeToEnglishText(mandalOrMunicipality.trim()),
+        city: normalizeToEnglishText(city.trim()),
+        streetOrLocality: normalizeToEnglishText(streetOrLocality.trim()),
+        street: normalizeToEnglishText(streetOrLocality.trim()),
         pinCode: pinCode.trim(),
         stateCode: distObj?.stateCode,
         districtCode: distObj?.districtCode,
@@ -644,11 +659,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       refreshProgress();
       setActiveLocationModal(null);
       setSavedSnapshot({
-        state: state.trim(),
-        district: district.trim(),
-        mandal: mandalOrMunicipality.trim(),
-        city: city.trim(),
-        street: streetOrLocality.trim(),
+        state: normalizeToEnglishText(state.trim()),
+        district: normalizeToEnglishText(district.trim()),
+        mandal: normalizeToEnglishText(mandalOrMunicipality.trim()),
+        city: normalizeToEnglishText(city.trim()),
+        street: normalizeToEnglishText(streetOrLocality.trim()),
         pinCode: pinCode.trim(),
       });
 
@@ -717,27 +732,40 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   );
 
   const handleProceedToPup = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
     if (!isLocationValid) {
       showToast('Please select State, District, Mandal, and Home Base before continuing.', 'warning');
       return;
     }
     handleSyncLocation({ silent: true });
+    setIsTransitioningForward(true);
+  };
+
+  const handleForwardTransitionComplete = () => {
+    setIsTransitioningForward(false);
     if (onSuccess) {
       onSuccess();
     } else {
       setActiveOnboardingTab('choice');
       navigate('/choice');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleBack = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    setIsTransitioningBack(true);
+  };
+
+  const handleBackTransitionComplete = () => {
+    setIsTransitioningBack(false);
     if (onBack) {
       onBack();
     } else {
       setActiveOnboardingTab('owner');
       navigate('/owner');
     }
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleExitToDashboard = () => {
@@ -764,15 +792,11 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           {/* Top-left back button inside container for going back to Owner Profile */}
           <div className="pet-profile-header-bar location-header-bar">
             <div className="pet-profile-header-left">
-              <button
-                type="button"
-                className="pet-profile-back-btn location-back-btn"
+              <BackButton
                 onClick={handleBack}
                 title="Go back to Owner Profile"
                 aria-label="Back to Owner Profile"
-              >
-                <ArrowLeft size={18} />
-              </button>
+              />
             </div>
           </div>
           <div className="location-profile-header">
@@ -809,188 +833,193 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
           {/* MAIN VIEW: 2×2 LOCATION GRID */}
           <div className="loc-grid-showcase">
-              <div className="loc-grid-2x2">
-                {/* 1. STATE SQUARE */}
-                <button
-                  type="button"
-                  className="loc-grid-square loc-gsq-state"
-                  onClick={() => setActiveLocationModal('state')}
-                  title="Click to change State"
-                >
-                  <div className="loc-gsq-top">
-                    <div className="loc-gsq-icon">
-                      <Landmark size={20} />
-                    </div>
-                    <span className="loc-gsq-label">State</span>
+            <div className="loc-grid-2x2">
+              {/* 1. STATE SQUARE */}
+              <button
+                type="button"
+                className="loc-grid-square loc-gsq-state"
+                onClick={() => setActiveLocationModal('state')}
+                title="Click to change State"
+              >
+                <div className="loc-gsq-top">
+                  <div className="loc-gsq-icon">
+                    <Landmark size={20} />
                   </div>
-                  <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{state || <span className="loc-gsq-placeholder">Select State</span>}</strong>
-                  </div>
-                </button>
+                  <span className="loc-gsq-label">State</span>
+                </div>
+                <div className="loc-gsq-value-wrap">
+                  <strong className="loc-gsq-value">{state || <span className="loc-gsq-placeholder">Select State</span>}</strong>
+                </div>
+              </button>
 
-                {/* 2. DISTRICT SQUARE */}
-                <button
-                  type="button"
-                  className="loc-grid-square loc-gsq-district"
-                  onClick={() => setActiveLocationModal('district')}
-                  title="Click to change District"
-                >
-                  <div className="loc-gsq-top">
-                    <div className="loc-gsq-icon">
-                      <Building2 size={20} />
-                    </div>
-                    <span className="loc-gsq-label">District</span>
+              {/* 2. DISTRICT SQUARE */}
+              <button
+                type="button"
+                className="loc-grid-square loc-gsq-district"
+                onClick={() => setActiveLocationModal('district')}
+                title="Click to change District"
+              >
+                <div className="loc-gsq-top">
+                  <div className="loc-gsq-icon">
+                    <Building2 size={20} />
                   </div>
-                  <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{district || <span className="loc-gsq-placeholder">Select District</span>}</strong>
-                  </div>
-                </button>
+                  <span className="loc-gsq-label">District</span>
+                </div>
+                <div className="loc-gsq-value-wrap">
+                  <strong className="loc-gsq-value">{district || <span className="loc-gsq-placeholder">Select District</span>}</strong>
+                </div>
+              </button>
 
-                {/* 3. MANDAL SQUARE */}
-                <button
-                  type="button"
-                  className="loc-grid-square loc-gsq-mandal"
-                  onClick={() => setActiveLocationModal('mandal')}
-                  title="Click to change Mandal"
-                >
-                  <div className="loc-gsq-top">
-                    <div className="loc-gsq-icon">
-                      <MapPin size={20} />
-                    </div>
-                    <span className="loc-gsq-label">Mandal</span>
+              {/* 3. MANDAL SQUARE */}
+              <button
+                type="button"
+                className="loc-grid-square loc-gsq-mandal"
+                onClick={() => setActiveLocationModal('mandal')}
+                title="Click to change Mandal"
+              >
+                <div className="loc-gsq-top">
+                  <div className="loc-gsq-icon">
+                    <MapPin size={20} />
                   </div>
-                  <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{mandalOrMunicipality || <span className="loc-gsq-placeholder">Select Mandal</span>}</strong>
-                  </div>
-                </button>
+                  <span className="loc-gsq-label">Mandal</span>
+                </div>
+                <div className="loc-gsq-value-wrap">
+                  <strong className="loc-gsq-value">{mandalOrMunicipality || <span className="loc-gsq-placeholder">Select Mandal</span>}</strong>
+                </div>
+              </button>
 
-                {/* 4. HOME BASE SQUARE */}
-                <button
-                  type="button"
-                  className="loc-grid-square loc-gsq-home"
-                  onClick={() => setActiveLocationModal('city')}
-                  title="Click to change Home Base (City / Village)"
-                >
-                  <div className="loc-gsq-top">
-                    <div className="loc-gsq-icon">
-                      <Home size={20} />
-                    </div>
-                    <span className="loc-gsq-label">Village / Home Base</span>
+              {/* 4. HOME BASE SQUARE */}
+              <button
+                type="button"
+                className="loc-grid-square loc-gsq-home"
+                onClick={() => setActiveLocationModal('city')}
+                title="Click to change Home Base (City / Village)"
+              >
+                <div className="loc-gsq-top">
+                  <div className="loc-gsq-icon">
+                    <Home size={20} />
                   </div>
-                  <div className="loc-gsq-value-wrap">
-                    <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Village</span>}</strong>
-                    <span className="loc-gsq-pin-btn">
-                      {loadingVillages
-                        ? 'Loading home bases...'
-                        : lookingUpPin
-                          ? 'Resolving PIN...'
-                          : pinCode
-                            ? `PIN ${pinCode}`
-                            : 'PIN appears after selection'}
-                    </span>
+                  <span className="loc-gsq-label">Village / Home Base</span>
+                </div>
+                <div className="loc-gsq-value-wrap">
+                  <strong className="loc-gsq-value">{city || <span className="loc-gsq-placeholder">Select Village</span>}</strong>
+                  <span className="loc-gsq-pin-btn">
+                    {loadingVillages
+                      ? 'Loading home bases...'
+                      : lookingUpPin
+                        ? 'Resolving PIN...'
+                        : pinCode
+                          ? `PIN ${pinCode}`
+                          : 'PIN appears after selection'}
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', padding: '0.75rem 0.25rem 0' }}>
+              {/* 5. STREET / LOCALITY SQUARE */}
+              <div
+                className="loc-grid-square loc-gsq-street"
+                style={{ cursor: 'text' }}
+              >
+                <div className="loc-gsq-top">
+                  <div className="loc-gsq-icon">
+                    <MapPin size={20} />
                   </div>
-                </button>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', padding: '0.75rem 0.25rem 0' }}>
-                {/* 5. STREET / LOCALITY SQUARE */}
-                <div
-                  className="loc-grid-square loc-gsq-street"
-                  style={{ cursor: 'text' }}
-                >
-                  <div className="loc-gsq-top">
-                    <div className="loc-gsq-icon">
-                      <MapPin size={20} />
-                    </div>
-                    <span className="loc-gsq-label">Street / Precise Area</span>
-                  </div>
-                  <div className="loc-gsq-value-wrap" style={{ width: '100%' }}>
-                    <input
-                      type="text"
-                      value={streetOrLocality}
-                      onChange={(e) => setStreetOrLocality(e.target.value)}
-                      placeholder="Enter street or auto-detect"
-                      className="loc-gsq-value"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#fff',
-                        width: '100%',
-                        outline: 'none',
-                        padding: 0,
-                        fontWeight: 'bold',
-                        textAlign: 'center'
-                      }}
-                    />
-                    <span className="loc-gsq-pin-btn" style={{ cursor: 'text' }}>
-                      {streetOrLocality ? 'Editable street / colony' : 'Auto-detected or type street'}
-                    </span>
-                  </div>
+                  <span className="loc-gsq-label">Street / Precise Area</span>
+                </div>
+                <div className="loc-gsq-value-wrap" style={{ width: '100%' }}>
+                  <input
+                    type="text"
+                    value={streetOrLocality}
+                    onChange={(e) => setStreetOrLocality(e.target.value)}
+                    onBlur={() => {
+                      if (hasNonLatinScript(streetOrLocality)) {
+                        setStreetOrLocality(normalizeToEnglishText(streetOrLocality));
+                      }
+                    }}
+                    placeholder="Enter street or auto-detect"
+                    className="loc-gsq-value"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      width: '100%',
+                      outline: 'none',
+                      padding: 0,
+                      fontWeight: 'bold',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <span className="loc-gsq-pin-btn" style={{ cursor: 'text' }}>
+                    {streetOrLocality ? 'Editable street / colony' : 'Auto-detected or type street'}
+                  </span>
                 </div>
               </div>
+            </div>
 
-              {pinConflictNote && (
-                <div
-                  style={{
-                    margin: '0.25rem 0.5rem 0',
-                    padding: '0.45rem 0.75rem',
-                    fontSize: '0.78rem',
-                    color: '#B45309',
-                    background: 'rgba(254, 243, 199, 0.12)',
-                    border: '1px solid rgba(253, 230, 138, 0.3)',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  ℹ️ {pinConflictNote}
+            {pinConflictNote && (
+              <div
+                style={{
+                  margin: '0.25rem 0.5rem 0',
+                  padding: '0.45rem 0.75rem',
+                  fontSize: '0.78rem',
+                  color: '#B45309',
+                  background: 'rgba(254, 243, 199, 0.12)',
+                  border: '1px solid rgba(253, 230, 138, 0.3)',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                }}
+              >
+                ℹ️ {pinConflictNote}
+              </div>
+            )}
+
+            {/* BOTTOM ACTIONS & SYNC */}
+            <div className="loc-grid-footer">
+              {hasUnsavedChanges && (
+                <div className="loc-sync-pending-badge">
+                  <RefreshCw size={13} className={syncing ? 'spin' : ''} />
+                  <span>{syncing ? 'Auto syncing location...' : 'Location changes save automatically'}</span>
                 </div>
               )}
 
-              {/* BOTTOM ACTIONS & SYNC */}
-              <div className="loc-grid-footer">
-                {hasUnsavedChanges && (
-                  <div className="loc-sync-pending-badge">
-                    <RefreshCw size={13} className={syncing ? 'spin' : ''} />
-                    <span>{syncing ? 'Auto syncing location...' : 'Location changes save automatically'}</span>
-                  </div>
+              <div className="showcase-action-buttons">
+                {hasUnsavedChanges ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleProceedToPup}
+                      disabled={!isLocationValid}
+                      className="btn btn-primary btn-lg continue-to-pup-btn"
+                      title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
+                      style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
+                    >
+                      <span>Continue to Pet Details</span>
+                      <ArrowRight size={18} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="sync-secondary-btn location-auto-synced-pill" title="Location is saved automatically.">
+                      <Check size={15} />
+                      <span>Location Synced</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleProceedToPup}
+                      disabled={!isLocationValid}
+                      className="btn btn-primary btn-lg continue-to-pup-btn"
+                      title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
+                      style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
+                    >
+                      <span>Continue to Pet Details</span>
+                      <ArrowRight size={18} />
+                    </button>
+                  </>
                 )}
-
-                <div className="showcase-action-buttons">
-                  {hasUnsavedChanges ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleProceedToPup}
-                        disabled={!isLocationValid}
-                        className="btn btn-primary btn-lg continue-to-pup-btn"
-                        title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
-                        style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
-                      >
-                        <span>Continue to Pet Details</span>
-                        <ArrowRight size={18} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="sync-secondary-btn location-auto-synced-pill" title="Location is saved automatically.">
-                        <Check size={15} />
-                        <span>Location Synced</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleProceedToPup}
-                        disabled={!isLocationValid}
-                        className="btn btn-primary btn-lg continue-to-pup-btn"
-                        title={isLocationValid ? 'Continue to Pet Details' : 'Please select State, District, Mandal, and Home Base'}
-                        style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
-                      >
-                        <span>Continue to Pet Details</span>
-                        <ArrowRight size={18} />
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1081,6 +1110,26 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
           executeDetectLocation();
         }}
       />
+
+      {isTransitioningBack && (
+        <VillageDogTransition
+          direction="backward"
+          fromStep="Location"
+          toStep="Owner Profile"
+          durationMs={2400}
+          onComplete={handleBackTransitionComplete}
+        />
+      )}
+
+      {isTransitioningForward && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Location"
+          toStep="Pet Choice"
+          durationMs={2400}
+          onComplete={handleForwardTransitionComplete}
+        />
+      )}
     </div>
   );
 };

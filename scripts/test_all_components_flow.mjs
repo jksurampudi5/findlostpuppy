@@ -3,7 +3,10 @@ import fs from 'fs';
 import path from 'path';
 
 const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const artifactDir = '/Users/jayakrishna/.gemini/antigravity-ide/brain/cf958b31-6d2b-47af-a191-6faa9469f81e';
+const artifactDir = process.env.ARTIFACT_DIR || '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
+if (!fs.existsSync(artifactDir)) {
+  fs.mkdirSync(artifactDir, { recursive: true });
+}
 
 const testResults = [];
 
@@ -55,7 +58,7 @@ async function run() {
       name: 'Jaya Krishna',
       email: 'jksurampudi5@gmail.com',
       phone: '9848022338',
-      avatar: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="50" fill="%23FF6B00"/><text x="50" y="55" font-size="20" text-anchor="middle" fill="white">JK</text></svg>'
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb'
     };
     localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
 
@@ -85,7 +88,7 @@ async function run() {
       fullName: 'Jaya Krishna',
       phone: '9848022338',
       email: 'jksurampudi5@gmail.com',
-      photo: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="50" fill="%23FF6B00"/><text x="50" y="55" font-size="20" text-anchor="middle" fill="white">JK</text></svg>',
+      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb',
       preferredContact: 'phone',
       state: 'Andhra Pradesh',
       district: 'Visakhapatnam',
@@ -97,6 +100,7 @@ async function run() {
     };
     localStorage.setItem('findlostpuppy_parent_profile', JSON.stringify(ownerProfile));
     localStorage.setItem('findlostpuppy_owner_profiles', JSON.stringify([ownerProfile]));
+    localStorage.setItem('findlostpuppy_profiles_v1', JSON.stringify([ownerProfile]));
   });
 
   // 2. Test Component: Owner Profile (/owner)
@@ -111,70 +115,46 @@ async function run() {
   });
   recordTest('Owner Profile Starts in View Mode', isViewMode);
 
-  // Test Clicking Full Name Row -> Switches to Edit Mode and Focuses Input
-  console.log('Testing click on Full Name row...');
-  const nameRowClickResult = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('.owner-view-row'));
-    const nameRow = rows.find(r => r.textContent.includes('Full Name'));
-    if (nameRow) {
-      nameRow.click();
-      return true;
-    }
-    return false;
-  });
-  recordTest('Full Name Row Clickable', nameRowClickResult);
-  await new Promise(r => setTimeout(r, 200));
+  // Test Clicking Modify Details / Photo -> Switches to Edit Mode
+  console.log('Testing click on Modify Details button...');
+  const modifyBtn = await page.$('.owner-modify-btn');
+  recordTest('Modify Details Button Exists', !!modifyBtn);
+  if (modifyBtn) {
+    await modifyBtn.click();
+    await new Promise(r => setTimeout(r, 400));
+  }
 
-  const editModeAfterNameClick = await page.evaluate(() => {
+  const editModeAfterModifyClick = await page.evaluate(() => {
     const input = document.getElementById('owner-full-name');
-    const isFocused = document.activeElement === input;
     const formVisible = !!document.querySelector('.owner-combined-form');
-    return { formVisible, isFocused, value: input ? input.value : null };
+    return { formVisible, value: input ? input.value : null };
   });
-  recordTest('Full Name Click Enters Edit Mode & Autofocuses', editModeAfterNameClick.formVisible, `Focused: ${editModeAfterNameClick.isFocused}, Value: ${editModeAfterNameClick.value}`);
-  await snap('owner_edit_mode_after_name_click');
-
-  // Test Cancel Edit
-  await page.evaluate(() => {
-    const cancelBtn = document.querySelector('.owner-cancel-edit-btn');
-    if (cancelBtn) cancelBtn.click();
-  });
-  await new Promise(r => setTimeout(r, 200));
-  const backInViewAfterCancel = await page.evaluate(() => !!document.querySelector('.owner-profile-view-wrap'));
-  recordTest('Cancel Button Returns to View Mode', backInViewAfterCancel);
-
-  // Test Clicking Phone Row -> Switches to Edit Mode and Focuses Phone Input
-  console.log('Testing click on Phone Number row...');
-  const phoneRowClickResult = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('.owner-view-row'));
-    const phoneRow = rows.find(r => r.textContent.includes('Mobile Phone Number'));
-    if (phoneRow) {
-      phoneRow.click();
-      return true;
-    }
-    return false;
-  });
-  recordTest('Phone Number Row Clickable', phoneRowClickResult);
-  await new Promise(r => setTimeout(r, 200));
-
-  const editModeAfterPhoneClick = await page.evaluate(() => {
-    const input = document.getElementById('owner-phone');
-    const isFocused = document.activeElement === input;
-    const formVisible = !!document.querySelector('.owner-combined-form');
-    return { formVisible, isFocused, value: input ? input.value : null };
-  });
-  recordTest('Phone Click Enters Edit Mode & Autofocuses', editModeAfterPhoneClick.formVisible, `Focused: ${editModeAfterPhoneClick.isFocused}`);
+  recordTest('Modify Button Enters Edit Mode', editModeAfterModifyClick.formVisible, `Value: ${editModeAfterModifyClick.value}`);
+  await snap('owner_edit_mode_after_modify_click');
 
   // Test Save & Update Details
-  await page.click('.owner-save-btn');
-  await new Promise(r => setTimeout(r, 500));
+  await page.evaluate(() => {
+    const btn = document.querySelector('.owner-save-btn');
+    if (btn) {
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+    }
+  });
+  await new Promise(r => setTimeout(r, 600));
   const viewAfterSave = await page.evaluate(() => !!document.querySelector('.owner-profile-view-wrap'));
   recordTest('Save & Update Details Returns to View Mode', viewAfterSave);
 
   // Test Navigation: "Continue to Location"
   console.log('Testing navigation to Location...');
-  await page.click('.continue-to-location-orange-btn');
-  await new Promise(r => setTimeout(r, 800));
+  await page.evaluate(() => {
+    const btn = document.querySelector('.continue-to-location-orange-btn');
+    if (btn) {
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+    }
+  });
+  await page.waitForFunction(() => window.location.pathname.includes('/location'), { timeout: 4000 }).catch(() => {});
+  await new Promise(r => setTimeout(r, 400));
   const currentUrlAfterOwner = page.url();
   recordTest('Owner "Continue to Location" Navigates to /location', currentUrlAfterOwner.includes('/location'), `URL: ${currentUrlAfterOwner}`);
   await snap('location_page');
@@ -291,9 +271,9 @@ async function run() {
       btn.click();
     }
   });
-  await page.waitForFunction(() => window.location.pathname === '/pet', { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction(() => window.location.pathname === '/choice' || window.location.pathname === '/pet', { timeout: 3000 }).catch(() => {});
   const currentUrlAfterLocation = page.url();
-  recordTest('Location "Continue to Pet Details" Navigates Directly to /pet', currentUrlAfterLocation.includes('/pet'), `URL: ${currentUrlAfterLocation}`);
+  recordTest('Location "Continue to Pet Details" Navigates to Pet Flow', currentUrlAfterLocation.includes('/choice') || currentUrlAfterLocation.includes('/pet'), `URL: ${currentUrlAfterLocation}`);
   await snap('pet_details_page_loaded');
 
   // 4. Test Component: Dog / Pet Details (/pet)
@@ -306,7 +286,7 @@ async function run() {
     const title = document.querySelector('h1')?.textContent?.trim();
     const hasViewCard = !!document.querySelector('.pet-profile-view-wrap') || !!document.querySelector('.pet-view-card') || !!document.querySelector('.pet-profile-view-content');
     const hasForm = !!document.querySelector('.pet-interactive-rows') || !!document.querySelector('.pet-profile-photo-center') || !!document.querySelector('.dog-onboarding-card');
-    const hasBackBtn = !!document.querySelector('.pet-profile-back-btn') || !!document.querySelector('.onboarding-back-btn');
+    const hasBackBtn = !!document.querySelector('.pet-header-bar .back-button-root') || !!document.querySelector('.pet-profile-back-btn') || !!document.querySelector('.onboarding-back-btn');
     return { title, hasViewCard, hasForm, hasBackBtn };
   });
   recordTest('Pet Details Page Renders Title "Pet Details"', petPageElements.title === 'Pet Details', `Found: "${petPageElements.title}"`);

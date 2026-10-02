@@ -15,6 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   hasValidConsent: boolean;
+  isFirstTimeUser: boolean;
   isLoading: boolean;
   authNotice: string;
   hasCompletedOwner: boolean;
@@ -47,6 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasValidConsent, setHasValidConsent] = useState<boolean>(() =>
     consentService.hasAcceptedCurrentConsent()
   );
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean>(false);
 
   const [hasCompletedOwner, setHasCompletedOwner] = useState<boolean>(false);
   const [hasCompletedLocation, setHasCompletedLocation] = useState<boolean>(false);
@@ -54,6 +56,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasCompletedReport, setHasCompletedReport] = useState<boolean>(false);
   const [petSafetyStatus, setPetSafetyStatus] = useState<'SAFE' | 'LOST' | 'UNDECIDED'>('UNDECIDED');
   const [activeOnboardingTab, setActiveOnboardingTab] = useState<OnboardingTab>('owner');
+
+  /**
+   * Evaluates if the authenticated user is genuinely a first-time user.
+   * If they already have any profile, location, pets, reports, or previous acceptance, they are returning.
+   */
+  const checkIfFirstTimeUser = useCallback((currentUser: User | null): boolean => {
+    if (!currentUser) return false;
+    if (localStorage.getItem(`findlostpuppy_returning_user_${currentUser.id}`) === 'true') return false;
+    if (localStorage.getItem(`findlostpuppy_consent_accepted_${currentUser.id}`) === 'true') return false;
+    if (localStorage.getItem('findlostpuppy_has_accepted_consent') === 'true') return false;
+    if (consentService.hasAcceptedCurrentConsent(currentUser.id)) return false;
+
+    if (storageService.hasCompletedOwnerProfile(currentUser.id, currentUser.email)) return false;
+    if (storageService.hasCompletedLocation(currentUser.id, currentUser.email)) return false;
+    if (storageService.hasCompletedDogProfile(currentUser.id, currentUser.email)) return false;
+    if (storageService.hasCompletedReport(currentUser.id, currentUser.email)) return false;
+    const pets = storageService.getAllPets().filter((p: { ownerId?: string }) => p.ownerId === currentUser.id);
+    if (pets.length > 0) return false;
+    const reports = storageService.getAllReports().filter((r: { dog?: { ownerId?: string } }) => r.dog?.ownerId === currentUser.id);
+    if (reports.length > 0) return false;
+
+    return true;
+  }, []);
 
   /**
    * Recalculates onboarding progress and safety status for a given user
@@ -73,6 +98,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const newSafety = storageService.getPetSafetyStatus(currentUser.id, currentUser.email);
       setPetSafetyStatus(newSafety);
 
+      const firstTime = checkIfFirstTimeUser(currentUser);
+      setIsFirstTimeUser(firstTime);
+
+      if (!firstTime) {
+        // Returning user - permanently satisfy consent and skip it completely
+        consentService.markConsentCompletedForUser(currentUser.id);
+        setHasValidConsent(true);
+      } else {
+        setHasValidConsent(consentService.hasAcceptedCurrentConsent(currentUser.id));
+      }
+
       setActiveOnboardingTab((prev) => {
         if (!hasOwner) return 'owner';
         if (!hasLoc) return 'location';
@@ -87,9 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setHasCompletedReport(false);
       setPetSafetyStatus('UNDECIDED');
       setActiveOnboardingTab('owner');
+      setIsFirstTimeUser(false);
+      setHasValidConsent(consentService.hasAcceptedCurrentConsent());
     }
-    setHasValidConsent(consentService.hasAcceptedCurrentConsent());
-  }, []);
+  }, [checkIfFirstTimeUser]);
 
   const refreshProgress = useCallback(() => {
     const currentUser = authService.getCurrentUser();
@@ -112,14 +149,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (mappedUser) {
           setUser(mappedUser);
           storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
-          await storageService.pullFromFirebase();
-          if (!isMounted) return;
           refreshProgressForUser(mappedUser);
+          storageService.pullFromFirebase().then(() => {
+            if (isMounted) refreshProgressForUser(mappedUser);
+          }).catch(() => {});
         } else {
           const cachedUser = authService.getCurrentUser();
           if (cachedUser) {
-            await storageService.pullFromFirebase();
-            if (!isMounted) return;
+            storageService.pullFromFirebase().then(() => {
+              if (isMounted) refreshProgressForUser(cachedUser);
+            }).catch(() => {});
           }
           setUser(cachedUser);
           refreshProgressForUser(cachedUser);
@@ -194,7 +233,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     method?: 'all_forms_accepted' | 'master_declaration'
   ) => {
     consentService.recordConsent(user?.id, acceptedForms, method);
+    consentService.markConsentCompletedForUser(user?.id);
     setHasValidConsent(true);
+    setIsFirstTimeUser(false);
   };
 
   const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; redirected?: boolean }> => {
@@ -240,12 +281,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const recordsDeleted = await firebaseSyncService.deleteUserDataByEmail(userEmail);
     if (!recordsDeleted) return false;
     storageService.deleteUserAccount(userId);
+    consentService.revokeConsent(userId);
     if (auth?.currentUser) await deleteUser(auth.currentUser);
     await authService.logout();
 
     setUser(null);
     refreshProgressForUser(null);
     setHasValidConsent(false);
+    setIsFirstTimeUser(false);
     return true;
   };
 
@@ -256,6 +299,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAuthenticated: !!user,
         isAdmin: !!(user && (user.isAdmin || isEmailAdmin(user.email))),
         hasValidConsent,
+        isFirstTimeUser,
         isLoading,
         authNotice,
         hasCompletedOwner,

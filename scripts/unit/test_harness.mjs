@@ -48,6 +48,9 @@ export function loadModule(path, { mocks = {}, globals = {}, env = {} } = {}) {
     if (['react', 'react/jsx-runtime', 'lucide-react', 'node:crypto'].includes(specifier)) {
       return require(specifier);
     }
+    if (specifier.includes('indicTransliteration')) {
+      return { normalizeToEnglishText: (t) => t || '', transliterateIndicToEnglish: (t) => t || '' };
+    }
     throw new Error(`Unmocked dependency ${specifier} in ${path}`);
   };
   compileFunction(compiled.get(filename), ['require', 'module', 'exports', ...Object.keys(scope)], {

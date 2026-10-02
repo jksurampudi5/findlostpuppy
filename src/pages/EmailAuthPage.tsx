@@ -3,11 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, PawPrint, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { consentService } from '../services/consentService';
+import { authService } from '../services/authService';
+import { storageService } from '../services/storageService';
 
 export const EmailAuthPage = () => {
   const {
+    user,
     signInWithGoogle,
     isAuthenticated,
+    hasValidConsent,
+    isFirstTimeUser,
     setActiveOnboardingTab,
     isLoading,
     authNotice,
@@ -23,7 +29,14 @@ export const EmailAuthPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      if (hasCompletedOwner && hasCompletedLocation) {
+      const needsConsent =
+        isFirstTimeUser &&
+        !hasValidConsent &&
+        !consentService.hasAcceptedCurrentConsent(user?.id);
+
+      if (needsConsent) {
+        navigate('/consent', { replace: true });
+      } else if (hasCompletedOwner && hasCompletedLocation) {
         setActiveOnboardingTab('dashboard');
         navigate('/homepage', { replace: true });
       } else {
@@ -31,7 +44,7 @@ export const EmailAuthPage = () => {
         navigate('/owner', { replace: true });
       }
     }
-  }, [isAuthenticated, hasCompletedOwner, hasCompletedLocation, navigate, setActiveOnboardingTab]);
+  }, [isAuthenticated, isFirstTimeUser, hasValidConsent, user, hasCompletedOwner, hasCompletedLocation, navigate, setActiveOnboardingTab]);
 
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
@@ -45,7 +58,17 @@ export const EmailAuthPage = () => {
     if (res.success) {
       if (!res.redirected) {
         showToast('Signed in with Google.', 'success');
-        if (hasCompletedOwner && hasCompletedLocation) {
+        const currentUser = authService.getCurrentUser();
+        const needsConsent =
+          consentService.isFirstTimeUser(currentUser?.id) &&
+          !consentService.hasAcceptedCurrentConsent(currentUser?.id);
+
+        if (needsConsent) {
+          navigate('/consent', { replace: true });
+        } else if (
+          storageService.hasCompletedOwnerProfile(currentUser?.id || '', currentUser?.email) &&
+          storageService.hasCompletedLocation(currentUser?.id || '', currentUser?.email)
+        ) {
           setActiveOnboardingTab('dashboard');
           navigate('/homepage', { replace: true });
         } else {
