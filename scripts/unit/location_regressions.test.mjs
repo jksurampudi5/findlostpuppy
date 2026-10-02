@@ -15,6 +15,7 @@ function fixture(address = {}, boundary = { stateName: 'Boundary State', distric
       '@capacitor/geolocation': { Geolocation: geolocation },
       '@capgo/capacitor-nativegeocoder': { NativeGeocoder: { reverseGeocode: async () => ({ addresses: [address] }) } },
       './boundaryLookup': { findMandalByCoordinates: async () => boundary },
+      './indicTransliteration': loadModule('src/utils/indicTransliteration.ts'),
     }, globals: { fetch, console },
   });
   return { ...module, fetch, console };
@@ -25,7 +26,7 @@ test('missing village stays unresolved instead of reusing the boundary mandal', 
   assert.equal(result.mandal, 'Boundary Mandal');
   assert.equal(result.city, undefined);
   assert.equal(result.diagnostic.finalResult.village, undefined);
-  assert.equal(result.street, 'Boundary Mandal Main Road');
+  assert.equal(result.street, undefined);
   assert.equal(result.state, 'Boundary State');
   assert.equal(result.district, 'Boundary District');
 });

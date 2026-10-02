@@ -1,0 +1,455 @@
+{
+  "version": "0.8",
+  "projectName": "findlostpuppy",
+  "generatedAt": "2026-10-02T04:45:29.737Z",
+  "projectType": "React",
+  "techStack": {
+    "languages": [
+      "TypeScript"
+    ],
+    "frameworks": [
+      "React"
+    ],
+    "databases": [],
+    "auth": [
+      "Firebase Auth",
+      "JOSE (JWT)"
+    ],
+    "testing": [],
+    "buildTools": [
+      "Vite"
+    ],
+    "cloudSdks": [],
+    "payments": [],
+    "externalServices": [
+      "External API via VITE_BASE_URL: /findlostpuppy/",
+      "External API via VITE_FIREBASE_API_KEY: AIzaSyBdnHIHY3B2L9p2araWW0aO2yOf60izEZA",
+      "External API via VITE_FIREBASE_API_KEY: your-api-key"
+    ]
+  },
+  "architecture": {
+    "style": "Component Layer -> Service Layer",
+    "layers": [
+      "Component Layer",
+      "Service Layer"
+    ],
+    "clusters": [
+      {
+        "name": "Unclassified",
+        "size": 142,
+        "risk": "MEDIUM",
+        "centralFile": "deploy.yml"
+      },
+      {
+        "name": "Testing",
+        "size": 30,
+        "risk": "MEDIUM",
+        "centralFile": "test_admin.cjs"
+      },
+      {
+        "name": "Pages (index)",
+        "size": 25,
+        "risk": "HIGH",
+        "centralFile": "index.ts"
+      },
+      {
+        "name": "Components (legalContent)",
+        "size": 17,
+        "risk": "MEDIUM",
+        "centralFile": "legalContent.ts"
+      },
+      {
+        "name": "Services (AuthContext)",
+        "size": 17,
+        "risk": "HIGH",
+        "centralFile": "AuthContext.tsx"
+      },
+      {
+        "name": "Utils (ToastContext)",
+        "size": 15,
+        "risk": "HIGH",
+        "centralFile": "ToastContext.tsx"
+      },
+      {
+        "name": "Services",
+        "size": 11,
+        "risk": "MEDIUM",
+        "centralFile": "generate_pdf.mjs"
+      },
+      {
+        "name": "Frontend",
+        "size": 11,
+        "risk": "MEDIUM",
+        "centralFile": "inspect_page.mjs"
+      },
+      {
+        "name": "Scripts (qa_lib)",
+        "size": 11,
+        "risk": "HIGH",
+        "centralFile": "qa_lib.mjs"
+      },
+      {
+        "name": "Fallbacks (FallbackShell)",
+        "size": 10,
+        "risk": "MEDIUM",
+        "centralFile": "FallbackShell.tsx"
+      },
+      {
+        "name": "Unit (test_harness)",
+        "size": 9,
+        "risk": "HIGH",
+        "centralFile": "test_harness.mjs"
+      },
+      {
+        "name": "Config",
+        "size": 4,
+        "risk": "MEDIUM",
+        "centralFile": "capacitor.config.ts"
+      },
+      {
+        "name": "Database",
+        "size": 3,
+        "risk": "HIGH",
+        "centralFile": "schema-invariants.yaml"
+      },
+      {
+        "name": "Dashboard",
+        "size": 3,
+        "risk": "LOW",
+        "centralFile": "test_dashboard_multiuser.cjs"
+      },
+      {
+        "name": "Authentication",
+        "size": 2,
+        "risk": "MEDIUM",
+        "centralFile": "extract_session.cjs"
+      },
+      {
+        "name": "Utilities",
+        "size": 1,
+        "risk": "LOW",
+        "centralFile": "utils.ts"
+      }
+    ],
+    "criticalChains": [],
+    "evidence": [
+      "App.tsx -> storageService.ts",
+      "App.tsx -> consentService.ts",
+      "AuthContext.tsx -> authService.ts"
+    ]
+  },
+  "criticalFiles": [
+    "src/types/index.ts",
+    "src/services/storageService.ts",
+    "src/context/AuthContext.tsx",
+    "src/context/ToastContext.tsx",
+    "src/utils/dogPhotoHelper.ts",
+    "src/services/storageBucketService.ts",
+    "scripts/qa_lib.mjs",
+    "scripts/unit/test_harness.mjs",
+    "src/services/consentService.ts",
+    "src/utils/imageCompressor.ts"
+  ],
+  "riskAreas": [
+    {
+      "cluster": "Database",
+      "level": "HIGH",
+      "files": [
+        "scratch/execute_media_migration.ts",
+        "scratch/execute_safe_migration_workflow.mjs"
+      ],
+      "reason": "Database layer holds all persistent state. Schema changes can corrupt or lose data."
+    },
+    {
+      "cluster": "Scripts (qa_lib)",
+      "level": "HIGH",
+      "files": [
+        "scripts/qa_lib.mjs"
+      ],
+      "reason": "Scripts (qa_lib) contains 11 modules with elevated risk. Most-connected file: qa_lib.mjs (10 importers)."
+    },
+    {
+      "cluster": "Unit (test_harness)",
+      "level": "HIGH",
+      "files": [
+        "scripts/unit/test_harness.mjs"
+      ],
+      "reason": "Unit (test_harness) contains 9 modules with elevated risk. Most-connected file: test_harness.mjs (8 importers)."
+    },
+    {
+      "cluster": "Services (AuthContext)",
+      "level": "HIGH",
+      "files": [
+        "src/context/AuthContext.tsx",
+        "src/services/storageBucketService.ts",
+        "src/services/consentService.ts",
+        "src/utils/imageCompressor.ts",
+        "src/services/firebaseSyncService.ts",
+        "src/services/firebaseConfig.ts"
+      ],
+      "reason": "Services (AuthContext) contains 17 modules with elevated risk. Most-connected file: AuthContext.tsx (20 importers)."
+    },
+    {
+      "cluster": "Utils (ToastContext)",
+      "level": "HIGH",
+      "files": [
+        "src/context/ToastContext.tsx",
+        "src/services/locationService.ts",
+        "src/utils/geolocationHelper.ts"
+      ],
+      "reason": "Utils (ToastContext) contains 15 modules with elevated risk. Most-connected file: ToastContext.tsx (18 importers)."
+    },
+    {
+      "cluster": "Pages (index)",
+      "level": "HIGH",
+      "files": [
+        "src/types/index.ts",
+        "src/services/storageService.ts",
+        "src/utils/dogPhotoHelper.ts",
+        "src/components/ui/VillageDogTransition.tsx",
+        "src/components/ui/back-button.tsx"
+      ],
+      "reason": "Pages (index) contains 25 modules with elevated risk. Most-connected file: index.ts (31 importers)."
+    },
+    {
+      "cluster": "Config",
+      "level": "MEDIUM",
+      "files": [
+        "capacitor.config.ts",
+        "scripts/validate_firebase_env.mjs",
+        "src/vite-env.d.ts",
+        "vite.config.ts"
+      ],
+      "reason": "Configuration controls runtime behavior. Misconfiguration causes outages."
+    },
+    {
+      "cluster": "Services",
+      "level": "MEDIUM",
+      "files": [
+        "docs/generate_pdf.mjs",
+        "scratch/capture_full_navigation_flow.mjs",
+        "scratch/capture_full_tabs.cjs",
+        "scratch/capture_owner_glow.mjs",
+        "scratch/capture_tribute.mjs"
+      ],
+      "reason": "Services contain core business logic. Errors propagate to all dependent features."
+    },
+    {
+      "cluster": "Unclassified: functions",
+      "level": "MEDIUM",
+      "files": [
+        "functions/index.js"
+      ],
+      "reason": "Unclassified: functions contains 1 modules with elevated risk."
+    },
+    {
+      "cluster": "Authentication",
+      "level": "MEDIUM",
+      "files": [
+        "scratch/extract_session.cjs",
+        "scripts/test_auth_consent_flow.mjs"
+      ],
+      "reason": "Authentication controls access to the entire application. Bugs here cause security breaches."
+    },
+    {
+      "cluster": "Frontend",
+      "level": "MEDIUM",
+      "files": [
+        "scratch/inspect_page.mjs",
+        "scratch/test_pet_profile_ui.mjs",
+        "scripts/test_all_components_flow.mjs",
+        "scripts/test_component_transitions.mjs",
+        "scripts/test_feedback_component.mjs"
+      ],
+      "reason": "Frontend contains 11 modules with elevated risk."
+    },
+    {
+      "cluster": "Testing",
+      "level": "MEDIUM",
+      "files": [
+        "scratch/test_admin.cjs",
+        "scratch/test_admin.js",
+        "scratch/test_delete_and_sync.cjs",
+        "scratch/test_deletion_and_privacy.cjs",
+        "scratch/test_dynamic_images.cjs"
+      ],
+      "reason": "Testing contains 30 modules with elevated risk."
+    },
+    {
+      "cluster": "Unclassified: scripts",
+      "level": "MEDIUM",
+      "files": [
+        "scripts/cloudinary_delete_all_images.mjs",
+        "scripts/notify_testers.mjs",
+        "scripts/verify_admin_shortcuts_tabs.mjs",
+        "scripts/verify_android_assets.mjs",
+        "scripts/verify_automotive_theme.mjs"
+      ],
+      "reason": "Unclassified: scripts contains 12 modules with elevated risk."
+    },
+    {
+      "cluster": "Components (legalContent)",
+      "level": "MEDIUM",
+      "files": [
+        "src/App.tsx",
+        "src/components/SidebarNav.tsx",
+        "src/components/Footer.tsx",
+        "src/pages/ConsentPage.tsx",
+        "src/components/ui/AnimationShowcaseStudio.tsx"
+      ],
+      "reason": "Components (legalContent) contains 17 modules with elevated risk. Most-connected file: legalContent.ts (4 importers)."
+    },
+    {
+      "cluster": "Fallbacks (FallbackShell)",
+      "level": "MEDIUM",
+      "files": [
+        "src/components/NetworkResilience.tsx",
+        "src/components/fallbacks/LoadingFallback.tsx",
+        "src/components/CameraModal.tsx",
+        "src/components/fallbacks/PermissionFallback.tsx",
+        "src/components/ErrorBoundary.tsx"
+      ],
+      "reason": "Fallbacks (FallbackShell) contains 10 modules with elevated risk. Most-connected file: FallbackShell.tsx (4 importers)."
+    },
+    {
+      "cluster": "Unclassified: worker",
+      "level": "MEDIUM",
+      "files": [
+        "worker/index.ts"
+      ],
+      "reason": "Unclassified: worker contains 1 modules with elevated risk."
+    }
+  ],
+  "reviewGroups": [
+    {
+      "name": "Database Review Group",
+      "files": [
+        ".tokencap/constitution/schema-invariants.yaml",
+        "scratch/execute_media_migration.ts",
+        "scratch/execute_safe_migration_workflow.mjs"
+      ],
+      "reason": "Shared dependency chain (3 files). Central file: schema-invariants.yaml with 0 importers. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Scripts (qa_lib) Review Group",
+      "files": [
+        "scripts/qa_lib.mjs",
+        "scratch/test_consent_flow.mjs",
+        "scripts/capture_card_and_sighting.mjs",
+        "scripts/capture_clean_remaining.mjs",
+        "scripts/capture_deep_flows.mjs",
+        "scripts/capture_exact_checkpoints.mjs",
+        "scripts/execute_onboarding_and_alert_flows.mjs",
+        "scripts/release_regression_verify.mjs",
+        "scripts/run_all_qa_checkpoints.mjs",
+        "scripts/run_complete_qa.mjs"
+      ],
+      "reason": "Shared dependency chain (11 files). Central file: qa_lib.mjs with 10 importers. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Unit (test_harness) Review Group",
+      "files": [
+        "scripts/unit/test_harness.mjs",
+        "scripts/unit/drafts_and_consent.test.mjs",
+        "scripts/unit/fallbacks.test.mjs",
+        "scripts/unit/firebase_sync.test.mjs",
+        "scripts/unit/location_regressions.test.mjs",
+        "scripts/unit/media_client.test.mjs",
+        "scripts/unit/media_functions.test.mjs",
+        "scripts/unit/media_worker.test.mjs",
+        "scripts/unit/storage_recovery.test.mjs"
+      ],
+      "reason": "Shared dependency chain (9 files). Central file: test_harness.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Services (AuthContext) Review Group",
+      "files": [
+        "src/context/AuthContext.tsx",
+        "src/services/storageBucketService.ts",
+        "src/services/consentService.ts",
+        "src/utils/imageCompressor.ts",
+        "src/services/firebaseSyncService.ts",
+        "src/services/firebaseConfig.ts",
+        "src/services/authService.ts",
+        "src/components/PetProfileSelector.tsx",
+        "src/pages/PetParentContactPage.tsx",
+        "src/utils/breedAssetHelper.tsx",
+        "src/App.tsx",
+        "src/components/Navbar.tsx",
+        "src/components/SettingsLegalModal.tsx",
+        "src/components/SidebarNav.tsx"
+      ],
+      "reason": "Shared dependency chain (17 files). Central file: AuthContext.tsx with 20 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Utils (ToastContext) Review Group",
+      "files": [
+        "src/context/ToastContext.tsx",
+        "src/services/locationService.ts",
+        "src/utils/geolocationHelper.ts",
+        "src/utils/indicTransliteration.ts",
+        "src/components/PermissionRationaleModal.tsx",
+        "src/utils/locationMatchHelper.ts",
+        "src/pages/LocationOnboardingPage.tsx",
+        "src/pages/DashboardPage.tsx",
+        "src/pages/CapturePetPage.tsx",
+        "src/components/LocationPicker.tsx",
+        "src/App.tsx",
+        "src/components/AdminUserProximityMap.tsx",
+        "src/components/CameraModal.tsx",
+        "src/components/SightingModal.tsx"
+      ],
+      "reason": "Shared dependency chain (15 files). Central file: ToastContext.tsx with 18 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Pages (index) Review Group",
+      "files": [
+        "src/types/index.ts",
+        "src/services/storageService.ts",
+        "src/utils/dogPhotoHelper.ts",
+        "src/components/ui/VillageDogTransition.tsx",
+        "src/components/ui/back-button.tsx",
+        "src/utils/privacyUtils.ts",
+        "src/utils/phoneValidator.ts",
+        "src/utils/shareHelper.ts",
+        "src/components/StatusBadge.tsx",
+        "src/hooks/useCrashSafeDraft.ts",
+        "src/App.tsx",
+        "src/components/NetworkResilience.tsx",
+        "src/components/SettingsLegalModal.tsx",
+        "src/components/SidebarNav.tsx"
+      ],
+      "reason": "Shared dependency chain (25 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    }
+  ],
+  "rules": [
+    "Business logic belongs in services",
+    "Custom React hooks live in hooks/ - prefix with 'use'",
+    "Shared utilities live in utils/ - keep them pure and side-effect free",
+    "Core library code lives in lib/ - keep it framework-agnostic",
+    "UI components live in components/ - keep them presentational",
+    "Page components live in pages/ - route-level only, no business logic",
+    "App Router entry points live in app/ - follow Next.js file conventions",
+    "Shared TypeScript types live in types/ - import from here, not redeclared inline",
+    "React context providers live in context/",
+    "Use TypeScript strictly - avoid `any` types",
+    "Write tests for all service-layer functions"
+  ],
+  "coreFeatures": [
+    "Pages (index)",
+    "Components (legalContent)",
+    "Services (AuthContext)",
+    "Utils (ToastContext)",
+    "Services",
+    "Frontend",
+    "Scripts (qa_lib)",
+    "Fallbacks (FallbackShell)"
+  ],
+  "agentInjectHooks": {}
+}

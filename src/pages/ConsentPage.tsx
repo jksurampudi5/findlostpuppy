@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   ShieldCheck,
@@ -9,7 +9,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { LegalModal } from '../components/LegalModal';
-import type { AcceptedFormsState } from '../services/consentService';
+import { consentService, type AcceptedFormsState } from '../services/consentService';
 
 interface ConsentPageProps {
   onConsentAgreed: (
@@ -20,6 +20,8 @@ interface ConsentPageProps {
 
 /** Presents legal consent and age confirmation before allowing the user to continue. */
 export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => {
+  const signatureBoxRef = useRef<HTMLDivElement>(null);
+
   // Individual forms consent state
   const [acceptedForms, setAcceptedForms] = useState<Record<'terms' | 'privacy' | 'disclaimer' | 'guidelines', boolean>>({
     terms: false,
@@ -37,10 +39,54 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     'terms' | 'privacy' | 'disclaimer' | 'guidelines' | null
   >(null);
 
-  // Scroll to top on mount
+  // Auto-complete if consent is already accepted on this device
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (consentService.hasAcceptedCurrentConsent()) {
+      onConsentAgreed(
+        {
+          terms: true,
+          privacy: true,
+          disclaimer: true,
+          guidelines: true,
+          declaration: true,
+        },
+        'master_declaration'
+      );
+    }
+  }, [onConsentAgreed]);
+
+  // Smooth scroll down to acceptance section so user can review the 4 forms cards first
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // Allow user to read/see the 4 forms at top, then smoothly auto-scroll down to acceptance
+    const splashActive = sessionStorage.getItem('findlostpuppy_launch_seen') !== 'true';
+    const scrollDelay = splashActive ? 2800 : 1600;
+
+    const autoScrollTimer = setTimeout(() => {
+      if (signatureBoxRef.current) {
+        signatureBoxRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, scrollDelay);
+
+    // Cancel auto-scroll if user interacts/scrolls manually
+    const cancelAutoScroll = () => {
+      clearTimeout(autoScrollTimer);
+    };
+
+    window.addEventListener('wheel', cancelAutoScroll, { passive: true });
+    window.addEventListener('touchstart', cancelAutoScroll, { passive: true });
+
+    return () => {
+      clearTimeout(autoScrollTimer);
+      window.removeEventListener('wheel', cancelAutoScroll);
+      window.removeEventListener('touchstart', cancelAutoScroll);
+    };
   }, []);
+
+  const scrollToSignature = () => {
+    signatureBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   // Sync master checkmark when all 4 individual forms are checked
   const allIndividualFormsChecked =
@@ -50,6 +96,18 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     acceptedForms.guidelines;
 
   const canContinue = (masterAgreed || allIndividualFormsChecked) && ageConfirmed;
+
+  // 1-Click Accept All 4 Forms at Once (sets both age 18+ and all 4 agreements)
+  const handleAcceptAllTogether = (checked: boolean = true) => {
+    setAgeConfirmed(checked);
+    setMasterAgreed(checked);
+    setAcceptedForms({
+      terms: checked,
+      privacy: checked,
+      disclaimer: checked,
+      guidelines: checked,
+    });
+  };
 
   // Toggle all forms at once
   const handleToggleAllForms = (checked: boolean) => {
@@ -71,7 +129,8 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
   };
 
   const handleContinue = () => {
-    if (!canContinue) return;
+    // 1-Click: auto-accept all 4 forms and continue immediately
+    handleAcceptAllTogether(true);
     onConsentAgreed(
       {
         terms: true,
@@ -80,9 +139,13 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
         guidelines: true,
         declaration: true,
       },
-      masterAgreed ? 'master_declaration' : 'all_forms_accepted'
+      'master_declaration'
     );
   };
+
+  if (consentService.hasAcceptedCurrentConsent()) {
+    return null;
+  }
 
   return (
     <div className="consent-page-shell">
@@ -99,7 +162,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               Welcome to FindLostPuppy
             </h1>
             <p className="consent-form-subtitle">
-              Before you sign in, please accept these simple community safety forms. They keep pet
+              Welcome! Please review and accept these simple community safety forms. They keep pet
               parents, helpers, and sighting reporters on the same page.
             </p>
           </div>
@@ -110,9 +173,17 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               <div className="forms-section-title-wrap">
                 <h2 className="forms-section-title">Review the 4 forms</h2>
                 <span className="forms-section-desc">
-                  Tap a card to read it. You can also accept everything together below.
+                  Tap a card to read it. Scrolling down smoothly to accept all 4 forms at once.
                 </span>
               </div>
+              <button
+                type="button"
+                className="select-all-forms-btn forms-quick-scroll-pill"
+                onClick={scrollToSignature}
+                title="Scroll down to accept all 4 forms at once"
+              >
+                <span>⚡ Accept All 4 Forms ↓</span>
+              </button>
             </div>
 
             {/* Form 1: Terms & Conditions */}
@@ -281,7 +352,24 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
           </div>
 
           {/* Master Signature & Acceptance Checkbox */}
-          <div className="consent-form-signature-box">
+          <div className="consent-form-signature-box" ref={signatureBoxRef}>
+            <div
+              className="one-click-accept-banner"
+              onClick={() => handleAcceptAllTogether(!canContinue)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleAcceptAllTogether(!canContinue)}
+              title="Click to select all 4 forms and confirm age"
+            >
+              <div className="one-click-accept-header">
+                <span className="one-click-pill">⚡ Fast Acceptance</span>
+                <span className="one-click-title">Accept All 4 Forms at Once</span>
+              </div>
+              <p className="one-click-desc">
+                Confirms age 18+ and agrees to Terms, Privacy, Dog Safety, and Guidelines in one step.
+              </p>
+            </div>
+
             <label className={`master-signature-label ${ageConfirmed ? 'is-checked' : ''}`}>
               <input
                 type="checkbox"
@@ -317,21 +405,12 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               <button
                 type="button"
                 id="agree-continue-button"
-                className={`btn btn-lg btn-block btn-agree-continue ${canContinue ? 'enabled' : 'disabled'}`}
-                disabled={!canContinue}
+                className="btn btn-lg btn-block btn-agree-continue btn-primary enabled"
                 onClick={handleContinue}
-                aria-disabled={!canContinue}
+                aria-label="Accept all 4 forms and continue"
               >
-                {canContinue ? (
-                  <>
-                    <span>Accept All 4 Forms & Continue</span>
-                    <ArrowRight size={18} />
-                  </>
-                ) : (
-                  <>
-                    <span>Accept all 4 forms to continue</span>
-                  </>
-                )}
+                <span>Accept All 4 Forms & Continue</span>
+                <ArrowRight size={18} />
               </button>
               <div className="consent-storage-note">
                 <CheckCircle2 size={15} className="text-forest" />

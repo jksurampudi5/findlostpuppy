@@ -118,7 +118,8 @@ exports.finalizeMediaUpload = onCall({ secrets }, async (request) => {
     const oldRef = db.collection('media_assets').doc(assetDocId(previousPublicId));
     const old = await oldRef.get();
     if (old.exists && (old.data().ownerId === auth.uid || isAdmin(auth))) {
-      await cloudinary.uploader.destroy(previousPublicId, { type: old.data().deliveryType || 'upload', invalidate: true });
+      const result = await cloudinary.uploader.destroy(previousPublicId, { type: old.data().deliveryType || 'upload', invalidate: true });
+      if (!['ok', 'not found'].includes(result?.result)) throw new HttpsError('internal', 'Cloud image deletion failed.');
       await oldRef.delete();
     }
   }

@@ -27,6 +27,7 @@ import {
   Lightbulb,
   Star,
   Radar,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -34,6 +35,8 @@ import { storageService } from '../services/storageService';
 import { storageBucketService } from '../services/storageBucketService';
 import { StatusBadge } from '../components/StatusBadge';
 import { AdminUserProximityMap } from '../components/AdminUserProximityMap';
+import { AdminShortcuts } from '../components/admin/AdminShortcuts';
+import { LoadingButton } from '../components/ui/LoadingButton';
 import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion, OwnerProfile } from '../types';
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
@@ -46,7 +49,7 @@ export const AdminDashboardPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<
-    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup' | 'radar'
+    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup' | 'radar' | 'shortcuts'
   >('members');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -433,6 +436,28 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="admin-header-actions">
               <button
                 type="button"
+                onClick={() => setActiveTab('shortcuts')}
+                className="btn btn-sm"
+                style={{
+                  background: 'linear-gradient(135deg, #FF7900, #E65100)',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  padding: '6px 14px',
+                  boxShadow: '0 2px 8px rgba(255, 121, 0, 0.4)',
+                  cursor: 'pointer',
+                }}
+                title="Open Master Shortcuts & Flow Launcher"
+              >
+                <Zap size={15} />
+                <span>Admin Shortcuts ⚡</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleClearLegacyMedia}
                 disabled={isClearingLegacyMedia}
                 className="btn btn-outline btn-sm admin-wipe-btn"
@@ -454,16 +479,17 @@ export const AdminDashboardPage: React.FC = () => {
                 <span>{isWipingCloudinary ? 'Deleting Images...' : 'Delete All Cloudinary Images'}</span>
               </button>
 
-              <button
-                type="button"
+              <LoadingButton
+                variant="secondary"
+                size="sm"
+                isLoading={isSyncing}
+                loadingText="Syncing..."
+                icon={<RefreshCw size={15} />}
                 onClick={handleManualSync}
-                disabled={isSyncing}
-                className="btn btn-secondary btn-sm"
                 title="Sync latest reports and members from Firebase"
               >
-                <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
-                <span>{isSyncing ? 'Syncing...' : 'Sync Firebase'}</span>
-              </button>
+                <span>Sync Firebase</span>
+              </LoadingButton>
 
               <button
                 type="button"
@@ -658,9 +684,23 @@ export const AdminDashboardPage: React.FC = () => {
               <Radar size={17} />
               <span>🛰️ Proximity Radar & Map</span>
             </button>
+
+            <button
+              className={`admin-tab-btn ${activeTab === 'shortcuts' ? 'active' : ''}`}
+              onClick={() => setActiveTab('shortcuts')}
+              role="tab"
+              style={{
+                background: activeTab === 'shortcuts' ? 'linear-gradient(135deg, #FF7900, #E65100)' : undefined,
+                color: activeTab === 'shortcuts' ? '#FFFFFF' : undefined,
+                fontWeight: activeTab === 'shortcuts' ? 700 : undefined,
+              }}
+            >
+              <Zap size={17} />
+              <span>⚡ Admin Shortcuts</span>
+            </button>
           </div>
 
-          {activeTab !== 'backup' && activeTab !== 'radar' && (
+          {activeTab !== 'backup' && activeTab !== 'radar' && activeTab !== 'shortcuts' && (
             <div className="admin-search-wrapper">
               <Search size={16} className="admin-search-icon" />
               <input
@@ -1325,10 +1365,10 @@ export const AdminDashboardPage: React.FC = () => {
                                 s.status === 'COMPLETED'
                                   ? '#4ADE80'
                                   : s.status === 'PLANNED'
-                                  ? '#60A5FA'
-                                  : s.status === 'REVIEWED'
-                                  ? '#C084FC'
-                                  : '#FB923C',
+                                    ? '#60A5FA'
+                                    : s.status === 'REVIEWED'
+                                      ? '#C084FC'
+                                      : '#FB923C',
                             }}
                           >
                             <option value="NEW">NEW</option>
@@ -1345,26 +1385,26 @@ export const AdminDashboardPage: React.FC = () => {
                                 s.category === 'feature'
                                   ? 'rgba(234, 88, 12, 0.2)'
                                   : s.category === 'improvement'
-                                  ? 'rgba(37, 99, 235, 0.2)'
-                                  : s.category === 'ui_ux'
-                                  ? 'rgba(147, 51, 234, 0.2)'
-                                  : s.category === 'bug'
-                                  ? 'rgba(239, 68, 68, 0.2)'
-                                  : s.category === 'praise'
-                                  ? 'rgba(236, 72, 153, 0.2)'
-                                  : 'rgba(255, 255, 255, 0.08)',
+                                    ? 'rgba(37, 99, 235, 0.2)'
+                                    : s.category === 'ui_ux'
+                                      ? 'rgba(147, 51, 234, 0.2)'
+                                      : s.category === 'bug'
+                                        ? 'rgba(239, 68, 68, 0.2)'
+                                        : s.category === 'praise'
+                                          ? 'rgba(236, 72, 153, 0.2)'
+                                          : 'rgba(255, 255, 255, 0.08)',
                               color:
                                 s.category === 'feature'
                                   ? '#FB923C'
                                   : s.category === 'improvement'
-                                  ? '#93C5FD'
-                                  : s.category === 'ui_ux'
-                                  ? '#D8B4FE'
-                                  : s.category === 'bug'
-                                  ? '#FCA5A5'
-                                  : s.category === 'praise'
-                                  ? '#F472B6'
-                                  : '#CBD5E1',
+                                    ? '#93C5FD'
+                                    : s.category === 'ui_ux'
+                                      ? '#D8B4FE'
+                                      : s.category === 'bug'
+                                        ? '#FCA5A5'
+                                        : s.category === 'praise'
+                                          ? '#F472B6'
+                                          : '#CBD5E1',
                               border: '1px solid rgba(255, 255, 255, 0.12)',
                               fontWeight: 700,
                               textTransform: 'uppercase',
@@ -1492,15 +1532,17 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
+                <LoadingButton
+                  variant="primary"
+                  size="md"
+                  isLoading={isSyncing}
+                  loadingText="Synchronizing with Firebase…"
+                  icon={<RefreshCw size={16} />}
                   onClick={handleManualSync}
-                  disabled={isSyncing}
-                  className="btn btn-primary btn-block"
+                  style={{ width: '100%' }}
                 >
-                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                  <span>{isSyncing ? 'Synchronizing...' : 'Sync Firebase Now'}</span>
-                </button>
+                  <span>Sync Firebase Now</span>
+                </LoadingButton>
               </div>
 
               {/* Card 2: JSON Backup & Restore */}
@@ -1545,6 +1587,13 @@ export const AdminDashboardPage: React.FC = () => {
         {/* ========================================================================= */}
         {activeTab === 'radar' && (
           <AdminUserProximityMap users={users} profiles={profiles} />
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 8: ADMIN SHORTCUTS, FLOWS, SPEC PDFS, SKILLS & SECURITY */}
+        {/* ========================================================================= */}
+        {activeTab === 'shortcuts' && (
+          <AdminShortcuts embedded />
         )}
       </div>
     </div>

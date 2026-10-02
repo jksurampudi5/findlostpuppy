@@ -1,17 +1,34 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { RefreshCw, X } from 'lucide-react';
 import { storageService } from '../../services/storageService';
+import { firebaseSyncService } from '../../services/firebaseSyncService';
+import { useAuth } from '../../context/AuthContext';
 
-/** Shows a dismissible cloud-sync failure notice while online, with a manual retry action. */
+/** Shows a dismissible cloud-sync failure notice while online and authenticated, with a manual retry action. */
 export function ServerFailureNotice() {
   const [visible, setVisible] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      return sessionStorage.getItem('findlostpuppy_dismissed_sync_notice') === 'true';
+    }
+    return false;
+  });
+  const { isAuthenticated, isFirstTimeUser } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     /** Shows the notice when cloud synchronization fails. */
     const failed = () => setVisible(true);
     /** Hides the notice when synchronized data becomes available. */
-    const recovered = () => setVisible(false);
+    const recovered = () => {
+      setVisible(false);
+      setDismissed(false);
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('findlostpuppy_dismissed_sync_notice');
+      }
+    };
     window.addEventListener('findlostpuppy_cloud_sync_failed', failed);
     window.addEventListener('findlostpuppy_data_synced', recovered);
     return () => {
@@ -23,8 +40,13 @@ export function ServerFailureNotice() {
   /** Retries the Firebase pull and keeps the notice visible if the pull reports failure. */
   const retry = async () => {
     setRetrying(true);
+    setDismissed(false);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('findlostpuppy_dismissed_sync_notice');
+    }
     try {
-      const success = await storageService.pullFromFirebase();
+      firebaseSyncService.clearSyncError();
+      const success = await storageService.pullFromFirebase(true);
       setVisible(!success);
     } catch {
       setVisible(true);
@@ -33,14 +55,25 @@ export function ServerFailureNotice() {
     }
   };
 
-  if (!visible || !navigator.onLine) return null;
+  const handleDismiss = () => {
+    setVisible(false);
+    setDismissed(true);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('findlostpuppy_dismissed_sync_notice', 'true');
+    }
+  };
+
+  // Must NEVER appear on login, consent, privacy, or for unauthenticated/first-time users
+  const isExcludedPage = ['/login', '/consent', '/privacy', '/privacy-policy'].includes(location.pathname);
+
+  if (!visible || dismissed || !navigator.onLine || !isAuthenticated || isFirstTimeUser || isExcludedPage) return null;
   return (
     <aside className="server-failure-notice" role="alert" aria-live="polite">
       <span>We could not load the latest data. Please check your connection and try again. Saved data is still shown.</span>
       <button type="button" onClick={retry} disabled={retrying}>
         <RefreshCw size={16} className={retrying ? 'spin' : ''} /> {retrying ? 'Retrying…' : 'Retry'}
       </button>
-      <button type="button" className="server-failure-close" onClick={() => setVisible(false)} aria-label="Dismiss">
+      <button type="button" className="server-failure-close" onClick={handleDismiss} aria-label="Dismiss">
         <X size={17} />
       </button>
     </aside>

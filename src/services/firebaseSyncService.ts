@@ -14,7 +14,7 @@ import {
   getDownloadURL,
 } from 'firebase/storage';
 import { auth, db, storage, isFirebaseConfigured } from './firebaseConfig';
-import { storageBucketService } from './storageBucketService';
+import { storageBucketService, isUploadablePhoto } from './storageBucketService';
 import type {
   OwnerProfile,
   DogProfile,
@@ -69,6 +69,7 @@ export const firebaseSyncService = {
   },
 
   getStatus(): FirebaseSyncStatus {
+    const currentUser = auth?.currentUser;
     return {
       isConfigured: isFirebaseConfigured(),
       isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -77,8 +78,12 @@ export const firebaseSyncService = {
       syncedPetsCount: lastSyncCounts.pets,
       syncedReportsCount: lastSyncCounts.reports,
       syncedSightingsCount: lastSyncCounts.sightings,
-      errorMessage: lastSyncError,
+      errorMessage: currentUser ? lastSyncError : null,
     };
+  },
+
+  clearSyncError(): void {
+    lastSyncError = null;
   },
 
   async syncUserProfile(user: Partial<OwnerProfile> & { id: string; email: string; name?: string; avatar?: string; phone?: string; createdAt?: string }): Promise<boolean> {
@@ -89,9 +94,16 @@ export const firebaseSyncService = {
 
       let ownerAvatar = user.avatar || user.photo || '';
       if (ownerAvatar && isPetPhotoUrl(ownerAvatar)) ownerAvatar = '';
-      if (ownerAvatar && isInlineImage(ownerAvatar)) {
+      if (ownerAvatar && (isInlineImage(ownerAvatar) || isUploadablePhoto(ownerAvatar))) {
         try {
-          ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
+          const uploaded = await storageBucketService.uploadProfileAvatar(cleanUserId, ownerAvatar);
+          if (uploaded) {
+            ownerAvatar = uploaded;
+            if (user.avatar) user.avatar = uploaded;
+            if (user.photo) user.photo = uploaded;
+          } else {
+            ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
+          }
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] User avatar upload notice:', uploadErr);
           ownerAvatar = '';
@@ -144,11 +156,17 @@ export const firebaseSyncService = {
         ownerAvatar = undefined;
       }
 
-      // If owner uploaded a Base64 photo, store it in the configured cloud image store.
-      if (ownerAvatar && isInlineImage(ownerAvatar)) {
+      // If owner uploaded a photo not yet in Cloudinary, upload to Cloudinary.
+      if (ownerAvatar && (isInlineImage(ownerAvatar) || isUploadablePhoto(ownerAvatar))) {
         try {
-          ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
-          profile.photo = ownerAvatar;
+          const uploaded = await storageBucketService.uploadProfileAvatar(cleanUserId, ownerAvatar);
+          if (uploaded) {
+            ownerAvatar = uploaded;
+            profile.photo = ownerAvatar;
+          } else {
+            ownerAvatar = await uploadInlineImage(`profiles/${cleanUserId}/avatar.jpg`, ownerAvatar);
+            profile.photo = ownerAvatar;
+          }
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Owner avatar upload notice:', uploadErr);
           ownerAvatar = undefined;
@@ -221,16 +239,36 @@ export const firebaseSyncService = {
       if (!cleanPetId) return false;
 
       let primaryPhoto = pet.primaryPhoto || '';
-      // If photo is Base64 data URL, upload it to the configured cloud image store.
-      if (isInlineImage(primaryPhoto)) {
+      // If photo is not yet in Cloudinary, upload to Cloudinary.
+      if (primaryPhoto && (isInlineImage(primaryPhoto) || isUploadablePhoto(primaryPhoto))) {
         try {
-          primaryPhoto = await uploadInlineImage(`pets/${cleanOwnerId || 'unknown-owner'}/${cleanPetId}/photo_0.jpg`, primaryPhoto);
-          pet.primaryPhoto = primaryPhoto;
+          const uploaded = await storageBucketService.uploadPetPhoto(cleanOwnerId || 'unknown-owner', cleanPetId, primaryPhoto, 0);
+          if (uploaded) {
+            primaryPhoto = uploaded;
+            pet.primaryPhoto = primaryPhoto;
+          } else {
+            primaryPhoto = await uploadInlineImage(`pets/${cleanOwnerId || 'unknown-owner'}/${cleanPetId}/photo_0.jpg`, primaryPhoto);
+            pet.primaryPhoto = primaryPhoto;
+          }
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Pet photo upload notice:', uploadErr);
           primaryPhoto = '';
         }
       }
+
+      const syncedPhotos: string[] = [];
+      const rawPhotos = pet.photos || (primaryPhoto ? [primaryPhoto] : []);
+      for (let i = 0; i < rawPhotos.length; i++) {
+        let p = rawPhotos[i];
+        if (p && (isInlineImage(p) || isUploadablePhoto(p))) {
+          try {
+            const up = await storageBucketService.uploadPetPhoto(cleanOwnerId || 'unknown-owner', cleanPetId, p, i);
+            if (up) p = up;
+          } catch {}
+        }
+        if (p && !isInlineImage(p)) syncedPhotos.push(p);
+      }
+      pet.photos = syncedPhotos;
 
       const docRef = doc(db, 'pets', cleanOwnerId || cleanPetId);
       const payload: Record<string, any> = {
@@ -246,7 +284,7 @@ export const firebaseSyncService = {
         distinguishingMarks: pet.distinguishingMarks || '',
         collarInfo: pet.collarInfo || '',
         primaryPhoto: cloudPhotoOrEmpty(primaryPhoto),
-        photos: (pet.photos || (primaryPhoto ? [primaryPhoto] : [])).filter((photo) => !isInlineImage(photo)),
+        photos: syncedPhotos,
         photoChangeMonth: pet.photoChangeMonth || null,
         photoChangeCount: pet.photoChangeCount || 0,
         photoLastChangedAt: pet.photoLastChangedAt || null,
@@ -277,13 +315,31 @@ export const firebaseSyncService = {
       if (!cleanReportId) return false;
 
       let reportPhoto = report.dog?.primaryPhoto || '';
-      if (isInlineImage(reportPhoto)) {
+      if (reportPhoto && (isInlineImage(reportPhoto) || isUploadablePhoto(reportPhoto))) {
         try {
-          reportPhoto = await uploadInlineImage(`missing-reports/${cleanOwnerId}/${cleanReportId}/photo.jpg`, reportPhoto);
-          if (report.dog) report.dog.primaryPhoto = reportPhoto;
+          const uploaded = await storageBucketService.uploadMissingReportPhoto(cleanReportId, reportPhoto, 0);
+          if (uploaded) {
+            reportPhoto = uploaded;
+            if (report.dog) report.dog.primaryPhoto = reportPhoto;
+          } else {
+            reportPhoto = await uploadInlineImage(`missing-reports/${cleanOwnerId}/${cleanReportId}/photo.jpg`, reportPhoto);
+            if (report.dog) report.dog.primaryPhoto = reportPhoto;
+          }
         } catch (uploadErr) {
           console.warn('[Cloud Image Storage] Report photo upload notice:', uploadErr);
           reportPhoto = '';
+        }
+      }
+
+      if (report.dog?.photos && Array.isArray(report.dog.photos)) {
+        for (let i = 0; i < report.dog.photos.length; i++) {
+          let p = report.dog.photos[i];
+          if (p && (isInlineImage(p) || isUploadablePhoto(p))) {
+            try {
+              const up = await storageBucketService.uploadMissingReportPhoto(cleanReportId, p, i);
+              if (up) report.dog.photos[i] = up;
+            } catch {}
+          }
         }
       }
 
@@ -330,6 +386,8 @@ export const firebaseSyncService = {
 
   /**
    * SCD Type 1: Sync a community sighting to Firestore `sightings` collection.
+   * Photos are stored in Cloudinary at:
+   *   findlostpuppy/sightings_pets/{reportId}/{sightingId}/photo
    */
   async syncSighting(sighting: Sighting): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
@@ -338,14 +396,36 @@ export const firebaseSyncService = {
       if (!cleanSightingId) return false;
 
       let photoUrl = sighting.photo || '';
-      if (isInlineImage(photoUrl) && sighting.reportId) {
+      const shortId = (cleanSightingId || '').replace('sight-', '').slice(0, 12);
+      const cloudinaryKey = sighting.reportId ? `${sighting.reportId}/${shortId}` : `community/${shortId}`;
+
+      // If the photo is not yet in Cloudinary, upload it to Cloudinary
+      if (photoUrl && (isInlineImage(photoUrl) || isUploadablePhoto(photoUrl))) {
         try {
-          const reporterId = (sighting.reporterUserId || '').replace(/^owner-/, '') || 'unknown-reporter';
-          photoUrl = await uploadInlineImage(`sightings/${reporterId}/${sighting.reportId}/${cleanSightingId}.jpg`, photoUrl);
-          sighting.photo = photoUrl;
+          const uploaded = await storageBucketService.uploadSightingPhoto(cloudinaryKey, photoUrl, 0);
+          if (uploaded) {
+            photoUrl = uploaded;
+            sighting.photo = photoUrl;
+            console.log('[Firebase] Sighting photo uploaded to Cloudinary:', photoUrl);
+          } else {
+            console.warn('[Firebase] Cloudinary upload returned null for sighting photo.');
+            photoUrl = '';
+          }
         } catch (uploadErr) {
-          console.warn('[Cloud Image Storage] Sighting photo upload notice:', uploadErr);
+          console.warn('[Firebase] Sighting photo Cloudinary upload failed:', uploadErr);
           photoUrl = '';
+        }
+      }
+
+      if (Array.isArray(sighting.photos)) {
+        for (let i = 0; i < sighting.photos.length; i++) {
+          let p = sighting.photos[i];
+          if (p && (isInlineImage(p) || isUploadablePhoto(p))) {
+            try {
+              const up = await storageBucketService.uploadSightingPhoto(cloudinaryKey, p, i);
+              if (up) sighting.photos[i] = up;
+            } catch {}
+          }
         }
       }
 
@@ -402,7 +482,10 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return null;
     try {
       const currentUser = auth?.currentUser;
-      if (!currentUser) return null;
+      if (!currentUser) {
+        lastSyncError = null;
+        return null;
+      }
       const isAdmin = currentUser.email?.toLowerCase() === 'jksurampudi5@gmail.com';
       let profiles: any[];
       let pets: any[];
@@ -485,7 +568,7 @@ export const firebaseSyncService = {
     if (petPhotos && petPhotos.length > 0) {
       for (const photo of petPhotos) {
         if (photo) {
-          storageBucketService.deleteMedia(photo).catch(() => {});
+          storageBucketService.deleteMedia(photo).catch(() => { });
         }
       }
     }
@@ -534,10 +617,10 @@ export const firebaseSyncService = {
         );
         if (matchesPetId || matchesOwner) {
           if (d.id !== 'pet-1788871495754') {
-            if (data.primaryPhoto) storageBucketService.deleteMedia(data.primaryPhoto).catch(() => {});
+            if (data.primaryPhoto) storageBucketService.deleteMedia(data.primaryPhoto).catch(() => { });
             if (Array.isArray(data.photos)) {
               data.photos.forEach((p: string) => {
-                if (p) storageBucketService.deleteMedia(p).catch(() => {});
+                if (p) storageBucketService.deleteMedia(p).catch(() => { });
               });
             }
             petDeletes.push(deleteDoc(d.ref));
@@ -555,7 +638,7 @@ export const firebaseSyncService = {
         const matchesOwner = cleanOwnerId && (data.ownerId === cleanOwnerId || data.ownerId === `owner-${cleanOwnerId}` || data.ownerId === ownerId);
         if ((matchesPet || matchesOwner) && d.id !== 'LOST-1788885000505') {
           reportIdsToDelete.push(d.id);
-          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => {});
+          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => { });
           reportDeletes.push(deleteDoc(d.ref));
         }
       });
@@ -566,7 +649,7 @@ export const firebaseSyncService = {
       sightingsSnap.docs.forEach((d) => {
         const data: any = d.data();
         if (reportIdsToDelete.includes(data.reportId) || data.reportId === petId) {
-          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => {});
+          if (data.photo) storageBucketService.deleteMedia(data.photo).catch(() => { });
           sightingDeletes.push(deleteDoc(d.ref));
         }
       });
@@ -673,6 +756,90 @@ export const firebaseSyncService = {
     }
   },
 
+  /**
+   * Deletes a pet photo from Cloudinary and cleans up Firestore pet and missing-report records.
+   */
+  async deletePetPhoto(ownerId: string, petId: string, photoUrl?: string): Promise<boolean> {
+    if (photoUrl) {
+      storageBucketService.deleteMedia(photoUrl).catch(() => {});
+    }
+    if (!db || !isFirebaseConfigured()) return true;
+    const firestore = db;
+    try {
+      const cleanOwnerId = (ownerId || '').replace(/^owner-/, '').trim();
+      const cleanPetId = (petId || '').replace(/^pet-/, '').replace(/^dog-/, '').trim();
+      const targetPetDocIds = Array.from(new Set([cleanOwnerId, cleanPetId, petId].filter(Boolean)));
+
+      await Promise.all(
+        targetPetDocIds.map((id) =>
+          setDoc(
+            doc(firestore, 'pets', id),
+            {
+              primaryPhoto: '',
+              photos: [],
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ).catch(() => {})
+        )
+      );
+
+      // Clean up linked missing reports
+      const targetReportDocIds = Array.from(new Set([cleanOwnerId, cleanPetId, `LOST-${cleanPetId}`, `LOST-${cleanOwnerId}`].filter(Boolean)));
+      await Promise.all(
+        targetReportDocIds.map((id) =>
+          setDoc(
+            doc(firestore, 'missing_reports', id),
+            {
+              petPhoto: '',
+              'dog.primaryPhoto': '',
+              'dog.photos': [],
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ).catch(() => {})
+        )
+      );
+
+      return true;
+    } catch (err) {
+      console.warn('[Firebase] deletePetPhoto error:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Deletes an owner profile photo from Cloudinary and cleans up Firestore profile records.
+   */
+  async deleteOwnerPhoto(userId: string, photoUrl?: string): Promise<boolean> {
+    if (photoUrl) {
+      storageBucketService.deleteMedia(photoUrl).catch(() => {});
+    }
+    if (!db || !isFirebaseConfigured()) return true;
+    const firestore = db;
+    try {
+      const cleanUserId = (userId || '').replace(/^owner-/, '').trim();
+      const targetProfileDocIds = Array.from(new Set([cleanUserId, userId].filter(Boolean)));
+      await Promise.all(
+        targetProfileDocIds.map((id) =>
+          setDoc(
+            doc(firestore, 'profiles', id),
+            {
+              photo: '',
+              avatar_url: '',
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ).catch(() => {})
+        )
+      );
+      return true;
+    } catch (err) {
+      console.warn('[Firebase] deleteOwnerPhoto error:', err);
+      return false;
+    }
+  },
+
   async deleteSightingAsAdmin(sightingId: string): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {
@@ -727,11 +894,16 @@ export const firebaseSyncService = {
           screenshotUrl = '';
         }
       }
-      await setDoc(doc(db, 'app_suggestions', suggestion.id), {
-        ...suggestion,
-        screenshotData: screenshotUrl || null,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      const cleanSuggestion: Record<string, any> = {};
+      for (const [key, value] of Object.entries(suggestion)) {
+        if (value !== undefined) {
+          cleanSuggestion[key] = value;
+        }
+      }
+      cleanSuggestion.screenshotData = screenshotUrl || null;
+      cleanSuggestion.updatedAt = new Date().toISOString();
+
+      await setDoc(doc(db, 'app_suggestions', suggestion.id), cleanSuggestion, { merge: true });
       return true;
     } catch (err: any) {
       console.warn('[Firebase] syncSuggestion error:', err);

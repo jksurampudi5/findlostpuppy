@@ -16,7 +16,8 @@ import { consentService } from './consentService';
 import { isFirebaseConfigured } from './firebaseConfig';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
-import { storageBucketService } from './storageBucketService';
+import { storageBucketService, isUploadablePhoto } from './storageBucketService';
+import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
 import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
@@ -40,6 +41,8 @@ const SUGGESTIONS_KEY = 'findlostpuppy_suggestions_v1';
 
 const firebaseSyncService = {
   isConfigured: () => isFirebaseConfigured(),
+  clearSyncError: async () =>
+    (await import('./firebaseSyncService')).firebaseSyncService.clearSyncError(),
   syncUserProfile: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncUserProfile>) =>
     (await import('./firebaseSyncService')).firebaseSyncService.syncUserProfile(...args),
   syncOwnerProfile: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncOwnerProfile>) =>
@@ -50,6 +53,8 @@ const firebaseSyncService = {
     (await import('./firebaseSyncService')).firebaseSyncService.syncLostReport(...args),
   syncSighting: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncSighting>) =>
     (await import('./firebaseSyncService')).firebaseSyncService.syncSighting(...args),
+  getStatus: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.getStatus>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.getStatus(...args),
   fetchAllCloudData: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.fetchAllCloudData>) =>
     (await import('./firebaseSyncService')).firebaseSyncService.fetchAllCloudData(...args),
   deleteUserAsAdmin: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteUserAsAdmin>) =>
@@ -142,6 +147,29 @@ export function extractReportOwnerEmail(report: LostReport, profiles: OwnerProfi
     return matchedProfile.email.toLowerCase().trim();
   }
   return cleanOwnerId || 'unknown-owner';
+}
+
+function sanitizeProfileLanguage(profile: OwnerProfile): OwnerProfile {
+  if (!profile) return profile;
+  if (profile.streetOrLocality && hasNonLatinScript(profile.streetOrLocality)) {
+    profile.streetOrLocality = normalizeToEnglishText(profile.streetOrLocality);
+  }
+  if ((profile as any).street && hasNonLatinScript((profile as any).street)) {
+    (profile as any).street = normalizeToEnglishText((profile as any).street);
+  }
+  if (profile.city && hasNonLatinScript(profile.city)) {
+    profile.city = normalizeToEnglishText(profile.city);
+  }
+  if (profile.mandalOrMunicipality && hasNonLatinScript(profile.mandalOrMunicipality)) {
+    profile.mandalOrMunicipality = normalizeToEnglishText(profile.mandalOrMunicipality);
+  }
+  if (profile.district && hasNonLatinScript(profile.district)) {
+    profile.district = normalizeToEnglishText(profile.district);
+  }
+  if (profile.state && hasNonLatinScript(profile.state)) {
+    profile.state = normalizeToEnglishText(profile.state);
+  }
+  return profile;
 }
 
 class StorageService {
@@ -305,17 +333,23 @@ class StorageService {
 
     this.reports = deduplicatedReports;
 
-    // Invariant 2: Ensure all reports have valid photo fallbacks
+    // Invariant 2: Ensure all reports have valid photo references (never forcing abulluImg for empty/deleted photos)
     for (const r of this.reports) {
-      if (!r.dog.primaryPhoto || r.dog.primaryPhoto.trim().length < 5) {
+      const isSonu = (r.dog?.name || '').toUpperCase() === 'SONU' || normalizeReportId(r.id).includes('1788885000505');
+      if (isSonu) {
+        r.dog.primaryPhoto = sonuImg;
+        r.dog.photos = [sonuImg];
+      } else {
         const ownerClean = (r.ownerId || '').replace(/^owner-/, '');
         const registered = this.pets.find(
           (p) => p.ownerId === r.ownerId || p.ownerId === `owner-${ownerClean}` || p.ownerId === ownerClean
         );
-        r.dog.primaryPhoto = registered?.primaryPhoto || abulluImg;
-      }
-      if (!r.dog.photos || r.dog.photos.length === 0) {
-        r.dog.photos = [r.dog.primaryPhoto || abulluImg];
+        if (!r.dog.primaryPhoto && registered?.primaryPhoto) {
+          r.dog.primaryPhoto = registered.primaryPhoto;
+        }
+        if (!r.dog.photos || r.dog.photos.length === 0) {
+          r.dog.photos = r.dog.primaryPhoto ? [r.dog.primaryPhoto] : [];
+        }
       }
     }
 
@@ -352,40 +386,49 @@ class StorageService {
   }
 
   private commitAllStorage(): void {
-    const safeSet = (key: string, data: any) => {
+    if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(key, JSON.stringify(data));
-      } catch (err: any) {
-        if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.message?.includes('quota')) {
-          try {
-            // Strip oversized base64 strings to stay well within browser quota
-            const sanitized = JSON.parse(
-              JSON.stringify(data, (k, v) => {
-                if (k === 'photos' && Array.isArray(v) && v.length > 2) return v.slice(0, 2);
-                if (typeof v === 'string' && v.startsWith('data:image/') && v.length > 300000) {
-                  return '';
-                }
-                return v;
-              })
-            );
-            localStorage.setItem(key, JSON.stringify(sanitized));
-          } catch {}
-        }
-      }
-    };
+        // Ensure no offline media queue or base64 images are stored in localStorage
+        localStorage.removeItem('findlostpuppy_media_queue_v1');
+        localStorage.removeItem(LISTING_REPORTS_KEY);
+        localStorage.removeItem(USER_REPORTS_KEY);
+        localStorage.removeItem(USERS_KEY);
 
-    safeSet(REPORTS_KEY, this.reports);
-    safeSet(PETS_KEY, this.pets);
-    safeSet(PROFILES_KEY, this.profiles);
-    safeSet(SIGHTINGS_KEY, this.sightings);
-    safeSet(SKIPPED_PET_KEY, this.skippedPetUserIds);
-    safeSet(SKIPPED_REPORT_KEY, this.skippedReportUserIds);
-    safeSet(LISTING_REPORTS_KEY, this.listingReports);
-    safeSet(USER_REPORTS_KEY, this.userReports);
-    safeSet(BLOCKED_USERS_KEY, this.blockedUsers);
-    safeSet(DELETED_REPORTS_KEY, this.deletedReportIds);
-    safeSet(DELETED_PETS_KEY, this.deletedPetIds);
-    safeSet(SUGGESTIONS_KEY, this.suggestions);
+        // Save lightweight clean pets ensuring ZERO base64 strings
+        const cleanPets = this.pets.map((p) => ({
+          ...p,
+          primaryPhoto: p.primaryPhoto && !p.primaryPhoto.startsWith('data:image/') ? p.primaryPhoto : '',
+          photos: (p.photos || []).filter((ph) => ph && !ph.startsWith('data:image/')),
+        }));
+        localStorage.setItem(PETS_KEY, JSON.stringify(cleanPets));
+
+        // Save clean profiles ensuring ZERO base64 strings
+        const cleanProfiles = this.profiles.map((pr) => ({
+          ...pr,
+          photo: pr.photo && !pr.photo.startsWith('data:image/') ? pr.photo : undefined,
+        }));
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(cleanProfiles));
+
+        // Save clean reports ensuring ZERO base64 strings
+        const cleanReports = this.reports.map((r) => ({
+          ...r,
+          dog: {
+            ...r.dog,
+            primaryPhoto: r.dog.primaryPhoto && !r.dog.primaryPhoto.startsWith('data:image/') ? r.dog.primaryPhoto : '',
+            photos: (r.dog.photos || []).filter((ph) => ph && !ph.startsWith('data:image/')),
+          },
+        }));
+        localStorage.setItem(REPORTS_KEY, JSON.stringify(cleanReports));
+
+        // Persist minimal deleted tombstones and skipped states
+        localStorage.setItem(DELETED_REPORTS_KEY, JSON.stringify(this.deletedReportIds));
+        localStorage.setItem(DELETED_PETS_KEY, JSON.stringify(this.deletedPetIds));
+        localStorage.setItem(DELETED_SIGHTINGS_KEY, JSON.stringify(this.deletedSightingIds));
+        localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(this.deletedUserIds));
+        localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify(this.skippedPetUserIds));
+        localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify(this.skippedReportUserIds));
+      } catch {}
+    }
   }
 
   private isReportOrPetDeleted(reportId?: string, dogId?: string, petId?: string): boolean {
@@ -530,9 +573,9 @@ class StorageService {
         }
         rep.dog.primaryPhoto = resolveGenericMediaUrl(rep.dog.primaryPhoto);
         if (!rep.dog.photos || rep.dog.photos.length === 0) {
-          rep.dog.photos = [rep.dog.primaryPhoto];
+          rep.dog.photos = rep.dog.primaryPhoto ? [rep.dog.primaryPhoto] : [];
         } else {
-          rep.dog.photos = rep.dog.photos.map((ph) => resolveGenericMediaUrl(ph));
+          rep.dog.photos = rep.dog.photos.map((ph) => resolveGenericMediaUrl(ph)).filter(Boolean);
         }
       }
 
@@ -542,20 +585,9 @@ class StorageService {
 
       const storedProfiles = localStorage.getItem(PROFILES_KEY);
       this.profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
-      // Clean up confirmed orphaned mock legacy user user-1788801094228 from offline cache
+      // Clean up confirmed orphaned mock legacy user user-1788801094228 from memory
       if (this.profiles.some((p) => p.id === 'user-1788801094228' || p.userId === 'user-1788801094228')) {
         this.profiles = this.profiles.filter((p) => p.id !== 'user-1788801094228' && p.userId !== 'user-1788801094228');
-        localStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
-      }
-      const storedUsers = localStorage.getItem(USERS_KEY);
-      if (storedUsers && storedUsers.includes('user-1788801094228')) {
-        try {
-          const parsedUsers = JSON.parse(storedUsers);
-          if (Array.isArray(parsedUsers)) {
-            const filteredUsers = parsedUsers.filter((u: any) => u.id !== 'user-1788801094228');
-            localStorage.setItem(USERS_KEY, JSON.stringify(filteredUsers));
-          }
-        } catch {}
       }
 
       const storedPets = localStorage.getItem(PETS_KEY);
@@ -622,8 +654,13 @@ class StorageService {
 
   // PUBLIC SAFE RETRIEVAL:
   private loadReports() {
+    // If reports are already in memory, preserve in-memory state without resetting to baseline
+    if (this.reports && this.reports.length > 0) {
+      this.enforceIntegrityInvariants();
+      return;
+    }
     try {
-      const storedReports = localStorage.getItem(REPORTS_KEY);
+      const storedReports = typeof localStorage !== 'undefined' ? localStorage.getItem(REPORTS_KEY) : null;
       if (storedReports !== null) {
         const parsed: LostReport[] = JSON.parse(storedReports);
 
@@ -689,8 +726,11 @@ class StorageService {
   }
 
   getAllPets(): DogProfile[] {
+    if (this.pets && this.pets.length > 0) {
+      return [...this.pets.filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id))];
+    }
     try {
-      const storedPets = localStorage.getItem(PETS_KEY);
+      const storedPets = typeof localStorage !== 'undefined' ? localStorage.getItem(PETS_KEY) : null;
       if (storedPets) {
         const rawPets: DogProfile[] = JSON.parse(storedPets);
         this.pets = rawPets.filter((p) => !this.isReportOrPetDeleted(undefined, p.id, p.id));
@@ -1167,12 +1207,28 @@ class StorageService {
     });
   }
 
+  /** Returns a sighting by its ID, or undefined if not found. */
+  getSighting(id: string): Sighting | undefined {
+    return this.sightings.find((s) => s.id === id);
+  }
+
+  /** Merges a partial update into an existing sighting and persists to localStorage. */
+  updateSighting(id: string, updates: Partial<Sighting>): boolean {
+    return this.executeTransaction(() => {
+      const idx = this.sightings.findIndex((s) => s.id === id);
+      if (idx === -1) return false;
+      this.sightings[idx] = { ...this.sightings[idx], ...updates };
+      return true;
+    });
+  }
+
   loadProfiles(): void {
     if (typeof localStorage !== 'undefined') {
       try {
         const stored = localStorage.getItem(PROFILES_KEY);
         if (stored) {
-          this.profiles = JSON.parse(stored);
+          const parsed: OwnerProfile[] = JSON.parse(stored);
+          this.profiles = Array.isArray(parsed) ? parsed.map(sanitizeProfileLanguage) : [];
         }
       } catch {}
     }
@@ -1416,8 +1472,8 @@ class StorageService {
           color: canonicalPet.color,
           distinguishingMarks: canonicalPet.distinguishingMarks,
           collarInfo: canonicalPet.collarInfo,
-          primaryPhoto: canonicalPet.primaryPhoto || existingReport.dog.primaryPhoto || abulluImg,
-          photos: canonicalPet.photos && canonicalPet.photos.length > 0 ? canonicalPet.photos : existingReport.dog.photos,
+          primaryPhoto: canonicalPet.primaryPhoto !== undefined ? canonicalPet.primaryPhoto : (existingReport.dog.primaryPhoto || ''),
+          photos: canonicalPet.photos !== undefined ? canonicalPet.photos : (existingReport.dog.photos || []),
         };
         if (!existingReport.ownerApproximateLocation || existingReport.ownerApproximateLocation === 'Local Neighborhood') {
           existingReport.ownerApproximateLocation = approxLoc;
@@ -1432,7 +1488,11 @@ class StorageService {
             id: reportId,
             dogId: targetPetId,
             ownerId: rawUserId,
-            dog: { ...canonicalPet, primaryPhoto: canonicalPet.primaryPhoto || abulluImg, photos: canonicalPet.photos?.length ? canonicalPet.photos : [abulluImg] },
+            dog: {
+              ...canonicalPet,
+              primaryPhoto: canonicalPet.primaryPhoto || '',
+              photos: canonicalPet.photos?.length ? canonicalPet.photos : (canonicalPet.primaryPhoto ? [canonicalPet.primaryPhoto] : []),
+            },
             ownerApproximateLocation: approxLoc,
             lastKnownLocation: approxLoc,
             lastKnownLatitude: ownerProfile?.latitude,
@@ -1468,10 +1528,10 @@ class StorageService {
             r.dog?.id !== targetPetId)
       );
 
-      // Background sync to Firebase and Firebase
+      // Background sync pet profile and community report to Firebase Firestore
       firebaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
-      if (firebaseSyncService.isConfigured()) {
-        firebaseSyncService.syncPet(canonicalPet).catch((e) => console.warn('[Firebase Sync Pet Notice]:', e));
+      if (existingReport) {
+        firebaseSyncService.syncLostReport(existingReport).catch((e) => console.warn('[Firebase Sync Lost Report Notice]:', e));
       }
 
       return canonicalPet;
@@ -1628,7 +1688,7 @@ class StorageService {
               id: reportId,
               dogId: pet.id,
               ownerId: `owner-${rawUserId}`,
-              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+              dog: { ...pet, primaryPhoto: pet.primaryPhoto || '', photos: pet.photos?.length ? pet.photos : [] },
               ownerApproximateLocation: approxLoc,
               lastKnownLocation: approxLoc,
               lastKnownLatitude: ownerProfile?.latitude,
@@ -1698,7 +1758,7 @@ class StorageService {
             dogId: dogId,
             ownerId: `owner-${rawUserId}`,
             dog: pet
-              ? { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] }
+              ? { ...pet, primaryPhoto: pet.primaryPhoto || '', photos: pet.photos?.length ? pet.photos : [] }
               : {
                   id: dogId,
                   ownerId: `owner-${rawUserId}`,
@@ -1709,8 +1769,8 @@ class StorageService {
                   size: 'Medium (10-25kg)',
                   color: 'Not specified',
                   distinguishingMarks: '',
-                  primaryPhoto: abulluImg,
-                  photos: [abulluImg],
+                  primaryPhoto: '',
+                  photos: [],
                   createdAt: new Date().toISOString(),
                 },
             ownerApproximateLocation: approxLoc,
@@ -1822,6 +1882,7 @@ class StorageService {
         }
       }
 
+      sanitizeProfileLanguage(profile);
       const resolvedStreet = (profile as any).street || profile.streetOrLocality || '';
       profile.street = resolvedStreet;
       profile.streetOrLocality = resolvedStreet;
@@ -1879,7 +1940,7 @@ class StorageService {
               id: reportId,
               dogId: pet.id,
               ownerId: rawUserId,
-              dog: { ...pet, primaryPhoto: pet.primaryPhoto || abulluImg, photos: pet.photos?.length ? pet.photos : [abulluImg] },
+              dog: { ...pet, primaryPhoto: pet.primaryPhoto || '', photos: pet.photos?.length ? pet.photos : [] },
               ownerApproximateLocation: approxLoc,
               lastKnownLocation: approxLoc,
               lastKnownLatitude: profile.latitude,
@@ -2220,9 +2281,20 @@ class StorageService {
           const pMap = new Map<string, DogProfile>();
           this.pets.forEach((p) => pMap.set(p.id, p));
           data.pets.forEach((p: DogProfile) => {
-            if (p && p.id && !pMap.has(p.id) && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
-              pMap.set(p.id, p);
-              addedPets++;
+            if (p && p.id && !this.isReportOrPetDeleted(undefined, p.id, p.id)) {
+              const existing = pMap.get(p.id);
+              if (!existing) {
+                pMap.set(p.id, p);
+                addedPets++;
+              } else {
+                pMap.set(p.id, {
+                  ...existing,
+                  ...p,
+                  primaryPhoto: p.primaryPhoto !== undefined ? p.primaryPhoto : existing.primaryPhoto,
+                  photos: p.photos !== undefined ? p.photos : existing.photos,
+                  updatedAt: p.updatedAt || new Date().toISOString(),
+                });
+              }
             }
           });
           this.pets = Array.from(pMap.values());
@@ -2232,11 +2304,24 @@ class StorageService {
           const repMap = new Map<string, LostReport>();
           this.reports.forEach((r) => repMap.set(normalizeReportId(r.id), r));
           data.reports.forEach((r: LostReport) => {
-            if (r && r.id) {
+            if (r && r.id && !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
               const canon = normalizeReportId(r.id);
-              if (!repMap.has(canon) && !this.isReportOrPetDeleted(r.id, r.dogId, r.dog?.id)) {
+              const existing = repMap.get(canon);
+              if (!existing) {
                 repMap.set(canon, r);
                 addedReports++;
+              } else {
+                repMap.set(canon, {
+                  ...existing,
+                  ...r,
+                  dog: {
+                    ...existing.dog,
+                    ...r.dog,
+                    primaryPhoto: r.dog?.primaryPhoto !== undefined ? r.dog.primaryPhoto : existing.dog?.primaryPhoto,
+                    photos: r.dog?.photos !== undefined ? r.dog.photos : existing.dog?.photos,
+                  },
+                  updatedAt: r.updatedAt || new Date().toISOString(),
+                });
               }
             }
           });
@@ -2399,10 +2484,19 @@ class StorageService {
   }
 
   /** Merges accessible Firebase records into local storage and signals synchronization success or failure; returns a success flag. */
-  async pullFromFirebase(): Promise<boolean> {
+  async pullFromFirebase(force: boolean = false): Promise<boolean> {
     try {
+      if (!isFirebaseConfigured()) return true;
+      if (force) {
+        firebaseSyncService.clearSyncError();
+      }
       const data = await firebaseSyncService.fetchAllCloudData();
       if (!data) {
+        const syncStatus = await firebaseSyncService.getStatus();
+        if (!syncStatus.errorMessage) {
+          // Normal unauthenticated or initial resolving state; do not trigger error banner
+          return true;
+        }
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('findlostpuppy_cloud_sync_failed'));
         }
@@ -2487,7 +2581,7 @@ class StorageService {
           distinguishingMarks: p.distinguishingMarks || p.markings || '',
           collarInfo: p.collarInfo || '',
           primaryPhoto: photo,
-          photos: p.photos || [photo],
+          photos: p.photos && p.photos.length > 0 ? p.photos : (photo ? [photo] : []),
           createdAt: p.createdAt || p.created_at || new Date().toISOString(),
         };
       });
@@ -2523,7 +2617,7 @@ class StorageService {
             distinguishingMarks: petInfo?.distinguishingMarks || petInfo?.markings || '',
             collarInfo: petInfo?.collarInfo || '',
             primaryPhoto: photo,
-            photos: [photo],
+            photos: photo ? [photo] : [],
             createdAt: r.createdAt || r.created_at || new Date().toISOString(),
           },
           ownerApproximateLocation: r.ownerApproximateLocation || r.district || 'West Godavari',
@@ -2579,6 +2673,9 @@ class StorageService {
         window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated', { detail: null }));
       }
 
+      // Automatically backfill any existing offline/base64 photos to Cloudinary & Firestore
+      this.backfillExistingPhotosToCloudinary().catch(() => {});
+
       return true;
     } catch (e) {
       if (import.meta.env.DEV) console.warn('Failed to pull from Firebase:', e);
@@ -2587,6 +2684,197 @@ class StorageService {
       }
       return false;
     }
+  }
+
+  private isBackfilling = false;
+
+  /**
+   * Backfills any existing photos stored in local records (or pulled from Firestore)
+   * that are NOT yet on Cloudinary (e.g. base64 data URLs, blob URLs, or Firebase Storage links).
+   * Uploads them to the canonical Cloudinary paths, updates local storage, and syncs
+   * back to Firestore so all photos can be safely retrieved.
+   */
+  async backfillExistingPhotosToCloudinary(): Promise<{ migratedCount: number }> {
+    if (this.isBackfilling) return { migratedCount: 0 };
+    this.isBackfilling = true;
+    let migratedCount = 0;
+
+    try {
+      // 1. Backfill Sightings
+      for (const sighting of [...this.sightings]) {
+        let changed = false;
+        const cleanSightingId = sighting.id || '';
+        const shortId = cleanSightingId.replace('sight-', '').slice(0, 12);
+        const reportKey = sighting.reportId ? `${sighting.reportId}/${shortId}` : `community/${shortId}`;
+
+        let primary = sighting.photo;
+        if (primary && isUploadablePhoto(primary)) {
+          try {
+            const uploaded = await storageBucketService.uploadSightingPhoto(reportKey, primary, 0);
+            if (uploaded) {
+              primary = uploaded;
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+
+        let photos = sighting.photos ? [...sighting.photos] : (primary ? [primary] : []);
+        for (let i = 0; i < photos.length; i++) {
+          if (photos[i] && isUploadablePhoto(photos[i])) {
+            try {
+              const uploaded = await storageBucketService.uploadSightingPhoto(reportKey, photos[i], i);
+              if (uploaded) {
+                photos[i] = uploaded;
+                changed = true;
+                migratedCount++;
+              }
+            } catch {}
+          }
+        }
+
+        if (changed) {
+          this.updateSighting(sighting.id, {
+            photo: primary,
+            photos,
+          });
+          const updated = this.getSighting(sighting.id);
+          if (updated) {
+            firebaseSyncService.syncSighting(updated).catch(() => {});
+          }
+        }
+      }
+
+      // 2. Backfill Missing Pet Reports
+      for (const report of [...this.reports]) {
+        let changed = false;
+        let primary = report.dog?.primaryPhoto;
+        if (primary && isUploadablePhoto(primary)) {
+          try {
+            const uploaded = await storageBucketService.uploadMissingReportPhoto(report.id, primary, 0);
+            if (uploaded) {
+              primary = uploaded;
+              if (report.dog) report.dog.primaryPhoto = primary;
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+
+        if (report.dog?.photos && Array.isArray(report.dog.photos)) {
+          for (let i = 0; i < report.dog.photos.length; i++) {
+            if (report.dog.photos[i] && isUploadablePhoto(report.dog.photos[i])) {
+              try {
+                const uploaded = await storageBucketService.uploadMissingReportPhoto(report.id, report.dog.photos[i], i);
+                if (uploaded) {
+                  report.dog.photos[i] = uploaded;
+                  changed = true;
+                  migratedCount++;
+                }
+              } catch {}
+            }
+          }
+        }
+
+        if (changed) {
+          this.saveReport(report);
+          firebaseSyncService.syncLostReport(report).catch(() => {});
+        }
+      }
+
+      // 3. Backfill Pets
+      for (const pet of [...this.pets]) {
+        let changed = false;
+        const ownerId = pet.ownerId || 'owner';
+        let primary = pet.primaryPhoto;
+        if (primary && isUploadablePhoto(primary)) {
+          try {
+            const uploaded = await storageBucketService.uploadPetPhoto(ownerId, pet.id, primary, 0);
+            if (uploaded) {
+              primary = uploaded;
+              pet.primaryPhoto = primary;
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+
+        if (pet.photos && Array.isArray(pet.photos)) {
+          for (let i = 0; i < pet.photos.length; i++) {
+            if (pet.photos[i] && isUploadablePhoto(pet.photos[i])) {
+              try {
+                const uploaded = await storageBucketService.uploadPetPhoto(ownerId, pet.id, pet.photos[i], i);
+                if (uploaded) {
+                  pet.photos[i] = uploaded;
+                  changed = true;
+                  migratedCount++;
+                }
+              } catch {}
+            }
+          }
+        }
+
+        if (changed) {
+          this.savePetProfile(pet);
+          firebaseSyncService.syncPet(pet).catch(() => {});
+        }
+      }
+
+      // 4. Backfill Owner Profiles
+      for (const profile of [...this.profiles]) {
+        let changed = false;
+        let photo = profile.photo;
+        if (photo && isUploadablePhoto(photo)) {
+          try {
+            const userId = profile.userId || profile.id;
+            const uploaded = await storageBucketService.uploadProfileAvatar(userId, photo);
+            if (uploaded) {
+              profile.photo = uploaded;
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+
+        if (changed) {
+          this.saveOwnerProfile(profile);
+          firebaseSyncService.syncOwnerProfile(profile, profile.userId || profile.id).catch(() => {});
+        }
+      }
+
+      // 5. Backfill local user session avatar
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const rawUser = localStorage.getItem('findlostpuppy_active_user');
+          if (rawUser) {
+            const user = JSON.parse(rawUser);
+            if (user?.avatar && isUploadablePhoto(user.avatar)) {
+              const uploaded = await storageBucketService.uploadProfileAvatar(user.id, user.avatar);
+              if (uploaded) {
+                user.avatar = uploaded;
+                localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
+                localStorage.setItem('findlostpuppy_current_user', JSON.stringify(user));
+                migratedCount++;
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (migratedCount > 0) {
+        console.log(`[storageService] Successfully backfilled ${migratedCount} existing photos to Cloudinary & Firestore.`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+          window.dispatchEvent(new CustomEvent('findlostpuppy_media_uploaded', { detail: { count: migratedCount } }));
+        }
+      }
+    } catch (err) {
+      console.warn('[storageService] backfillExistingPhotosToCloudinary exception:', err);
+    } finally {
+      this.isBackfilling = false;
+    }
+
+    return { migratedCount };
   }
 
   /**
@@ -2721,7 +3009,7 @@ class StorageService {
       });
 
       this.pets = this.pets.map((pet) => {
-        if (pet.id === 'pet-1788871495754') return pet;
+        if (pet.id === 'pet-1788871495754' || pet.id === '1788885000505' || (pet.name && pet.name.toUpperCase() === 'SONU')) return pet;
         const primaryPhoto = isAuthenticatedCloudinary(pet.primaryPhoto) ? pet.primaryPhoto : '';
         const photos = (pet.photos || []).filter(isAuthenticatedCloudinary);
         cleared += Number(Boolean(pet.primaryPhoto && !primaryPhoto));
@@ -2730,7 +3018,7 @@ class StorageService {
       });
 
       this.reports = this.reports.map((report) => {
-        if (report.dog?.id === 'pet-1788871495754' || report.id === 'LOST-1788885000505') return report;
+        if (report.dog?.id === 'pet-1788871495754' || report.dog?.id === '1788885000505' || report.id === 'LOST-1788885000505' || (report.dog?.name && report.dog.name.toUpperCase() === 'SONU')) return report;
         const primaryPhoto = isAuthenticatedCloudinary(report.dog?.primaryPhoto) ? report.dog.primaryPhoto : '';
         const photos = (report.dog?.photos || []).filter(isAuthenticatedCloudinary);
         cleared += Number(Boolean(report.dog?.primaryPhoto && !primaryPhoto));
@@ -2912,3 +3200,6 @@ class StorageService {
 }
 
 export const storageService = new StorageService();
+if (typeof window !== 'undefined') {
+  (window as any).storageService = storageService;
+}

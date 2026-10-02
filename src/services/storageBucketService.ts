@@ -8,21 +8,66 @@ export const MAX_MEDIA_QUEUE_SIZE = 10;
 const MAX_MEDIA_RETRY_COUNT = 3;
 let queueFlushPromise: Promise<{ uploaded: number; pending: number }> | null = null;
 
+// Purge any legacy offline base64 queues — images go directly to Cloudinary
+if (typeof localStorage !== 'undefined') {
+  try { localStorage.removeItem(MEDIA_QUEUE_KEY); } catch {}
+}
+
 const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS === 'true';
 const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || '').replace(/\/$/, '');
+const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
+const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 
-/** Re-encodes an image as JPEG with a maximum dimension of 1600 pixels, removing source metadata; returns null on failure. */
+// =============================================================================
+// Canonical Cloudinary folder layout
+// =============================================================================
+// findlostpuppy/
+//   owner_profile/{userId}/photo        ← owner profile picture
+//   pet_profile/{userId}/{petId}/photo  ← pet profile picture
+//   missing_pets/{reportId}/photo       ← missing-pet report photo
+//   sightings_pets/{reportId}/photo     ← community sighting photo
+// =============================================================================
+const CF = 'findlostpuppy'; // root folder — never changes
+
+/** Returns the canonical Cloudinary public_id for an owner profile photo. */
+export function ownerProfilePublicId(userId: string): string {
+  return `${CF}/owner_profile/${userId}/photo`;
+}
+
+/** Returns the canonical Cloudinary public_id for a pet profile photo. */
+export function petProfilePublicId(userId: string, petId: string, index = 0): string {
+  const suffix = index > 0 ? `photo_${index}` : 'photo';
+  return `${CF}/pet_profile/${userId}/${petId}/${suffix}`;
+}
+
+/** Returns the canonical Cloudinary public_id for a missing-pet report photo. */
+export function missingPetPublicId(reportId: string, index = 0): string {
+  const suffix = index > 0 ? `photo_${index}` : 'photo';
+  return `${CF}/missing_pets/${reportId}/${suffix}`;
+}
+
+/** Returns the canonical Cloudinary public_id for a sighting photo. */
+export function sightingPublicId(reportId: string, index = 0): string {
+  const suffix = index > 0 ? `photo_${index}` : 'photo';
+  return `${CF}/sightings_pets/${reportId}/${suffix}`;
+}
+
+// =============================================================================
+// Internal helpers
+// =============================================================================
+
+/** Re-encodes an image as JPEG ≤1600 px, strips all metadata. */
 async function sanitizePublicImage(blob: Blob): Promise<Blob | null> {
   try {
     const bitmap = await createImageBitmap(blob);
-    const maxDimension = 1600;
-    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const max = 1600;
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.width  = Math.max(1, Math.round(bitmap.width  * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext('2d');
-    if (!context) return null;
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
     return await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.84));
   } catch {
@@ -33,9 +78,9 @@ async function sanitizePublicImage(blob: Blob): Promise<Blob | null> {
 export interface QueuedMediaItem {
   id: string;
   category: 'profile' | 'pet' | 'missing-report' | 'sighting';
-  referenceId: string; // userId, petId, or reportId
-  recordId?: string; // target local record for retry persistence
-  ownerId?: string; // required for pet photos
+  referenceId: string;
+  recordId?: string;
+  ownerId?: string;
   index?: number;
   base64Data: string;
   previousUrl?: string;
@@ -44,47 +89,45 @@ export interface QueuedMediaItem {
   retryCount: number;
 }
 
-const generateRandomSuffix = (): string => Math.random().toString(36).substring(2, 9);
+function persistQueuedMediaUrl(_item: QueuedMediaItem, _publicUrl: string): boolean {
+  return false;
+}
 
-function persistQueuedMediaUrl(item: QueuedMediaItem, publicUrl: string): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  let matched = false;
-  const updateList = (key: string, update: (record: any) => any) => {
-    const records = JSON.parse(localStorage.getItem(key) || '[]');
-    localStorage.setItem(key, JSON.stringify(records.map(update)));
-  };
-  if (item.category === 'profile') {
-    updateList('findlostpuppy_profiles_v1', (record) =>
-      record.userId === item.referenceId || record.id === item.referenceId
-        ? (matched = true, { ...record, photo: publicUrl, updatedAt: new Date().toISOString() })
-        : record
-    );
-  } else if (item.category === 'pet') {
-    updateList('findlostpuppy_pets_v1', (record) => {
-      if (record.id !== item.referenceId) return record;
-      matched = true;
-      const photos = [...(record.photos || [])];
-      if ((item.index || 0) === 0) return { ...record, primaryPhoto: publicUrl };
-      photos[(item.index || 1) - 1] = publicUrl;
-      return { ...record, photos: photos.filter(Boolean) };
-    });
-  } else if (item.category === 'missing-report') {
-    updateList('findlostpuppy_reports_v1', (record) =>
-      record.id === (item.recordId || item.referenceId)
-        ? (matched = true, { ...record, dog: { ...record.dog, primaryPhoto: publicUrl }, updatedAt: new Date().toISOString() })
-        : record
-    );
-  } else if (item.category === 'sighting') {
-    updateList('findlostpuppy_sightings_v1', (record) => {
-      if (record.id !== item.recordId) return record;
-      matched = true;
-      const photos = [...(record.photos || [])];
-      photos[item.index || 0] = publicUrl;
-      return { ...record, photo: photos[0] || record.photo, photos: photos.filter(Boolean) };
-    });
+/**
+ * Returns true if the URL points to a hosted Cloudinary image.
+ */
+export function isCloudinaryUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
+}
+
+/**
+ * Returns true if an existing photo string should be uploaded/migrated to Cloudinary.
+ * True for base64 data URLs, blob URLs, or non-Cloudinary cloud storage URLs (e.g. Firebase).
+ * Excludes internal mock/static asset paths and empty/null strings.
+ */
+export function isUploadablePhoto(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (isCloudinaryUrl(trimmed)) return false;
+  // Exclude static SVG or UI asset icons
+  if (
+    trimmed.startsWith('/splash_') ||
+    trimmed.startsWith('/dog_') ||
+    trimmed.startsWith('/app-') ||
+    trimmed.startsWith('/logo') ||
+    trimmed.endsWith('.svg')
+  ) {
+    return false;
   }
-  window.dispatchEvent(new Event('findlostpuppy_reports_updated'));
-  return matched;
+  return (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.includes('firebasestorage.googleapis.com') ||
+    trimmed.includes('storage.googleapis.com')
+  );
 }
 
 /**
@@ -94,22 +137,18 @@ function persistQueuedMediaUrl(item: QueuedMediaItem, publicUrl: string): boolea
 export function extractCloudinaryPublicId(url: string): string | null {
   if (!url || typeof url !== 'string') return null;
   if (!url.includes('res.cloudinary.com') && !url.includes('cloudinary.com')) return null;
-
   try {
     const cleanUrl = url.split('?')[0].split('#')[0];
     const uploadMatch = cleanUrl.match(/\/(?:upload|authenticated)\//);
     const uploadIndex = uploadMatch?.index ?? -1;
     if (uploadIndex === -1) return null;
-
     const afterUpload = cleanUrl.substring(uploadIndex + uploadMatch![0].length);
     const segments = afterUpload.split('/');
-
-    // Skip signed-delivery signature, transformations, and version segment.
     while (segments.length > 0) {
       const seg = segments[0];
       if (/^v\d+$/.test(seg)) {
         segments.shift();
-        break; // after version, everything remaining is public_id
+        break;
       } else if (
         /^s--[A-Za-z0-9_-]+--$/.test(seg) ||
         seg.includes(',') ||
@@ -120,81 +159,71 @@ export function extractCloudinaryPublicId(url: string): string | null {
         break;
       }
     }
-
     if (segments.length === 0) return null;
-
-    let path = segments.join('/');
-    // Remove file extension
-    path = path.replace(/\.[a-zA-Z0-9]+$/, '');
-    return path;
+    return segments.join('/').replace(/\.[a-zA-Z0-9]+$/, '');
   } catch {
     return null;
   }
 }
 
-/**
- * Converts a Base64 or Data URL string into a native Blob with MIME type.
- */
+/** Converts a Base64 / Data URL into a native Blob. */
 export function base64ToBlob(base64Data: string): { blob: Blob; mimeType: string } | null {
   try {
-    let cleanBase64 = base64Data.trim();
+    let clean = base64Data.trim();
     let mimeType = 'image/jpeg';
-
-    if (cleanBase64.startsWith('data:')) {
-      const parts = cleanBase64.split(',');
+    if (clean.startsWith('data:')) {
+      const parts = clean.split(',');
       const match = parts[0].match(/:(.*?);/);
-      if (match && match[1]) {
-        mimeType = match[1];
-      }
-      cleanBase64 = parts[1] || '';
+      if (match?.[1]) mimeType = match[1];
+      clean = parts[1] || '';
     }
-
-    if (!cleanBase64) return null;
-
-    const byteCharacters = atob(cleanBase64);
-    const arrayBuffer = new ArrayBuffer(byteCharacters.length);
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    for (let i = 0; i < byteCharacters.length; i++) {
-      uint8Array[i] = byteCharacters.charCodeAt(i);
-    }
-
-    return {
-      blob: new Blob([arrayBuffer], { type: mimeType }),
-      mimeType,
-    };
-  } catch (err) {
-    console.warn('[storageBucketService] Failed to convert base64 to Blob:', err);
+    if (!clean) return null;
+    const chars = atob(clean);
+    const buf = new ArrayBuffer(chars.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < chars.length; i++) view[i] = chars.charCodeAt(i);
+    return { blob: new Blob([buf], { type: mimeType }), mimeType };
+  } catch {
     return null;
   }
 }
 
-/**
- * Normalizes File, Blob, or Base64 string into a Blob.
- */
+/** Normalizes File, Blob, Base64 string, or remote image URL into a Blob. */
 async function toBlob(input: File | Blob | string): Promise<{ blob: Blob; mimeType: string } | null> {
+  if (input instanceof Blob) return { blob: input, mimeType: input.type || 'image/jpeg' };
   if (typeof input === 'string') {
-    return base64ToBlob(input);
-  }
-  if (input instanceof Blob) {
-    return {
-      blob: input,
-      mimeType: input.type || 'image/jpeg',
-    };
+    const trimmed = input.trim();
+    if (trimmed.startsWith('data:')) {
+      return base64ToBlob(trimmed);
+    }
+    if (trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const res = await fetch(trimmed);
+        if (res.ok) {
+          const blob = await res.blob();
+          return { blob, mimeType: blob.type || 'image/jpeg' };
+        }
+      } catch (err) {
+        console.warn('[storageBucketService] Failed to fetch remote image into Blob:', err);
+      }
+    }
   }
   return null;
 }
 
-/** Calls a mapped media Worker endpoint with a Firebase ID token; returns null when unavailable or unsuccessful. */
+// =============================================================================
+// Optional server-side media worker (VITE_CLOUDINARY_SECURE_FUNCTIONS=true)
+// =============================================================================
+
 async function callMediaFunction<T>(name: string, data: Record<string, unknown>): Promise<T | null> {
   if (!auth?.currentUser || !SECURE_CLOUDINARY_FUNCTIONS || !MEDIA_WORKER_URL) return null;
   try {
     const paths: Record<string, string> = {
       createMediaUploadAuthorization: '/media/authorize',
-      finalizeMediaUpload: '/media/finalize',
-      deleteMediaAsset: '/media/delete',
-      hardResetCloudinary: '/media/reset',
-      deleteMyAccount: '/account/media-cleanup',
+      finalizeMediaUpload:            '/media/finalize',
+      deleteMediaAsset:               '/media/delete',
+      hardResetCloudinary:            '/media/reset',
+      deleteMyAccount:                '/account/media-cleanup',
     };
     const path = paths[name];
     if (!path) return null;
@@ -206,22 +235,18 @@ async function callMediaFunction<T>(name: string, data: Record<string, unknown>)
     });
     if (!response.ok) return null;
     return await response.json() as T;
-  } catch (error) {
-    if (import.meta.env.DEV) console.warn(`[media] ${name} failed`, error);
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn(`[media] ${name} failed`, err);
     return null;
   }
 }
 
-/** Sanitizes and uploads an image with server authorization, then finalizes it; returns its URL or null, and may reject on network errors. */
 async function secureCloudinaryUpload(
   category: QueuedMediaItem['category'],
   referenceId: string,
   input: File | Blob | string,
   previousUrl?: string,
 ): Promise<string | null> {
-  // The previous asset is intentionally deleted only after the caller has
-  // persisted the replacement URL, so cancelling or save failures remain safe.
-  void previousUrl;
   const blobData = await toBlob(input);
   if (!blobData || blobData.blob.size > 5 * 1024 * 1024) return null;
   const sanitized = await sanitizePublicImage(blobData.blob);
@@ -231,8 +256,7 @@ async function secureCloudinaryUpload(
   const form = new FormData();
   form.append('file', sanitized, 'media.jpg');
   for (const key of ['apiKey', 'timestamp', 'folder', 'public_id', 'type', 'signature']) {
-    const apiName = key === 'apiKey' ? 'api_key' : key;
-    form.append(apiName, String(authorization[key]));
+    form.append(key === 'apiKey' ? 'api_key' : key, String(authorization[key]));
   }
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${authorization.cloudName}/image/upload`,
@@ -240,6 +264,7 @@ async function secureCloudinaryUpload(
   );
   if (!response.ok) return null;
   const uploaded = await response.json();
+  const previousPublicId = previousUrl ? extractCloudinaryPublicId(previousUrl) || undefined : undefined;
   const finalized = await callMediaFunction<{ secureUrl: string }>('finalizeMediaUpload', {
     publicId: uploaded.public_id,
     category,
@@ -247,102 +272,211 @@ async function secureCloudinaryUpload(
     deliveryType: authorization.type,
     bytes: uploaded.bytes,
     format: uploaded.format,
+    ...(previousPublicId ? { previousPublicId } : {}),
   });
   return finalized?.secureUrl || null;
 }
 
+// =============================================================================
+// Cloudinary delete-token store (localStorage)
+// =============================================================================
+
+const CLOUDINARY_TOKENS_KEY = 'findlostpuppy_cloudinary_tokens_v1';
+
+function saveCloudinaryDeleteToken(url: string, publicId: string, token: string): void {
+  if (typeof localStorage === 'undefined' || !token) return;
+  try {
+    const raw = localStorage.getItem(CLOUDINARY_TOKENS_KEY);
+    const tokens: Record<string, string> = raw ? JSON.parse(raw) : {};
+    if (url)      { tokens[url] = token; tokens[url.split('?')[0]] = token; }
+    if (publicId) { tokens[publicId] = token; }
+    localStorage.setItem(CLOUDINARY_TOKENS_KEY, JSON.stringify(tokens));
+  } catch {}
+}
+
+function getCloudinaryDeleteToken(urlOrPublicId: string): string | null {
+  if (typeof localStorage === 'undefined' || !urlOrPublicId) return null;
+  try {
+    const raw = localStorage.getItem(CLOUDINARY_TOKENS_KEY);
+    if (!raw) return null;
+    const tokens: Record<string, string> = JSON.parse(raw);
+    const cleanUrl = urlOrPublicId.split('?')[0];
+    const pubId = extractCloudinaryPublicId(urlOrPublicId);
+    return tokens[urlOrPublicId] || tokens[cleanUrl] || (pubId ? tokens[pubId] : null) || null;
+  } catch { return null; }
+}
+
+function removeCloudinaryDeleteToken(urlOrPublicId: string): void {
+  if (typeof localStorage === 'undefined' || !urlOrPublicId) return;
+  try {
+    const raw = localStorage.getItem(CLOUDINARY_TOKENS_KEY);
+    if (!raw) return;
+    const tokens: Record<string, string> = JSON.parse(raw);
+    delete tokens[urlOrPublicId];
+    delete tokens[urlOrPublicId.split('?')[0]];
+    const pubId = extractCloudinaryPublicId(urlOrPublicId);
+    if (pubId) delete tokens[pubId];
+    localStorage.setItem(CLOUDINARY_TOKENS_KEY, JSON.stringify(tokens));
+  } catch {}
+}
+
+// =============================================================================
+// Core Cloudinary upload (unsigned preset)
+// =============================================================================
+//
+// Every upload:
+//   public_id   → deterministic path; asset lands in the EXACT folder/name
+//   overwrite=1 → replaces any existing asset at that public_id (no duplicates)
+//   invalidate=1→ purges old CDN-cached version instantly
+//   return_delete_token=1 → gives us a token for client-side deletion
+//
+// IMPORTANT: In the Cloudinary dashboard, go to:
+//   Settings → Upload → your upload preset → enable "Overwrite"
+// Without this, overwrite=1 is silently ignored for unsigned presets.
+// =============================================================================
+
+async function uploadToCloudinaryDirect(
+  input: File | Blob | string,
+  publicId: string,
+  tags: string,
+): Promise<{ secureUrl: string; publicId: string } | null> {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) return null;
+  try {
+    const blobData = await toBlob(input);
+    if (!blobData?.blob) return null;
+
+    const sanitized = (await sanitizePublicImage(blobData.blob)) || blobData.blob;
+    if (sanitized.size > 5 * 1024 * 1024) {
+      console.error('[storageBucketService] File exceeds 5 MB after sanitization.');
+      return null;
+    }
+
+    const form = new FormData();
+    form.append('file',          sanitized, 'photo.jpg');
+    form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    form.append('public_id',     publicId); // deterministic Cloudinary path
+    if (tags) form.append('tags', tags);
+
+    console.log('[storageBucketService] Uploading →', publicId);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: form },
+    );
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[storageBucketService] Upload failed ${response.status}:`, errText);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data?.secure_url) {
+      if (data.delete_token) {
+        saveCloudinaryDeleteToken(data.secure_url, data.public_id || publicId, data.delete_token);
+      }
+      console.log('[storageBucketService] Upload OK →', data.public_id, data.secure_url);
+      return { secureUrl: data.secure_url, publicId: data.public_id || publicId };
+    }
+    return null;
+  } catch (err) {
+    console.error('[storageBucketService] Upload exception:', err);
+    return null;
+  }
+}
+
+// =============================================================================
+// Cloudinary delete
+// =============================================================================
+
+async function deleteFromCloudinary(urlOrPublicId: string): Promise<boolean> {
+  if (!urlOrPublicId) return false;
+
+  const publicId = urlOrPublicId.startsWith('http')
+    ? extractCloudinaryPublicId(urlOrPublicId)
+    : urlOrPublicId;
+
+  const deleteToken =
+    getCloudinaryDeleteToken(urlOrPublicId) ||
+    (publicId ? getCloudinaryDeleteToken(publicId) : null);
+
+  // 1. delete_by_token (client-side, works ~10 min after upload)
+  if (deleteToken && CLOUDINARY_CLOUD_NAME) {
+    try {
+      const form = new FormData();
+      form.append('token', deleteToken);
+      const res  = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/delete_by_token`,
+        { method: 'POST', body: form },
+      );
+      const body = await res.json().catch(() => ({}));
+      console.log('[storageBucketService] delete_by_token:', res.status, body);
+      if (res.ok && (body as any)?.result === 'ok') {
+        removeCloudinaryDeleteToken(urlOrPublicId);
+        if (publicId) removeCloudinaryDeleteToken(publicId);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[storageBucketService] delete_by_token error:', e);
+    }
+  }
+
+  // 2. Server-side worker (requires VITE_CLOUDINARY_SECURE_FUNCTIONS=true)
+  if (publicId && SECURE_CLOUDINARY_FUNCTIONS && MEDIA_WORKER_URL) {
+    const result = await callMediaFunction<{ deleted: boolean }>('deleteMediaAsset', { publicId });
+    if (result?.deleted === true) {
+      removeCloudinaryDeleteToken(urlOrPublicId);
+      return true;
+    }
+  }
+
+  if (!deleteToken) {
+    console.warn(
+      '[storageBucketService] No delete token for:', publicId || urlOrPublicId,
+      '— uploading a new photo to the same path overwrites automatically.',
+    );
+  }
+  return false;
+}
+
+// =============================================================================
+// Public API
+// =============================================================================
+
 export const storageBucketService = {
   extractPublicId: extractCloudinaryPublicId,
-  /**
-   * Generates a public HTTPS URL for an object stored in pet-media
-   */
-  getPublicUrl(path: string): string {
-    return path;
-  },
+
+  getPublicUrl(path: string): string { return path; },
+
+  // ---------------------------------------------------------------------------
+  // Upload helpers — each one writes to a fixed, predictable path.
+  // Uploading again automatically OVERWRITES the previous image (no duplicates).
+  // ---------------------------------------------------------------------------
 
   /**
-   * Core upload handler. Enforces:
-   * - 5 MB size limit
-   * - Allowed MIME types (JPEG, JPG, PNG, WebP)
-   * - Unique paths with upsert: false
-   */
-  async uploadMedia(
-    storagePath: string,
-    fileOrBlob: File | Blob | string,
-    expectedMime = 'image/jpeg'
-  ): Promise<{ publicUrl: string; path: string } | null> {
-    const blobData = await toBlob(fileOrBlob);
-    if (!blobData || !blobData.blob) {
-      console.warn('[storageBucketService] Invalid image data provided for upload.');
-      return null;
-    }
-
-    const { blob, mimeType } = blobData;
-    const finalMime = mimeType || expectedMime;
-
-    // Strict path validation
-    const allowedPrefixes = ['profiles/', 'pets/', 'missing-reports/', 'sightings/'];
-    if (!allowedPrefixes.some(prefix => storagePath.startsWith(prefix))) {
-      console.error(`[storageBucketService] Upload blocked. Path '${storagePath}' is unauthorized.`);
-      return null;
-    }
-
-    // Validate MIME type
-    const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validMimes.includes(finalMime.toLowerCase())) {
-      console.error(`[storageBucketService] Disallowed MIME type: ${finalMime}. Only JPEG, PNG, and WebP are supported.`);
-      return null;
-    }
-
-    // Client-side 5MB enforcement
-    if (blob.size > 5 * 1024 * 1024) {
-      console.error(`[storageBucketService] File exceeds 5MB limit (${(blob.size / 1024 / 1024).toFixed(2)} MB).`);
-      return null;
-    }
-
-    if (!storage || !isFirebaseConfigured()) {
-      console.warn('[storageBucketService] No cloud image storage is configured. Cannot upload media.');
-      return null;
-    }
-
-    try {
-      const targetRef = storageRef(storage, storagePath);
-      const uploadResult = await uploadBytes(targetRef, blob, { contentType: finalMime });
-      const publicUrl = await getDownloadURL(uploadResult.ref);
-      return { publicUrl, path: uploadResult.ref.fullPath };
-    } catch (err: any) {
-      console.error('[storageBucketService] Upload exception:', err);
-      return null;
-    }
-  },
-
-  /**
-   * Uploads user profile avatar to:
-   * profiles/{user_id}/avatar.jpg
+   * Owner profile photo → findlostpuppy/owner_profile/{userId}/photo
    */
   async uploadProfileAvatar(
     userId: string,
     image: File | Blob | string,
     previousUrl?: string,
   ): Promise<string | null> {
-    const cleanUserId = userId.replace(/^(owner-)+/, '').trim();
-    if (!cleanUserId) {
-      console.error('[storageBucketService] Missing userId for profile avatar upload');
-      return null;
+    const uid = userId.replace(/^(owner-)+/, '').trim();
+    if (!uid) { console.error('[storageBucketService] Missing userId'); return null; }
+
+    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('profile', uid, image, previousUrl);
+
+    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+      const result = await uploadToCloudinaryDirect(image, ownerProfilePublicId(uid), 'findlostpuppy,owner_profile');
+      if (result?.secureUrl) return result.secureUrl;
     }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) {
-      return secureCloudinaryUpload('profile', cleanUserId, image, previousUrl);
-    }
-    const storagePath = `profiles/${cleanUserId}/avatar.jpg`;
-
-    const result = await this.uploadMedia(storagePath, image);
-    return result ? result.publicUrl : null;
+    const fb = await this.uploadMedia(`profiles/${uid}/avatar.jpg`, image);
+    return fb ? fb.publicUrl : null;
   },
 
   /**
-   * Uploads pet primary or gallery photo to:
-   * pets/{user_id}/{pet_id}/photo_{index}.jpg
+   * Pet profile photo → findlostpuppy/pet_profile/{userId}/{petId}/photo
    */
   async uploadPetPhoto(
     userId: string,
@@ -351,226 +485,195 @@ export const storageBucketService = {
     index = 0,
     previousUrl?: string,
   ): Promise<string | null> {
-    const cleanUserId = userId.replace(/^(owner-)+/, '').trim();
-    const cleanPetId = petId.trim();
+    const uid = userId.replace(/^(owner-)+/, '').trim();
+    const pid = petId.trim();
+    if (!uid || !pid) { console.error('[storageBucketService] Missing userId or petId'); return null; }
 
-    if (!cleanUserId || !cleanPetId) {
-      console.error('[storageBucketService] Missing userId or petId for pet photo upload');
-      return null;
+    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('pet', pid, image, previousUrl);
+
+    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+      const result = await uploadToCloudinaryDirect(image, petProfilePublicId(uid, pid, index), 'findlostpuppy,pet_profile');
+      if (result?.secureUrl) return result.secureUrl;
     }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) {
-      return secureCloudinaryUpload('pet', cleanPetId, image, previousUrl);
-    }
-    const storagePath = `pets/${cleanUserId}/${cleanPetId}/photo_${index}.jpg`;
-
-    const result = await this.uploadMedia(storagePath, image);
-    return result ? result.publicUrl : null;
+    const fb = await this.uploadMedia(`pets/${uid}/${pid}/photo.jpg`, image);
+    return fb ? fb.publicUrl : null;
   },
 
   /**
-   * Uploads missing report photo to:
-   * missing-reports/{report_id}/photo.jpg
-   * (Report must exist in public.missing_reports to satisfy Storage RLS)
+   * Missing-pet report photo → findlostpuppy/missing_pets/{reportId}/photo
    */
   async uploadMissingReportPhoto(
     reportId: string,
     image: File | Blob | string,
+    index = 0,
     previousUrl?: string,
   ): Promise<string | null> {
-    const cleanReportId = reportId.trim();
-    if (!cleanReportId) {
-      console.error('[storageBucketService] Missing reportId for missing report photo upload');
-      return null;
+    const rid = reportId.trim();
+    if (!rid) { console.error('[storageBucketService] Missing reportId'); return null; }
+
+    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('missing-report', rid, image, previousUrl);
+
+    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+      const result = await uploadToCloudinaryDirect(image, missingPetPublicId(rid, index), 'findlostpuppy,missing_pets');
+      if (result?.secureUrl) return result.secureUrl;
     }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) {
-      return secureCloudinaryUpload('missing-report', cleanReportId, image, previousUrl);
-    }
-    const storagePath = `missing-reports/${cleanReportId}/photo.jpg`;
-
-    const result = await this.uploadMedia(storagePath, image);
-    return result ? result.publicUrl : null;
+    const fb = await this.uploadMedia(`missing-reports/${rid}/photo.jpg`, image);
+    return fb ? fb.publicUrl : null;
   },
 
   /**
-   * Uploads guest or community sighting photo to:
-   * sightings/{report_id}/sighting.jpg
-   * (Works unauthenticated; {report_id} must exist in public.missing_reports)
+   * Community sighting photo → findlostpuppy/sightings_pets/{reportId}/photo
    */
   async uploadSightingPhoto(
     reportId: string,
     image: File | Blob | string,
+    index = 0,
     previousUrl?: string,
   ): Promise<string | null> {
-    const cleanReportId = reportId.trim();
-    if (!cleanReportId) {
-      console.error('[storageBucketService] Missing reportId for sighting photo upload');
+    const rid = reportId.trim();
+    if (!rid) { console.error('[storageBucketService] Missing reportId'); return null; }
+
+    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('sighting', rid, image, previousUrl);
+
+    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
+      const result = await uploadToCloudinaryDirect(image, sightingPublicId(rid, index), 'findlostpuppy,sightings_pets');
+      if (result?.secureUrl) return result.secureUrl;
+    }
+
+    const fb = await this.uploadMedia(`sightings/${rid}/sighting.jpg`, image);
+    return fb ? fb.publicUrl : null;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Low-level upload (Firebase Storage fallback)
+  // ---------------------------------------------------------------------------
+
+  async uploadMedia(
+    storagePath: string,
+    fileOrBlob: File | Blob | string,
+    expectedMime = 'image/jpeg',
+  ): Promise<{ publicUrl: string; path: string } | null> {
+    const blobData = await toBlob(fileOrBlob);
+    if (!blobData?.blob) { console.warn('[storageBucketService] Invalid image data.'); return null; }
+
+    const { blob, mimeType } = blobData;
+    const allowed = ['profiles/', 'pets/', 'missing-reports/', 'sightings/'];
+    if (!allowed.some((p) => storagePath.startsWith(p))) {
+      console.error('[storageBucketService] Blocked path:', storagePath);
       return null;
     }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) {
-      return secureCloudinaryUpload('sighting', cleanReportId, image, previousUrl);
-    }
-    const storagePath = `sightings/${cleanReportId}/sighting.jpg`;
-
-    const result = await this.uploadMedia(storagePath, image);
-    return result ? result.publicUrl : null;
-  },
-
-  // =========================================================================
-  // BOUNDED OFFLINE / RETRY QUEUE
-  // =========================================================================
-
-  getQueue(): QueuedMediaItem[] {
-    if (typeof localStorage === 'undefined') return [];
-    try {
-      const raw = localStorage.getItem(MEDIA_QUEUE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  },
-
-  enqueueItem(item: Omit<QueuedMediaItem, 'id' | 'createdAt' | 'retryCount'>): boolean {
-    if (typeof localStorage === 'undefined') return false;
-    if (item.category === 'sighting' && !auth?.currentUser) return false;
-    try {
-      const queue = this.getQueue();
-      if (queue.some((queued) =>
-        queued.category === item.category && queued.referenceId === item.referenceId &&
-        queued.recordId === item.recordId && queued.index === item.index && queued.base64Data === item.base64Data
-      )) return true;
-      if (queue.length >= MAX_MEDIA_QUEUE_SIZE) {
-        console.warn(`[storageBucketService] Offline media queue is full (${MAX_MEDIA_QUEUE_SIZE} items). Preserving existing queue.`);
-        return false;
-      }
-
-      const newItem: QueuedMediaItem = {
-        ...item,
-        id: `queue-${Date.now()}-${generateRandomSuffix()}`,
-        createdAt: new Date().toISOString(),
-        retryCount: 0,
-      };
-
-      queue.push(newItem);
-      localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify(queue));
-      return true;
-    } catch (err) {
-      console.warn('[storageBucketService] Failed to enqueue media item:', err);
-      return false;
-    }
-  },
-
-  removeFromQueue(id: string): void {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      const queue = this.getQueue().filter((item) => item.id !== id);
-      localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify(queue));
-    } catch {}
-  },
-
-  /** Removes the persisted media retry queue when local storage is available. */
-  clearQueue(): void {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(MEDIA_QUEUE_KEY);
-  },
-
-  /** Retries queued media, emits an event for each successful upload, and retains failures; returns uploaded and pending counts. */
-  async flushQueue(): Promise<{ uploaded: number; pending: number }> {
-    if (queueFlushPromise) return queueFlushPromise;
-    queueFlushPromise = (async () => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return { uploaded: 0, pending: this.getQueue().length };
+    const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validMimes.includes((mimeType || expectedMime).toLowerCase())) {
+      console.error('[storageBucketService] Invalid MIME:', mimeType);
+      return null;
     }
 
-    let uploaded = 0;
-    const queue = this.getQueue();
-    const pending: QueuedMediaItem[] = [];
+    if (blob.size > 5 * 1024 * 1024) {
+      console.error('[storageBucketService] Exceeds 5 MB.');
+      return null;
+    }
 
-    for (const item of queue) {
-      let publicUrl: string | null = item.uploadedUrl || null;
+    if (storage && isFirebaseConfigured()) {
       try {
-        if (!publicUrl && item.category === 'profile') {
-          publicUrl = await this.uploadProfileAvatar(item.referenceId, item.base64Data, item.previousUrl);
-        } else if (!publicUrl && item.category === 'pet' && item.ownerId) {
-          publicUrl = await this.uploadPetPhoto(item.ownerId, item.referenceId, item.base64Data, item.index || 0, item.previousUrl);
-        } else if (!publicUrl && item.category === 'missing-report') {
-          publicUrl = await this.uploadMissingReportPhoto(item.referenceId, item.base64Data, item.previousUrl);
-        } else if (!publicUrl && item.category === 'sighting') {
-          publicUrl = await this.uploadSightingPhoto(item.referenceId, item.base64Data, item.previousUrl);
-        }
-      } catch {}
-
-      if (publicUrl) {
-        let persisted = false;
-        try {
-          persisted = persistQueuedMediaUrl(item, publicUrl);
-        } catch {
-          persisted = false;
-        }
-        if (persisted) {
-          uploaded += 1;
-          if (item.previousUrl) await this.deleteMedia(item.previousUrl).catch(() => false);
-          window.dispatchEvent(new CustomEvent('findlostpuppy_media_uploaded', {
-            detail: { ...item, publicUrl },
-          }));
-        } else {
-          pending.push({ ...item, uploadedUrl: publicUrl });
-        }
-      } else {
-        if (item.retryCount + 1 < MAX_MEDIA_RETRY_COUNT) {
-          pending.push({ ...item, retryCount: item.retryCount + 1 });
-        }
+        const targetRef  = storageRef(storage, storagePath);
+        const uploaded   = await uploadBytes(targetRef, blob, { contentType: mimeType || expectedMime });
+        const publicUrl  = await getDownloadURL(uploaded.ref);
+        return { publicUrl, path: uploaded.ref.fullPath };
+      } catch (err) {
+        console.error('[storageBucketService] Firebase Storage error:', err);
       }
     }
 
-    try {
-      const snapshotIds = new Set(queue.map((item) => item.id));
-      const newlyQueued = this.getQueue().filter((item) => !snapshotIds.has(item.id));
-      localStorage.setItem(MEDIA_QUEUE_KEY, JSON.stringify([...newlyQueued, ...pending]));
-    } catch {}
-    return { uploaded, pending: this.getQueue().length };
-    })();
-    try {
-      return await queueFlushPromise;
-    } finally {
-      queueFlushPromise = null;
-    }
+    console.warn('[storageBucketService] No storage backend available.');
+    return null;
   },
+
+  // ---------------------------------------------------------------------------
+  // Delete
+  // ---------------------------------------------------------------------------
 
   /**
-   * Deletes Firebase-managed media. Cloudinary deletion must be performed by an
-   * authenticated server because its API secret must never ship in this client.
+   * Deletes a Cloudinary or Firebase Storage asset.
+   *
+   * NOTE: when a user uploads a NEW photo, the old one is automatically replaced
+   * via overwrite=1. You only need to call deleteMedia when removing a photo
+   * entirely (no replacement).
    */
   async deleteMedia(urlOrPath: string): Promise<boolean> {
     if (!urlOrPath) return false;
 
-    if (urlOrPath.includes('cloudinary.com')) {
-      const publicId = extractCloudinaryPublicId(urlOrPath);
-      if (!publicId) return false;
-      const result = await callMediaFunction<{ deleted: boolean }>('deleteMediaAsset', { publicId });
-      return result?.deleted === true;
+    if (urlOrPath.includes('cloudinary.com') || urlOrPath.includes('res.cloudinary.com')) {
+      return deleteFromCloudinary(urlOrPath);
     }
 
     if (
       storage &&
       isFirebaseConfigured() &&
-      (urlOrPath.includes('firebasestorage') || (!urlOrPath.startsWith('http') && !urlOrPath.startsWith('data:')))
+      (urlOrPath.includes('firebasestorage') ||
+        (!urlOrPath.startsWith('http') && !urlOrPath.startsWith('data:')))
     ) {
       try {
         const { ref, deleteObject } = await import('firebase/storage');
-        const fileRef = ref(storage, urlOrPath);
-        await deleteObject(fileRef);
+        await deleteObject(ref(storage, urlOrPath));
         return true;
       } catch (e) {
-        console.warn('[storageBucketService] Firebase Storage delete notice:', e);
+        console.warn('[storageBucketService] Firebase delete error:', e);
       }
     }
 
     return false;
   },
 
-  /** Requests an administrator-only Cloudinary reset with the required confirmation and returns whether it succeeded. */
+  // ---------------------------------------------------------------------------
+  // Offline retry queue (no-op — all uploads are synchronous to Cloudinary)
+  // ---------------------------------------------------------------------------
+
+  getQueue(): QueuedMediaItem[] { return []; },
+  enqueueItem(_item: Omit<QueuedMediaItem, 'id' | 'createdAt' | 'retryCount'>): boolean { return false; },
+  removeFromQueue(_id: string): void {},
+  clearQueue(): void { try { localStorage.removeItem(MEDIA_QUEUE_KEY); } catch {} },
+
+  async flushQueue(): Promise<{ uploaded: number; pending: number }> {
+    if (queueFlushPromise) return queueFlushPromise;
+    queueFlushPromise = (async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return { uploaded: 0, pending: 0 };
+      let uploaded = 0;
+      const queue   = this.getQueue();
+      const pending: QueuedMediaItem[] = [];
+      for (const item of queue) {
+        let publicUrl: string | null = item.uploadedUrl || null;
+        try {
+          if (!publicUrl && item.category === 'profile') {
+            publicUrl = await this.uploadProfileAvatar(item.referenceId, item.base64Data, item.previousUrl);
+          } else if (!publicUrl && item.category === 'pet' && item.ownerId) {
+            publicUrl = await this.uploadPetPhoto(item.ownerId, item.referenceId, item.base64Data, item.index || 0, item.previousUrl);
+          } else if (!publicUrl && item.category === 'missing-report') {
+            publicUrl = await this.uploadMissingReportPhoto(item.referenceId, item.base64Data, item.index || 0, item.previousUrl);
+          } else if (!publicUrl && item.category === 'sighting') {
+            publicUrl = await this.uploadSightingPhoto(item.referenceId, item.base64Data, item.index || 0, item.previousUrl);
+          }
+        } catch {}
+        if (publicUrl) {
+          try { persistQueuedMediaUrl(item, publicUrl); } catch {}
+          uploaded += 1;
+          if (item.previousUrl) await this.deleteMedia(item.previousUrl).catch(() => false);
+          window.dispatchEvent(new CustomEvent('findlostpuppy_media_uploaded', { detail: { ...item, publicUrl } }));
+        } else if (item.retryCount + 1 < MAX_MEDIA_RETRY_COUNT) {
+          pending.push({ ...item, retryCount: item.retryCount + 1 });
+        }
+      }
+      return { uploaded, pending: pending.length };
+    })();
+    try { return await queueFlushPromise; } finally { queueFlushPromise = null; }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Admin helpers
+  // ---------------------------------------------------------------------------
+
   async hardResetCloudinary(): Promise<boolean> {
     const result = await callMediaFunction<{ deleted: boolean }>('hardResetCloudinary', {
       confirmation: 'DELETE ALL FINDLOSTPUPPY MEDIA',
@@ -578,7 +681,6 @@ export const storageBucketService = {
     return result?.deleted === true;
   },
 
-  /** Requests hosted-media cleanup for the current account and returns whether the server confirmed deletion. */
   async deleteMyAccountData(): Promise<boolean> {
     const result = await callMediaFunction<{ deleted: boolean }>('deleteMyAccount', {
       confirmation: 'DELETE',

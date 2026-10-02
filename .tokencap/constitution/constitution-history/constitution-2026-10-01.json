@@ -1,0 +1,465 @@
+{
+  "version": "1.2",
+  "generatedAt": "2026-10-01T17:14:36.035Z",
+  "rules": [
+    {
+      "id": "CONST-SEC-001",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "confidence": 0.94,
+      "source": "jwt",
+      "description": "JWT authentication flow must remain operational.",
+      "reason": "JWT is detected as the active auth system. Changing or removing it invalidates all existing sessions.",
+      "whatBreaks": "All protected routes return 401. User sessions invalidated. Logout flows break.",
+      "examples": [
+        "Do not swap JWT for a different auth library without a migration plan.",
+        "Do not remove auth middleware from protected routes."
+      ],
+      "derivedFrom": [
+        "scripts/test_auth_consent_flow.mjs",
+        "src/context/AuthContext.tsx",
+        "src/pages/EmailAuthPage.tsx",
+        "src/services/authService.ts"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-002",
+      "category": "Security",
+      "severity": "IMMUTABLE",
+      "confidence": 0.95,
+      "source": "jwt",
+      "description": "Authentication middleware (scripts/test_auth_consent_flow.mjs, src/context/AuthContext.tsx) must remain enabled on all protected routes.",
+      "reason": "These files guard access to protected resources. Disabling or bypassing them exposes all protected data.",
+      "whatBreaks": "Unauthorized users gain access to protected routes, user data, and admin features.",
+      "examples": [
+        "Do not remove the auth check from scripts/test_auth_consent_flow.mjs."
+      ],
+      "derivedFrom": [
+        "scripts/test_auth_consent_flow.mjs",
+        "src/context/AuthContext.tsx",
+        "src/pages/EmailAuthPage.tsx",
+        "src/services/authService.ts"
+      ],
+      "relationships": [
+        "protects:CONST-SEC-001",
+        "protects:CONST-SEC-003",
+        "protects:CONST-SEC-006",
+        "protects:CONST-SEC-007",
+        "protects:CONST-SEC-009"
+      ],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-003",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "confidence": 0.9,
+      "source": "firebase",
+      "description": "Firebase Auth authentication flow must remain operational.",
+      "reason": "Firebase Auth is detected as the active auth system. Changing or removing it invalidates all existing sessions.",
+      "whatBreaks": "All protected routes return 401. User sessions invalidated. Logout flows break.",
+      "examples": [
+        "Do not swap Firebase Auth for a different auth library without a migration plan.",
+        "Do not remove auth middleware from protected routes."
+      ],
+      "derivedFrom": [
+        "scripts/test_auth_consent_flow.mjs",
+        "scripts/unit/firebase_sync.test.mjs",
+        "scripts/validate_firebase_env.mjs",
+        "src/context/AuthContext.tsx"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-004",
+      "category": "Security",
+      "severity": "IMMUTABLE",
+      "confidence": 0.91,
+      "source": "firebase",
+      "description": "Authentication middleware (scripts/test_auth_consent_flow.mjs, scripts/unit/firebase_sync.test.mjs) must remain enabled on all protected routes.",
+      "reason": "These files guard access to protected resources. Disabling or bypassing them exposes all protected data.",
+      "whatBreaks": "Unauthorized users gain access to protected routes, user data, and admin features.",
+      "examples": [
+        "Do not remove the auth check from scripts/test_auth_consent_flow.mjs."
+      ],
+      "derivedFrom": [
+        "scripts/test_auth_consent_flow.mjs",
+        "scripts/unit/firebase_sync.test.mjs",
+        "scripts/validate_firebase_env.mjs",
+        "src/context/AuthContext.tsx"
+      ],
+      "relationships": [
+        "protects:CONST-SEC-001",
+        "protects:CONST-SEC-003",
+        "protects:CONST-SEC-006",
+        "protects:CONST-SEC-007",
+        "protects:CONST-SEC-009"
+      ],
+      "manual": false
+    },
+    {
+      "id": "CONST-ARCH-001",
+      "category": "Architecture",
+      "severity": "HIGH",
+      "confidence": 0.72,
+      "source": "heuristic",
+      "description": "Services cannot import UI components.",
+      "reason": "Importing UI components into services couples server-side logic to browser rendering. This breaks SSR, testability, and separation of concerns.",
+      "whatBreaks": "Server-side services gain browser-only dependencies. Unit tests for services fail. SSR breaks.",
+      "examples": [
+        "Respect the layer boundary described."
+      ],
+      "derivedFrom": [],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-ARCH-002",
+      "category": "Architecture",
+      "severity": "HIGH",
+      "confidence": 0.72,
+      "source": "heuristic",
+      "description": "Controllers cannot access the database directly.",
+      "reason": "Direct DB access in controllers bypasses the service layer. This breaks the layered architecture and makes logic untestable.",
+      "whatBreaks": "Business logic leaks into controllers. Database coupling makes refactoring expensive.",
+      "examples": [
+        "Respect the layer boundary described."
+      ],
+      "derivedFrom": [],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-ARCH-003",
+      "category": "Architecture",
+      "severity": "HIGH",
+      "confidence": 0.72,
+      "source": "heuristic",
+      "description": "Route handlers cannot access the database directly.",
+      "reason": "Routes should delegate to services/controllers, not query the database themselves.",
+      "whatBreaks": "Business logic scattered across route files. Impossible to test in isolation.",
+      "examples": [
+        "Respect the layer boundary described."
+      ],
+      "derivedFrom": [],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-ARCH-004",
+      "category": "Architecture",
+      "severity": "HIGH",
+      "confidence": 0.72,
+      "source": "heuristic",
+      "description": "UI components cannot import server-only modules.",
+      "reason": "Server-only modules may contain secrets or Node.js-only APIs that crash in the browser.",
+      "whatBreaks": "Build errors in browser environments. Potential secret exposure.",
+      "examples": [
+        "Respect the layer boundary described."
+      ],
+      "derivedFrom": [],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-ARCH-005",
+      "category": "Architecture",
+      "severity": "HIGH",
+      "confidence": 0.8,
+      "source": "heuristic",
+      "description": "High-impact clusters (Other, Database, Config) must not gain new circular dependencies.",
+      "reason": "High-impact clusters already coordinate many modules. Adding circular imports makes builds fragile.",
+      "whatBreaks": "Module resolution fails. Build tools (webpack, esbuild) may hang or produce incorrect output.",
+      "examples": [
+        "Use dependency injection or an event bus to break cycles."
+      ],
+      "derivedFrom": [],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-005",
+      "category": "Security",
+      "severity": "IMMUTABLE",
+      "confidence": 0.98,
+      "source": "heuristic",
+      "description": "Password hashing algorithm must not be changed or removed.",
+      "reason": "The hashing algorithm is the last line of defence for stored credentials. Changing it invalidates all existing password hashes.",
+      "whatBreaks": "All existing users are locked out. Passwords unverifiable without a migration.",
+      "examples": [
+        "Found in: android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+      ],
+      "derivedFrom": [
+        "android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+      ],
+      "relationships": [
+        "protects:CONST-SEC-001",
+        "protects:CONST-SEC-003",
+        "protects:CONST-SEC-006",
+        "protects:CONST-SEC-007",
+        "protects:CONST-SEC-009"
+      ],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-006",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "confidence": 0.95,
+      "source": "heuristic",
+      "description": "Encryption implementation must remain algorithm-compatible.",
+      "reason": "Changing the encryption algorithm or key derivation method makes all existing encrypted data unreadable.",
+      "whatBreaks": "Encrypted data (tokens, at-rest fields, backups) cannot be decrypted.",
+      "examples": [
+        "Found in: worker-configuration.d.ts"
+      ],
+      "derivedFrom": [
+        "worker-configuration.d.ts"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-007",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "confidence": 0.9,
+      "source": "heuristic",
+      "description": "Environment secrets must never be hardcoded in source files.",
+      "reason": "Secrets committed to source are exposed via version control history and repository access.",
+      "whatBreaks": "Security breach. API keys, database credentials, and tokens compromised.",
+      "examples": [
+        "Found in: docs/generate_pdf.mjs, scratch/generate_pdf.mjs"
+      ],
+      "derivedFrom": [
+        "docs/generate_pdf.mjs",
+        "scratch/generate_pdf.mjs",
+        "scratch/send_tester_emails.mjs",
+        "scripts/cloudinary_delete_all_images.mjs"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-008",
+      "category": "Security",
+      "severity": "HIGH",
+      "confidence": 0.82,
+      "source": "heuristic",
+      "description": "Rate limiting must not be removed from public endpoints.",
+      "reason": "Rate limiting prevents brute-force attacks and denial-of-service.",
+      "whatBreaks": "Brute-force login attacks. API abuse. Service degradation under load.",
+      "examples": [
+        "Found in: worker-configuration.d.ts"
+      ],
+      "derivedFrom": [
+        "worker-configuration.d.ts"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-SEC-009",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "confidence": 0.99,
+      "source": "heuristic",
+      "description": "Environment variable files (.env) must never be committed to version control.",
+      "reason": ".env files contain secrets. Committing them exposes credentials to all repository users.",
+      "whatBreaks": "All secrets in .env become public. Immediate security incident.",
+      "examples": [
+        "Ensure .env is in .gitignore.",
+        "Use a secrets manager for production."
+      ],
+      "derivedFrom": [
+        ".env",
+        ".env.example"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-COMP-001",
+      "category": "Compliance",
+      "severity": "CRITICAL",
+      "confidence": 0.9,
+      "source": "heuristic",
+      "description": "Payment processing (PCI-DSS) — all Stripe/payment code requires compliance review.",
+      "reason": "PCI-DSS requires that all payment card data handling meets security standards. Any change to payment flows must be reviewed.",
+      "whatBreaks": "PCI compliance violation. Payment processor account suspension. Legal liability.",
+      "examples": [
+        "Always review PCI-related code before merging.",
+        "Found in: .agents/skills/responsive-design/references/container-queries.md, .agents/skills/responsive-design/references/details.md"
+      ],
+      "derivedFrom": [
+        ".agents/skills/responsive-design/references/container-queries.md",
+        ".agents/skills/responsive-design/references/details.md",
+        ".agents/skills/responsive-design/references/fluid-layouts.md",
+        ".tokencap/constitution/compliance-rules.md"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-COMP-002",
+      "category": "Compliance",
+      "severity": "CRITICAL",
+      "confidence": 0.8,
+      "source": "heuristic",
+      "description": "GDPR compliance — personal data handling must preserve user rights (consent, erasure, portability).",
+      "reason": "GDPR requires explicit consent for data collection, the right to erasure, and data portability. Removing these breaks legal compliance.",
+      "whatBreaks": "GDPR violation. Regulatory fines. User data rights cannot be exercised.",
+      "examples": [
+        "Always review GDPR-related code before merging.",
+        "Found in: .tokencap/agent/START_HERE.md, .tokencap/agent/agent-pack.md"
+      ],
+      "derivedFrom": [
+        ".tokencap/agent/START_HERE.md",
+        ".tokencap/agent/agent-pack.md",
+        ".tokencap/agent/model-instructions.md",
+        ".tokencap/agent/review-rules.md"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-COMP-003",
+      "category": "Compliance",
+      "severity": "CRITICAL",
+      "confidence": 0.75,
+      "source": "heuristic",
+      "description": "HIPAA compliance — protected health information (PHI) handling must remain compliant.",
+      "reason": "HIPAA requires strict access control, audit logging, and encryption for all PHI. Removing protections is illegal.",
+      "whatBreaks": "HIPAA violation. Criminal liability. Patient data exposed.",
+      "examples": [
+        "Always review HIPAA-related code before merging.",
+        "Found in: .tokencap/constitution/compliance-rules.md, .tokencap/constitution/constitution.md"
+      ],
+      "derivedFrom": [
+        ".tokencap/constitution/compliance-rules.md",
+        ".tokencap/constitution/constitution.md",
+        ".tokencap/constitution/constitution.yaml",
+        "android/app/src/main/assets/public/assets/516-VkbN94rn.js"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-COMP-004",
+      "category": "Compliance",
+      "severity": "CRITICAL",
+      "confidence": 0.85,
+      "source": "heuristic",
+      "description": "Audit logging must always be written and never removed.",
+      "reason": "Audit logs provide the immutable record required for compliance, forensic investigation, and regulatory review.",
+      "whatBreaks": "Compliance audit failures. Inability to investigate security incidents. Regulatory violations.",
+      "examples": [
+        "Always review AUDIT-related code before merging.",
+        "Found in: .tokencap/constitution/compliance-rules.md, .tokencap/constitution/constitution.md"
+      ],
+      "derivedFrom": [
+        ".tokencap/constitution/compliance-rules.md",
+        ".tokencap/constitution/constitution.md",
+        ".tokencap/constitution/constitution.yaml",
+        "ADMIN_TRACKER.md"
+      ],
+      "relationships": [],
+      "manual": false
+    },
+    {
+      "id": "CONST-FLOW-001",
+      "category": "CriticalFlow",
+      "severity": "CRITICAL",
+      "confidence": 0.95,
+      "source": "heuristic",
+      "description": "Authentication Flow is repository-critical and must remain intact end-to-end.",
+      "reason": "Every protected page and authenticated feature depends on this flow working correctly.",
+      "whatBreaks": "Users cannot log in. All authenticated features become unreachable. Sessions invalidated.",
+      "examples": [
+        "Do not remove login endpoint.",
+        "Do not change session token format without migration."
+      ],
+      "derivedFrom": [
+        "scripts/test_auth_consent_flow.mjs",
+        "src/context/AuthContext.tsx",
+        "src/pages/EmailAuthPage.tsx",
+        "src/services/authService.ts"
+      ],
+      "relationships": [
+        "dependsOn:CONST-SEC-001",
+        "dependsOn:CONST-SEC-002",
+        "dependsOn:CONST-SEC-003",
+        "dependsOn:CONST-SEC-004",
+        "dependsOn:CONST-SEC-005"
+      ],
+      "manual": false
+    },
+    {
+      "id": "CONST-FLOW-002",
+      "category": "CriticalFlow",
+      "severity": "CRITICAL",
+      "confidence": 0.92,
+      "source": "heuristic",
+      "description": "User Registration Flow must remain functional. New users must be able to create accounts.",
+      "reason": "Registration is the entry point for all new users. Breaking it stops user growth.",
+      "whatBreaks": "New users cannot create accounts. User acquisition blocked.",
+      "examples": [
+        "Do not change registration field requirements without versioning.",
+        "Preserve email verification step."
+      ],
+      "derivedFrom": [
+        "scripts/execute_onboarding_and_alert_flows.mjs",
+        "scripts/run_continuous_onboarding.mjs",
+        "src/pages/DogOnboardingPage.tsx",
+        "src/pages/LocationOnboardingPage.tsx",
+        "src/pages/OnboardingChoicePage.tsx"
+      ],
+      "relationships": [
+        "dependsOn:CONST-SEC-001",
+        "dependsOn:CONST-SEC-002",
+        "dependsOn:CONST-SEC-003",
+        "dependsOn:CONST-SEC-004",
+        "dependsOn:CONST-SEC-005"
+      ],
+      "manual": false
+    },
+    {
+      "id": "CONST-FLOW-003",
+      "category": "CriticalFlow",
+      "severity": "CRITICAL",
+      "confidence": 0.82,
+      "source": "heuristic",
+      "description": "Notification Pipeline (email, webhook, SMS) must remain operational.",
+      "reason": "Notifications are critical for transactional communication (receipts, alerts, order updates).",
+      "whatBreaks": "Users stop receiving transactional emails. Webhooks fail silently. Integrations break.",
+      "examples": [
+        "Do not remove email delivery step from registration.",
+        "Preserve webhook retry logic."
+      ],
+      "derivedFrom": [
+        "scratch/send_tester_emails.mjs",
+        "src/pages/EmailAuthPage.tsx"
+      ],
+      "relationships": [
+        "dependsOn:CONST-SEC-001",
+        "dependsOn:CONST-SEC-002",
+        "dependsOn:CONST-SEC-003",
+        "dependsOn:CONST-SEC-004",
+        "dependsOn:CONST-SEC-005"
+      ],
+      "manual": false
+    }
+  ],
+  "score": {
+    "total": 96,
+    "architecture": 100,
+    "apiStability": 90,
+    "schemaIntegrity": 90,
+    "security": 100,
+    "compliance": 100
+  },
+  "filesWritten": []
+}

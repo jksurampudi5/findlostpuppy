@@ -1,0 +1,394 @@
+# TokenCap Constitution Engine
+# Generated: 2026-10-02T04:45:56.225Z
+# Version: 1.2
+
+constitution:
+  version: "1.2"
+  generated_at: "2026-10-02T04:45:56.225Z"
+  rule_count: 21
+
+  score:
+    total:            96
+    architecture:     100
+    api_stability:    90
+    schema_integrity: 90
+    security:         100
+    compliance:       100
+
+  rules:
+    - id: "CONST-SEC-002"
+      category: "Security"
+      severity: "IMMUTABLE"
+      confidence: 0.95
+      source: "jwt"
+      manual: false
+      description: |-
+        Authentication middleware (scripts/test_auth_consent_flow.mjs, src/context/AuthContext.tsx) must remain enabled on all protected routes.
+      reason: |-
+        These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
+      what_breaks: |-
+        Unauthorized users gain access to protected routes, user data, and admin features.
+      derived_from:
+        - "scripts/test_auth_consent_flow.mjs"
+        - "src/context/AuthContext.tsx"
+        - "src/pages/EmailAuthPage.tsx"
+        - "src/services/authService.ts"
+      relationships:
+        - "protects:CONST-SEC-001"
+        - "protects:CONST-SEC-003"
+        - "protects:CONST-SEC-006"
+        - "protects:CONST-SEC-007"
+        - "protects:CONST-SEC-009"
+
+    - id: "CONST-SEC-004"
+      category: "Security"
+      severity: "IMMUTABLE"
+      confidence: 0.91
+      source: "firebase"
+      manual: false
+      description: |-
+        Authentication middleware (scripts/test_auth_consent_flow.mjs, scripts/unit/firebase_sync.test.mjs) must remain enabled on all protected routes.
+      reason: |-
+        These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
+      what_breaks: |-
+        Unauthorized users gain access to protected routes, user data, and admin features.
+      derived_from:
+        - "scripts/test_auth_consent_flow.mjs"
+        - "scripts/unit/firebase_sync.test.mjs"
+        - "scripts/validate_firebase_env.mjs"
+        - "src/context/AuthContext.tsx"
+      relationships:
+        - "protects:CONST-SEC-001"
+        - "protects:CONST-SEC-003"
+        - "protects:CONST-SEC-006"
+        - "protects:CONST-SEC-007"
+        - "protects:CONST-SEC-009"
+
+    - id: "CONST-SEC-005"
+      category: "Security"
+      severity: "IMMUTABLE"
+      confidence: 0.98
+      source: "heuristic"
+      manual: false
+      description: |-
+        Password hashing algorithm must not be changed or removed.
+      reason: |-
+        The hashing algorithm is the last line of defence for stored credentials. Changing it invalidates all existing password hashes.
+      what_breaks: |-
+        All existing users are locked out. Passwords unverifiable without a migration.
+      derived_from:
+        - "android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+      relationships:
+        - "protects:CONST-SEC-001"
+        - "protects:CONST-SEC-003"
+        - "protects:CONST-SEC-006"
+        - "protects:CONST-SEC-007"
+        - "protects:CONST-SEC-009"
+
+    - id: "CONST-SEC-001"
+      category: "Security"
+      severity: "CRITICAL"
+      confidence: 0.94
+      source: "jwt"
+      manual: false
+      description: |-
+        JWT authentication flow must remain operational.
+      reason: |-
+        JWT is detected as the active auth system. Changing or removing it invalidates all existing sessions.
+      what_breaks: |-
+        All protected routes return 401. User sessions invalidated. Logout flows break.
+      derived_from:
+        - "scripts/test_auth_consent_flow.mjs"
+        - "src/context/AuthContext.tsx"
+        - "src/pages/EmailAuthPage.tsx"
+        - "src/services/authService.ts"
+
+    - id: "CONST-SEC-003"
+      category: "Security"
+      severity: "CRITICAL"
+      confidence: 0.90
+      source: "firebase"
+      manual: false
+      description: |-
+        Firebase Auth authentication flow must remain operational.
+      reason: |-
+        Firebase Auth is detected as the active auth system. Changing or removing it invalidates all existing sessions.
+      what_breaks: |-
+        All protected routes return 401. User sessions invalidated. Logout flows break.
+      derived_from:
+        - "scripts/test_auth_consent_flow.mjs"
+        - "scripts/unit/firebase_sync.test.mjs"
+        - "scripts/validate_firebase_env.mjs"
+        - "src/context/AuthContext.tsx"
+
+    - id: "CONST-SEC-006"
+      category: "Security"
+      severity: "CRITICAL"
+      confidence: 0.95
+      source: "heuristic"
+      manual: false
+      description: |-
+        Encryption implementation must remain algorithm-compatible.
+      reason: |-
+        Changing the encryption algorithm or key derivation method makes all existing encrypted data unreadable.
+      what_breaks: |-
+        Encrypted data (tokens, at-rest fields, backups) cannot be decrypted.
+      derived_from:
+        - "worker-configuration.d.ts"
+
+    - id: "CONST-SEC-007"
+      category: "Security"
+      severity: "CRITICAL"
+      confidence: 0.90
+      source: "heuristic"
+      manual: false
+      description: |-
+        Environment secrets must never be hardcoded in source files.
+      reason: |-
+        Secrets committed to source are exposed via version control history and repository access.
+      what_breaks: |-
+        Security breach. API keys, database credentials, and tokens compromised.
+      derived_from:
+        - "docs/generate_pdf.mjs"
+        - "scratch/generate_pdf.mjs"
+        - "scratch/send_tester_emails.mjs"
+        - "scripts/cloudinary_delete_all_images.mjs"
+
+    - id: "CONST-SEC-009"
+      category: "Security"
+      severity: "CRITICAL"
+      confidence: 0.99
+      source: "heuristic"
+      manual: false
+      description: |-
+        Environment variable files (.env) must never be committed to version control.
+      reason: |-
+        .env files contain secrets. Committing them exposes credentials to all repository users.
+      what_breaks: |-
+        All secrets in .env become public. Immediate security incident.
+      derived_from:
+        - ".env"
+        - ".env.example"
+
+    - id: "CONST-COMP-001"
+      category: "Compliance"
+      severity: "CRITICAL"
+      confidence: 0.90
+      source: "heuristic"
+      manual: false
+      description: |-
+        Payment processing (PCI-DSS) — all Stripe/payment code requires compliance review.
+      reason: |-
+        PCI-DSS requires that all payment card data handling meets security standards. Any change to payment flows must be reviewed.
+      what_breaks: |-
+        PCI compliance violation. Payment processor account suspension. Legal liability.
+      derived_from:
+        - ".agents/skills/responsive-design/references/container-queries.md"
+        - ".agents/skills/responsive-design/references/details.md"
+        - ".agents/skills/responsive-design/references/fluid-layouts.md"
+        - ".tokencap/constitution/compliance-rules.md"
+
+    - id: "CONST-COMP-002"
+      category: "Compliance"
+      severity: "CRITICAL"
+      confidence: 0.80
+      source: "heuristic"
+      manual: false
+      description: |-
+        GDPR compliance — personal data handling must preserve user rights (consent, erasure, portability).
+      reason: |-
+        GDPR requires explicit consent for data collection, the right to erasure, and data portability. Removing these breaks legal compliance.
+      what_breaks: |-
+        GDPR violation. Regulatory fines. User data rights cannot be exercised.
+      derived_from:
+        - ".tokencap/agent/START_HERE.md"
+        - ".tokencap/agent/agent-pack.md"
+        - ".tokencap/agent/architecture.md"
+        - ".tokencap/agent/model-instructions.md"
+
+    - id: "CONST-COMP-003"
+      category: "Compliance"
+      severity: "CRITICAL"
+      confidence: 0.75
+      source: "heuristic"
+      manual: false
+      description: |-
+        HIPAA compliance — protected health information (PHI) handling must remain compliant.
+      reason: |-
+        HIPAA requires strict access control, audit logging, and encryption for all PHI. Removing protections is illegal.
+      what_breaks: |-
+        HIPAA violation. Criminal liability. Patient data exposed.
+      derived_from:
+        - ".tokencap/constitution/compliance-rules.md"
+        - ".tokencap/constitution/constitution.md"
+        - ".tokencap/constitution/constitution.yaml"
+        - "android/app/src/main/assets/public/assets/516-VkbN94rn.js"
+
+    - id: "CONST-COMP-004"
+      category: "Compliance"
+      severity: "CRITICAL"
+      confidence: 0.85
+      source: "heuristic"
+      manual: false
+      description: |-
+        Audit logging must always be written and never removed.
+      reason: |-
+        Audit logs provide the immutable record required for compliance, forensic investigation, and regulatory review.
+      what_breaks: |-
+        Compliance audit failures. Inability to investigate security incidents. Regulatory violations.
+      derived_from:
+        - ".tokencap/constitution/compliance-rules.md"
+        - ".tokencap/constitution/constitution.md"
+        - ".tokencap/constitution/constitution.yaml"
+        - "ADMIN_TRACKER.md"
+
+    - id: "CONST-FLOW-001"
+      category: "CriticalFlow"
+      severity: "CRITICAL"
+      confidence: 0.95
+      source: "heuristic"
+      manual: false
+      description: |-
+        Authentication Flow is repository-critical and must remain intact end-to-end.
+      reason: |-
+        Every protected page and authenticated feature depends on this flow working correctly.
+      what_breaks: |-
+        Users cannot log in. All authenticated features become unreachable. Sessions invalidated.
+      derived_from:
+        - "scripts/test_auth_consent_flow.mjs"
+        - "src/context/AuthContext.tsx"
+        - "src/pages/EmailAuthPage.tsx"
+        - "src/services/authService.ts"
+      relationships:
+        - "dependsOn:CONST-SEC-001"
+        - "dependsOn:CONST-SEC-002"
+        - "dependsOn:CONST-SEC-003"
+        - "dependsOn:CONST-SEC-004"
+        - "dependsOn:CONST-SEC-005"
+
+    - id: "CONST-FLOW-002"
+      category: "CriticalFlow"
+      severity: "CRITICAL"
+      confidence: 0.92
+      source: "heuristic"
+      manual: false
+      description: |-
+        User Registration Flow must remain functional. New users must be able to create accounts.
+      reason: |-
+        Registration is the entry point for all new users. Breaking it stops user growth.
+      what_breaks: |-
+        New users cannot create accounts. User acquisition blocked.
+      derived_from:
+        - "scripts/execute_onboarding_and_alert_flows.mjs"
+        - "scripts/run_continuous_onboarding.mjs"
+        - "src/pages/DogOnboardingPage.tsx"
+        - "src/pages/LocationOnboardingPage.tsx"
+        - "src/pages/OnboardingChoicePage.tsx"
+      relationships:
+        - "dependsOn:CONST-SEC-001"
+        - "dependsOn:CONST-SEC-002"
+        - "dependsOn:CONST-SEC-003"
+        - "dependsOn:CONST-SEC-004"
+        - "dependsOn:CONST-SEC-005"
+
+    - id: "CONST-FLOW-003"
+      category: "CriticalFlow"
+      severity: "CRITICAL"
+      confidence: 0.82
+      source: "heuristic"
+      manual: false
+      description: |-
+        Notification Pipeline (email, webhook, SMS) must remain operational.
+      reason: |-
+        Notifications are critical for transactional communication (receipts, alerts, order updates).
+      what_breaks: |-
+        Users stop receiving transactional emails. Webhooks fail silently. Integrations break.
+      derived_from:
+        - "scratch/send_tester_emails.mjs"
+        - "src/pages/EmailAuthPage.tsx"
+      relationships:
+        - "dependsOn:CONST-SEC-001"
+        - "dependsOn:CONST-SEC-002"
+        - "dependsOn:CONST-SEC-003"
+        - "dependsOn:CONST-SEC-004"
+        - "dependsOn:CONST-SEC-005"
+
+    - id: "CONST-ARCH-001"
+      category: "Architecture"
+      severity: "HIGH"
+      confidence: 0.72
+      source: "heuristic"
+      manual: false
+      description: |-
+        Services cannot import UI components.
+      reason: |-
+        Importing UI components into services couples server-side logic to browser rendering. This breaks SSR, testability, and separation of concerns.
+      what_breaks: |-
+        Server-side services gain browser-only dependencies. Unit tests for services fail. SSR breaks.
+
+    - id: "CONST-ARCH-002"
+      category: "Architecture"
+      severity: "HIGH"
+      confidence: 0.72
+      source: "heuristic"
+      manual: false
+      description: |-
+        Controllers cannot access the database directly.
+      reason: |-
+        Direct DB access in controllers bypasses the service layer. This breaks the layered architecture and makes logic untestable.
+      what_breaks: |-
+        Business logic leaks into controllers. Database coupling makes refactoring expensive.
+
+    - id: "CONST-ARCH-003"
+      category: "Architecture"
+      severity: "HIGH"
+      confidence: 0.72
+      source: "heuristic"
+      manual: false
+      description: |-
+        Route handlers cannot access the database directly.
+      reason: |-
+        Routes should delegate to services/controllers, not query the database themselves.
+      what_breaks: |-
+        Business logic scattered across route files. Impossible to test in isolation.
+
+    - id: "CONST-ARCH-004"
+      category: "Architecture"
+      severity: "HIGH"
+      confidence: 0.72
+      source: "heuristic"
+      manual: false
+      description: |-
+        UI components cannot import server-only modules.
+      reason: |-
+        Server-only modules may contain secrets or Node.js-only APIs that crash in the browser.
+      what_breaks: |-
+        Build errors in browser environments. Potential secret exposure.
+
+    - id: "CONST-ARCH-005"
+      category: "Architecture"
+      severity: "HIGH"
+      confidence: 0.80
+      source: "heuristic"
+      manual: false
+      description: |-
+        High-impact clusters (Other, Database, Config) must not gain new circular dependencies.
+      reason: |-
+        High-impact clusters already coordinate many modules. Adding circular imports makes builds fragile.
+      what_breaks: |-
+        Module resolution fails. Build tools (webpack, esbuild) may hang or produce incorrect output.
+
+    - id: "CONST-SEC-008"
+      category: "Security"
+      severity: "HIGH"
+      confidence: 0.82
+      source: "heuristic"
+      manual: false
+      description: |-
+        Rate limiting must not be removed from public endpoints.
+      reason: |-
+        Rate limiting prevents brute-force attacks and denial-of-service.
+      what_breaks: |-
+        Brute-force login attacks. API abuse. Service degradation under load.
+      derived_from:
+        - "worker-configuration.d.ts"

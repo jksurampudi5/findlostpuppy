@@ -13,6 +13,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { NativeGeocoder } from '@capgo/capacitor-nativegeocoder';
 import { findMandalByCoordinates } from './boundaryLookup';
+import { normalizeToEnglishText } from './indicTransliteration';
 
 export interface LocationDiagnostic {
   platform: string;
@@ -355,11 +356,12 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=en&namedetails=1`,
       {
         signal: controller.signal,
         headers: {
           Accept: 'application/json',
+          'Accept-Language': 'en, en-US;q=0.9',
           'User-Agent': 'FindLostPuppy-MobileApp/1.0 (https://findlostpuppy.com)',
         },
       }
@@ -368,14 +370,28 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
     if (res.ok) {
       const data = await res.json();
       const addr = data.address || {};
-      state = addr.state;
-      district = addr.state_district || addr.county || addr.district;
-      mandal = addr.subdistrict || addr.county || addr.city_district || addr.suburb;
-      city = addr.city || addr.town || addr.village || addr.suburb || addr.residential || addr.neighbourhood;
+      const namedetails = data.namedetails || {};
+
+      state = normalizeToEnglishText(namedetails['name:en:state'] || addr.state) || undefined;
+      district = normalizeToEnglishText(addr.state_district || addr.county || addr.district) || undefined;
+      mandal = normalizeToEnglishText(addr.subdistrict || addr.county || addr.city_district || addr.suburb) || undefined;
+      city = normalizeToEnglishText(
+        namedetails['name:en:city'] ||
+        namedetails['name:en:village'] ||
+        namedetails['name:en:town'] ||
+        addr.city ||
+        addr.town ||
+        addr.village ||
+        addr.suburb ||
+        addr.residential ||
+        addr.neighbourhood
+      ) || undefined;
 
       // Robust street / precise locality extraction:
       // Check road, street, path, hamlet, residential, neighbourhood, suburb, quarter, colony, etc.
       const candidateStreet =
+        namedetails['name:en'] ||
+        namedetails['name:en:road'] ||
         addr.road ||
         addr.street ||
         addr.pedestrian ||
@@ -409,11 +425,12 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
         }
       }
 
-      if (candidateStreet && candidateStreet.toLowerCase() !== (city || '').toLowerCase()) {
-        street = candidateStreet;
-      } else if (displayStreet) {
-        street = displayStreet;
-      }
+      const rawStreet =
+        candidateStreet && candidateStreet.toLowerCase() !== (city || '').toLowerCase()
+          ? candidateStreet
+          : displayStreet;
+
+      street = normalizeToEnglishText(rawStreet) || undefined;
 
       pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
       provider = 'nominatim';
@@ -434,10 +451,10 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        state = state || data.principalSubdivision;
-        district = district || data.localityInfo?.administrative?.[2]?.name || data.city;
-        mandal = mandal || data.localityInfo?.administrative?.[3]?.name || data.locality;
-        city = city || data.city || data.locality;
+        state = state || normalizeToEnglishText(data.principalSubdivision) || undefined;
+        district = district || normalizeToEnglishText(data.localityInfo?.administrative?.[2]?.name || data.city) || undefined;
+        mandal = mandal || normalizeToEnglishText(data.localityInfo?.administrative?.[3]?.name || data.locality) || undefined;
+        city = city || normalizeToEnglishText(data.city || data.locality) || undefined;
         if (!street) {
           const admin4 = data.localityInfo?.administrative?.[4]?.name;
           const infoLocality = data.localityInfo?.informative?.find(
@@ -451,7 +468,7 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
           )?.name;
           const candidate = admin4 || infoLocality;
           if (candidate && candidate.toLowerCase() !== (city || '').toLowerCase()) {
-            street = candidate;
+            street = normalizeToEnglishText(candidate) || undefined;
           }
         }
         pinCode = pinCode || (data.postcode ? data.postcode.replace(/\D/g, '').slice(0, 6) : undefined);
@@ -502,21 +519,21 @@ async function getNativeGeocodedAddress(
 
     const addr = result.addresses[0];
 
-    const state = addr.administrativeArea?.trim() || undefined;
-    const district = addr.subAdministrativeArea?.trim() || undefined;
-    const mandal = addr.subLocality?.trim() || undefined;
-    const city = addr.locality?.trim() || undefined;
+    const state = normalizeToEnglishText(addr.administrativeArea?.trim()) || undefined;
+    const district = normalizeToEnglishText(addr.subAdministrativeArea?.trim()) || undefined;
+    const mandal = normalizeToEnglishText(addr.subLocality?.trim()) || undefined;
+    const city = normalizeToEnglishText(addr.locality?.trim()) || undefined;
 
     // Google Plus Code filter: patterns like "QMCX+3RF", "VX5J+Q3", "8FW4+RX Hyderabad" etc.
     // These are Open Location Codes returned by Android geocoder's areasOfInterest/thoroughfare
     // and are NOT human-readable street names. Filter them out entirely.
     const PLUS_CODE_REGEX = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
 
-    const rawThoroughfare = addr.thoroughfare?.trim();
-    const rawSubThoroughfare = addr.subThoroughfare?.trim();
+    const rawThoroughfare = normalizeToEnglishText(addr.thoroughfare?.trim());
+    const rawSubThoroughfare = normalizeToEnglishText(addr.subThoroughfare?.trim());
     const rawAreaOfInterest =
       Array.isArray(addr.areasOfInterest) && addr.areasOfInterest.length > 0
-        ? addr.areasOfInterest[0]?.trim()
+        ? normalizeToEnglishText(addr.areasOfInterest[0]?.trim())
         : undefined;
 
     const street =
@@ -735,8 +752,8 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     // Village/city comes from whichever geocoding tier returned it.
     // IMPORTANT: Do NOT fall back to mandal here — that causes village and mandal to show as identical.
     // If city is truly unknown, leave it undefined and let matchLocation/locality picker resolve it.
-    city = mergedCity || undefined;
-    let street = mergedStreet;
+    city = normalizeToEnglishText(mergedCity) || undefined;
+    let street = normalizeToEnglishText(mergedStreet) || undefined;
     // Only create a locality-style road label when a city/locality was actually
     // resolved. A mandal-only result must leave this blank for manual selection.
     if (!street && city) {

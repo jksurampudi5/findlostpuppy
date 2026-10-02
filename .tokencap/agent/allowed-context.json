@@ -1,0 +1,81 @@
+{
+  "database": [
+    ".tokencap/constitution/schema-invariants*",
+    "scratch/**"
+  ],
+  "scripts-qalib": [
+    "scratch/test_consent_flow*",
+    "scripts/**"
+  ],
+  "unit-testharness": [
+    "scripts/unit/**"
+  ],
+  "components-authcontext": [
+    "src/context/AuthContext*",
+    "src/pages/**",
+    "src/components/**",
+    "src/utils/**",
+    "src/services/**",
+    "src/data/dogBreeds*"
+  ],
+  "components-toastcontext": [
+    "src/context/ToastContext*",
+    "src/pages/**",
+    "src/components/**",
+    "src/services/locationService*",
+    "src/utils/**",
+    "src/hooks/useCrashSafeDraft*"
+  ],
+  "pages-index": [
+    "src/services/**",
+    "src/pages/**",
+    "src/components/**",
+    "src/types/index*",
+    "src/utils/**"
+  ],
+  "other": [
+    ".github/workflows/deploy*",
+    ".tokencap/constitution/**",
+    "android/app/src/main/assets/public/**",
+    "cleanup_cloudinary*",
+    "functions/index*",
+    "scratch/**",
+    "scripts/**",
+    "src/types/geojson.d*",
+    "worker-configuration.d*",
+    "worker/index*"
+  ],
+  "config": [
+    "capacitor.config*",
+    "scripts/validate_firebase_env*",
+    "src/vite-env.d*",
+    "vite.config*"
+  ],
+  "services": [
+    "docs/generate_pdf*",
+    "scratch/**",
+    "scripts/**"
+  ],
+  "authentication": [
+    "scratch/extract_session*",
+    "scripts/test_auth_consent_flow*"
+  ],
+  "frontend": [
+    "scratch/**",
+    "scripts/**",
+    "src/components/**"
+  ],
+  "testing": [
+    "scratch/**",
+    "scripts/**"
+  ],
+  "components-fallbackshell": [
+    "src/**"
+  ],
+  "dashboard": [
+    "scratch/**"
+  ],
+  "utilities": [
+    "src/lib/utils*"
+  ]
+}

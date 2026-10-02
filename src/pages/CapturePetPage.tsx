@@ -647,7 +647,12 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
-  /** Uploads or queues captured photos and saves a sighting for the selected report and signed-in user. */
+  /**
+   * Uploads all captured photos to Cloudinary first (in parallel, 15 s timeout),
+   * then saves the sighting with real Cloudinary URLs so Firestore receives the
+   * correct photo URL — matching the profile-photo save flow.
+   * Falls back to base64 locally if Cloudinary is unreachable.
+   */
   const handleSubmit = async () => {
     if (!user || !selectedReport) return;
     if (capturedPhotos.length === 0) {
@@ -660,36 +665,43 @@ export const CapturePetPage: React.FC = () => {
 
     setSubmitting(true);
     const now = new Date();
-    const sightingId = `sight-${Date.now()}`;
-    const uploadedPhotos: string[] = [];
-    for (let index = 0; index < capturedPhotos.length; index += 1) {
-      const capturedPhoto = capturedPhotos[index];
-      try {
-        const uploadedUrl = await storageBucketService.uploadSightingPhoto(selectedReport.id, capturedPhoto);
-        if (uploadedUrl) {
-          uploadedPhotos.push(uploadedUrl);
-        } else {
-          storageBucketService.enqueueItem({
-            category: 'sighting',
-            referenceId: selectedReport.id,
-            recordId: sightingId,
-            ownerId: user.id,
-            index,
-            base64Data: capturedPhoto,
-          });
-        }
-      } catch {
-        storageBucketService.enqueueItem({
-          category: 'sighting',
-          referenceId: selectedReport.id,
-          recordId: sightingId,
-          ownerId: user.id,
-          index,
-          base64Data: capturedPhoto,
-        });
-      }
+    const sightingId = `sight-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // Unique sub-folder per sighting so multiple sightings on the same report
+    // don't overwrite each other.  Planned layout:
+    //   findlostpuppy/sightings_pets/{reportId}/{shortId}/photo
+    //   findlostpuppy/sightings_pets/{reportId}/{shortId}/photo_1  …
+    const shortId = sightingId.replace('sight-', '').slice(0, 12);
+    const cloudinaryReportKey = `${selectedReport.id}/${shortId}`;
+
+    // ── Upload all photos to Cloudinary in parallel (max 15 s) ───────────────
+    let uploadedUrls: string[] = [];
+    try {
+      const TIMEOUT_MS = 15_000;
+      const withTimeout = <T,>(p: Promise<T>): Promise<T> =>
+        Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS))]);
+
+      const results = await withTimeout(
+        Promise.allSettled(
+          capturedPhotos.map((photo, index) =>
+            storageBucketService.uploadSightingPhoto(cloudinaryReportKey, photo, index)
+          )
+        )
+      );
+
+      uploadedUrls = (results as PromiseSettledResult<string | null>[])
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled' && !!r.value)
+        .map((r) => r.value);
+
+      console.log(`[CapturePetPage] ${uploadedUrls.length}/${capturedPhotos.length} photos uploaded to Cloudinary.`);
+    } catch {
+      console.warn('[CapturePetPage] Cloudinary upload timed-out or failed — using base64 fallback.');
     }
 
+    // Use Cloudinary URLs when available; base64 as local fallback
+    const finalPhotos = uploadedUrls.length > 0 ? uploadedUrls : [...capturedPhotos];
+    const finalPhoto  = finalPhotos[0];
+
+    // ── Save sighting with real URLs (Firestore will receive Cloudinary links) ─
     const sighting: Sighting = {
       id: sightingId,
       reportId: selectedReport.id,
@@ -704,8 +716,8 @@ export const CapturePetPage: React.FC = () => {
       pinCode: detectedLocation.pinCode,
       latitude,
       longitude,
-      photo: uploadedPhotos[0],
-      photos: uploadedPhotos,
+      photo: finalPhoto,
+      photos: finalPhotos,
       description: 'Photo sighting submitted from Capture Pet. Reporter contact remains private.',
       reporterUserId: user.id,
       isGuest: false,
@@ -715,22 +727,25 @@ export const CapturePetPage: React.FC = () => {
     storageService.addSighting(sighting);
     window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
     window.dispatchEvent(new Event('storage'));
+
     setCapturedPhotos([]);
     setLocationText('');
     setDetectedLocation({ state: '', district: '', mandal: '', village: '', pinCode: '' });
     setSubmitting(false);
     stopCamera();
+
+    const allUploaded = uploadedUrls.length === capturedPhotos.length;
     showToast(
-      uploadedPhotos.length === capturedPhotos.length
-        ? 'Sighting captured privately and shared with the pet alert.'
-        : 'Sighting saved. Pending photos are queued for secure upload.',
-      uploadedPhotos.length === capturedPhotos.length ? 'success' : 'info',
+      allUploaded
+        ? `🐾 Sighting saved & ${uploadedUrls.length === 1 ? 'photo' : `${uploadedUrls.length} photos`} synced to Cloudinary ✅`
+        : 'Sighting saved locally. Photos will sync when connection improves.',
+      allUploaded ? 'success' : 'info',
     );
     setShowSuccessTick(true);
     setTimeout(() => {
       setShowSuccessTick(false);
       navigate('/homepage');
-    }, 1000);
+    }, 1200);
   };
 
   const handleExitToDashboard = () => {

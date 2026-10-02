@@ -57,11 +57,15 @@ class ConsentService {
   }
 
   /**
-   * Strictly verifies if the user has accepted the CURRENT version of consent.
-   * If terms are updated or no consent exists, returns false.
+   * Verifies if the user or device has accepted consent.
+   * If a returning user has previous consent, or if current consent is stored, returns true.
    */
-  hasAcceptedCurrentConsent(): boolean {
+  hasAcceptedCurrentConsent(userId?: string): boolean {
     this.loadConsent();
+    if (userId && typeof localStorage !== 'undefined') {
+      if (localStorage.getItem(`findlostpuppy_returning_user_${userId}`) === 'true') return true;
+      if (localStorage.getItem(`findlostpuppy_consent_accepted_${userId}`) === 'true') return true;
+    }
     if (!this.consentRecord) return false;
     return (
       this.consentRecord.consentVersion === CURRENT_CONSENT_VERSION &&
@@ -71,6 +75,38 @@ class ConsentService {
       this.consentRecord.guidelinesVersion === CURRENT_GUIDELINES_VERSION &&
       !!this.consentRecord.agreedAt
     );
+  }
+
+  /**
+   * Checks whether the user is a genuine first-time user who needs to see the initial consent.
+   */
+  isFirstTimeUser(userId?: string): boolean {
+    if (typeof localStorage === 'undefined') return true;
+    if (localStorage.getItem('findlostpuppy_has_accepted_consent') === 'true') return false;
+    if (userId) {
+      if (localStorage.getItem(`findlostpuppy_returning_user_${userId}`) === 'true') return false;
+      if (localStorage.getItem(`findlostpuppy_consent_accepted_${userId}`) === 'true') return false;
+    }
+    if (this.hasAcceptedCurrentConsent(userId)) return false;
+    return true;
+  }
+
+  /**
+   * Permanently flags consent as completed for an existing user so they never see it again.
+   */
+  markConsentCompletedForUser(userId?: string): void {
+    try {
+      localStorage.setItem('findlostpuppy_has_accepted_consent', 'true');
+      if (userId) {
+        localStorage.setItem(`findlostpuppy_consent_accepted_${userId}`, 'true');
+        localStorage.setItem(`findlostpuppy_returning_user_${userId}`, 'true');
+      }
+      if (!this.hasAcceptedCurrentConsent(userId)) {
+        this.recordConsent(userId);
+      }
+    } catch (e) {
+      console.warn('Failed to mark consent:', e);
+    }
   }
 
   getConsentRecord(): ConsentRecord | null {
@@ -109,6 +145,10 @@ class ConsentService {
 
     try {
       localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(record));
+      if (userId) {
+        localStorage.setItem(`findlostpuppy_consent_accepted_${userId}`, 'true');
+        localStorage.setItem(`findlostpuppy_returning_user_${userId}`, 'true');
+      }
       this.consentRecord = record;
     } catch (e) {
       console.warn('Failed to persist consent record:', e);
@@ -124,10 +164,15 @@ class ConsentService {
   /**
    * Revokes or clears consent (used on account deletion or testing version bumps).
    */
-  revokeConsent(): void {
+  revokeConsent(userId?: string): void {
     this.consentRecord = null;
     try {
       localStorage.removeItem(CONSENT_STORAGE_KEY);
+      localStorage.removeItem('findlostpuppy_has_accepted_consent');
+      if (userId) {
+        localStorage.removeItem(`findlostpuppy_consent_accepted_${userId}`);
+        localStorage.removeItem(`findlostpuppy_returning_user_${userId}`);
+      }
     } catch (e) {
       console.warn('Failed to remove consent record:', e);
     }

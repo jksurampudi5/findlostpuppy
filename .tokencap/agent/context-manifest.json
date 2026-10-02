@@ -1,0 +1,256 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-10-02T04:45:29.739Z",
+  "entry": "START_HERE.md",
+  "project": {
+    "name": "findlostpuppy",
+    "type": "React + TypeScript",
+    "architectureStyle": "Component Layer -> Service Layer"
+  },
+  "clusters": [
+    "database",
+    "scripts-(qa_lib)",
+    "unit-(test_harness)",
+    "components-(authcontext)",
+    "components-(toastcontext)",
+    "pages-(index)",
+    "other",
+    "config",
+    "services",
+    "authentication",
+    "frontend",
+    "testing",
+    "components-(fallbackshell)",
+    "dashboard",
+    "utilities"
+  ],
+  "criticalFiles": [
+    "src/types/index.ts",
+    "src/services/storageService.ts",
+    "src/context/AuthContext.tsx",
+    "src/context/ToastContext.tsx",
+    "src/utils/dogPhotoHelper.ts",
+    "src/services/storageBucketService.ts",
+    "scripts/qa_lib.mjs",
+    "scripts/unit/test_harness.mjs",
+    "src/utils/imageCompressor.ts",
+    "src/services/locationService.ts"
+  ],
+  "riskAreas": [
+    {
+      "cluster": "database",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "scripts-(qa_lib)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "unit-(test_harness)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "components-(authcontext)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "components-(toastcontext)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "pages-(index)",
+      "level": "HIGH"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "name": "Database Review Group",
+      "fileCount": 3
+    },
+    {
+      "name": "Scripts (qa_lib) Review Group",
+      "fileCount": 10
+    },
+    {
+      "name": "Unit (test_harness) Review Group",
+      "fileCount": 9
+    },
+    {
+      "name": "Components (AuthContext) Review Group",
+      "fileCount": 14
+    },
+    {
+      "name": "Components (ToastContext) Review Group",
+      "fileCount": 14
+    },
+    {
+      "name": "Pages (index) Review Group",
+      "fileCount": 14
+    }
+  ],
+  "allowedContext": {
+    "database": [
+      ".tokencap/constitution/schema-invariants*",
+      "scratch/**"
+    ],
+    "scripts-qalib": [
+      "scratch/test_consent_flow*",
+      "scripts/**"
+    ],
+    "unit-testharness": [
+      "scripts/unit/**"
+    ],
+    "components-authcontext": [
+      "src/context/AuthContext*",
+      "src/pages/**",
+      "src/components/**",
+      "src/utils/**",
+      "src/services/**",
+      "src/data/dogBreeds*"
+    ],
+    "components-toastcontext": [
+      "src/context/ToastContext*",
+      "src/pages/**",
+      "src/components/**",
+      "src/services/locationService*",
+      "src/utils/**",
+      "src/hooks/useCrashSafeDraft*"
+    ],
+    "pages-index": [
+      "src/services/**",
+      "src/pages/**",
+      "src/components/**",
+      "src/types/index*",
+      "src/utils/**"
+    ],
+    "other": [
+      ".github/workflows/deploy*",
+      ".tokencap/constitution/**",
+      "android/app/src/main/assets/public/**",
+      "cleanup_cloudinary*",
+      "functions/index*",
+      "scratch/**",
+      "scripts/**",
+      "src/types/geojson.d*",
+      "worker-configuration.d*",
+      "worker/index*"
+    ],
+    "config": [
+      "capacitor.config*",
+      "scripts/validate_firebase_env*",
+      "src/vite-env.d*",
+      "vite.config*"
+    ],
+    "services": [
+      "docs/generate_pdf*",
+      "scratch/**",
+      "scripts/**"
+    ],
+    "authentication": [
+      "scratch/extract_session*",
+      "scripts/test_auth_consent_flow*"
+    ],
+    "frontend": [
+      "scratch/**",
+      "scripts/**",
+      "src/components/**"
+    ],
+    "testing": [
+      "scratch/**",
+      "scripts/**"
+    ],
+    "components-fallbackshell": [
+      "src/**"
+    ],
+    "dashboard": [
+      "scratch/**"
+    ],
+    "utilities": [
+      "src/lib/utils*"
+    ]
+  },
+  "recommendedReads": {
+    "database": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "scripts-(qa_lib)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "unit-(test_harness)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "components-(authcontext)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "components-(toastcontext)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "pages-(index)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "config": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "services": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "authentication": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "frontend": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "testing": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "unclassified:-scripts": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "components-(fallbackshell)": [
+      "architecture.md",
+      "rules.md"
+    ]
+  },
+  "files": {
+    "entry": "START_HERE.md",
+    "intelligence": "agent-pack.md",
+    "allowedContext": "allowed-context.json",
+    "modelInstructions": "model-instructions.md",
+    "architecture": "architecture.md",
+    "rules": "rules.md",
+    "reviewRules": "review-rules.md",
+    "riskMap": "risk-map.md",
+    "techStack": "tech-stack.md",
+    "skills": "skills.md",
+    "machineReadable": "agent.json"
+  },
+  "meta": {
+    "tokencapVersion": "1.0.0",
+    "description": "Self-Loading Universal Context Layer - machine-readable repository intelligence index.",
+    "usage": "Read entry file first, then use allowedContext and recommendedReads for navigation."
+  }
+}

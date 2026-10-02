@@ -14,7 +14,8 @@ export function readCrashSafeDraft<T>(key: string): T | null {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const draft = JSON.parse(raw) as StoredDraft<T>;
-    if (!draft.savedAt || Date.now() - Date.parse(draft.savedAt) > MAX_DRAFT_AGE_MS) {
+    const parsedTime = Date.parse(draft.savedAt);
+    if (!draft.savedAt || Number.isNaN(parsedTime) || Date.now() - parsedTime > MAX_DRAFT_AGE_MS) {
       localStorage.removeItem(key);
       return null;
     }

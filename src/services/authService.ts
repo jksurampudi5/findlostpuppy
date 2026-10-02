@@ -72,7 +72,7 @@ class AuthService {
       try {
         const saved = localStorage.getItem('findlostpuppy_active_user');
         if (saved) this.currentUser = JSON.parse(saved);
-      } catch {}
+      } catch { }
     }
   }
 
@@ -95,7 +95,7 @@ class AuthService {
       try {
         const saved = localStorage.getItem('findlostpuppy_active_user');
         if (saved) this.currentUser = JSON.parse(saved);
-      } catch {}
+      } catch { }
     }
     return this.currentUser;
   }
@@ -106,7 +106,7 @@ class AuthService {
       try {
         if (user) localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
         else localStorage.removeItem('findlostpuppy_active_user');
-      } catch {}
+      } catch { }
     }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
@@ -170,7 +170,7 @@ class AuthService {
         }
         const mapped = mapFirebaseUser(result.user);
         this.setCurrentUser(mapped);
-        await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+        await firebaseSyncService.syncUserProfile(mapped).catch(() => { });
         return { success: true, user: mapped };
       }
 
@@ -181,7 +181,7 @@ class AuthService {
       }
       const mapped = mapFirebaseUser(result.user);
       this.setCurrentUser(mapped);
-      await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+      await firebaseSyncService.syncUserProfile(mapped).catch(() => { });
       return { success: true, user: mapped };
     } catch (err: any) {
       const code = String(err?.code || '');

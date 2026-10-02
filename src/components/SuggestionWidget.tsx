@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Lightbulb,
   X,
   Send,
   CheckCircle2,
   Star,
   ExternalLink,
-  Edit2,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { SuggestionCategory } from '../types';
 
-const PLAY_STORE_REVIEW_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
+export const PLAY_STORE_DETAILS_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
+export const PLAY_STORE_TESTING_URL = 'https://play.google.com/apps/testing/om.findlostpuppy.app';
+export const PLAY_STORE_REVIEW_URL =
+  import.meta.env.VITE_PLAY_STORE_URL || PLAY_STORE_DETAILS_URL;
+export const PLAY_STORE_MARKET_URL = 'market://details?id=om.findlostpuppy.app';
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();
@@ -35,17 +38,6 @@ export const SuggestionWidget: React.FC = () => {
     if (isFeedbackRoute || hasFeedbackParam) {
       setIsOpen(true);
       setIsSuccess(false);
-      return;
-    }
-
-    // Automatic App Suggestion Popup on Dashboard — once every 5 days
-    const isDashboard = pathname === '/homepage' || pathname === '/dashboard';
-    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-    const lastShownStr = localStorage.getItem('suggestion_last_shown');
-    const lastShown = lastShownStr ? parseInt(lastShownStr, 10) : 0;
-
-    if (isDashboard && (Date.now() - lastShown > FIVE_DAYS_MS)) {
-      setIsOpen(true);
     }
   }, [pathname, location.search]);
 
@@ -57,7 +49,6 @@ export const SuggestionWidget: React.FC = () => {
   // Identity states (prefilled silently)
   const [name, setName] = useState(user?.name || '');
   const [contact, setContact] = useState(user?.email || user?.phone || '');
-  const [isEditingContact, setIsEditingContact] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -96,6 +87,57 @@ export const SuggestionWidget: React.FC = () => {
     setRating(val);
   };
 
+  const handleOpenPlayStore = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      const isCapacitor =
+        typeof (window as any).Capacitor !== 'undefined' &&
+        (window as any).Capacitor?.isNativePlatform?.();
+
+      if (isCapacitor) {
+        window.location.href = PLAY_STORE_MARKET_URL;
+      } else {
+        const win = window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          window.location.href = PLAY_STORE_REVIEW_URL;
+        }
+      }
+      showToast('⭐ Opening Google Play Store...', 'info');
+    } catch {
+      window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleShareEarlyAccess = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const shareData = {
+      title: 'FindLostPuppy 🐾 (Early Access Testing)',
+      text: 'Help test FindLostPuppy! Review the app and rate us on Google Play:',
+      url: PLAY_STORE_DETAILS_URL,
+    };
+    if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        showToast('🔗 Early Access link shared successfully!', 'success');
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(PLAY_STORE_DETAILS_URL);
+      showToast('📋 Early Access link copied to clipboard! Share with testers to rate.', 'success');
+    } catch {
+      showToast('Could not copy link.', 'warning');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -129,9 +171,9 @@ export const SuggestionWidget: React.FC = () => {
       localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
 
       setIsSuccess(true);
-      showToast('🎉 Thank you! Your feedback was recorded.', 'success');
+      showToast('🎉 Thank you! Your rating was recorded.', 'success');
 
-      // Auto close after 1.5s
+      // Auto close after 2s
       setTimeout(() => {
         setIsSuccess(false);
         setIsOpen(false);
@@ -139,9 +181,9 @@ export const SuggestionWidget: React.FC = () => {
         if (pathname === '/feedback' || pathname === '/suggest') {
           navigate('/homepage');
         }
-      }, 1500);
+      }, 2000);
     } catch {
-      showToast('Could not save suggestion. Please try again.', 'error');
+      showToast('Could not save rating. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,7 +205,7 @@ export const SuggestionWidget: React.FC = () => {
   return (
     <>
       {/* ========================================================================= */}
-      {/* APP SUGGESTION & REVIEW POPUP MODAL                                       */}
+      {/* APP RATING POPUP MODAL                                                    */}
       {/* ========================================================================= */}
       {isOpen && (
         <div className="suggestion-modal-overlay" onClick={handleClose}>
@@ -174,20 +216,15 @@ export const SuggestionWidget: React.FC = () => {
             aria-modal="true"
             aria-labelledby="suggestion-modal-title"
           >
-            {/* Modal Header */}
-            <div className="suggestion-modal-header">
-              <div className="suggestion-header-badge-row">
-                <div className="suggestion-header-icon-box">
-                  <Lightbulb size={28} className="suggestion-header-flame" />
-                </div>
-                <div>
-                  <h3 id="suggestion-modal-title" className="suggestion-modal-title">
-                    💡 App Suggestion & Feedback
-                  </h3>
-                  <p className="suggestion-modal-subtitle">
-                    Share a rating, review, feature idea, or bug report!
-                  </p>
-                </div>
+            {/* Modal Header: Clean title with Star Badge and Close button */}
+            <div className="suggestion-modal-header suggestion-clean-header">
+              <div className="suggestion-modal-title-wrap">
+                <span className="suggestion-modal-star-badge" aria-hidden="true">
+                  <Star size={18} fill="#FFB800" stroke="#FFB800" />
+                </span>
+                <h3 id="suggestion-modal-title" className="suggestion-modal-title">
+                  App Rating
+                </h3>
               </div>
               <button
                 type="button"
@@ -205,20 +242,27 @@ export const SuggestionWidget: React.FC = () => {
                 <div className="suggestion-success-icon-wrap">
                   <CheckCircle2 size={54} className="text-success" />
                 </div>
-                <h4>Thank You! 🎉</h4>
+                <h4>Thank You for Rating! 🎉</h4>
                 <p>
-                  Your suggestion was captured directly into our backend system. Our team reviews
-                  every community idea to make pet reunions faster and smoother!
+                  You rated FindLostPuppy {rating} out of 5 stars. Thank you for helping keep community pets safe!
                 </p>
                 <div className="suggestion-success-actions">
                   <a
                     href={PLAY_STORE_REVIEW_URL}
+                    onClick={handleOpenPlayStore}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-outline btn-sm"
                   >
-                    ⭐ Leave a Public Play Store Review <ExternalLink size={14} />
+                    ⭐ Review on Google Play <ExternalLink size={14} />
                   </a>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleShareEarlyAccess}
+                  >
+                    <Share2 size={14} /> Share Link
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -230,9 +274,7 @@ export const SuggestionWidget: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="suggestion-form">
-                {/* Categories removed as requested, focusing only on Rating */}
-
-                {/* 2. Rating & Direct Review Link Row */}
+                {/* 1. Rating & Direct Review Link Row */}
                 <div className="suggestion-rating-review-card">
                   <div className="rating-review-top">
                     <span className="rating-question-label">Rate your app experience:</span>
@@ -257,7 +299,7 @@ export const SuggestionWidget: React.FC = () => {
                             aria-label={`Rate ${val} out of 5 stars`}
                           >
                             <Star
-                              size={24}
+                              size={26}
                               fill={active ? '#FFB800' : 'none'}
                               stroke={active ? '#FFB800' : '#94a3b8'}
                             />
@@ -266,112 +308,70 @@ export const SuggestionWidget: React.FC = () => {
                       })}
                     </div>
 
-                    {/* Direct Review Link Button */}
-                    <a
-                      href={PLAY_STORE_REVIEW_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="suggestion-playstore-link-btn"
-                      title="Rate or write a public review on Google Play"
-                    >
-                      <span>⭐ Review Page</span>
-                      <ExternalLink size={13} />
-                    </a>
-                  </div>
-
-                  {/* High Rating Callout */}
-                  {rating >= 4 && (
-                    <div className="rating-sweet-callout">
-                      <span>Loved the app? You can also share your public feedback on Google Play!</span>
+                    {/* Direct Review Link & Share Buttons */}
+                    <div className="suggestion-action-links-row">
                       <a
                         href={PLAY_STORE_REVIEW_URL}
+                        onClick={handleOpenPlayStore}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="callout-review-link"
+                        className="suggestion-playstore-link-btn"
+                        title="Rate on Google Play Store"
                       >
-                        Leave a Review ➔
+                        <span>⭐ Rate on Play Store</span>
+                        <ExternalLink size={13} />
                       </a>
+                      <button
+                        type="button"
+                        onClick={handleShareEarlyAccess}
+                        className="suggestion-share-link-btn"
+                        title="Share Early Access App Link with testers"
+                      >
+                        <Share2 size={13} />
+                        <span>Share Link</span>
+                      </button>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Early Access Testing Program Link */}
+                  <div className="suggestion-early-access-subrow">
+                    <span className="early-access-badge">🧪 Early Access:</span>
+                    <a
+                      href={PLAY_STORE_TESTING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="early-access-anchor"
+                    >
+                      Join Google Play Testing Program <ExternalLink size={11} />
+                    </a>
+                  </div>
                 </div>
 
+                {/* 2. Review Text Input Bar */}
                 <div className="suggestion-field-group">
                   <textarea
                     id="suggestion-desc-input"
-                    rows={3}
+                    rows={4}
                     className="suggestion-textarea simplified-textarea"
                     value={suggestionText}
                     onChange={(e) => setSuggestionText(e.target.value)}
-                    placeholder="Share any bug, suggestion, or review text (optional)..."
+                    placeholder="Share any review, thoughts, or suggestions (optional)..."
                     maxLength={1500}
                     autoFocus
                   />
                 </div>
 
-                {/* 4. Subtle Submitter Identity (Compact & Non-intrusive) */}
-                <div className="suggestion-identity-subtle">
-                  {!isEditingContact ? (
-                    <div className="identity-display-row">
-                      <span className="identity-text">
-                        👤 Submitting as{' '}
-                        <strong>{name.trim() || user?.name || 'Pet Parent'}</strong>
-                        {contact ? ` (${contact})` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="identity-edit-btn"
-                        onClick={() => setIsEditingContact(true)}
-                        title="Change contact info"
-                      >
-                        <Edit2 size={12} /> Edit
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="suggestion-user-row compact-user-row">
-                      <div className="suggestion-user-col">
-                        <input
-                          type="text"
-                          className="suggestion-subinput"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Your Name (Optional)"
-                        />
-                      </div>
-                      <div className="suggestion-user-col">
-                        <input
-                          type="text"
-                          className="suggestion-subinput"
-                          value={contact}
-                          onChange={(e) => setContact(e.target.value)}
-                          placeholder="Email or Phone (Optional)"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 5. Modal Footer Actions */}
-                <div className="suggestion-modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={handleClose}
-                  >
-                    Cancel
-                  </button>
+                {/* 3. Centered Submit Button */}
+                <div className="suggestion-modal-footer suggestion-footer-centered">
                   <button
                     type="submit"
-                    className="btn btn-primary btn-sm suggestion-submit-btn"
+                    className="btn btn-primary suggestion-submit-btn"
                     disabled={isSubmitting}
                   >
                     <Send size={15} />
-                    {isSubmitting ? 'Sending...' : 'Submit Feedback 🚀'}
+                    <span>{isSubmitting ? 'Sending...' : 'Submit Rating ⭐'}</span>
                   </button>
                 </div>
-
-                <p style={{ fontSize: '0.8rem', color: '#9CA3AF', margin: '0.75rem 0 0', textAlign: 'center' }}>
-                  💡 Note: Feedback is always available from Nav Bar &gt; Feedback for future reference.
-                </p>
               </form>
             )}
           </div>

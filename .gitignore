@@ -26,6 +26,7 @@ dist-ssr
 *.sln
 *.sw?
 scratch/
+graphify-out/
 
 # Android Signing and Keystores
 *.jks

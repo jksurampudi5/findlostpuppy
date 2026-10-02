@@ -1,0 +1,151 @@
+/* ==========================================================================
+   FLOW LOADING SCREEN (INTERSTITIAL IN-BETWEEN COMPONENT TRANSITION)
+   Plays in the middle when moving from one component (e.g. Owner) to another (e.g. Location).
+   ========================================================================== */
+
+.flow-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: radial-gradient(circle at 50% 40%, rgba(20, 26, 36, 0.98) 0%, rgba(8, 9, 10, 0.99) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #FFFFFF;
+  animation: flowOverlayFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes flowOverlayFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.flow-loading-card {
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.flow-loading-stage {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-loading-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 121, 0, 0.3);
+  animation: pulseRing 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.flow-loading-pulse-ring-delayed {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 121, 0, 0.15);
+  animation: pulseRing 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation-delay: 0.4s;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.flow-loading-center-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 121, 0, 0.2), rgba(230, 81, 0, 0.35));
+  border: 1.5px solid rgba(255, 121, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(255, 121, 0, 0.35);
+  animation: centerIconFloat 2s ease-in-out infinite alternate;
+}
+
+@keyframes centerIconFloat {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-5px);
+  }
+}
+
+.flow-loading-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.flow-loading-subtitle {
+  font-size: 13px;
+  color: #94A3B8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.flow-loading-progress-track {
+  width: 100%;
+  max-width: 260px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.flow-loading-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #FF7900, #FFA726);
+  border-radius: 9999px;
+  transition: width 0.1s linear;
+  box-shadow: 0 0 10px rgba(255, 121, 0, 0.6);
+}
+
+.flow-loading-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 121, 0, 0.12);
+  border: 1px solid rgba(255, 121, 0, 0.3);
+  font-size: 11px;
+  font-weight: 700;
+  color: #FF9800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

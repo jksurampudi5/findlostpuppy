@@ -1,22 +1,34 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Dog, LayoutDashboard, X } from 'lucide-react';
+import { ArrowRight, Dog, LayoutDashboard, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { storageService } from '../services/storageService';
 import { getDogPhotoUrl } from '../utils/dogPhotoHelper';
+import { BackButton } from '../components/ui/back-button';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
 /** Offers pet registration or the existing-pet flow, with an option to skip to the dashboard. */
 export const OnboardingChoicePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, setActiveOnboardingTab } = useAuth();
 
+  const [isTransitioningBack, setIsTransitioningBack] = React.useState(false);
+  const [isTransitioningForward, setIsTransitioningForward] = React.useState(false);
+
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const hasExistingPet = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
   const petPhotoUrl = existingPet ? getDogPhotoUrl(existingPet) : '';
 
   const handleBack = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    setIsTransitioningBack(true);
+  };
+
+  const handleBackTransitionComplete = () => {
+    setIsTransitioningBack(false);
     setActiveOnboardingTab('location');
     navigate('/location');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const exitToDashboard = () => {
@@ -25,8 +37,15 @@ export const OnboardingChoicePage: React.FC = () => {
   };
 
   const goToPetDetails = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    setIsTransitioningForward(true);
+  };
+
+  const handleForwardTransitionComplete = () => {
+    setIsTransitioningForward(false);
     setActiveOnboardingTab('dog');
     navigate('/pet');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const goToCapturePet = () => {
@@ -54,15 +73,11 @@ export const OnboardingChoicePage: React.FC = () => {
           {/* Top-left back button inside container for going back to Location */}
           <div className="pet-profile-header-bar choice-header-bar">
             <div className="pet-profile-header-left">
-              <button
-                type="button"
-                className="pet-profile-back-btn choice-back-btn"
+              <BackButton
                 onClick={handleBack}
                 title="Go back to Location"
                 aria-label="Back to Location"
-              >
-                <ArrowLeft size={18} />
-              </button>
+              />
             </div>
           </div>
 
@@ -126,6 +141,26 @@ export const OnboardingChoicePage: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {isTransitioningBack && (
+        <VillageDogTransition
+          direction="backward"
+          fromStep="Pet Choice"
+          toStep="Location"
+          durationMs={2400}
+          onComplete={handleBackTransitionComplete}
+        />
+      )}
+
+      {isTransitioningForward && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Pet Choice"
+          toStep="Pet Details"
+          durationMs={2400}
+          onComplete={handleForwardTransitionComplete}
+        />
+      )}
     </div>
   );
 };

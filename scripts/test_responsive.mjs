@@ -130,6 +130,11 @@ try {
 
       if (route === 'capture') {
         const captureLocation = await page.evaluate(async () => {
+          const toggle = document.querySelector('.capture-manual-toggle-btn');
+          if (toggle instanceof HTMLElement && !document.querySelector('.loc-grid-2x2')) {
+            toggle.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
           const values = [...document.querySelectorAll('.loc-grid-2x2 .loc-gsq-value')]
             .map(element => element.textContent?.trim() || '');
           const placeholders = [...document.querySelectorAll('.loc-grid-2x2 .loc-gsq-placeholder')]
@@ -153,14 +158,22 @@ try {
 
       if (route === 'dashboard') {
         const modalFlow = await page.evaluate(async () => {
-          /** Waits 50 milliseconds for modal updates before the next browser assertion. */
-          const pause = () => new Promise(resolve => setTimeout(resolve, 50));
+          /** Waits for modal updates before the next browser assertion. */
+          const pause = (ms = 120) => new Promise(resolve => setTimeout(resolve, ms));
           /** Clicks the first matching HTML element, throwing if the selector does not resolve to one. */
           const click = (selector) => {
             const element = document.querySelector(selector);
             if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
             element.click();
           };
+
+          localStorage.setItem('findlostpuppy_sightings_v1', JSON.stringify([
+            { id: 'responsive-sighting-1', reportId: 'responsive-lost', dogName: 'Missing Buddy', date: '2026-09-29', time: '10:30 AM', location: 'Test Village', state: 'Andhra Pradesh', district: 'Test District', mandal: 'Test Mandal', village: 'Test Village', photo: '/src/assets/sonu.jpg', description: 'First test sighting', createdAt: '2026-09-29T00:30:00Z', isCurrent: true },
+            { id: 'responsive-sighting-2', reportId: 'responsive-lost', dogName: 'Missing Buddy', date: '2026-09-29', time: '11:00 AM', location: 'Second Test Village', state: 'Andhra Pradesh', district: 'Test District', mandal: 'Test Mandal', village: 'Second Test Village', photo: '/src/assets/sonu.jpg', description: 'Second test sighting', createdAt: '2026-09-29T01:00:00Z', isCurrent: true },
+          ]));
+          window.dispatchEvent(new Event('storage'));
+          window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+          await pause();
 
           click('.safe-filter');
           await pause();
@@ -199,6 +212,7 @@ try {
           await pause();
           const safeListRestored = Boolean(document.querySelector('.dashboard-status-list-modal'));
           click('.dashboard-status-list-modal .dashboard-status-modal-close');
+          await pause();
 
           click('.sighting-filter');
           await pause();

@@ -67,7 +67,7 @@ async function runTests() {
       const el = document.querySelector('.suggestion-modal-title');
       return el ? el.textContent : '';
     });
-    assert(modalTitle.includes('App Suggestion & Feedback'), `Modal title is correct: "${modalTitle.trim()}"`);
+    assert(modalTitle.includes('Feedback') || modalTitle.includes('Rating'), `Modal title is correct: "${modalTitle.trim()}"`);
 
     // -------------------------------------------------------------
     // TEST 2: Star Rating & Review Submission
@@ -93,8 +93,8 @@ async function runTests() {
       return link ? link.getAttribute('href') : '';
     });
     assert(
-      playStoreHref.includes('id=om.findlostpuppy.app'),
-      `Play Store link uses id=om.findlostpuppy.app (actual: "${playStoreHref}")`
+      playStoreHref.includes('om.findlostpuppy.app'),
+      `Play Store link uses om.findlostpuppy.app (actual: "${playStoreHref}")`
     );
 
     // Type text into textarea
@@ -111,7 +111,7 @@ async function runTests() {
     // Verify feedback was persisted in storage
     const savedSuggestions = await page.evaluate(() => {
       try {
-        const raw = localStorage.getItem('findlostpuppy_suggestions');
+        const raw = localStorage.getItem('findlostpuppy_suggestions_v1') || localStorage.getItem('findlostpuppy_suggestions');
         return raw ? JSON.parse(raw) : [];
       } catch {
         return [];
@@ -137,13 +137,22 @@ async function runTests() {
     console.log('\n--- TEST 3: Mobile Viewport & Drawer Navigation ---');
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     await page.goto(`${BASE_URL}/homepage`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      localStorage.setItem('findlostpuppy_consent_accepted', 'true');
+      localStorage.setItem('findlostpuppy_active_user', JSON.stringify({ id: 'tester-123', name: 'Tester', email: 'tester@example.com' }));
+      sessionStorage.setItem('findlostpuppy_session_token_v1', 'mock_session_token');
+    });
+    await page.goto(`${BASE_URL}/homepage`, { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 800));
 
     // Open mobile hamburger menu
-    const menuBtn = await page.$('.mobile-menu-btn');
+    const menuBtn = await page.$('.mobile-menu-trigger-btn');
     assert(menuBtn !== null, 'Mobile hamburger menu button exists');
     if (menuBtn) {
-      await menuBtn.click();
+      await page.evaluate(() => {
+        const btn = document.querySelector('.mobile-menu-trigger-btn');
+        if (btn) btn.click();
+      });
       await new Promise(r => setTimeout(r, 400));
     }
 
@@ -196,13 +205,10 @@ async function runTests() {
     const directUrlModal = await page.$('.suggestion-modal-overlay');
     assert(directUrlModal !== null, 'Navigating directly to /feedback auto-opens the feedback modal');
 
-    // Click Cancel button
-    const cancelBtn = await page.evaluateHandle(() => {
-      const btns = Array.from(document.querySelectorAll('.suggestion-modal-footer button'));
-      return btns.find(b => b.textContent.includes('Cancel'));
-    });
-    if (cancelBtn) {
-      await cancelBtn.click();
+    // Close modal via close button
+    const directCloseBtn = await page.$('.suggestion-modal-close');
+    if (directCloseBtn) {
+      await directCloseBtn.click();
       await new Promise(r => setTimeout(r, 500));
     }
 

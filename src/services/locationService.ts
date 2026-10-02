@@ -7,6 +7,7 @@ import type {
   LocationSubDistrict,
   LocationLocality,
 } from '../types';
+import { normalizeToEnglishText } from '../utils/indicTransliteration';
 
 export interface LocationMatchResult {
   state: LocationState;
@@ -307,16 +308,14 @@ class LocationService {
     districtCode?: number;
     subDistrictCode?: number;
   }): Promise<LocationMatchResult | null> {
-    const {
-      state: rawState,
-      district: rawDistrict,
-      mandal: rawMandal,
-      locality: rawLocality,
-      pinCode: rawPin,
-      stateCode: explicitStateCode,
-      districtCode: explicitDistrictCode,
-      subDistrictCode: explicitSubDistrictCode,
-    } = params;
+    const rawState = normalizeToEnglishText(params.state);
+    const rawDistrict = normalizeToEnglishText(params.district);
+    const rawMandal = normalizeToEnglishText(params.mandal);
+    const rawLocality = normalizeToEnglishText(params.locality);
+    const rawPin = params.pinCode;
+    const explicitStateCode = params.stateCode;
+    const explicitDistrictCode = params.districtCode;
+    const explicitSubDistrictCode = params.subDistrictCode;
 
     // 1. Match State (explicit code takes precedence)
     let matchedState: LocationState | undefined;
