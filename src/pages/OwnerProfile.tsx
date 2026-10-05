@@ -157,7 +157,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       if (!ownerActionsRef.current) return;
       initialActionScrollRef.current = true;
       ownerActionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 320);
+    }, 2500);
 
     return () => window.clearTimeout(scrollTimer);
   }, [hasProfileData, isEditing, isUploadingPhoto]);

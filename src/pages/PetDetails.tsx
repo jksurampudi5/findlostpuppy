@@ -171,7 +171,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
       if (!petActionsRef.current) return;
       initialPetActionScrollRef.current = true;
       petActionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 320);
+    }, 2500);
 
     return () => window.clearTimeout(scrollTimer);
   }, [isPetFilled, isEditing, submitting, uploadingPhoto, isTransitioningForward]);

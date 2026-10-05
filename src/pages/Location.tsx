@@ -751,7 +751,7 @@ export const Location: React.FC<LocationProps> = ({
       if (!locationCardsRef.current) return;
       initialLocationActionScrollRef.current = true;
       locationCardsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 360);
+    }, 2500);
 
     return () => window.clearTimeout(scrollTimer);
   }, [isLocationValid, detecting, activeLocationModal]);
