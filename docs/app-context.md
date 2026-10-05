@@ -127,10 +127,10 @@ FindLostPuppy enforces a 4-tier geographic administrative division:
 4. **Village / Home Base:**
    - **Distinct Village Invariant:** Village/Home Base must contain the specific village or locality and must NEVER repeat the selected mandal.
    - Village selectors filter out any option identical to the selected mandal.
-   - If autodetect cannot resolve a distinct village, Village is left blank for manual user selection.
+   - If autodetect cannot resolve an exact distinct village, Home Base is filled from the matched mandal's locality list so all four cards are populated and editable.
 
 ### Location And Capture Pet Location Invariants
-- Location `Detect Location` shows an in-app `Allow Precise Location` sheet before requesting native/browser GPS permission.
+- Location auto-detects on entry when any of the four cards are empty, and `Detect Location` / `Detect Location Again` directly triggers the real Android/browser geolocation permission prompt.
 - Apps cannot enable Android's master Location switch directly; if the switch is off, the user must enable it in quick settings/system settings, then tap Detect Again.
 - Capture Pet auto-detects State, District, Mandal, and Home Base before the user selects the missing pet; if no missing alert exists in the selected Home Base, an SOS-style change prompt is shown in the Home Base card, not as a toast.
 - Capture Pet keeps the first location section visible first; after a valid Home Base is selected, it scrolls to Select Missing Pet.
@@ -255,4 +255,4 @@ Here is the authoritative system context and non-negotiable invariants:
 
 ### Android Location Permission Invariant — 2026-10-05
 
-FindLostPuppy shows its own precise-location explanation first, then requests native Android location permission. If the phone's master Location switch is off in the installed app, Google Play Services shows an in-app Location Settings resolution dialog so the user can turn Location on by consent without manually opening Quick Settings. Android settings remain fallback only when the OS cannot show the resolution dialog. Android does not allow silently toggling the master Location switch from an app.
+FindLostPuppy directly requests the real native Android/browser location permission when detecting location. The Location page auto-detects on entry when State, District, Mandal, or Home Base is missing, fills all four cards, and scrolls to the cards plus Continue button after a successful detection. Reset clears and immediately re-detects. If the phone's master Location switch is off in the installed app, Google Play Services shows an in-app Location Settings resolution dialog so the user can turn Location on by consent. Android settings remain fallback only when the OS cannot show the resolution dialog. Android does not allow silently toggling the master Location switch from an app.

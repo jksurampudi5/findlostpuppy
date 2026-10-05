@@ -93,7 +93,7 @@ Keep this file only as a lightweight human checklist. The app does not need it. 
 - Dashboard status cards start neutral; users choose Sightings, Safe Pets, or Missing Pets.
 - Safe Pets cards hide exact location/address. Safe pet details are owner/admin-only.
 - Mobile drawer pet section is an image shortcut only; detailed pet information is only in Pet Details.
-- Location Detect uses an in-app `Allow Precise Location` sheet before Android/browser precise location permission. If Android master Location is off in the installed app, Google Play Services shows an in-app Location Services resolution dialog so the user can turn Location on without manually opening Quick Settings.
+- Location auto-detect runs on Location page entry when any of the four cards are empty. Detect/Detect Again directly invokes the real browser/Android geolocation permission flow; if Android master Location is off in the installed app, Google Play Services shows an in-app Location Services resolution dialog so the user can turn Location on by consent. Successful detection fills State, District, Mandal, and Home Base, then scrolls to the cards and Continue button. Reset clears and immediately re-detects.
 - In-app feedback and Play Store rating are separate. Feedback saves to admin review; Play Store rating opens `https://play.google.com/store/apps/details?id=om.findlostpuppy.app&hl=en-US&ah=6AkRSsY1key8_VyeUYB02AhzUpg`.
 
 ## Android Location Settings Bridge — 2026-10-05

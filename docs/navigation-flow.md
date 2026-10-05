@@ -303,8 +303,8 @@ flowchart TD
   I1 --> I2[Backward dog video: 1.10s]
   I2 --> G
   I --> I3[Detect Location]
-  I3 --> I3A[In-app Allow Precise Location sheet]
-  I3A --> I3B[Android/browser precise-location prompt]
+  I3 --> I3A[Real Android/browser precise-location prompt]
+  I3A --> I3B[Android Location Settings resolution if master switch is off]
   I3B --> I4[Fill State, District, Mandal, Village/Home Base containers]
   I4 --> I5[User can review/edit location values]
   I --> I6[Continue to Pet Details]
@@ -366,7 +366,7 @@ Consent is first-time only. Returning users with existing consent, owner profile
 | Owner Profile | `Modify Details / Photo` | Stays on Owner Profile and opens editable owner inputs/photo | No route animation |
 | Owner Profile | `Continue to Location` | `/owner` → `/location` | Forward dog video, 1.60s |
 | Location | `Back` | `/location` → `/owner` | Backward dog video, 1.10s |
-| Location | `Detect Location` | Shows in-app precise-location sheet, then Android/browser permission prompt, then fills location containers | No route animation |
+| Location | `Detect Location` | Directly shows Android/browser permission prompt, fills all four cards, then scrolls to cards and Continue button | No route animation |
 | Location | `Continue to Pet Details` | `/location` → `/choice` | Forward dog video, 1.60s |
 | Registered Pet | `Back` | `/choice` → `/location` | Backward dog video, 1.10s |
 | Registered Pet | `Add My Pet` or existing pet | `/choice` → `/pet` | Forward dog video, 1.60s |
@@ -405,7 +405,7 @@ These are the latest decisions implemented in code and should be preserved in fu
 - Pet Safety/Pet Status completion: selecting Safe or submitting Missing returns to `/homepage` with no dashboard category card pre-opened.
 - Dashboard Pet Status starts neutral: all three status cards are unselected until the user picks Sightings, Safe Pets, or Missing Pets.
 - Safe Pets privacy: cards may show pet image, pet name, breed/type, owner name, and owner-only details label; exact location/address is not shown on cards. Safe pet details are owner/admin only.
-- Location detection: `Detect Location` first shows an in-app `Allow Precise Location` sheet, then triggers the native Android/browser location permission prompt. If the device master Location switch is off, Android settings/quick settings are still required; apps cannot turn it on directly.
+- Location detection: Location auto-detects on entry when cards are missing. `Detect Location` directly triggers the native Android/browser location permission prompt. If the device master Location switch is off, use the Android Location Settings resolution flow; apps cannot turn it on silently.
 - Feedback/rating split: in-app feedback modal contains only stars, optional text, and Submit Feedback saved through `storageService.saveSuggestion`. Play Store rating is a separate button using the store listing URL.
 - Mobile drawer pet shortcut: side nav shows a compact pet image shortcut only; detailed pet info lives in Pet Details.
 
@@ -413,7 +413,7 @@ These are the latest decisions implemented in code and should be preserved in fu
 
 ```mermaid
 flowchart TD
-  A[Tap Detect Location] --> B[In-app Allow Precise Location sheet]
+  A[Open Location or tap Detect Location] --> B[Real Android/browser permission prompt when needed]
   B --> C[Request native location permission]
   C -->|Granted and GPS on| D[Detect GPS and fill location squares]
   C -->|Permission denied| E[Retry native permission prompt / show blocked state]

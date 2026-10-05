@@ -479,7 +479,7 @@ const htmlContent = `<!DOCTYPE html>
       <tr>
         <td>4</td>
         <td><strong>Village / Home Base</strong></td>
-        <td><strong>Strict Distinct Village Invariant:</strong> Village/Home Base must contain the specific village or street locality and must NEVER repeat the selected mandal. Village selectors filter out any option identical to the selected mandal. If autodetect cannot resolve a distinct village, Village is left blank for manual selection.</td>
+        <td><strong>Strict Distinct Village Invariant:</strong> Village/Home Base should contain the specific village or locality and should not repeat the selected mandal when a distinct locality is available. Autodetect fills Home Base from the matched locality; if the geocoder cannot resolve an exact locality, it uses the matched mandal's locality list so all four cards are filled and editable.</td>
       </tr>
     </tbody>
   </table>

@@ -50,7 +50,7 @@ Phase 8: Multi-Viewport Responsive Auditing & Android AAB Release
 - [x] Build `OwnerProfile` with strict 10-digit Indian phone validation (`validateIndianPhoneNumber`).
 - [x] Design read-only Owner Details presentation card with a single `Modify Details / Photo` entry point.
 - [x] Construct 4-tier administrative location hierarchy: `State` $\rightarrow$ `District` $\rightarrow$ `Mandal` $\rightarrow$ `Village/Locality`.
-- [x] Add auto-detection with W3C/Capacitor Geolocation plus an in-app `Allow Precise Location` sheet before the native Android/browser prompt.
+- [x] Add auto-detection with W3C/Capacitor Geolocation that directly invokes the native Android/browser permission prompt, auto-fills all four location cards, and retries after Android Location Settings resolution.
 - [x] Integrate green active-alert presence indicators (`🟢`) across administrative selectors.
 
 ### Phase 4: Pet Registration & Status Invariants

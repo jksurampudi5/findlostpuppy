@@ -292,8 +292,8 @@ Use this after starting localhost and before building an AAB:
 
 3. Location permission flow
    - On Location, tap Detect Location.
-   - Confirm the in-app `Allow Precise Location` sheet opens at the top without scrolling.
-   - Tap Allow Precise Location and confirm Android/browser precise-location permission appears.
+   - Confirm the real Android/browser location permission prompt appears when permission is not yet granted.
+   - Confirm successful detection fills State, District, Mandal, and Home Base, then scrolls to the cards and Continue button.
    - If device Location is off, enable it in quick settings/settings and tap Detect Again.
 
 4. Pet Details responsive layout
@@ -316,8 +316,8 @@ Use this after starting localhost and before building an AAB:
 
 The app cannot silently turn on Android's master Location switch. Android requires the user to toggle it for privacy. The implemented flow is:
 
-1. User taps **Detect Location**.
-2. App shows the in-app **Allow Precise Location** sheet.
+1. User opens Location or taps **Detect Location**.
+2. App directly requests the real Android/browser geolocation permission when needed.
 3. App requests native precise/coarse location permission.
 4. If permission is denied, the app opens FindLostPuppy app settings so the user can enable permission.
 5. If the phone's master Location/GPS switch is off in the installed app, Google Play Services shows an in-app **Location Services** resolution dialog.

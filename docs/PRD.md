@@ -74,7 +74,7 @@ FindLostPuppy is an emergency, privacy-first, community-powered lost pet recover
 
 ### 3.3 Administrative Location Hierarchy
 - **FR-LOC-1 (Hierarchy Distinctness):** State, District, Mandal/Municipality, and Village/Home Base are distinct fields. Village/Home Base must contain the village/locality and must never repeat the mandal.
-- **FR-LOC-2 (Permission Model):** Geolocation permission is requested only when the user taps Detect Location. The app first shows an in-app `Allow Precise Location` sheet, then triggers the Android/browser precise-location prompt. Manual drill-down selection must always remain available.
+- **FR-LOC-2 (Permission Model):** The Location page attempts geolocation automatically on entry when any of State, District, Mandal, or Home Base is empty. Detect Location/Detect Again directly triggers the real Android/browser permission prompt. If Android master Location is off, the native Location Settings resolution flow is used and detection retries after return. Manual drill-down selection must always remain available.
 - **FR-LOC-3 (Parent-Child Cascading):** Selecting or modifying a parent administrative boundary immediately clears all child fields to prevent invalid geographic combinations.
 - **FR-LOC-4 (Pet Presence Indicators):** Sighting selectors must display a green indicator (`🟢`) indicating active missing pet alerts across State, District, Mandal, and Village tiers without auto-selecting filter values.
 

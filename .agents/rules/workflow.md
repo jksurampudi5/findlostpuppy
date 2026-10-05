@@ -26,7 +26,7 @@
 - Consent is required only for first-time users before Owner Profile. Returning users should not be sent back to consent.
 - Owner Profile, Location, Pet Registered, Pet Details, and Pet Safety use the same top header pattern: Back on the left, page title centered, Close on the right.
 - Dashboard starts neutral with no card selected. The three cards are `Sightings`, `Safe Pets`, and `Missing Pets`; selecting a card opens its modal, and closing/completing returns to the neutral dashboard.
-- Location Detect must show the in-app `Allow Precise Location` sheet before requesting native/browser GPS permission. Android's master Location switch cannot be enabled by the app; if it is off, guide the user to settings.
+- Location page auto-detects on entry when State, District, Mandal, or Home Base is missing. Detect/Detect Again must directly invoke the real browser/Android location permission prompt. If Android's master Location switch is off, use the native DeviceSettings/Google Play Services resolution flow, then retry on resume. Reset must clear and immediately re-detect.
 - Capture Pet auto-detects state, district, mandal, and Home Base, shows a waiting state while resolving, lets the user change Home Base, scrolls to Select Missing Pet after Home Base is selected, and uses a compact camera sheet.
 - Safe Pets public cards show pet image, pet name, status, owner chip, and Details only. Address/location details are visible only to the owner/admin inside details.
 - Pet Details must keep stat/input cards responsive; long values wrap or stack instead of clipping. `Skip to Dashboard` and `Remove Pet` stay on the same responsive row.
