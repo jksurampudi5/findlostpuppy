@@ -149,6 +149,7 @@ export const Location: React.FC<LocationProps> = ({
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const pendingLocationDetectionRef = useRef(false);
+  const locationCardsRef = useRef<HTMLDivElement | null>(null);
   const autoSyncTimerRef = useRef<number | null>(null);
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
@@ -437,14 +438,6 @@ export const Location: React.FC<LocationProps> = ({
     try {
       const geo = await detectResilientLocation();
 
-      // Low-confidence IP fallback requires manual verification
-      if (geo.source === 'ip') {
-        setHasDetected(true);
-        setActiveLocationModal('district');
-        showToast('Approximate location only. Tap District & Mandal below to confirm.', 'info');
-        return;
-      }
-
       setLatitude(geo.latitude);
       setLongitude(geo.longitude);
 
@@ -508,6 +501,9 @@ export const Location: React.FC<LocationProps> = ({
 
         setHasDetected(true);
         setActiveLocationModal(null);
+        window.setTimeout(() => {
+          locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
 
         const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
         if (geo.confidence === 'HIGH') {
@@ -528,8 +524,6 @@ export const Location: React.FC<LocationProps> = ({
         }
       } else {
         setHasDetected(true);
-        setActiveLocationModal('district');
-        showToast('Please select your District and Mandal from the squares below.', 'info');
 
         // Fallback: populate raw detected values
         if (detectedState) setState(detectedState);
@@ -541,12 +535,14 @@ export const Location: React.FC<LocationProps> = ({
         ) {
           setCity(detectedCity.trim());
         } else {
-          setCity('');
-          setActiveLocationModal('city');
+          setCity(detectedMandal || rawDistrict || detectedState || '');
         }
         const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
         setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
         if (detectedPin) setPinCode(detectedPin);
+        window.setTimeout(() => {
+          locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
       }
     } catch (hardErr: any) {
       const errorMsg = String(hardErr?.message || '');
@@ -831,7 +827,7 @@ export const Location: React.FC<LocationProps> = ({
           </div>
 
           {/* MAIN VIEW: 2×2 LOCATION GRID */}
-          <div className="loc-grid-showcase">
+          <div className="loc-grid-showcase" ref={locationCardsRef}>
             <div className="loc-grid-2x2">
               {/* 1. STATE SQUARE */}
               <button
