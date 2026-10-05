@@ -16,8 +16,14 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+  --launch-logo-visible-duration: 3200ms;
+  --launch-fade-out-duration: 350ms;
+  --launch-hand-entry-duration: 2800ms;
+  --launch-hand-top-delay: 120ms;
+  --launch-hand-bottom-delay: 220ms;
+  --launch-hand-hover-duration: 3200ms;
   background: #09090B;
-  transition: background 0.6s ease, opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.6s ease, opacity var(--launch-fade-out-duration) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .launch-overlay-backdrop.fade-out {
@@ -235,7 +241,7 @@
   width: 0%;
   background: linear-gradient(90deg, #FF7B54, #FDBA74);
   border-radius: 99px;
-  animation: progressFill 8.0s linear forwards;
+  animation: progressFill var(--launch-logo-visible-duration) linear forwards;
 }
 
 @keyframes progressFill {
@@ -749,8 +755,8 @@
 /* TOP HAND: Starts physically OUTSIDE the orange border above and slowly glides in over the home */
 .hand-top-incoming {
   z-index: 4;
-  animation: handTopFromOutside 6.0s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both,
-             handTopProtectiveHover 3.2s infinite ease-in-out 6.12s;
+  animation: handTopFromOutside var(--launch-hand-entry-duration) cubic-bezier(0.16, 1, 0.3, 1) var(--launch-hand-top-delay) both,
+             handTopProtectiveHover var(--launch-hand-hover-duration) infinite ease-in-out calc(var(--launch-hand-entry-duration) + var(--launch-hand-top-delay));
 }
 
 @keyframes handTopFromOutside {
@@ -781,8 +787,8 @@
 /* BOTTOM HAND: Starts physically OUTSIDE the orange border below and slowly glides in under the locator */
 .hand-bottom-incoming {
   z-index: 3;
-  animation: handBottomFromOutside 6.0s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both,
-             handBottomProtectiveCradle 3.2s infinite ease-in-out 6.22s;
+  animation: handBottomFromOutside var(--launch-hand-entry-duration) cubic-bezier(0.16, 1, 0.3, 1) var(--launch-hand-bottom-delay) both,
+             handBottomProtectiveCradle var(--launch-hand-hover-duration) infinite ease-in-out calc(var(--launch-hand-entry-duration) + var(--launch-hand-bottom-delay));
 }
 
 @keyframes handBottomFromOutside {

@@ -297,7 +297,7 @@ class StorageService {
       const canonicalId = normalizeReportId(r.id);
       const rawOwnerId = (r.ownerId || '').replace(/^(owner-)+/, '').toLowerCase().trim();
       const ownerEmail = extractReportOwnerEmail(r, this.profiles);
-      const dogId = (r.dogId || r.dog?.id || '').toLowerCase().trim();
+      const dogId = (r.dogId || r.dog?.id || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
 
       const matchesOwnerId = Boolean(rawOwnerId && rawOwnerId !== 'unknown-owner' && seenOwnerIds.has(rawOwnerId));
       const matchesEmail = Boolean(ownerEmail && ownerEmail.includes('@') && seenEmails.has(ownerEmail));
@@ -319,6 +319,11 @@ class StorageService {
           }
           if ((!existing.dog.photos || existing.dog.photos.length === 0) && r.dog.photos?.length) {
             existing.dog.photos = r.dog.photos;
+          }
+          if (!existing.ownerApproximateLocation && r.ownerApproximateLocation) existing.ownerApproximateLocation = r.ownerApproximateLocation;
+          if (!existing.lastKnownLocation && r.lastKnownLocation) existing.lastKnownLocation = r.lastKnownLocation;
+          if (!existing.contactMechanism?.safeContactEmail && r.contactMechanism?.safeContactEmail) {
+            existing.contactMechanism = { ...existing.contactMechanism, ...r.contactMechanism } as any;
           }
         }
         continue;

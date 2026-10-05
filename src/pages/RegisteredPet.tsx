@@ -8,19 +8,20 @@ import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
 /** Offers pet registration or the existing-pet flow, with an option to skip to the dashboard. */
-export const OnboardingChoicePage: React.FC = () => {
+export const RegisteredPet: React.FC = () => {
   const navigate = useNavigate();
   const { user, setActiveOnboardingTab } = useAuth();
 
   const [isTransitioningBack, setIsTransitioningBack] = React.useState(false);
   const [isTransitioningForward, setIsTransitioningForward] = React.useState(false);
+  const [isTransitioningSkip, setIsTransitioningSkip] = React.useState(false);
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const hasExistingPet = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
   const petPhotoUrl = existingPet ? getDogPhotoUrl(existingPet) : '';
 
   const handleBack = () => {
-    if (isTransitioningBack || isTransitioningForward) return;
+    if (isTransitioningBack || isTransitioningForward || isTransitioningSkip) return;
     setIsTransitioningBack(true);
   };
 
@@ -32,12 +33,12 @@ export const OnboardingChoicePage: React.FC = () => {
   };
 
   const exitToDashboard = () => {
-    setActiveOnboardingTab('dashboard');
-    navigate('/homepage');
+    if (isTransitioningBack || isTransitioningForward || isTransitioningSkip) return;
+    setIsTransitioningSkip(true);
   };
 
   const goToPetDetails = () => {
-    if (isTransitioningBack || isTransitioningForward) return;
+    if (isTransitioningBack || isTransitioningForward || isTransitioningSkip) return;
     setIsTransitioningForward(true);
   };
 
@@ -45,6 +46,14 @@ export const OnboardingChoicePage: React.FC = () => {
     setIsTransitioningForward(false);
     setActiveOnboardingTab('dog');
     navigate('/pet');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+
+  const handleSkipTransitionComplete = () => {
+    setIsTransitioningSkip(false);
+    setActiveOnboardingTab('dashboard');
+    navigate('/homepage');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -60,29 +69,26 @@ export const OnboardingChoicePage: React.FC = () => {
     <div className="onboarding-page onboarding-choice-page">
       <div className="app-container onboarding-container">
         <section className="onboarding-card card owner-theme-card onboarding-choice-card">
-          <button
-            type="button"
-            className="onboarding-exit-btn"
-            onClick={exitToDashboard}
-            aria-label="Exit onboarding and go to dashboard"
-            title="Exit to dashboard"
-          >
-            <X size={19} />
-          </button>
-
-          {/* Top-left back button inside container for going back to Location */}
-          <div className="pet-profile-header-bar choice-header-bar">
-            <div className="pet-profile-header-left">
+          <div className="onboarding-top-nav-row">
+            <div className="onboarding-top-nav-left">
               <BackButton
                 onClick={handleBack}
                 title="Go back to Location"
                 aria-label="Back to Location"
               />
             </div>
-          </div>
-
-          <div className="section-card-title-block">
-            <h1>{hasExistingPet ? 'Pet Registered' : 'Pet Choice'}</h1>
+            <div className="section-card-title-block onboarding-top-nav-title">
+              <h1>{hasExistingPet ? 'Pet Registered' : 'Pet Choice'}</h1>
+            </div>
+            <button
+              type="button"
+              className="onboarding-exit-btn onboarding-top-nav-close"
+              onClick={exitToDashboard}
+              aria-label="Exit onboarding and go to dashboard"
+              title="Exit to dashboard"
+            >
+              <X size={19} />
+            </button>
           </div>
 
           <div className="onboarding-choice-grid">
@@ -159,6 +165,16 @@ export const OnboardingChoicePage: React.FC = () => {
           toStep="Pet Details"
           durationMs={1600}
           onComplete={handleForwardTransitionComplete}
+        />
+      )}
+
+      {isTransitioningSkip && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Pet Choice"
+          toStep="Pet Status"
+          durationMs={1600}
+          onComplete={handleSkipTransitionComplete}
         />
       )}
     </div>

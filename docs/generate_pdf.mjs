@@ -417,7 +417,6 @@ const htmlContent = `<!DOCTYPE html>
     <li><strong>Strict Indian Phone Validation:</strong> Phone inputs must pass <code>validateIndianPhoneNumber</code>: exactly 10 digits beginning with 6, 7, 8, or 9.</li>
     <li><strong>Client-Side Photo Compression:</strong> Every photo must be compressed through <code>compressImage</code> prior to local persistence or network upload to avoid memory exhaustion and bandwidth bloat.</li>
     <li><strong>State Mutual Exclusivity:</strong> A pet can NEVER be <code>LOST</code> and <code>SAFE</code> simultaneously. Selecting "Pet is Not Safe (Missing)" triggers the emergency broadcast modal; the <code>LOST</code> state is only committed after successful form submission.</li>
-    <li><strong>Sonu Memorial Invariant:</strong> Preserve Sonu (<code>#1788885000505</code>) as <code>/src/assets/sonu.jpg</code>.</li>
   </ul>
 
   <!-- SECTION 4: COMPONENT HIERARCHY & VISUAL FLOW -->
@@ -496,9 +495,9 @@ const htmlContent = `<!DOCTYPE html>
   <h1>6. Dashboard Pet Categories & Modal Rules</h1>
   <p>The main Dashboard revolves around three primary category cards:</p>
   <ul>
-    <li><span class="tag tag-purple">Sighted Missing Pets</span> Crowd-sourced sightings reported by good samaritans with photos and locations.</li>
-    <li><span class="tag tag-emerald">Pets at Home</span> Verified safe pets registered to their owners.</li>
-    <li><span class="tag tag-amber">Pets Missing</span> Pets broadcasted as missing/lost, awaiting community recovery.</li>
+    <li><span class="tag tag-purple">Sightings</span> Crowd-sourced sightings reported by good samaritans with photos and locations.</li>
+    <li><span class="tag tag-emerald">Safe Pets</span> Verified safe pets registered to their owners; public cards avoid address disclosure.</li>
+    <li><span class="tag tag-amber">Missing Pets</span> Pets broadcasted as missing/lost, awaiting community recovery.</li>
   </ul>
 
   <h3>Dashboard Modal Invariants</h3>
@@ -524,11 +523,11 @@ const htmlContent = `<!DOCTYPE html>
       <br/>&bull; Pet Name: <code>"Unknown (Roaming Pet)"</code>
       <br/>&bull; Status: <code>LOST</code>
     </li>
-    <li><strong>Immediate Community Discovery:</strong> The sighting is instantly submitted to the "Pets Missing" repository so an owner searching for their lost dog can view recent roaming sightings with photos and map locations.</li>
+    <li><strong>Immediate Community Discovery:</strong> The sighting is instantly submitted to the "Missing Pets" repository so an owner searching for their lost dog can view recent roaming sightings with photos and map locations.</li>
   </ul>
 
   <h3>2. Cascading Location Filter Bar</h3>
-  <p>Inside the "Pets Missing" modal, a 4-tier dropdown filter (State &rarr; District &rarr; Mandal &rarr; Village) allows owners to instantly filter through hundreds of lost and roaming reports to locate pets near their specific neighborhood.</p>
+  <p>Inside the "Missing Pets" modal, a 4-tier dropdown filter (State &rarr; District &rarr; Mandal &rarr; Village) allows owners to instantly filter through hundreds of lost and roaming reports to locate pets near their specific neighborhood.</p>
 
   <h3>3. App Suggestion & Feedback Widget Modal</h3>
   <p>To avoid annoying users during their first session, the feedback popup is never shown automatically on first dashboard load. Instead, it is accessible via a dedicated button at the bottom of the dashboard. The modal features a clean, distraction-free layout:
@@ -595,7 +594,6 @@ Here is the authoritative system context and non-negotiable invariants:
 - Android backup is disabled (android:allowBackup="false").
 - Indian phone number validation: exactly 10 digits beginning with 6, 7, 8, or 9.
 - Always compress photos via compressImage before saving or uploading.
-- Preserve Sonu (#1788885000505) in /src/assets/sonu.jpg.
 
 3. LOCATION INVARIANTS:
 - 4 tiers: State &rarr; District &rarr; Mandal/Municipality &rarr; Village/Locality.
@@ -606,10 +604,10 @@ Here is the authoritative system context and non-negotiable invariants:
 
 4. NAVIGATION &amp; DASHBOARD:
 - Onboarding order: Auth &rarr; Inauguration (first-time only) &rarr; Owner Profile &rarr; Location &rarr; Pet Choice/Details &rarr; Dashboard.
-- Dashboard has 3 category cards: 'Sighted Missing Pets', 'Pets at Home', 'Pets Missing'.
+- Dashboard has 3 category cards: 'Sightings', 'Safe Pets', 'Missing Pets'.
 - Selecting a card opens an internally scrollable modal. Single-modal visibility rule: opening a detail modal hides the category modal; closing it restores the category modal.
 - Sighted reports for the same pet are grouped behind 'View sightings (n)' with numbered tabs (Sighting 1, 2...).
-- Quick capture on Dashboard logs roaming pets as 'Unknown (Roaming Pet)' with ID UNKNOWN_ROAMING_PET directly into 'Pets Missing'.</code></pre>
+- Quick capture on Dashboard logs roaming pets as 'Unknown (Roaming Pet)' with ID UNKNOWN_ROAMING_PET directly into 'Missing Pets'.</code></pre>
 
   <div style="margin-top: 30px; text-align: center; color: #94a3b8; font-size: 11px;">
     FindLostPuppy System Specification Dossier &bull; Generated locally &bull; Verified for production & release standards
@@ -620,7 +618,7 @@ Here is the authoritative system context and non-negotiable invariants:
 `;
 
 async function generatePdf() {
-  const outputPath = '/Users/jayakrishna/Desktop/findlostpuppy-app-context.pdf';
+  const outputPath = '/Users/jayakrishna/Desktop/app-context.pdf';
   console.log('Launching headless Chrome to render PDF...');
   
   const browser = await puppeteer.launch({

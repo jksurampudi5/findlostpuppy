@@ -10,14 +10,17 @@ import type { LostReport, Sighting, OwnerProfile, DogProfile, LocationLocality }
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { isMatchState, isMatchDistrict, isMatchMandal, isMatchCity, getReportGeo } from '../utils/locationMatchHelper';
 import { EmptyState } from '../components/fallbacks/EmptyState';
+import { PlayStoreEarlyAccessButton } from '../components/SuggestionWidget';
+import { detectResilientLocation } from '../utils/geolocationHelper';
 
 /** Displays pet-status categories and grouped sightings with owner-gated safe-pet detail dialogs. */
-export const DashboardPage: React.FC = () => {
+export const PetStatus: React.FC = () => {
   const { user, petSafetyStatus } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const listPanelRef = useRef<HTMLDivElement | null>(null);
+  const missingAutoDetectAttemptedRef = useRef(false);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [allPets, setAllPets] = useState<DogProfile[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -33,6 +36,7 @@ export const DashboardPage: React.FC = () => {
   const [missingFilterMandal, setMissingFilterMandal] = useState('');
   const [missingFilterVillage, setMissingFilterVillage] = useState('');
   const [missingLocalities, setMissingLocalities] = useState<LocationLocality[]>([]);
+  const [detectingMissingLocation, setDetectingMissingLocation] = useState(false);
 
   const isDashboardAdmin = Boolean(
     user?.isAdmin ||
@@ -60,9 +64,9 @@ export const DashboardPage: React.FC = () => {
     if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
       return stateTab;
     }
-    return 'SIGHTINGS';
+    return null;
   })();
-  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST'>(initialTab);
+  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST' | null>(initialTab);
 
   useEffect(() => {
     const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
@@ -123,6 +127,27 @@ export const DashboardPage: React.FC = () => {
     };
   }, [missingFilterState, missingFilterDistrict, missingFilterMandal]);
 
+  useEffect(() => {
+    if (selectedStatus !== 'LOST' || !statusPanelOpen) return;
+    if (missingAutoDetectAttemptedRef.current) return;
+    if (missingFilterState || missingFilterDistrict || missingFilterMandal || missingFilterVillage) return;
+
+    missingAutoDetectAttemptedRef.current = true;
+    setDetectingMissingLocation(true);
+    detectResilientLocation()
+      .then((geo) => {
+        if (geo.state) setMissingFilterState(geo.state);
+        if (geo.district) setMissingFilterDistrict(geo.district);
+        if (geo.mandal) setMissingFilterMandal(geo.mandal);
+        const nextVillage = geo.city || geo.street || '';
+        if (nextVillage) setMissingFilterVillage(nextVillage);
+      })
+      .catch(() => {
+        showToast('Could not auto-detect missing pets area. You can choose the location manually.', 'info');
+      })
+      .finally(() => setDetectingMissingLocation(false));
+  }, [selectedStatus, statusPanelOpen, missingFilterState, missingFilterDistrict, missingFilterMandal, missingFilterVillage, showToast]);
+
   const visiblePets = useMemo(() => {
     if (selectedStatus === 'LOST') {
       return reports.filter((report) => report.status === 'LOST');
@@ -143,15 +168,57 @@ export const DashboardPage: React.FC = () => {
     );
 
     // Canonical key generator for strict 1:1 pet deduplication
+    const normalizePetText = (value?: string): string =>
+      (value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/(companion|pet|dog|safe|home|mandal|municipality)/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     const getPetKey = (petId?: string, ownerId?: string, petName?: string): string => {
       const cleanP = (petId || '').toLowerCase().replace(/^(pet-|dog-)/, '').trim();
       const cleanO = (ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
-      const cleanN = (petName || '').toLowerCase().trim();
+      const cleanN = normalizePetText(petName);
       if (cleanP && cleanP !== 'unknown') return `pet:${cleanP}`;
       if (cleanO && cleanN) return `owner:${cleanO}:${cleanN}`;
       if (cleanO) return `owner:${cleanO}`;
       return `unknown:${cleanN || Math.random()}`;
     };
+
+    const getVisiblePetDedupeKey = (report: LostReport): string => {
+      const strictKey = getPetKey(report.dogId || report.dog?.id, report.ownerId, report.dog?.name);
+      if (!strictKey.startsWith('unknown:')) return strictKey;
+      const name = normalizePetText(report.dog?.name);
+      const breed = normalizePetText(report.dog?.breed);
+      const place = normalizePetText(`${report.lastKnownLocation || ''} ${report.ownerApproximateLocation || ''}`);
+      const photo = (report.dog?.primaryPhoto || '').split('?')[0].toLowerCase().trim();
+      if (name && (breed || place || photo)) return `visual:${name}:${breed}:${place}:${photo}`;
+      return strictKey;
+    };
+
+    const preferRicherSafePet = (existing: LostReport, incoming: LostReport): LostReport => {
+      const existingPhoto = existing.dog?.primaryPhoto || '';
+      const incomingPhoto = incoming.dog?.primaryPhoto || '';
+      const existingUpdated = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+      const incomingUpdated = new Date(incoming.updatedAt || incoming.createdAt || 0).getTime();
+      const incomingHasBetterPhoto = incomingPhoto && (!existingPhoto || incomingPhoto.length > existingPhoto.length);
+      if (incomingHasBetterPhoto || incomingUpdated > existingUpdated) {
+        return {
+          ...existing,
+          ...incoming,
+          dog: {
+            ...existing.dog,
+            ...incoming.dog,
+            primaryPhoto: incomingPhoto || existingPhoto,
+            photos: incoming.dog?.photos?.length ? incoming.dog.photos : existing.dog?.photos,
+          },
+        };
+      }
+      return existing;
+    };
+
+
 
     const petMap = new Map<string, LostReport>();
 
@@ -180,12 +247,13 @@ export const DashboardPage: React.FC = () => {
           ? { ...report.dog, ...matchedPet, primaryPhoto: matchedPet.primaryPhoto || '' }
           : { ...report.dog, primaryPhoto: report.dog?.primaryPhoto || '' };
 
-        petMap.set(key, {
+        const nextReport = {
           ...report,
           dogId: matchedPet?.id || report.dogId,
           ownerId: matchedPet?.ownerId || report.ownerId,
           dog: enrichedDog,
-        });
+        };
+        petMap.set(key, petMap.has(key) ? preferRicherSafePet(petMap.get(key)!, nextReport) : nextReport);
       });
 
     // 3. Include all registered companion pets from allPets that are safe at home
@@ -281,7 +349,13 @@ export const DashboardPage: React.FC = () => {
       }
     }
 
-    return safeList;
+    const finalMap = new Map<string, LostReport>();
+    safeList.forEach((item) => {
+      const key = getVisiblePetDedupeKey(item);
+      finalMap.set(key, finalMap.has(key) ? preferRicherSafePet(finalMap.get(key)!, item) : item);
+    });
+
+    return Array.from(finalMap.values());
   }, [reports, allPets, selectedStatus, user, effectiveSafetyStatus, userPetProfile, profiles]);
 
   const handleResetMissingFilters = () => {
@@ -289,6 +363,7 @@ export const DashboardPage: React.FC = () => {
     setMissingFilterDistrict('');
     setMissingFilterMandal('');
     setMissingFilterVillage('');
+    missingAutoDetectAttemptedRef.current = false;
   };
 
   const filteredMissingPets = useMemo(() => {
@@ -393,6 +468,18 @@ export const DashboardPage: React.FC = () => {
   const getSightingReport = (sighting: Sighting) =>
     reports.find((report) => report.id === sighting.reportId || report.id.toLowerCase() === sighting.reportId.toLowerCase());
 
+  const getOwnerDisplayName = (report: LostReport): string => {
+    const cleanOwner = (report.ownerId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+    const email = (report.contactMechanism?.safeContactEmail || '').toLowerCase().trim();
+    const owner = profiles.find((profile) => {
+      const pid = (profile.id || '').toLowerCase().replace(/^(owner-)/, '').trim();
+      const uid = (profile.userId || '').toLowerCase().replace(/^(owner-)/, '').trim();
+      const pem = (profile.email || '').toLowerCase().trim();
+      return (cleanOwner && (pid === cleanOwner || uid === cleanOwner)) || (email && pem === email);
+    });
+    return owner?.fullName || report.contactMechanism?.safeContactEmail?.split('@')[0] || '';
+  };
+
   /** Matches the current user against normalized owner IDs or the report's contact email. */
   const isCurrentUserPetOwner = (report: LostReport) => {
     if (!user) return false;
@@ -406,9 +493,12 @@ export const DashboardPage: React.FC = () => {
     return ownerIds.includes(userId) || Boolean(userEmail && reportEmail && userEmail === reportEmail);
   };
 
-  /** Allows viewing companion pet details for community awareness and reunion. */
-  const canViewReportDetails = (report: LostReport) =>
-    Boolean(report && (report.status === 'LOST' || report.status === 'SAFE' || isCurrentUserPetOwner(report)));
+  /** Keeps Safe Pets details private to the owner/admin while preserving public missing-pet awareness. */
+  const canViewReportDetails = (report: LostReport) => {
+    if (!report) return false;
+    if (isDashboardAdmin || isCurrentUserPetOwner(report)) return true;
+    return report.status === 'LOST';
+  };
 
   /** Hides the category list and opens the selected sighting at the requested photo index. */
   const openSightingDetails = (sighting: Sighting, photoIndex: number = 0) => {
@@ -488,6 +578,18 @@ export const DashboardPage: React.FC = () => {
             <h1>Pet Status</h1>
           </div>
 
+          <button
+            type="button"
+            className="dashboard-top-capture-btn"
+            onClick={() => navigate('/capture?mode=unknown')}
+            aria-label="Quick Capture Roaming Pet"
+          >
+            <Camera size={24} />
+            <span>Capture Pet</span>
+          </button>
+
+          <p className="dashboard-status-choice-hint">Pick one status below to view sightings, safe pets, or missing pets.</p>
+
           <div className="dashboard-status-filter-buttons" role="tablist" aria-label="Pet safety list filter">
             <button
               type="button"
@@ -504,8 +606,8 @@ export const DashboardPage: React.FC = () => {
                 <Camera size={18} className="dashboard-status-card-mini-icon" />
               </span>
               <span className="dashboard-status-card-copy">
-                <strong>Sighted Missing Pets</strong>
-                <span>Review captured pet sightings with photo and location details.</span>
+                <strong>Sightings</strong>
+                <span>Captured pet photos and location details.</span>
               </span>
             </button>
             <button
@@ -523,8 +625,8 @@ export const DashboardPage: React.FC = () => {
                 <ShieldCheck size={18} className="dashboard-status-card-mini-icon" />
               </span>
               <span className="dashboard-status-card-copy">
-                <strong>Pets at Home</strong>
-                <span>Your pet is safe at home. No search alert needed.</span>
+                <strong>Safe Pets</strong>
+                <span>Pets marked safe at home.</span>
               </span>
             </button>
             <button
@@ -541,8 +643,8 @@ export const DashboardPage: React.FC = () => {
                 <AlertTriangle size={46} />
               </span>
               <span className="dashboard-status-card-copy">
-                <strong>Pets Missing</strong>
-                <span>Review missing pets and report a sighting if you found one.</span>
+                <strong>Missing Pets</strong>
+                <span>Missing pets and sighting reports.</span>
               </span>
             </button>
           </div>
@@ -563,10 +665,10 @@ export const DashboardPage: React.FC = () => {
               <div className="dashboard-status-pets-panel-header">
                 <h2>
                   {selectedStatus === 'SIGHTINGS'
-                    ? 'Sighted Missing Pets'
+                    ? 'Sightings'
                     : selectedStatus === 'SAFE'
-                      ? 'Pets at Home'
-                      : 'Pets Missing'}
+                      ? 'Safe Pets'
+                      : 'Missing Pets'}
                 </h2>
                 <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : (selectedStatus === 'LOST' ? filteredMissingPets.length : visiblePets.length)} listed</span>
                 <button
@@ -584,7 +686,7 @@ export const DashboardPage: React.FC = () => {
                     <div className="dashboard-missing-filter-header">
                       <div className="dashboard-missing-filter-title">
                         <MapPin size={15} className="text-amber-500" />
-                        <span>Filter by Location</span>
+                        <span>Location</span>
                         {(missingFilterState || missingFilterDistrict || missingFilterMandal || missingFilterVillage) && (
                           <button
                             type="button"
@@ -593,7 +695,7 @@ export const DashboardPage: React.FC = () => {
                             title="Clear location filters"
                           >
                             <RotateCcw size={12} />
-                            <span>Clear Filters</span>
+                            <span>Clear</span>
                           </button>
                         )}
                       </div>
@@ -601,6 +703,12 @@ export const DashboardPage: React.FC = () => {
                         {filteredMissingPets.length} of {visiblePets.length} pets
                       </span>
                     </div>
+                    {detectingMissingLocation && (
+                      <div className="dashboard-missing-detecting" role="status" aria-live="polite">
+                        <Navigation size={16} className="spin" />
+                        <span>Detecting your area…</span>
+                      </div>
+                    )}
                     <div className="dashboard-missing-filter-grid">
                       {/* State Selector */}
                       <div className="missing-filter-select-wrap">
@@ -697,7 +805,7 @@ export const DashboardPage: React.FC = () => {
                     onClick={() => navigate('/capture?mode=unknown')}
                   >
                     <Camera size={16} />
-                    <span>Quick Capture Roaming Pet Photo</span>
+                    <span>Quick Capture</span>
                   </button>
                 </>
               )}
@@ -709,7 +817,7 @@ export const DashboardPage: React.FC = () => {
                   style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', borderColor: '#059669' }}
                 >
                   <Camera size={16} />
-                  <span>Report Other Pet (Capture Sighting)</span>
+                  <span>Capture Sighting</span>
                 </button>
               )}
               {selectedStatus === 'SIGHTINGS' && isDashboardAdmin && sightings.length > 0 && (
@@ -764,7 +872,7 @@ export const DashboardPage: React.FC = () => {
                               onClick={() => openSightingDetails(firstSighting, 0)}
                             >
                               <Eye size={14} />
-                              <span>View sightings ({group.length})</span>
+                              <span>Details ({group.length})</span>
                             </button>
                             {isDashboardAdmin && (
                               <button
@@ -796,6 +904,7 @@ export const DashboardPage: React.FC = () => {
                     const canViewDetails = canViewReportDetails(report);
                     const isUnknownRoaming = report.dog?.name?.toLowerCase().includes('unknown') || report.id.includes('UNKNOWN');
                     const isSafe = selectedStatus === 'SAFE' || report.status === 'SAFE' || (report.status as any) === 'REUNITED';
+                    const ownerName = isSafe ? getOwnerDisplayName(report) : '';
                     return (
                       <article
                         key={report.id}
@@ -828,13 +937,21 @@ export const DashboardPage: React.FC = () => {
                             {isUnknownRoaming && (
                               <span className="dashboard-roaming-tag">🐾 Roaming Pet</span>
                             )}
+                            {isSafe && ownerName && (
+                              <span className="dashboard-owner-name-tag dashboard-owner-name-tag--public">Owner: {ownerName}</span>
+                            )}
                           </div>
                           <span className="dashboard-pet-location-snippet">
-                            <MapPin size={12} />
-                            {isSafe
-                              ? `${report.dog?.breed || 'Companion Pet'} • ${report.ownerApproximateLocation || report.lastKnownLocation || 'Safe at Home'}`
-                              : (report.lastKnownLocation || report.ownerApproximateLocation || 'Public Sighting Area')
-                            }
+                            {isSafe ? (
+                              <>
+                                {report.dog?.breed || 'Companion Pet'}
+                              </>
+                            ) : (
+                              <>
+                                <MapPin size={12} />
+                                {report.lastKnownLocation || report.ownerApproximateLocation || 'Public Sighting Area'}
+                              </>
+                            )}
                           </span>
                         </div>
                         {canViewDetails ? (
@@ -842,10 +959,13 @@ export const DashboardPage: React.FC = () => {
                             <button
                               type="button"
                               className="dashboard-status-view-details-btn"
-                              onClick={() => openPetDetails(report)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openPetDetails(report);
+                              }}
                             >
                               <Eye size={14} />
-                              <span>View details</span>
+                              <span>Details</span>
                             </button>
                           </div>
                         ) : (
@@ -892,8 +1012,8 @@ export const DashboardPage: React.FC = () => {
           )}
         </section>
 
-        {/* Rate Our App Button */}
-        <section className="dashboard-bottom-feedback-section" aria-label="Rate Our App">
+        {/* Feedback + Play Store actions */}
+        <section className="dashboard-bottom-feedback-section" aria-label="App feedback and rating">
           <button
             type="button"
             id="dashboard-feedback-btn"
@@ -902,25 +1022,13 @@ export const DashboardPage: React.FC = () => {
               navigate('/feedback');
               window.dispatchEvent(new CustomEvent('open-suggestion-modal'));
             }}
-            aria-label="Rate Our App"
+            aria-label="Submit App Feedback"
           >
             <Star size={18} fill="#FFB800" stroke="#FFB800" />
-            <span>Rate Our App ⭐</span>
+            <span>Submit Feedback</span>
           </button>
+          <PlayStoreEarlyAccessButton className="dashboard-playstore-rating-btn" />
         </section>
-
-        {/* Floating Camera Quick Capture Action Button for Travelers */}
-        <button
-          type="button"
-          id="dashboard-floating-capture-fab"
-          className="dashboard-floating-capture-fab"
-          onClick={() => navigate('/capture?mode=unknown')}
-          aria-label="Quick Capture Roaming Pet while travelling"
-          title="Quick Capture Roaming Pet"
-        >
-          <Camera size={26} />
-          <span className="fab-pulse-ring" aria-hidden="true" />
-        </button>
       </div>
 
       {detailReport && canViewReportDetails(detailReport) && createPortal(

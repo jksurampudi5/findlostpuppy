@@ -49,12 +49,15 @@ The platform pairs **zero-leak personal privacy** (masking owner contact details
 8. **State Mutual Exclusivity:**
    - A pet can NEVER be `LOST` and `SAFE` at the same time.
    - Selecting "Pet is Not Safe (Missing)" triggers the emergency broadcast modal; the `LOST` state is only committed after successful form submission.
-9. **Sonu Memorial Invariant:**
-   - Preserve Sonu (`#1788885000505`) as `/src/assets/sonu.jpg`.
-
 ---
 
 ## 4. Component Hierarchy & Navigation Flow
+
+### Launch Splash Timing
+
+The React launch splash uses the same timing for first-time and returning logged-in users: 3.20 seconds for the logo stage, followed by a 0.35 second fade-out. The hand movement completes before fade-out begins. See `docs/splash-timing.md` for the exact timeline.
+
+### First-Time User Flow
 
 ```
 [App Launch]
@@ -63,17 +66,47 @@ The platform pairs **zero-leak personal privacy** (masking owner contact details
     ↓
 [Authentication / Login Page] (Google Sign-In)
     ↓
-<Is First-Time User without Completed Profile?>
-    ├── YES → [Inauguration & Gratitude Presentation] → [Owner Profile Form]
-    └── NO  → [Dashboard Page] (Inauguration available via footer)
-                       ↑
-                 [Location Selector] (State → District → Mandal → Village)
-                       ↓
-                 [Pet Choice / Details Page]
-                       ├── Existing Pet → "You already had a pet: <pet name>"
-                       ├── New Pet      → "Pet Registered" (Fill Form)
-                       └── No Pet       → "Skip to Dashboard" → [Dashboard Page]
+[Consent, if required]
+    ↓
+[Owner Profile] (/owner)
+    ↓
+[Location] (/location)
+    ↓
+[Registered Pet] (/choice)
+    ├── Add My Pet / existing pet → [Pet Details] (/pet)
+    │                                ↓
+    │                              [Pet Safety] (/alert)
+    │                                ↓
+    │                              [Pet Status] (/homepage)
+    └── Skip → [Pet Status] (/homepage)
 ```
+
+### Returning Or Already Logged-In User Flow
+
+```
+[App Launch]
+    ↓
+<Has active signed-in session?>
+    ├── NO  → [Authentication / Login Page] (/login)
+    └── YES → <Is this a genuine first-time user needing consent?>
+              ├── YES → [Consent] (/consent)
+              └── NO  → [Owner Profile] (/owner)
+```
+
+Refresh/root launch intentionally starts signed-in users at `Owner Profile` after splash. Direct routes still work when opened intentionally from the app or URL.
+
+Consent is only required for genuine first-time signed-in users. Returning users with existing consent, owner profile, location, pet profile, or reports skip consent.
+
+### Screen File Map
+
+| Screen | Route | File |
+| --- | --- | --- |
+| Owner Profile | `/owner` | `src/pages/OwnerProfile.tsx` |
+| Location | `/location` | `src/pages/Location.tsx` |
+| Registered Pet | `/choice` | `src/pages/RegisteredPet.tsx` |
+| Pet Details | `/pet` | `src/pages/PetDetails.tsx` |
+| Pet Safety | `/alert` | `src/pages/PetSafety.tsx` |
+| Pet Status | `/homepage` | `src/pages/PetStatus.tsx` |
 
 ### Component Rules
 - **Owner Profile:** Saved Owner Details rows are read-only and show no inline orange pencil edit affordances. `Modify Details / Photo` is the single entry point for editing.
@@ -96,8 +129,11 @@ FindLostPuppy enforces a 4-tier geographic administrative division:
    - Village selectors filter out any option identical to the selected mandal.
    - If autodetect cannot resolve a distinct village, Village is left blank for manual user selection.
 
-### Capture Pet Location Invariants
-- State, District, Mandal, and Village initialize as blank, even if the owner profile has a saved home address.
+### Location And Capture Pet Location Invariants
+- Location `Detect Location` shows an in-app `Allow Precise Location` sheet before requesting native/browser GPS permission.
+- Apps cannot enable Android's master Location switch directly; if the switch is off, the user must enable it in quick settings/system settings, then tap Detect Again.
+- Capture Pet auto-detects State, District, Mandal, and Home Base before the user selects the missing pet; if no missing alert exists in the selected Home Base, an SOS-style change prompt is shown in the Home Base card, not as a toast.
+- Capture Pet keeps the first location section visible first; after a valid Home Base is selected, it scrolls to Select Missing Pet.
 - Cascading filters: changing parent clears all child fields (no auto-selection).
 - Dropdowns retain green pet-present indicators (`🟢`) showing missing pet counts at that administrative tier.
 
@@ -106,9 +142,9 @@ FindLostPuppy enforces a 4-tier geographic administrative division:
 ## 6. Dashboard Pet Categories & Modal Rules
 
 The Dashboard revolves around three primary category cards:
-- **Sighted Missing Pets:** Sightings reported by community members with photos and geolocations.
-- **Pets at Home:** Verified safe pets registered to their owners.
-- **Pets Missing:** Pets broadcasted as missing, awaiting community recovery.
+- **Sightings:** Sightings reported by community members with photos and geolocations.
+- **Safe Pets:** Verified safe pets registered to their owners; public cards show only pet image, pet name, owner chip, and details action.
+- **Missing Pets:** Pets broadcasted as missing, awaiting community recovery.
 
 ### Modal Invariants
 - **Bounded Internally Scrollable Modals:** Selecting a category opens an internally scrollable modal; it never appends long lists beneath cards on the main page.
@@ -128,15 +164,16 @@ The Dashboard revolves around three primary category cards:
   - Pet ID: `UNKNOWN_ROAMING_PET`
   - Pet Name: `"Unknown (Roaming Pet)"`
   - Status: `LOST`
-- **Instant Discovery:** Sighting is immediately submitted into the "Pets Missing" repository so owners can filter and locate their lost pets.
+- **Instant Discovery:** Sighting is immediately submitted into the "Missing Pets" repository so owners can filter and locate their lost pets.
 
 ### Cascading Location Filter Bar
-- Dropdown filter bar (State → District → Mandal → Village) inside the "Pets Missing" modal lets users quickly find lost and roaming reports near their neighborhood.
+- Dropdown filter bar (State → District → Mandal → Village) inside the "Missing Pets" modal lets users quickly find lost and roaming reports near their neighborhood.
 
-### App Suggestion & Feedback Widget Modal
-- Never pops up automatically on first dashboard load.
-- Accessible via a button at the bottom of the dashboard.
-- Clean layout: App Rating & Feedback header, interactive 5-star rating, feedback comment box, centered submit button.
+### Feedback And Play Store Rating
+- Feedback never pops up automatically on first dashboard load.
+- In-app feedback is accessible from the dashboard/footer controls and contains only star rating, optional text input, and `Submit Feedback`.
+- Feedback saves through `storageService.saveSuggestion(...)` into the admin-review suggestion backend.
+- Play Store rating is a separate dashboard action using `https://play.google.com/store/apps/details?id=om.findlostpuppy.app&hl=en-US&ah=6AkRSsY1key8_VyeUYB02AhzUpg`.
 
 ---
 
@@ -189,8 +226,6 @@ Here is the authoritative system context and non-negotiable invariants:
 - Android backup is disabled (android:allowBackup="false").
 - Indian phone number validation: exactly 10 digits beginning with 6, 7, 8, or 9.
 - Always compress photos via compressImage before saving or uploading.
-- Preserve Sonu (#1788885000505) in /src/assets/sonu.jpg.
-
 3. LOCATION INVARIANTS:
 - 4 tiers: State → District → Mandal/Municipality → Village/Locality.
 - Village must be distinct from Mandal (never duplicate the mandal name).
@@ -200,8 +235,24 @@ Here is the authoritative system context and non-negotiable invariants:
 
 4. NAVIGATION & DASHBOARD:
 - Onboarding order: Auth → Inauguration (first-time only) → Owner Profile → Location → Pet Choice/Details → Dashboard.
-- Dashboard has 3 category cards: 'Sighted Missing Pets', 'Pets at Home', 'Pets Missing'.
+- Dashboard has 3 category cards: 'Sightings', 'Safe Pets', 'Missing Pets'.
 - Selecting a card opens an internally scrollable modal. Single-modal visibility rule: opening a detail modal hides the category modal; closing it restores the category modal.
 - Sighted reports for the same pet are grouped behind 'View sightings (n)' with numbered tabs (Sighting 1, 2...).
-- Quick capture on Dashboard logs roaming pets as 'Unknown (Roaming Pet)' with ID UNKNOWN_ROAMING_PET directly into 'Pets Missing'.
+- Quick capture on Dashboard logs roaming pets as 'Unknown (Roaming Pet)' with ID UNKNOWN_ROAMING_PET directly into 'Missing Pets'.
 ```
+
+
+## 10. Current UI/Flow Snapshot — 2026-10-05
+
+- Shared top-row header pattern is required on Owner Details, Location, Pet Registered/Pet Choice, Pet Details, and Pet Status/Pet Safety: Back left, title centered, Close right.
+- Refresh/root startup always begins authenticated users at `/owner` after splash.
+- Pet Details view must be fully responsive: stat cards auto-fit or stack; values wrap; `Skip to Dashboard` and `Remove Pet` share one responsive row.
+- Pet Safety completion and Missing alert submission must navigate to the neutral dashboard with no status card opened.
+- Dashboard status cards start neutral; the user picks Sightings, Safe Pets, or Missing Pets.
+- Safe Pets cards never show exact address/location. Only owner/admin can open safe-pet details.
+- Mobile drawer pet section is image shortcut only; details stay in Pet Details.
+- Feedback and Play Store rating are separate actions. Feedback syncs to admin backend; Play Store opens the listing URL.
+
+### Android Location Permission Invariant — 2026-10-05
+
+FindLostPuppy shows its own precise-location explanation first, then requests native Android location permission. If the phone's master Location switch is off in the installed app, Google Play Services shows an in-app Location Settings resolution dialog so the user can turn Location on by consent without manually opening Quick Settings. Android settings remain fallback only when the OS cannot show the resolution dialog. Android does not allow silently toggling the master Location switch from an app.

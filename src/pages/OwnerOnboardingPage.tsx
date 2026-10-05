@@ -1,1 +1,1 @@
-export { PetParentContactPage as OwnerOnboardingPage } from './PetParentContactPage';
+export { OwnerProfile as OwnerOnboardingPage } from './OwnerProfile';

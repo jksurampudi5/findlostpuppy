@@ -6,18 +6,17 @@ import {
   CheckCircle2,
   Star,
   ExternalLink,
-  Share2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import type { SuggestionCategory } from '../types';
 
-export const PLAY_STORE_DETAILS_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
+export const PLAY_STORE_DETAILS_URL = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app&hl=en-US&ah=6AkRSsY1key8_VyeUYB02AhzUpg';
 export const PLAY_STORE_TESTING_URL = 'https://play.google.com/apps/testing/om.findlostpuppy.app';
 export const PLAY_STORE_REVIEW_URL =
   import.meta.env.VITE_PLAY_STORE_URL || PLAY_STORE_DETAILS_URL;
-export const PLAY_STORE_MARKET_URL = 'market://details?id=om.findlostpuppy.app';
+export const PLAY_STORE_MARKET_URL = PLAY_STORE_DETAILS_URL;
 
 export const SuggestionWidget: React.FC = () => {
   const { user } = useAuth();
@@ -87,57 +86,6 @@ export const SuggestionWidget: React.FC = () => {
     setRating(val);
   };
 
-  const handleOpenPlayStore = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    try {
-      const isCapacitor =
-        typeof (window as any).Capacitor !== 'undefined' &&
-        (window as any).Capacitor?.isNativePlatform?.();
-
-      if (isCapacitor) {
-        window.location.href = PLAY_STORE_MARKET_URL;
-      } else {
-        const win = window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          window.location.href = PLAY_STORE_REVIEW_URL;
-        }
-      }
-      showToast('⭐ Opening Google Play Store...', 'info');
-    } catch {
-      window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  const handleShareEarlyAccess = async (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    const shareData = {
-      title: 'FindLostPuppy 🐾 (Early Access Testing)',
-      text: 'Help test FindLostPuppy! Review the app and rate us on Google Play:',
-      url: PLAY_STORE_DETAILS_URL,
-    };
-    if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData);
-        showToast('🔗 Early Access link shared successfully!', 'success');
-        return;
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(PLAY_STORE_DETAILS_URL);
-      showToast('📋 Early Access link copied to clipboard! Share with testers to rate.', 'success');
-    } catch {
-      showToast('Could not copy link.', 'warning');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -148,7 +96,10 @@ export const SuggestionWidget: React.FC = () => {
       const firstLine = trimmed ? trimmed.split('\n')[0].trim() : `App Rating: ${rating} Stars`;
       const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
 
-      const descriptionWithContext = trimmed || `User rated ${rating} out of 5 stars.`;
+      const descriptionWithContext = [
+        `Rating: ${rating} out of 5 stars`,
+        `Feedback: ${trimmed || 'No written suggestion provided.'}`,
+      ].join('\n');
 
       const derivedCategory: SuggestionCategory =
         rating <= 2 ? 'bug' : rating === 3 ? 'improvement' : 'praise';
@@ -159,7 +110,7 @@ export const SuggestionWidget: React.FC = () => {
         userEmail: contact.includes('@') ? contact.trim() : user?.email,
         userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
         category: derivedCategory,
-        title: derivedTitle,
+        title: trimmed ? derivedTitle : `App Rating: ${rating} Stars`,
         description: descriptionWithContext,
         rating,
         pageUrl: location.pathname,
@@ -171,7 +122,7 @@ export const SuggestionWidget: React.FC = () => {
       localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
 
       setIsSuccess(true);
-      showToast('🎉 Thank you! Your rating was recorded.', 'success');
+      showToast('🎉 Thank you! Your feedback was recorded.', 'success');
 
       // Auto close after 2s
       setTimeout(() => {
@@ -223,7 +174,7 @@ export const SuggestionWidget: React.FC = () => {
                   <Star size={18} fill="#FFB800" stroke="#FFB800" />
                 </span>
                 <h3 id="suggestion-modal-title" className="suggestion-modal-title">
-                  App Rating
+                  App Suggestion
                 </h3>
               </div>
               <button
@@ -244,25 +195,9 @@ export const SuggestionWidget: React.FC = () => {
                 </div>
                 <h4>Thank You for Rating! 🎉</h4>
                 <p>
-                  You rated FindLostPuppy {rating} out of 5 stars. Thank you for helping keep community pets safe!
+                  Your rating and feedback are saved for admin review.
                 </p>
                 <div className="suggestion-success-actions">
-                  <a
-                    href={PLAY_STORE_REVIEW_URL}
-                    onClick={handleOpenPlayStore}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                  >
-                    ⭐ Review on Google Play <ExternalLink size={14} />
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={handleShareEarlyAccess}
-                  >
-                    <Share2 size={14} /> Share Link
-                  </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -308,42 +243,6 @@ export const SuggestionWidget: React.FC = () => {
                       })}
                     </div>
 
-                    {/* Direct Review Link & Share Buttons */}
-                    <div className="suggestion-action-links-row">
-                      <a
-                        href={PLAY_STORE_REVIEW_URL}
-                        onClick={handleOpenPlayStore}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="suggestion-playstore-link-btn"
-                        title="Rate on Google Play Store"
-                      >
-                        <span>⭐ Rate on Play Store</span>
-                        <ExternalLink size={13} />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={handleShareEarlyAccess}
-                        className="suggestion-share-link-btn"
-                        title="Share Early Access App Link with testers"
-                      >
-                        <Share2 size={13} />
-                        <span>Share Link</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Early Access Testing Program Link */}
-                  <div className="suggestion-early-access-subrow">
-                    <span className="early-access-badge">🧪 Early Access:</span>
-                    <a
-                      href={PLAY_STORE_TESTING_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="early-access-anchor"
-                    >
-                      Join Google Play Testing Program <ExternalLink size={11} />
-                    </a>
                   </div>
                 </div>
 
@@ -355,7 +254,7 @@ export const SuggestionWidget: React.FC = () => {
                     className="suggestion-textarea simplified-textarea"
                     value={suggestionText}
                     onChange={(e) => setSuggestionText(e.target.value)}
-                    placeholder="Share any review, thoughts, or suggestions (optional)..."
+                    placeholder="Share your feedback or suggestion for admin review (optional)..."
                     maxLength={1500}
                     autoFocus
                   />
@@ -369,7 +268,7 @@ export const SuggestionWidget: React.FC = () => {
                     disabled={isSubmitting}
                   >
                     <Send size={15} />
-                    <span>{isSubmitting ? 'Sending...' : 'Submit Rating ⭐'}</span>
+                    <span>{isSubmitting ? 'Sending...' : 'Submit Feedback'}</span>
                   </button>
                 </div>
               </form>
@@ -378,5 +277,30 @@ export const SuggestionWidget: React.FC = () => {
         </div>
       )}
     </>
+  );
+};
+
+
+export const PlayStoreEarlyAccessButton: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { showToast } = useToast();
+
+  const handleOpenEarlyAccess = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.stopPropagation();
+    showToast('⭐ Opening Google Play Early Access...', 'info');
+  };
+
+  return (
+    <a
+      href={PLAY_STORE_REVIEW_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`playstore-early-access-btn ${className}`.trim()}
+      onClick={handleOpenEarlyAccess}
+      aria-label="Rate FindLostPuppy on Google Play Early Access"
+    >
+      <Star size={18} fill="#FFB800" stroke="#FFB800" />
+      <span>Rate on Play Store</span>
+      <ExternalLink size={15} />
+    </a>
   );
 };

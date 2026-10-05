@@ -12,7 +12,7 @@ graph TD
     C --> C2[DiscoveryPage]
     C --> C3[DogDetailPage]
     C --> C4[ReportWizardPage - 3 Chapters]
-    C --> C5[DashboardPage]
+    C --> C5[PetStatus]
     
     C --> D[Domain State & Services]
     D --> D1[AuthService - Email / Phone OTP / Session]

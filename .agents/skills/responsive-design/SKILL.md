@@ -42,3 +42,14 @@ Detailed pattern documentation lives in `references/details.md`. Read that file 
 - **Touch Targets**: Buttons too small to tap accurately
 - **Aspect Ratio**: Images squishing or stretching
 - **Z-Index Stacking**: Overlays breaking on different screens
+
+## FindLostPuppy Project Rules
+
+When working in the FindLostPuppy mobile app, treat responsive behavior as a product invariant:
+
+- Every modal, sheet, and component transition must open from the top with the app header visible when applicable.
+- Long labels, pet names, owner chips, addresses, and button text must wrap, shrink, or stack; they must never clip or overflow horizontally on mobile.
+- Detail cards use responsive grids that collapse to one column when content cannot fit side by side.
+- Capture flows should keep the camera preview, primary action, and close affordance reachable without hiding the bottom action behind navigation.
+- Selection controls should use app-styled indicators instead of plain white check circles.
+- Before changing UI code, check `docs/navigation-flow.md`, `docs/app-context.md`, and `docs/local-development.md` for the current product flow.

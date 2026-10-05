@@ -17,21 +17,24 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
-import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
+import { PermissionRationaleModal, type PermissionStateLabel } from '../components/PermissionRationaleModal';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { detectResilientLocation } from '../utils/geolocationHelper';
+import { openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
-interface LocationOnboardingPageProps {
+interface LocationProps {
   onSuccess?: () => void;
   onBack?: () => void;
 }
 
 /** Supports manual or detected owner-location entry with separate state, district, mandal, and locality fields. */
-export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
+export const Location: React.FC<LocationProps> = ({
   onSuccess,
   onBack,
 }) => {
@@ -147,6 +150,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const [detecting, setDetecting] = useState(false);
   const [showLocationRationale, setShowLocationRationale] = useState(false);
+  const [locationPermissionState, setLocationPermissionState] = useState<PermissionStateLabel>('unknown');
   const [showGpsOffModal, setShowGpsOffModal] = useState(false);
   const [showPermissionDeniedDialog, setShowPermissionDeniedDialog] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
@@ -368,8 +372,45 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
-  // Direct native location detector
-  const handleDetectClick = () => {
+  const refreshLocationPermissionState = useCallback(async (): Promise<PermissionStateLabel> => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const permission = await Geolocation.checkPermissions();
+        const nextState: PermissionStateLabel =
+          permission.location === 'granted' || permission.coarseLocation === 'granted'
+            ? 'allowed'
+            : permission.location === 'denied' || permission.coarseLocation === 'denied'
+              ? 'not-allowed'
+              : 'ask';
+        setLocationPermissionState(nextState);
+        return nextState;
+      }
+
+      if (typeof navigator !== 'undefined' && 'permissions' in navigator) {
+        const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        const mapState = (value: PermissionState): PermissionStateLabel =>
+          value === 'granted' ? 'allowed' : value === 'denied' ? 'not-allowed' : 'ask';
+        const nextState = mapState(result.state);
+        setLocationPermissionState(nextState);
+        result.onchange = () => setLocationPermissionState(mapState(result.state));
+        return nextState;
+      }
+
+      setLocationPermissionState('ask');
+      return 'ask';
+    } catch {
+      setLocationPermissionState('unknown');
+      return 'unknown';
+    }
+  }, []);
+
+  // Direct native/browser location detector. Repeat detection skips the app explainer and asks the OS/browser directly.
+  const handleDetectClick = async () => {
+    const permissionState = await refreshLocationPermissionState();
+    if (permissionState === 'allowed' || hasDetected || hasSavedLocation) {
+      executeDetectLocation();
+      return;
+    }
     setShowLocationRationale(true);
   };
 
@@ -377,6 +418,12 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     setShowLocationRationale(false);
     executeDetectLocation();
   };
+
+  useEffect(() => {
+    if (showLocationRationale) {
+      refreshLocationPermissionState();
+    }
+  }, [showLocationRationale, refreshLocationPermissionState]);
 
   const handleResetLocation = () => {
     hasManuallyResetRef.current = true;
@@ -553,8 +600,13 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
 
       if (isGpsOff) {
-        setShowGpsOffModal(true);
-        showToast('📍 Device Location is turned off. Please enable Location in phone quick settings.', 'warning');
+        const promptedInApp = await promptEnableDeviceLocation();
+        if (promptedInApp) {
+          showToast('Turn on Location in the Android popup, then return here. Detection will retry automatically.', 'info');
+        } else {
+          setShowGpsOffModal(true);
+          showToast('📍 Device Location is turned off. Please enable Location to continue.', 'warning');
+        }
       } else if (isDenied) {
         setShowPermissionDeniedDialog(true);
         showToast('Location permission denied. Please enable Precise Location in settings.', 'warning');
@@ -571,12 +623,14 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     }
   };
 
-  // Auto-recheck location permission on app resume / window focus until granted
+  // Auto-recheck location permission / device Location after returning from Android settings.
   useEffect(() => {
-    if (!showPermissionDeniedDialog) return;
+    if (!showPermissionDeniedDialog && !showGpsOffModal) return;
 
     const handleRecheckOnResume = () => {
-      if (showPermissionDeniedDialog && !isDetectingRef.current) {
+      if ((showPermissionDeniedDialog || showGpsOffModal) && !isDetectingRef.current) {
+        setShowPermissionDeniedDialog(false);
+        setShowGpsOffModal(false);
         executeDetectLocation();
       }
     };
@@ -593,7 +647,7 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
       window.removeEventListener('focus', handleRecheckOnResume);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [showPermissionDeniedDialog]);
+  }, [showPermissionDeniedDialog, showGpsOffModal]);
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
@@ -777,27 +831,26 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
     <div className="onboarding-page-container">
       <div className="onboarding-card-wrapper">
         <div className="card onboarding-card location-onboarding-card">
-          <button
-            type="button"
-            className="onboarding-exit-btn"
-            onClick={handleExitToDashboard}
-            aria-label="Exit location and go to dashboard"
-            title="Exit to dashboard"
-          >
-            <X size={19} />
-          </button>
-          <div className="section-card-title-block">
-            <h1>Location</h1>
-          </div>
-          {/* Top-left back button inside container for going back to Owner Profile */}
-          <div className="pet-profile-header-bar location-header-bar">
-            <div className="pet-profile-header-left">
+          <div className="onboarding-top-nav-row">
+            <div className="onboarding-top-nav-left">
               <BackButton
                 onClick={handleBack}
                 title="Go back to Owner Profile"
                 aria-label="Back to Owner Profile"
               />
             </div>
+            <div className="section-card-title-block onboarding-top-nav-title">
+              <h1>Location</h1>
+            </div>
+            <button
+              type="button"
+              className="onboarding-exit-btn onboarding-top-nav-close"
+              onClick={handleExitToDashboard}
+              aria-label="Exit location and go to dashboard"
+              title="Exit to dashboard"
+            >
+              <X size={19} />
+            </button>
           </div>
           <div className="location-profile-header">
             <div className="location-header-actions">
@@ -1073,33 +1126,48 @@ export const LocationOnboardingPage: React.FC<LocationOnboardingPageProps> = ({
 
       <PermissionRationaleModal
         isOpen={showLocationRationale}
-        title="Location Permission"
-        message="Location access is needed only when you choose Detect Location. It helps identify your State, District, Mandal and Home Base. Your exact coordinates are not publicly displayed."
-        onCancel={() => setShowLocationRationale(false)}
+        variant="location"
+        permissionState={locationPermissionState}
+        title={locationPermissionState === 'allowed' ? 'Use Current Location' : 'Allow Precise Location'}
+        message={
+          locationPermissionState === 'allowed'
+            ? 'Location access is already allowed. We can now detect your current GPS and fill State, District, Mandal, and Home Base automatically.'
+            : locationPermissionState === 'not-allowed'
+              ? 'Location is currently not allowed. Tap Allow Location to request access again. If your browser already blocked it, turn on Location from the address-bar permission control and try again.'
+              : 'Tap Allow only if you consent to using precise GPS for this detection. Android or the browser will show the location permission prompt inside the app flow. We use it only to fill your location squares and do not show exact GPS publicly.'
+        }
+        continueLabel={locationPermissionState === 'allowed' ? 'Use Current Location' : 'Allow Location'}
+        cancelLabel="Choose Manually"
+        onCancel={() => {
+          setShowLocationRationale(false);
+          setActiveLocationModal('state');
+        }}
         onContinue={handleLocationRationaleContinue}
       />
 
       <PermissionRationaleModal
         isOpen={showGpsOffModal}
         title="Turn On Device Location"
-        message="Your device Location (GPS) is currently turned off. To automatically detect your State, District, and Mandal, swipe down from the top of your screen to open Quick Settings, turn on Location, and tap Detect Again."
-        continueLabel="Detect Again"
+        message="Your phone Location switch is off. Tap Open Location Settings only if you consent, turn Location on yourself, then return to FindLostPuppy. We will retry detection automatically when you come back."
+        continueLabel="Open Location Settings"
         cancelLabel="Choose Manually"
         onCancel={() => {
           setShowGpsOffModal(false);
           setActiveLocationModal('district');
         }}
-        onContinue={() => {
-          setShowGpsOffModal(false);
-          executeDetectLocation();
+        onContinue={async () => {
+          const opened = await openDeviceLocationSettings();
+          if (!opened) {
+            showToast('Open phone Settings > Location, turn it on, then tap Detect Location again.', 'warning');
+          }
         }}
       />
 
       <PermissionRationaleModal
         isOpen={showPermissionDeniedDialog}
         title="Location Permission Needed"
-        message="Location helps us capture the correct last-seen place for your pet. Enable it in device or browser settings, or enter your location manually."
-        continueLabel="Try Again"
+        message="Location helps us capture the correct last-seen place for your pet. Tap Allow Location to show the Android/browser permission prompt. Choose precise location if Android asks."
+        continueLabel="Allow Location"
         cancelLabel="Enter Location Manually"
         onCancel={() => {
           setShowPermissionDeniedDialog(false);

@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
   Megaphone,
-  Calendar,
   Clock,
   MapPin,
   Sparkles,
@@ -11,6 +10,7 @@ import {
   CheckCircle2,
   Loader2,
   Home,
+  ChevronDown,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { detectResilientLocation } from '../utils/geolocationHelper';
@@ -49,7 +49,25 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
 
   const today = new Date().toISOString().split('T')[0];
   const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  const todayDate = new Date();
+  const currentYear = todayDate.getFullYear();
+  const buildDateString = (year: string, month: string, day: string) => {
+    if (!year || !month || !day) return '';
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+  const splitDateString = (value?: string) => {
+    const [year, month, day] = (value || today).split('-');
+    return {
+      year: year || String(currentYear),
+      month: month || String(todayDate.getMonth() + 1).padStart(2, '0'),
+      day: day || String(todayDate.getDate()).padStart(2, '0'),
+    };
+  };
+  const initialDateParts = splitDateString(initialData?.dateLost || today);
   const [dateLost, setDateLost] = useState(initialData?.dateLost || today);
+  const [lostYear, setLostYear] = useState(initialDateParts.year);
+  const [lostMonth, setLostMonth] = useState(initialDateParts.month);
+  const [lostDay, setLostDay] = useState(initialDateParts.day);
   const [timeLost, setTimeLost] = useState(initialData?.timeLost || currentTime);
   // Initialize ONLY with existing report's location when editing; otherwise leave empty for the lost location
   const [lastKnownLocation, setLastKnownLocation] = useState(
@@ -57,7 +75,18 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [detectedSuccess, setDetectedSuccess] = useState(false);
+  const autoDetectAttemptedRef = useRef(false);
   const draftKey = `findlostpuppy_draft_missing_report_${dog?.id || 'new'}`;
+  const yearOptions = Array.from({ length: 6 }, (_, index) => String(currentYear - index));
+  const maxMonthForSelectedYear = Number(lostYear) === currentYear ? todayDate.getMonth() + 1 : 12;
+  const monthOptions = Array.from({ length: maxMonthForSelectedYear }, (_, index) => String(index + 1).padStart(2, '0'));
+  const daysInSelectedMonth = new Date(Number(lostYear), Number(lostMonth), 0).getDate();
+  const maxDayForSelectedMonth = Number(lostYear) === currentYear && Number(lostMonth) === todayDate.getMonth() + 1
+    ? todayDate.getDate()
+    : daysInSelectedMonth;
+  const dayOptions = Array.from({ length: maxDayForSelectedMonth }, (_, index) => String(index + 1).padStart(2, '0'));
+  const isSelectedDateToday = buildDateString(lostYear, lostMonth, lostDay) === today;
+  const isSelectedDateFuture = buildDateString(lostYear, lostMonth, lostDay) > today;
 
   useCrashSafeDraft(draftKey, { dateLost, timeLost, lastKnownLocation }, isOpen && !isEditing);
 
@@ -68,12 +97,44 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
       const draft = !initialData && !isEditing
         ? readCrashSafeDraft<{ dateLost: string; timeLost: string; lastKnownLocation: string }>(draftKey)
         : null;
-      setDateLost(initialData?.dateLost || draft?.dateLost || now.toISOString().split('T')[0]);
+      const nextDateLost = initialData?.dateLost || draft?.dateLost || now.toISOString().split('T')[0];
+      const nextDateParts = splitDateString(nextDateLost);
+      setDateLost(nextDateLost);
+      setLostYear(nextDateParts.year);
+      setLostMonth(nextDateParts.month);
+      setLostDay(nextDateParts.day);
       setTimeLost(initialData?.timeLost || draft?.timeLost || now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
       setLastKnownLocation(initialData?.lastKnownLocation || draft?.lastKnownLocation || '');
       setDetectedSuccess(false);
+      autoDetectAttemptedRef.current = false;
     }
   }, [isOpen, initialData, isEditing, draftKey]);
+
+
+  useEffect(() => {
+    const maxMonth = Number(lostYear) === currentYear ? todayDate.getMonth() + 1 : 12;
+    if (Number(lostMonth) > maxMonth) {
+      setLostMonth(String(maxMonth).padStart(2, '0'));
+      return;
+    }
+
+    const maxDay = Number(lostYear) === currentYear && Number(lostMonth) === todayDate.getMonth() + 1
+      ? todayDate.getDate()
+      : new Date(Number(lostYear), Number(lostMonth), 0).getDate();
+    if (Number(lostDay) > maxDay) {
+      setLostDay(String(maxDay).padStart(2, '0'));
+      return;
+    }
+
+    const nextDateLost = buildDateString(lostYear, lostMonth, lostDay);
+    if (nextDateLost) setDateLost(nextDateLost);
+  }, [lostYear, lostMonth, lostDay, currentYear, today]);
+
+  useEffect(() => {
+    if (isSelectedDateToday && timeLost && timeLost > currentTime) {
+      setTimeLost(currentTime);
+    }
+  }, [isSelectedDateToday, timeLost, currentTime]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -86,30 +147,52 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
 
   // 1-Click Resilient Location Detection from the Place Where Pet is Lost
   /** Fills the last-known location with a detected area name and reports detection or permission failures. */
-  const autoDetectGPS = async () => {
+  const autoDetectGPS = async (options?: { silent?: boolean }) => {
     setIsDetectingLocation(true);
     try {
       const geo = await detectResilientLocation();
-      const area = (geo as any).village || geo.city || geo.mandal || geo.district || geo.state || '';
+      const detectedParts = [
+        (geo as any).village,
+        geo.city,
+        geo.mandal,
+        geo.district,
+        geo.state,
+      ]
+        .filter(Boolean)
+        .map((part) => String(part).trim())
+        .filter((part, index, arr) => part && arr.findIndex((item) => item.toLowerCase() === part.toLowerCase()) === index);
+      const area = detectedParts.join(', ');
       if (!area) {
-        showToast('Location was detected, but no safe public area name was available. Please enter a nearby landmark.', 'warning');
+        if (!options?.silent) showToast('Location was detected, but no safe public area name was available. Please enter a nearby landmark.', 'warning');
         return;
       }
 
       // Exact coordinates must never be copied into the public report text.
       setLastKnownLocation(area);
       setDetectedSuccess(true);
-      showToast('📍 Approximate lost area detected. You can add a nearby public landmark.', 'success');
+      if (!options?.silent) showToast('📍 Approximate lost area detected. You can edit it before broadcasting.', 'success');
     } catch (err: any) {
-      if (err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '')) {
-        alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
-      } else {
-        showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
+      if (!options?.silent) {
+        if (err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '')) {
+          alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
+        } else {
+          showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
+        }
       }
     } finally {
       setIsDetectingLocation(false);
     }
   };
+
+
+  // Auto-fill the missing-alert form when opened: current date/time are set above,
+  // and GPS tries to fill a safe public lost area. The user can edit before broadcast.
+  useEffect(() => {
+    if (!isOpen || isEditing || autoDetectAttemptedRef.current) return;
+    if (initialData?.lastKnownLocation) return;
+    autoDetectAttemptedRef.current = true;
+    autoDetectGPS({ silent: true });
+  }, [isOpen, isEditing, initialData?.lastKnownLocation]);
 
   const homeAreaLabel =
     (ownerProfile as any)?.approximateArea ||
@@ -134,6 +217,17 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
   /** Validates the last-known location, clears the draft, and passes report details to the submission callback. */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSelectedDateFuture || dateLost > today) {
+      showToast('Lost date cannot be in the future. Please choose today or an earlier date.', 'warning');
+      return;
+    }
+
+    if (dateLost === today && timeLost && timeLost > currentTime) {
+      showToast('Lost time cannot be later than the current time.', 'warning');
+      setTimeLost(currentTime);
+      return;
+    }
+
     if (!lastKnownLocation.trim()) {
       showToast('Please specify the location or landmark where your dog was lost.', 'warning');
       return;
@@ -210,17 +304,34 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                 <span>Date When Lost</span>
                 <span className="required-star">*</span>
               </label>
-              <div className="input-with-icon">
-                <Calendar size={16} className="input-icon text-terracotta" />
-                <input
-                  id="modal-date-lost"
-                  type="date"
-                  className="form-input cute-input"
-                  value={dateLost}
-                  max={today}
-                  onChange={(e) => setDateLost(e.target.value)}
-                  required
-                />
+              <div className="missing-date-container-grid" id="modal-date-lost">
+                <label className="missing-date-select-wrap">
+                  <span>Year</span>
+                  <select value={lostYear} onChange={(e) => setLostYear(e.target.value)} required>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </label>
+                <label className="missing-date-select-wrap">
+                  <span>Month</span>
+                  <select value={lostMonth} onChange={(e) => setLostMonth(e.target.value)} required>
+                    {monthOptions.map((month) => (
+                      <option key={month} value={month}>{month}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </label>
+                <label className="missing-date-select-wrap">
+                  <span>Date</span>
+                  <select value={lostDay} onChange={(e) => setLostDay(e.target.value)} required>
+                    {dayOptions.map((day) => (
+                      <option key={day} value={day}>{day}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </label>
               </div>
             </div>
 
@@ -238,7 +349,16 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                   className="form-input cute-input"
                   placeholder="e.g. 18:00"
                   value={timeLost}
-                  onChange={(e) => setTimeLost(e.target.value)}
+                  max={isSelectedDateToday ? currentTime : undefined}
+                  onChange={(e) => {
+                    const nextTime = e.target.value;
+                    if (isSelectedDateToday && nextTime > currentTime) {
+                      setTimeLost(currentTime);
+                      showToast('Lost time cannot be later than the current time.', 'warning');
+                      return;
+                    }
+                    setTimeLost(nextTime);
+                  }}
                 />
               </div>
             </div>
@@ -247,7 +367,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
             <div className="form-group missing-form-group missing-location-group">
               <div className="location-field-label-row">
                 <label className="form-label cute-label" htmlFor="modal-last-location" style={{ marginBottom: 0 }}>
-                  <span>Location Where Pet Was Lost</span>
+                  <span>Lost Location</span>
                   <span className="required-star">*</span>
                 </label>
 
@@ -255,7 +375,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                 <div className="location-action-btns-wrap">
                   <button
                     type="button"
-                    onClick={autoDetectGPS}
+                    onClick={() => autoDetectGPS()}
                     disabled={isDetectingLocation}
                     className="btn btn-sm auto-detect-loc-btn"
                     title="Detect GPS coordinates of the place where pet was lost"
@@ -268,7 +388,7 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
                     ) : (
                       <>
                         <Compass size={13} className="text-terracotta" />
-                        <span>📍 Auto-Detect Lost GPS</span>
+                        <span>Auto-Detect Lost Location</span>
                       </>
                     )}
                   </button>
@@ -307,11 +427,11 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
               <div className="location-hint-row">
                 {detectedSuccess ? (
                   <span className="location-auto-success-tag">
-                    <CheckCircle2 size={13} /> Location captured. You can freely edit or type additional landmark details above!
+                    <CheckCircle2 size={13} /> Lost area filled. Edit it if needed before broadcasting.
                   </span>
                 ) : (
                   <span className="input-hint">
-                    Click <strong>Auto-Detect Lost GPS</strong> if you are at the lost location, or type the landmark manually above.
+                    We try to auto-fill the lost area. You can edit this landmark before broadcasting.
                   </span>
                 )}
               </div>
