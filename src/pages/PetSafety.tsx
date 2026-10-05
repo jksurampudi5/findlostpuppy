@@ -8,6 +8,7 @@ import {
   House,
   Siren,
   LayoutDashboard,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,13 +21,13 @@ import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
-interface ReportLostDogPageProps {
+interface PetSafetyProps {
   onBackToPet?: () => void;
   onSuccess?: () => void;
 }
 
 /** Manages pet safety status, missing-report submission, and sharing with recovery of report drafts. */
-export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
+export const PetSafety: React.FC<PetSafetyProps> = ({
   onBackToPet,
   onSuccess,
 }) => {
@@ -41,6 +42,8 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isTransitioningBack, setIsTransitioningBack] = useState(false);
+  const [isTransitioningForward, setIsTransitioningForward] = useState(false);
+  const [forwardDashboardState, setForwardDashboardState] = useState<{ activeTab?: string } | null>(null);
 
   const [, setForceUpdate] = useState(0);
   useEffect(() => {
@@ -98,8 +101,8 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     triggerStarCelebration();
 
     showToast(`🐾 Wonderful! ${dogName || 'Your pup'} is safe at home.`, 'success');
-    setActiveOnboardingTab('dashboard');
-    navigate('/homepage', { state: { activeTab: 'SAFE' } });
+    setForwardDashboardState(null);
+    setIsTransitioningForward(true);
   };
 
   // ACTION 2: User chooses "Pet is Not Safe (Missing)" -> Open broadcast form.
@@ -201,8 +204,8 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
       setShowSuccessTick(true);
       setTimeout(() => {
         setShowSuccessTick(false);
-        setActiveOnboardingTab('dashboard');
-        navigate('/homepage');
+        setForwardDashboardState(null);
+        setIsTransitioningForward(true);
       }, 1000);
     } catch {
       showToast('Could not save lost report. Please try again.', 'error');
@@ -284,7 +287,7 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
 
   // Back navigation
   const handleBack = () => {
-    if (isTransitioningBack) return;
+    if (isTransitioningBack || isTransitioningForward) return;
     setIsTransitioningBack(true);
   };
 
@@ -299,6 +302,27 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
     }
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
+
+  const handleExitToDashboard = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    setForwardDashboardState(null);
+    setIsTransitioningForward(true);
+  };
+
+
+  const handleForwardTransitionComplete = () => {
+    setIsTransitioningForward(false);
+    setActiveOnboardingTab('dashboard');
+    if (forwardDashboardState) {
+      navigate('/homepage', { state: forwardDashboardState });
+    } else {
+      navigate('/homepage');
+    }
+    setForwardDashboardState(null);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+
 
   // Keyboard handler for cards
   const handleCardKey = (e: React.KeyboardEvent, action: () => void) => {
@@ -321,25 +345,32 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
         {/* APPROVED OUTER CONTAINER — orange glow/border/shadow preserved exactly */}
         <div className="onboarding-card card owner-theme-card">
 
-          {/* ── BACK BUTTON ── */}
-          <div className="ps-top-bar">
-            <BackButton
-              onClick={handleBack}
-              title="Go back"
-              aria-label="Go back"
-            />
+          <div className="onboarding-top-nav-row ps-top-nav-row">
+            <div className="onboarding-top-nav-left">
+              <BackButton
+                onClick={handleBack}
+                title="Go back"
+                aria-label="Go back"
+              />
+            </div>
+            <div className="section-card-title-block onboarding-top-nav-title ps-top-nav-title">
+              <h1>Pet Status</h1>
+            </div>
+            <button
+              type="button"
+              className="onboarding-exit-btn onboarding-top-nav-close"
+              onClick={handleExitToDashboard}
+              aria-label="Exit pet status and go to dashboard"
+              title="Exit to dashboard"
+            >
+              <X size={19} />
+            </button>
           </div>
 
-          {/* ── CENTERED HEADER ── */}
-          <div className="ps-header">
+          <div className="ps-header ps-header-compact">
             <div className="ps-icon-ring" aria-hidden="true">
               <PawPrint size={28} className="ps-paw-icon" />
             </div>
-
-            <h1 className="ps-title">
-              Pet safety status
-            </h1>
-
             <p className="ps-desc">
               Select your pet's current status below to explore the dashboard or broadcast an urgent missing alert.
             </p>
@@ -450,8 +481,8 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
               type="button"
               className="btn btn-primary ps-dash-btn"
               onClick={() => {
-                setActiveOnboardingTab('dashboard');
-                navigate('/homepage');
+                if (isTransitioningBack || isTransitioningForward) return;
+                handleExitToDashboard();
               }}
             >
               <LayoutDashboard size={18} />
@@ -564,6 +595,16 @@ export const ReportLostDogPage: React.FC<ReportLostDogPageProps> = ({
           toStep={onBackToPet ? "Pet Details" : "Dashboard"}
           durationMs={1100}
           onComplete={handleBackTransitionComplete}
+        />
+      )}
+
+      {isTransitioningForward && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Pet Safety"
+          toStep="Pet Status"
+          durationMs={1600}
+          onComplete={handleForwardTransitionComplete}
         />
       )}
     </div>

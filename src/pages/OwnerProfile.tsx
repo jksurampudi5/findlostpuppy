@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { authService } from '../services/authService';
-import type { ContactMethod, OwnerProfile } from '../types';
+import type { ContactMethod, OwnerProfile as OwnerProfileType } from '../types';
 import { compressImage } from '../utils/imageCompressor';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
@@ -14,14 +14,15 @@ import { firebaseSyncService } from '../services/firebaseSyncService';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
+import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 
-interface PetParentContactPageProps {
+interface OwnerProfileProps {
   onSuccess?: () => void;
 }
 
 /** Displays saved owner contact details and an editing form with managed profile-photo uploads. */
-export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSuccess }) => {
+export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -201,7 +202,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
 
       authService.updateCurrentUser({ avatar: finalPhotoUrl });
       if (user) {
-        const updated: OwnerProfile = {
+        const updated: OwnerProfileType = {
           ...(existingOwnerProfile || {}),
           id: user.id,
           userId: user.id,
@@ -231,7 +232,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       setSavedSnapshot((prev) => ({ ...prev, photo: finalPhotoUrl }));
       showToast('✓ Owner photo saved to Cloudinary & synced to Firestore!', 'success');
     } catch (err: any) {
-      console.error('[PetParentContactPage] Photo upload error:', err);
+      console.error('[OwnerProfile] Photo upload error:', err);
       showToast(err?.message || 'Could not process photo. Please try another image.', 'error');
     } finally {
       setIsUploadingPhoto(false);
@@ -264,7 +265,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       let cloudinaryDeleted = false;
       if (photoToDelete) {
         cloudinaryDeleted = await storageBucketService.deleteMedia(photoToDelete).catch((err) => {
-          console.warn('[PetParentContactPage] Cloudinary delete notice:', err);
+          console.warn('[OwnerProfile] Cloudinary delete notice:', err);
           return false;
         });
       }
@@ -272,7 +273,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
       // 2. Clear Firestore record regardless of Cloudinary result
       if (user?.id) {
         await firebaseSyncService.deleteOwnerPhoto(user.id, photoToDelete).catch((err) => {
-          console.warn('[PetParentContactPage] Firestore delete notice:', err);
+          console.warn('[OwnerProfile] Firestore delete notice:', err);
         });
       }
 
@@ -287,7 +288,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
         );
       }
     } catch (err) {
-      console.error('[PetParentContactPage] Delete photo error:', err);
+      console.error('[OwnerProfile] Delete photo error:', err);
       // Local state is already cleared above; just warn about remote
       showToast('Photo removed locally. Remote cleanup may be pending.', 'warning');
     }
@@ -328,7 +329,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     if (user) {
       const p = storageService.getOwnerProfileByUserId(user.id, user.email);
       if (p) {
-        const updated: OwnerProfile = {
+        const updated: OwnerProfileType = {
           ...p,
           fullName: '',
           phone: '',
@@ -384,7 +385,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     const effectiveEmail = user?.email || existingProfile?.email || 'parent@findlostpuppy.com';
     const cleanPhoneNumber = phoneValidation.cleanDigits;
 
-    const profile: OwnerProfile = {
+    const profile: OwnerProfileType = {
       ...(existingProfile || {}),
       id: effectiveUserId,
       userId: effectiveUserId,
@@ -475,17 +476,26 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
     <div className="onboarding-page owner-profile-page">
       <div className="app-container onboarding-container owner-onboarding-container">
         <div className="onboarding-card card owner-theme-card owner-combined-card">
-          <button
-            type="button"
-            className="onboarding-exit-btn"
-            onClick={handleExitToDashboard}
-            aria-label="Exit owner details and go to dashboard"
-            title="Exit to dashboard"
-          >
-            <X size={19} />
-          </button>
-          <div className="section-card-title-block">
-            <h1>Owner Details</h1>
+          <div className="onboarding-top-nav-row">
+            <div className="onboarding-top-nav-left">
+              <BackButton
+                onClick={handleExitToDashboard}
+                title="Back to Dashboard"
+                aria-label="Back to Dashboard"
+              />
+            </div>
+            <div className="section-card-title-block onboarding-top-nav-title">
+              <h1>Owner Details</h1>
+            </div>
+            <button
+              type="button"
+              className="onboarding-exit-btn onboarding-top-nav-close"
+              onClick={handleExitToDashboard}
+              aria-label="Exit owner details and go to dashboard"
+              title="Exit to dashboard"
+            >
+              <X size={19} />
+            </button>
           </div>
 
           {!isEditing ? (
@@ -904,7 +914,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
             }
             setPhoto(uploadedUrl);
             authService.updateCurrentUser({ avatar: uploadedUrl });
-            const updated: OwnerProfile = {
+            const updated: OwnerProfileType = {
               ...(currentProfile || {}),
               id: user.id,
               userId: user.id,
@@ -932,7 +942,7 @@ export const PetParentContactPage: React.FC<PetParentContactPageProps> = ({ onSu
             refreshProgress();
             showToast('✓ Owner photo saved to Cloudinary & synced to Firestore!', 'success');
           } catch (e: any) {
-            console.error('[PetParentContactPage] Camera capture error:', e);
+            console.error('[OwnerProfile] Camera capture error:', e);
             showToast(e?.message || 'Could not process the camera photo. Please try again.', 'error');
           } finally {
             setIsUploadingPhoto(false);

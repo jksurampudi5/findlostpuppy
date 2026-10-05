@@ -41,16 +41,16 @@ import {
 } from '../utils/breedAssetHelper';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
 import { CameraModal } from '../components/CameraModal';
-import './DogOnboardingPage.css';
+import './PetDetails.css';
 
-interface DogOnboardingPageProps {
+interface PetDetailsProps {
   onBackToLocation?: () => void;
   onBackToOwner?: () => void;
   onSuccess?: () => void;
 }
 
 /** Displays saved pet details or the pet registration form, including photo upload and removal actions. */
-export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
+export const PetDetails: React.FC<PetDetailsProps> = ({
   onBackToLocation,
   onBackToOwner,
   onSuccess,
@@ -59,6 +59,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isTransitioningBack, setIsTransitioningBack] = useState(false);
+  const [isTransitioningForward, setIsTransitioningForward] = useState(false);
 
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const photoPolicy = canChangePhoto(existingPet);
@@ -296,7 +297,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         showToast('Photo saved locally and queued for Cloudinary sync.', 'info');
       }
     } catch (err: any) {
-      console.error('[DogOnboardingPage] Photo error:', err);
+      console.error('[PetDetails] Photo error:', err);
       showToast(err?.message || 'Could not process photo. Please choose or capture a new clear image.', 'error');
     } finally {
       setUploadingPhoto(false);
@@ -336,20 +337,20 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       // 2. Delete from Cloudinary
       if (photoToDelete) {
         await storageBucketService.deleteMedia(photoToDelete).catch((err) => {
-          console.warn('[DogOnboardingPage] Cloudinary delete notice:', err);
+          console.warn('[PetDetails] Cloudinary delete notice:', err);
         });
       }
 
       // 3. Delete from Firestore & update pet records
       if (user?.id) {
         await firebaseSyncService.deletePetPhoto(user.id, petId, photoToDelete).catch((err) => {
-          console.warn('[DogOnboardingPage] Firestore delete notice:', err);
+          console.warn('[PetDetails] Firestore delete notice:', err);
         });
       }
 
       showToast('🐾 Pet photo deleted from Cloudinary & Firestore!', 'success');
     } catch (err) {
-      console.error('[DogOnboardingPage] Delete pet photo error:', err);
+      console.error('[PetDetails] Delete pet photo error:', err);
       showToast('Failed to delete pet photo. Please try again.', 'error');
     }
   };
@@ -486,7 +487,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
         const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalPrimary, 0);
         finalPrimary = uploaded || '';
       } catch (err) {
-        console.warn('[DogOnboardingPage] Primary photo upload notice:', err);
+        console.warn('[PetDetails] Primary photo upload notice:', err);
         finalPrimary = '';
       }
     }
@@ -497,7 +498,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
           const uploaded = await storageBucketService.uploadPetPhoto(ownerId, petId, finalAdditionals[i], i + 1);
           finalAdditionals[i] = uploaded || '';
         } catch (err) {
-          console.warn('[DogOnboardingPage] Gallery photo upload notice:', err);
+          console.warn('[PetDetails] Gallery photo upload notice:', err);
           finalAdditionals[i] = '';
         }
       }
@@ -549,11 +550,9 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
 
       showToast(`🐾 ${profileToSave.name}'s profile saved & synced to Firestore!`, 'success');
       setIsEditing(false);
-      if (onSuccess) {
-        onSuccess();
-      }
+      setIsTransitioningForward(true);
     } catch (saveErr) {
-      console.error('[DogOnboardingPage] Save pet profile error:', saveErr);
+      console.error('[PetDetails] Save pet profile error:', saveErr);
       setSubmitting(false);
       showToast('Could not save pet profile. Please try again.', 'error');
     }
@@ -665,7 +664,7 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
   void handleResetPetForm;
 
   const handleBack = () => {
-    if (isTransitioningBack) return;
+    if (isTransitioningBack || isTransitioningForward) return;
     setIsTransitioningBack(true);
   };
 
@@ -678,6 +677,18 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
     } else {
       setActiveOnboardingTab('choice');
       navigate('/choice');
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+
+  const handleForwardTransitionComplete = () => {
+    setIsTransitioningForward(false);
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      setActiveOnboardingTab('report');
+      navigate('/alert');
     }
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -707,27 +718,37 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
       <div className="app-container onboarding-container">
         {/* APPROVED OUTER CONTAINER - CSS & GLOW PRESERVED EXACTLY AS-IS */}
         <div className="onboarding-card card owner-theme-card pet-combined-card">
-          <button
-            type="button"
-            className="onboarding-exit-btn"
-            onClick={handleExitToDashboard}
-            aria-label="Exit pet details and go to dashboard"
-            title="Exit to dashboard"
-          >
-            <X size={19} />
-          </button>
-          <div className="section-card-title-block">
-            <h1>Pet Details</h1>
-          </div>
-          {/* 1. Header Bar */}
-          <div className="pet-profile-header-bar">
-            <div className="pet-profile-header-left">
+          <div className="onboarding-top-nav-row">
+            <div className="onboarding-top-nav-left">
               <BackButton
                 onClick={handleBack}
                 title="Go back"
                 aria-label="Back"
               />
             </div>
+            <div className="section-card-title-block onboarding-top-nav-title">
+              <h1>Pet Details</h1>
+            </div>
+            <button
+              type="button"
+              className="onboarding-exit-btn onboarding-top-nav-close"
+              onClick={handleExitToDashboard}
+              aria-label="Exit pet details and go to dashboard"
+              title="Exit to dashboard"
+            >
+              <X size={19} />
+            </button>
+          </div>
+
+          <div className="pet-details-top-action-row">
+            <button
+              type="button"
+              onClick={handleExitToDashboard}
+              className="pet-skip-direct-btn pet-skip-top-btn"
+              title="Skip pet details and go to dashboard"
+            >
+              <span>Skip to Dashboard</span>
+            </button>
 
             {isPetFilled && (
               <button
@@ -742,15 +763,6 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={handleExitToDashboard}
-            className="pet-skip-direct-btn pet-skip-top-btn"
-            title="Skip pet details and go to dashboard"
-          >
-            <span>Skip to Dashboard</span>
-          </button>
 
           {!isEditing ? (
             <div className="pet-profile-view-content">
@@ -883,12 +895,8 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (onSuccess) {
-                      onSuccess();
-                    } else {
-                      setActiveOnboardingTab('report');
-                      navigate('/alert');
-                    }
+                    if (isTransitioningBack || isTransitioningForward) return;
+                    setIsTransitioningForward(true);
                   }}
                   className="btn btn-primary btn-lg continue-to-location-orange-btn pet-view-continue-btn"
                 >
@@ -1450,6 +1458,16 @@ export const DogOnboardingPage: React.FC<DogOnboardingPageProps> = ({
           toStep={onBackToLocation ? "Location" : onBackToOwner ? "Owner Profile" : "Pet Choice"}
           durationMs={1100}
           onComplete={handleBackTransitionComplete}
+        />
+      )}
+
+      {isTransitioningForward && (
+        <VillageDogTransition
+          direction="forward"
+          fromStep="Pet Details"
+          toStep="Pet Safety"
+          durationMs={1600}
+          onComplete={handleForwardTransitionComplete}
         />
       )}
     </div>

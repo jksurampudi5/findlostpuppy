@@ -969,3 +969,96 @@
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(255, 121, 0, 0.45);
 }
+
+/* Responsive Pet Details view: stat cards must wrap instead of clipping sideways. */
+.pet-profile-view-wrap,
+.pet-view-card,
+.pet-view-grid,
+.pet-view-extra-row {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pet-view-card {
+  padding-inline: clamp(1rem, 4vw, 1.8rem);
+}
+
+.pet-view-header,
+.pet-view-name-wrap {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.pet-view-name {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pet-view-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)) !important;
+  gap: clamp(0.75rem, 2.6vw, 1rem) !important;
+}
+
+.pet-view-stat-cell,
+.pet-view-extra-row {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2.5vw, 1rem);
+  overflow: hidden;
+}
+
+.pet-view-stat-info {
+  min-width: 0 !important;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+
+.pet-view-stat-label,
+.pet-view-stat-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pet-view-stat-value {
+  white-space: normal !important;
+  line-height: 1.25;
+}
+
+@media (max-width: 640px) {
+  .pet-view-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pet-view-stat-cell,
+  .pet-view-extra-row {
+    min-height: 86px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pet-view-card {
+    padding: 1rem;
+    border-radius: 22px;
+  }
+
+  .pet-view-stat-cell,
+  .pet-view-extra-row {
+    align-items: flex-start;
+  }
+
+  .pet-view-stat-icon {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+  }
+}

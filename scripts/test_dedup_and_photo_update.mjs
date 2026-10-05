@@ -91,7 +91,7 @@ async function run() {
       localStorage.setItem('findlostpuppy_reports_v1', JSON.stringify(duplicateReports));
     });
 
-    // Reload page to let storageService and DashboardPage initialize
+    // Reload page to let storageService and PetStatus initialize
     await page.goto('http://localhost:5173/homepage', { waitUntil: 'networkidle2' });
 
     // Open Pets at Home modal

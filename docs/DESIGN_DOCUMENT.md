@@ -109,9 +109,9 @@ A hamburger navigation trigger utilizing native SVG SMIL dashoffset animations:
 
 ### 3.3 Dashboard Category Status Cards
 Three high-impact cards with live status counts and badges:
-1. **Sighted Missing Pets:** Amber/Orange glow border (`--accent-orange-glow`), representative pet avatar or icon, count badge of recent neighborhood sightings.
-2. **Pets at Home:** Emerald border (`--signal-green-border`), safe check indicator, displays owner's registered pet name and health/safe badge.
-3. **Pets Missing:** Crimson border (`--signal-red-border`), pulsing alert ring, displays active missing alerts count.
+1. **Sightings:** Amber/Orange glow border (`--accent-orange-glow`), representative pet avatar or icon, count badge of recent neighborhood sightings.
+2. **Safe Pets:** Emerald border (`--signal-green-border`), safe check indicator, shows pet image, pet name, owner chip, and a details action. Public cards never expose full address details.
+3. **Missing Pets:** Crimson border (`--signal-red-border`), pulsing alert ring, displays active missing alerts count.
 
 ---
 
@@ -126,11 +126,11 @@ Three high-impact cards with live status counts and badges:
    └── Sonu memorial dedication -> "Begin Rescue Journey"
 4. Pet Parent Contact (OwnerOnboardingPage)
    └── Full Name, Indian Phone (10 digits), Photo Upload, Read-only View on completion
-5. Location Onboarding (LocationOnboardingPage)
+5. Location Onboarding (Location)
    └── Resilient Auto-Detect Button + State -> District -> Mandal -> Village Selectors
-6. Pet Choice & Details (OnboardingChoicePage & DogOnboardingPage)
+6. Pet Choice & Details (RegisteredPet & PetDetails)
    └── "Pet Registered" / "You already had a pet" -> Full Breed/Age/Color/Photo Profile
-7. Community Dashboard (DashboardPage)
+7. Community Dashboard (PetStatus)
    └── 3 Category Cards -> Single Modal Explorer -> Grouped Sighting Drawer
 ```
 

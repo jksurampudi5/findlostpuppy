@@ -11,18 +11,18 @@ import { ConsentPage } from './pages/ConsentPage';
 
 // Guided Sequential Flow & Dedicated Tab Pages
 import { EmailAuthPage } from './pages/EmailAuthPage';
-import { PetParentContactPage } from './pages/PetParentContactPage';
-import { LocationOnboardingPage } from './pages/LocationOnboardingPage';
-import { DogOnboardingPage } from './pages/DogOnboardingPage';
-import { ReportLostDogPage } from './pages/ReportLostDogPage';
+import { OwnerProfile } from './pages/OwnerProfile';
+import { Location } from './pages/Location';
+import { PetDetails } from './pages/PetDetails';
+import { PetSafety } from './pages/PetSafety';
 import { GuestSightingPage } from './pages/GuestSightingPage';
-import { OnboardingChoicePage } from './pages/OnboardingChoicePage';
+import { RegisteredPet } from './pages/RegisteredPet';
 import { AnimationShowcaseStudio } from './components/ui/AnimationShowcaseStudio';
 
 // Unlocked Experience Pages
 import { DiscoveryPage } from './pages/DiscoveryPage';
 import { DogDetailPage } from './pages/DogDetailPage';
-import { DashboardPage } from './pages/DashboardPage';
+import { PetStatus } from './pages/PetStatus';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CapturePetPage } from './pages/CapturePetPage';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
@@ -55,8 +55,6 @@ function MainAppFlow() {
     hasValidConsent,
     isFirstTimeUser,
     agreeToConsent,
-    hasCompletedOwner,
-    hasCompletedLocation,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -94,10 +92,10 @@ function MainAppFlow() {
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
       {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
-      <Route path="/homepage" element={<DashboardPage />} />
+      <Route path="/homepage" element={<PetStatus />} />
       <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
-      <Route path="/feedback" element={<DashboardPage />} />
-      <Route path="/suggest" element={<DashboardPage />} />
+      <Route path="/feedback" element={<PetStatus />} />
+      <Route path="/suggest" element={<PetStatus />} />
       <Route path="/next-step" element={<Navigate to="/homepage" replace />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route path="/shortcuts" element={<ShortcutsPage />} />
@@ -124,7 +122,7 @@ function MainAppFlow() {
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
           ) : (
-            <PetParentContactPage
+            <OwnerProfile
               onSuccess={() => {
                 setActiveOnboardingTab('location');
                 navigate('/location');
@@ -144,7 +142,7 @@ function MainAppFlow() {
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
           ) : (
-            <LocationOnboardingPage
+            <Location
               onSuccess={() => {
                 setActiveOnboardingTab('choice');
                 navigate('/choice');
@@ -167,7 +165,7 @@ function MainAppFlow() {
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
           ) : (
-            <OnboardingChoicePage />
+            <RegisteredPet />
           )
         }
       />
@@ -181,7 +179,7 @@ function MainAppFlow() {
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
           ) : (
-            <DogOnboardingPage
+            <PetDetails
               onBackToLocation={() => {
                 setActiveOnboardingTab('choice');
                 navigate('/choice');
@@ -206,7 +204,7 @@ function MainAppFlow() {
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
           ) : (
-            <ReportLostDogPage
+            <PetSafety
               onBackToPet={() => {
                 setActiveOnboardingTab('dog');
                 navigate('/pet');
@@ -228,12 +226,12 @@ function MainAppFlow() {
           !isAuthenticated ? (
             <Navigate to="/login" replace />
           ) : !needsConsent ? (
-            <Navigate to={hasCompletedOwner && hasCompletedLocation ? '/homepage' : '/owner'} replace />
+            <Navigate to="/owner" replace />
           ) : (
             <ConsentPage
               onConsentAgreed={(forms, method) => {
                 agreeToConsent(forms, method);
-                navigate(hasCompletedOwner && hasCompletedLocation ? '/homepage' : '/owner', { replace: true });
+                navigate('/owner', { replace: true });
               }}
             />
           )
@@ -249,18 +247,14 @@ function MainAppFlow() {
             <EmailAuthPage />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
-          ) : !hasCompletedOwner ? (
-            <Navigate to="/owner" replace />
-          ) : !hasCompletedLocation ? (
-            <Navigate to="/location" replace />
           ) : (
-            <Navigate to="/homepage" replace />
+            <Navigate to="/owner" replace />
           )
         }
       />
 
       {/* 5. CATCH-ALL FALLBACK */}
-      <Route path="*" element={<Navigate to="/homepage" replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/owner" : "/login"} replace />} />
     </Routes>
   );
 }

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
 import logoTopHandImg from '../assets/logo_top_hand.png';
 import logoBottomHandImg from '../assets/logo_bottom_hand.png';
 import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
 import './LaunchTributeOverlay.css';
+
+const LAUNCH_LOGO_VISIBLE_MS = 3200;
+const LAUNCH_FADE_OUT_MS = 350;
 
 interface LaunchTributeOverlayProps {
   forceOpen?: boolean;
@@ -72,8 +76,8 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
         sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
         setIsFadingOut(false);
         if (onClose) onClose();
-      }, 350);
-    }, 1200);
+      }, LAUNCH_FADE_OUT_MS);
+    }, LAUNCH_LOGO_VISIBLE_MS);
 
     return () => {
       clearTimeout(logoTimer);
@@ -148,8 +152,13 @@ export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forc
 
   if (!visible) return null;
 
+  const launchTimingStyle = {
+    '--launch-logo-visible-duration': `${LAUNCH_LOGO_VISIBLE_MS}ms`,
+    '--launch-fade-out-duration': `${LAUNCH_FADE_OUT_MS}ms`,
+  } as CSSProperties;
+
   return (
-    <div className={`launch-overlay-backdrop ${phase} ${isFadingOut ? 'fade-out' : ''}`} role="dialog" aria-modal="true" aria-label="Launch dedication">
+    <div className={`launch-overlay-backdrop ${phase} ${isFadingOut ? 'fade-out' : ''}`} style={launchTimingStyle} role="dialog" aria-modal="true" aria-label="Launch dedication">
       {/* Background ambient orbs */}
       <div className="launch-ambient-glow glow-1" />
       <div className="launch-ambient-glow glow-2" />

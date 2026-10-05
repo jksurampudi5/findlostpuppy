@@ -147,6 +147,10 @@ export const CapturePetPage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const autoLocationRequestedRef = useRef(false);
+  const noHomeBaseAlertShownRef = useRef(false);
+  const missingPetSectionRef = useRef<HTMLDivElement>(null);
+  const homeBaseScrollDelayRef = useRef(1200);
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
@@ -154,6 +158,7 @@ export const CapturePetPage: React.FC = () => {
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [activeReviewPhotoIndex, setActiveReviewPhotoIndex] = useState(0);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showCameraRationale, setShowCameraRationale] = useState(false);
   const [showLocationRationale, setShowLocationRationale] = useState(false);
@@ -193,13 +198,24 @@ export const CapturePetPage: React.FC = () => {
     setMandalOrMunicipality('');
     setCity('');
     setSelectedReportId('');
-    showToast('Location filters reset. Please manually select State, District, Mandal, and Home Base.', 'info');
+    setShowCaptureModal(false);
+    handleRetake();
+    setLocationConsentAccepted(true);
+    noHomeBaseAlertShownRef.current = false;
+    showToast('Trying to detect your current location again. You can still change the Home Base manually.', 'info');
+    handleDetectLocation(true);
   };
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setCameraReady(false);
+  }, []);
+
+  useEffect(() => {
+    const mainViewport = document.querySelector('.app-main-viewport');
+    mainViewport?.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   const startCamera = useCallback(async (requestedFacingMode?: 'environment' | 'user') => {
@@ -440,17 +456,15 @@ export const CapturePetPage: React.FC = () => {
   }, [reports, profiles, state, district, mandalOrMunicipality, city]);
 
   const selectedReport: LostReport | null = useMemo(
-    () => displayedReports.find((report) => report.id === selectedReportId) || displayedReports[0] || null,
+    () => displayedReports.find((report) => report.id === selectedReportId) || null,
     [displayedReports, selectedReportId]
   );
 
   useEffect(() => {
-    if (displayedReports.length > 0) {
-      if (!selectedReportId || !displayedReports.some((r) => r.id === selectedReportId)) {
-        setSelectedReportId(displayedReports[0].id);
-      }
-    } else {
+    if (selectedReportId && !displayedReports.some((r) => r.id === selectedReportId)) {
       setSelectedReportId('');
+      setShowCaptureModal(false);
+      handleRetake();
     }
   }, [displayedReports, selectedReportId]);
 
@@ -558,6 +572,32 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
+  const handleOpenCaptureForReport = (report: LostReport) => {
+    const isAlreadySelected = selectedReportId === report.id;
+    if (isAlreadySelected && !showCaptureModal) {
+      setSelectedReportId('');
+      setShowCaptureModal(false);
+      setShowReviewPopup(false);
+      handleRetake();
+      return;
+    }
+
+    setSelectedReportId(report.id);
+    setShowCaptureModal(true);
+    setShowReviewPopup(false);
+    setCapturedPhotos([]);
+    setActiveReviewPhotoIndex(0);
+    setCameraConsentAccepted(false);
+    setCameraError('');
+    stopCamera();
+  };
+
+  const handleCloseCaptureModal = () => {
+    setShowCaptureModal(false);
+    setShowReviewPopup(false);
+    handleRetake();
+  };
+
   const handleProceedToReview = () => {
     if (capturedPhotos.length === 0) {
       showToast('Please capture at least 1 photo first.', 'warning');
@@ -607,7 +647,7 @@ export const CapturePetPage: React.FC = () => {
     }
   };
 
-  const handleDetectLocation = async (hasConfirmed = locationConsentAccepted) => {
+  const handleDetectLocation = useCallback(async (hasConfirmed = locationConsentAccepted, options?: { silent?: boolean }) => {
     if (!hasConfirmed) {
       setShowLocationRationale(true);
       return;
@@ -619,33 +659,79 @@ export const CapturePetPage: React.FC = () => {
       setLongitude(geo.longitude);
       const parts = [geo.street, geo.city, geo.mandal, geo.district, geo.state, geo.pinCode ? `PIN ${geo.pinCode}` : ''].filter(Boolean);
       setLocationText(parts.join(', ') || 'Detected nearby area');
+      const nextState = geo.state || state;
+      const nextDistrict = geo.district || district;
+      const nextMandal = geo.mandal || mandalOrMunicipality;
+      const nextVillage = geo.city || city || geo.street || '';
       setDetectedLocation({
-        state: geo.state || state,
-        district: geo.district || district,
-        mandal: geo.mandal || mandalOrMunicipality,
-        village: geo.street || geo.city || city,
+        state: nextState,
+        district: nextDistrict,
+        mandal: nextMandal,
+        village: nextVillage,
         pinCode: geo.pinCode || '',
       });
-      showToast('Location detected for this sighting.', 'success');
+      homeBaseScrollDelayRef.current = 1200;
+      if (nextState) setState(nextState);
+      if (nextDistrict) setDistrict(nextDistrict);
+      if (nextMandal) setMandalOrMunicipality(nextMandal);
+      if (nextVillage) setCity(nextVillage);
+      if (!options?.silent) showToast('Location detected for this sighting.', 'success');
     } catch (err: any) {
       const message = err?.message || 'Could not detect location. Try again near the pet.';
       const isDenied = /permission|denied|NotAllowedError/i.test(message) || err?.code === 'PERMISSION_DENIED';
       const isDisabled = /disabled|unavailable|provider|location/i.test(message);
-      if (isDenied) {
-        alert('Location access is denied. Please enable location permissions in your browser settings to allow auto-detection.');
+      if (!options?.silent) {
+        if (isDenied) {
+          alert('Location access is denied. Please enable location permissions in your browser settings to allow auto-detection.');
+        }
+        showToast(
+          isDenied
+            ? 'Location permission was not granted. Please allow it in settings.'
+            : isDisabled
+            ? 'Please turn on Location in Android settings to detect your location.'
+            : message,
+          'warning'
+        );
       }
-      showToast(
-        isDenied
-          ? 'Location permission was not granted. Please allow it in settings.'
-          : isDisabled
-          ? 'Please turn on Location in Android settings to detect your location.'
-          : message,
-        'warning'
-      );
     } finally {
       setDetecting(false);
     }
-  };
+  }, [city, district, locationConsentAccepted, mandalOrMunicipality, showToast, state]);
+
+
+  useEffect(() => {
+    if (autoLocationRequestedRef.current) return;
+    autoLocationRequestedRef.current = true;
+    setLocationConsentAccepted(true);
+    handleDetectLocation(true, { silent: true });
+  }, [handleDetectLocation]);
+
+
+  useEffect(() => {
+    if (!city || detecting || noHomeBaseAlertShownRef.current) return;
+    if (cityAlertCount > 0) return;
+    noHomeBaseAlertShownRef.current = true;
+  }, [city, cityAlertCount, detecting]);
+
+
+  useEffect(() => {
+    if (!city || activeLocationModal || detecting) return;
+    const delay = homeBaseScrollDelayRef.current;
+    const scrollTimer = window.setTimeout(() => {
+      missingPetSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      homeBaseScrollDelayRef.current = 1200;
+    }, delay);
+    return () => window.clearTimeout(scrollTimer);
+  }, [city, cityAlertCount, activeLocationModal, detecting]);
+
+  useEffect(() => {
+    if (!detailReport) return;
+    const scrollTimer = window.setTimeout(() => {
+      const modal = document.querySelector('.capture-pet-detail-modal');
+      modal?.scrollTo({ top: 0, behavior: 'auto' });
+    }, 0);
+    return () => window.clearTimeout(scrollTimer);
+  }, [detailReport]);
 
   /**
    * Uploads all captured photos to Cloudinary first (in parallel, 15 s timeout),
@@ -654,7 +740,10 @@ export const CapturePetPage: React.FC = () => {
    * Falls back to base64 locally if Cloudinary is unreachable.
    */
   const handleSubmit = async () => {
-    if (!user || !selectedReport) return;
+    if (!user || !selectedReport) {
+      showToast('Please select the missing pet before submitting the sighting.', 'warning');
+      return;
+    }
     if (capturedPhotos.length === 0) {
       showToast('Please capture at least 1 pet photo first.', 'warning');
       return;
@@ -729,6 +818,8 @@ export const CapturePetPage: React.FC = () => {
     window.dispatchEvent(new Event('storage'));
 
     setCapturedPhotos([]);
+    setShowCaptureModal(false);
+    setShowReviewPopup(false);
     setLocationText('');
     setDetectedLocation({ state: '', district: '', mandal: '', village: '', pinCode: '' });
     setSubmitting(false);
@@ -744,13 +835,13 @@ export const CapturePetPage: React.FC = () => {
     setShowSuccessTick(true);
     setTimeout(() => {
       setShowSuccessTick(false);
-      navigate('/homepage');
+      navigate('/homepage', { replace: true, state: { activeTab: null } });
     }, 1200);
   };
 
   const handleExitToDashboard = () => {
     stopCamera();
-    navigate('/homepage');
+    navigate('/homepage', { state: { activeTab: null } });
   };
 
   if (!user) {
@@ -793,6 +884,16 @@ export const CapturePetPage: React.FC = () => {
           <span>Capture only the missing pet. Avoid people, faces, homes, vehicle plates, or private details.</span>
         </div>
 
+        {detecting && (!state || !district || !mandalOrMunicipality || !city) && (
+          <div className="capture-location-wait-alert" role="status" aria-live="polite">
+            <Navigation size={18} className="spin" />
+            <div>
+              <strong>Detecting your location…</strong>
+              <span>Please wait while we fill State, District, Mandal, and Home Base.</span>
+            </div>
+          </div>
+        )}
+
         {/* 2×2 LOCATION GRID: 4 CONTAINERS PRE-POPULATED (EXACT MATCH WITH LOCATION ONBOARDING) */}
         <div style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -821,10 +922,10 @@ export const CapturePetPage: React.FC = () => {
                 {state && stateAlertCount > 0 ? (
                   <span className="loc-gsq-alert-pill">
                     <span className="loc-gsq-alert-dot" />
-                    <span>{stateAlertCount} {stateAlertCount === 1 ? 'dog' : 'dogs'} present</span>
+                    <span>{stateAlertCount} missing pet {stateAlertCount === 1 ? 'alert' : 'alerts'}</span>
                   </span>
                 ) : state ? (
-                  <span className="loc-gsq-zero-pill">0 dogs present</span>
+                  <span className="loc-gsq-zero-pill">No missing alerts</span>
                 ) : null}
               </div>
             </button>
@@ -853,10 +954,10 @@ export const CapturePetPage: React.FC = () => {
                 {district && districtAlertCount > 0 ? (
                   <span className="loc-gsq-alert-pill">
                     <span className="loc-gsq-alert-dot" />
-                    <span>{districtAlertCount} {districtAlertCount === 1 ? 'dog' : 'dogs'} present</span>
+                    <span>{districtAlertCount} missing pet {districtAlertCount === 1 ? 'alert' : 'alerts'}</span>
                   </span>
                 ) : district ? (
-                  <span className="loc-gsq-zero-pill">0 dogs present</span>
+                  <span className="loc-gsq-zero-pill">No missing alerts</span>
                 ) : null}
               </div>
             </button>
@@ -887,10 +988,10 @@ export const CapturePetPage: React.FC = () => {
                 {mandalOrMunicipality && mandalAlertCount > 0 ? (
                   <span className="loc-gsq-alert-pill">
                     <span className="loc-gsq-alert-dot" />
-                    <span>{mandalAlertCount} {mandalAlertCount === 1 ? 'dog' : 'dogs'} present</span>
+                    <span>{mandalAlertCount} missing pet {mandalAlertCount === 1 ? 'alert' : 'alerts'}</span>
                   </span>
                 ) : mandalOrMunicipality ? (
-                  <span className="loc-gsq-zero-pill">0 dogs present</span>
+                  <span className="loc-gsq-zero-pill">No missing alerts</span>
                 ) : null}
               </div>
             </button>
@@ -923,10 +1024,13 @@ export const CapturePetPage: React.FC = () => {
                 {city && cityAlertCount > 0 ? (
                   <span className="loc-gsq-alert-pill">
                     <span className="loc-gsq-alert-dot" />
-                    <span>{cityAlertCount} {cityAlertCount === 1 ? 'dog' : 'dogs'} present</span>
+                    <span>{cityAlertCount} missing pet {cityAlertCount === 1 ? 'alert' : 'alerts'}</span>
                   </span>
                 ) : city ? (
-                  <span className="loc-gsq-zero-pill">0 dogs present</span>
+                  <span className="loc-gsq-sos-pill">
+                    <span className="loc-gsq-sos-badge">SOS</span>
+                    <span>Change Home Base</span>
+                  </span>
                 ) : null}
               </div>
             </button>
@@ -938,16 +1042,17 @@ export const CapturePetPage: React.FC = () => {
               type="button"
               className="capture-orange-reset-btn"
               onClick={handleResetAreaFilters}
-              title="Reset location filters to manually select dropdowns"
+              disabled={detecting}
+              title="Detect current location again, then manually change Home Base if needed"
             >
               <RotateCcw size={16} />
-              <span>Reset Location Filters (Select Manually)</span>
+              <span>{detecting ? 'Detecting...' : 'Reset Location'}</span>
             </button>
           </div>
         </div>
 
         {/* Missing Pets Header */}
-        <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div ref={missingPetSectionRef} className="capture-missing-pet-anchor" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '1rem', color: '#fff', margin: 0, fontWeight: '600' }}>
             Select Missing Pet ({displayedReports.length})
           </h3>
@@ -959,10 +1064,10 @@ export const CapturePetPage: React.FC = () => {
         {displayedReports.length === 0 ? (
           <div className="capture-empty-state" style={{ marginBottom: '20px', padding: '1.25rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.12)', textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 600, color: '#f3f4f6', fontSize: '0.92rem' }}>
-              No active missing pets reported in {city || mandalOrMunicipality || district || state || 'selected area'}.
+              No missing pet alerts found in {city || mandalOrMunicipality || district || state || 'selected area'}.
             </p>
             <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#9ca3af' }}>
-              You can still photograph any pet in need below to submit a sighting!
+              If the pet is missing from another Home Base, select the correct State, District, Mandal, and Home Base above.
             </p>
           </div>
         ) : (
@@ -979,9 +1084,12 @@ export const CapturePetPage: React.FC = () => {
                   <button
                     type="button"
                     className={`capture-report-tile ${isSelected ? 'active' : ''}`}
-                    onClick={() => setSelectedReportId(report.id)}
-                    title={`Select ${name} for sighting capture`}
+                    onClick={() => handleOpenCaptureForReport(report)}
+                    title={isSelected ? `Uncheck ${name} as selected pet` : `Select ${name} and open sighting capture`}
                   >
+                    <span className={`capture-report-checkbox ${isSelected ? 'is-checked' : ''}`} aria-hidden="true">
+                      {isSelected && <Check size={16} />}
+                    </span>
                     <div className="capture-report-tile-photo-wrap">
                       <img src={getDogPhotoUrl(report.dog, report)} alt={name} onError={handleDogImageError} />
                       <span className="capture-report-tile-lost-pill">LOST</span>
@@ -989,11 +1097,9 @@ export const CapturePetPage: React.FC = () => {
                     <div className="capture-report-tile-info">
                       <div className="capture-report-tile-name-row">
                         <span className="capture-report-tile-name">{name}</span>
-                        {isSelected && (
-                          <span className="capture-report-tile-target-tag">
-                            <Check size={12} /> Target Pet
-                          </span>
-                        )}
+                        <span className={`capture-report-tile-target-tag ${isSelected ? 'is-selected' : ''}`}>
+                          {isSelected ? 'Tap to uncheck' : 'Select'}
+                        </span>
                       </div>
                       <span className="capture-report-tile-breed">{breed}</span>
                     </div>
@@ -1009,13 +1115,28 @@ export const CapturePetPage: React.FC = () => {
                     title={`View details popup for ${name}`}
                   >
                     <Info size={14} />
-                    <span>Pet Details</span>
+                    <span>Details</span>
                   </button>
                 </div>
               );
             })}
           </div>
         )}
+
+      {showCaptureModal && selectedReport && (() => {
+        const captureName = getDogDisplayName(selectedReport.dog, selectedReport);
+        return (
+          <div className="capture-pet-detail-backdrop capture-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="capture-flow-title" onClick={handleCloseCaptureModal}>
+            <section className="capture-flow-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="capture-flow-header">
+                <div>
+                  <span className="capture-pet-detail-badge">PRIVATE SIGHTING</span>
+                  <h2 id="capture-flow-title">Capture {captureName}</h2>
+                </div>
+                <button type="button" className="capture-pet-detail-close-btn" onClick={handleCloseCaptureModal} aria-label="Close capture popup">
+                  <X size={20} />
+                </button>
+              </div>
 
         {/* Live Camera View (Always Available, Never Blocked) */}
         <div className="capture-camera-frame">
@@ -1034,7 +1155,7 @@ export const CapturePetPage: React.FC = () => {
               <ShieldCheck size={34} />
               <strong>Camera permission required</strong>
               <span>We use your camera only to capture the missing pet photo for this private sighting. Do not capture people, faces, homes, vehicle plates, or private details.</span>
-              <button type="button" className="capture-main-button" onClick={() => setShowCameraRationale(true)}>
+              <button type="button" className="capture-main-button" onClick={handleEnableCamera}>
                 <Video size={18} />
                 <span>Turn On Camera</span>
               </button>
@@ -1048,9 +1169,9 @@ export const CapturePetPage: React.FC = () => {
         </div>
         <canvas ref={canvasRef} hidden />
 
-        {/* 3-Photo Slots Status Bar */}
-        <div className="capture-photos-status-bar">
-          <div className="capture-slots-list">
+        {/* Photo slots + capture controls */}
+        <div className="capture-control-panel">
+          <div className="capture-slots-list compact">
             {[0, 1, 2].map((slotIdx) => {
               const hasPhoto = !!capturedPhotos[slotIdx];
               const isCurrent = capturedPhotos.length === slotIdx;
@@ -1084,11 +1205,34 @@ export const CapturePetPage: React.FC = () => {
                       </button>
                     </>
                   ) : (
-                    <span className="capture-slot-num">#{slotIdx + 1}</span>
+                    <span className="capture-slot-num">{slotIdx + 1}</span>
                   )}
                 </div>
               );
             })}
+          </div>
+
+          <div className="capture-inline-actions">
+            <button
+              type="button"
+              className="capture-main-button"
+              onClick={handleCaptureFrame}
+              disabled={capturedPhotos.length >= 3}
+            >
+              <Camera size={18} />
+              <span>{capturedPhotos.length >= 3 ? 'All Photos Captured' : `Capture Photo ${capturedPhotos.length + 1}/3`}</span>
+            </button>
+            {cameraReady ? (
+              <button type="button" className="capture-rotate-button" onClick={handleRotateCamera}>
+                <RefreshCw size={18} />
+                <span>Flip Camera</span>
+              </button>
+            ) : cameraConsentAccepted ? (
+              <button type="button" className="capture-location-button" onClick={() => startCamera()}>
+                <Video size={18} />
+                <span>Open Camera</span>
+              </button>
+            ) : null}
           </div>
 
           {capturedPhotos.length >= 1 && (
@@ -1103,38 +1247,11 @@ export const CapturePetPage: React.FC = () => {
             </button>
           )}
         </div>
+            </section>
+          </div>
+        );
+      })()}
 
-        <div className="capture-button-row">
-          <button
-            type="button"
-            className="capture-main-button"
-            onClick={handleCaptureFrame}
-            disabled={capturedPhotos.length >= 3}
-          >
-            <Camera size={18} />
-            <span>
-              {capturedPhotos.length === 0
-                ? 'Capture Photo 1 of 3'
-                : capturedPhotos.length === 1
-                ? 'Capture Photo 2 of 3'
-                : capturedPhotos.length === 2
-                ? 'Capture Photo 3 of 3'
-                : 'All 3 Photos Captured'}
-            </span>
-          </button>
-          {cameraReady && (
-            <button type="button" className="capture-rotate-button" onClick={handleRotateCamera}>
-              <RefreshCw size={18} />
-              <span>{cameraFacingMode === 'environment' ? 'Use Front Camera' : 'Use Back Camera'}</span>
-            </button>
-          )}
-          {cameraConsentAccepted && !cameraReady && (
-            <button type="button" className="capture-location-button" onClick={() => startCamera()}>
-              <Video size={18} />
-              <span>Open Camera</span>
-            </button>
-          )}
-        </div>
       </section>
 
       {/* Sighting Photo Review & Sighting Location Detection */}
@@ -1293,6 +1410,7 @@ export const CapturePetPage: React.FC = () => {
         options={villageOptions}
         selectedValue={city}
         onSelect={(newCity) => {
+          homeBaseScrollDelayRef.current = 320;
           setCity(newCity);
           setSelectedReportId('');
           setActiveLocationModal(null);
@@ -1408,7 +1526,7 @@ export const CapturePetPage: React.FC = () => {
                   type="button"
                   className={`capture-pet-detail-select-btn ${selectedReportId === detailReport.id ? 'is-selected' : ''}`}
                   onClick={() => {
-                    setSelectedReportId(detailReport.id);
+                    handleOpenCaptureForReport(detailReport);
                     setDetailReport(null);
                     showToast(`Selected ${displayName} for sighting capture.`, 'info');
                   }}
@@ -1416,7 +1534,7 @@ export const CapturePetPage: React.FC = () => {
                   <Check size={18} />
                   <span>
                     {selectedReportId === detailReport.id
-                      ? `✓ ${displayName} Is Selected Target Pet (Close)`
+                      ? `Continue Capturing ${displayName}`
                       : `Select ${displayName} For Sighting`}
                   </span>
                 </button>

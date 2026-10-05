@@ -99,12 +99,6 @@ export const SidebarNav: React.FC = () => {
     (isLost ? missingPuppyImg : safePuppyImg);
 
   const previewDogName = existingPet?.name || existingReport?.dog?.name || 'Your Pup';
-  const previewBreed = existingPet?.breed || existingReport?.dog?.breed || 'Companion Pet';
-  const previewArea =
-    existingReport?.lastKnownLocation ||
-    existingProfile?.approximateArea ||
-    existingProfile?.city ||
-    'Local Area';
 
   const isUserAdmin = isAdmin || user?.isAdmin || user?.email?.toLowerCase() === 'jksurampudi5@gmail.com';
 
@@ -438,27 +432,17 @@ export const SidebarNav: React.FC = () => {
           </button>
         </div>
 
-        {/* Pet Quick Card in Drawer */}
+        {/* Pet image shortcut in Drawer */}
         {isAuthenticated && (
-          <div
-            className={`drawer-pet-card ${isLost ? 'pet-card-lost' : 'pet-card-safe'}`}
-            onClick={() => handleTabClick('report', '/alert')}
+          <button
+            type="button"
+            className={`drawer-pet-avatar-shortcut ${isLost ? 'pet-card-lost' : 'pet-card-safe'}`}
+            onClick={() => handleTabClick('pet', '/pet')}
+            aria-label={`Open pet details for ${previewDogName}`}
           >
             <img src={previewPhoto} alt={previewDogName} className="drawer-pet-img" />
-            <div className="drawer-pet-info">
-              <div className="drawer-pet-name-row">
-                <h4 className="drawer-pet-name">{previewDogName}</h4>
-                <span className="drawer-status-pill">
-                  {isLost ? 'MISSING' : 'SAFE'}
-                </span>
-              </div>
-              <p className="drawer-pet-breed">{previewBreed}</p>
-              <p className="drawer-pet-location">
-                <MapPin size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
-                {previewArea}
-              </p>
-            </div>
-          </div>
+            <span className="drawer-pet-avatar-copy">Tap to view pet details</span>
+          </button>
         )}
 
         {/* Shared navigation array rendering in mobile drawer */}

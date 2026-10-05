@@ -48,7 +48,7 @@ FindLostPuppy is an emergency, privacy-first, community-powered lost pet recover
   └── Pet Profile (Characteristics, Photos, Sonu Preserved)
 
 [Daily Dashboard & Tracking]
-  ├── Three Category Cards (Sighted Missing, At Home, Pets Missing)
+  ├── Three Category Cards (Sightings, Safe Pets, Missing Pets)
   ├── Modal-Based Status Explorer (Single-modal invariant)
   ├── Grouped Sighting Drawer (Numbered tabs: Sighting 1, 2...)
   └── Quick Capture Floating Action Button (FAB)
@@ -63,9 +63,9 @@ FindLostPuppy is an emergency, privacy-first, community-powered lost pet recover
 ### 3.1 Authentication & Onboarding
 - **FR-AUTH-1:** The animated FindLostPuppy logo is the exclusive branded artwork shown before user authentication.
 - **FR-AUTH-2:** Authentication uses Google Sign-In via Firebase Auth / Capacitor native auth, with resilient synthetic fallback for offline/development environments.
-- **FR-AUTH-3 (Inauguration):** First-time authenticated users who have not completed an owner profile are presented with the Inauguration/Gratitude screen. Returning users automatically bypass this screen directly to their last saved onboarding step or Dashboard.
+- **FR-AUTH-3 (Launch / Refresh):** After splash, authenticated users start at Owner Profile on root/refresh. Direct routes remain available when opened intentionally. First-time users see consent before Owner Profile when required.
 - **FR-AUTH-4 (Step Progression):** Strict sequential onboarding: `Authentication` $\rightarrow$ `Inauguration` (first-time only) $\rightarrow$ `Owner Profile` $\rightarrow$ `Location` $\rightarrow$ `Pet Choice / Details` $\rightarrow$ `Dashboard`.
-- **FR-AUTH-5 (Back Navigation):** Back buttons at the top of each view navigate reliably to the preceding step without extraneous wrapper text.
+- **FR-AUTH-5 (Top Header Pattern):** Onboarding and status setup views use Back left, centered title, and Close right. Back buttons navigate to the preceding step; Close exits to Dashboard where applicable.
 
 ### 3.2 Owner Profile Management
 - **FR-OWN-1 (Phone Validation):** Indian phone numbers must pass `validateIndianPhoneNumber`: exactly 10 digits beginning with 6, 7, 8, or 9.
@@ -74,21 +74,20 @@ FindLostPuppy is an emergency, privacy-first, community-powered lost pet recover
 
 ### 3.3 Administrative Location Hierarchy
 - **FR-LOC-1 (Hierarchy Distinctness):** State, District, Mandal/Municipality, and Village/Home Base are distinct fields. Village/Home Base must contain the village/locality and must never repeat the mandal.
-- **FR-LOC-2 (Permission Model):** Geolocation permission is requested *only* when the user explicitly triggers automatic detection. Manual drill-down selection across all administrative levels must always remain available.
+- **FR-LOC-2 (Permission Model):** Geolocation permission is requested only when the user taps Detect Location. The app first shows an in-app `Allow Precise Location` sheet, then triggers the Android/browser precise-location prompt. Manual drill-down selection must always remain available.
 - **FR-LOC-3 (Parent-Child Cascading):** Selecting or modifying a parent administrative boundary immediately clears all child fields to prevent invalid geographic combinations.
 - **FR-LOC-4 (Pet Presence Indicators):** Sighting selectors must display a green indicator (`🟢`) indicating active missing pet alerts across State, District, Mandal, and Village tiers without auto-selecting filter values.
 
 ### 3.4 Pet Registration & Status Invariants
 - **FR-PET-1 (Single Pet Choice):** If an existing registered pet exists, the choice heading displays `Pet Registered` and offers `You already had a pet: <Name>` alongside a single `Skip to Dashboard` option.
 - **FR-PET-2 (Mutual Exclusivity):** A pet cannot be `LOST` and `SAFE` simultaneously. Selecting `Pet is Not Safe (Missing)` in the Pet Safety modal opens the emergency broadcast flow; the `LOST` state is committed in database storage only upon successful form submission.
-- **FR-PET-3 (Sonu Memorial Invariant):** The Indie dog Sonu (`#1788885000505`) is preserved perpetually as an immutable asset in `/src/assets/sonu.jpg`.
-- **FR-PET-4 (Single Deletion Control):** Saved pet details expose exactly one deletion control: the top `Remove Pet` action, resetting the form cleanly.
+- **FR-PET-3 (Single Deletion Control):** Saved pet details expose exactly one deletion control: `Remove Pet`, aligned with `Skip to Dashboard` in one responsive row, resetting the form cleanly.
 
 ### 3.5 Dashboard & Status Explorer
-- **FR-DASH-1 (Three Category Cards):** Dashboard presents three primary status cards:
-  1. `Sighted Missing Pets` (Active sightings reported by community)
-  2. `Pets at Home` (Owner's verified safe pets)
-  3. `Pets Missing` (Active emergency alerts across the area)
+- **FR-DASH-1 (Three Category Cards):** Dashboard presents three neutral primary status cards:
+  1. `Sightings` (captured pet sightings)
+  2. `Safe Pets` (pets marked safe at home)
+  3. `Missing Pets` (active emergency alerts across the area)
 - **FR-DASH-2 (Modal Containment):** Selecting a status card opens a bounded, internally scrollable modal rather than appending lengthy rows beneath the cards.
 - **FR-DASH-3 (Single Modal Visibility):** Opening a pet detail or sighting detail modal must hide the category modal. Closing a detail modal restores the previous list at its exact scroll offset.
 - **FR-DASH-4 (Grouped Sightings):** Multiple sightings for the same missing pet are grouped under a single `View sightings (n)` action, expanding to numbered tabs: `Sighting 1`, `Sighting 2`, etc.
@@ -129,3 +128,6 @@ FindLostPuppy is an emergency, privacy-first, community-powered lost pet recover
 2. **Community Sighting Engagement:** Number of travel sightings logged per missing alert.
 3. **Reunification Rate:** Percentage of reported lost pets successfully marked `SAFE` within 7 days.
 4. **Zero PII Exposure Incidents:** 100% adherence to privacy masking across all public APIs and client renders.
+
+- **FR-DASH-5 (Neutral Dashboard Return):** Completing Pet Safety as Safe or Missing returns to Dashboard with no category card opened.
+- **FR-FEEDBACK-1 (Separated Feedback/Rating):** In-app feedback contains stars, optional text, and Submit Feedback. Play Store rating is a separate action using the Google Play listing URL.
