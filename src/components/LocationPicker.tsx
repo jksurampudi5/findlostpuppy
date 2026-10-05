@@ -18,7 +18,6 @@ import { useToast } from '../context/ToastContext';
 import { locationService } from '../services/locationService';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import { SearchableSelect, type SelectOption } from './SearchableSelect';
-import { PermissionRationaleModal } from './PermissionRationaleModal';
 import type { LocationLocality } from '../types';
 
 interface LocationPickerProps {
@@ -85,7 +84,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
   const [loadingVillages, setLoadingVillages] = useState(false);
-  const [showLocationRationale, setShowLocationRationale] = useState(false);
 
   // 1. State Options
   const stateOptions: SelectOption[] = useMemo(() => {
@@ -301,13 +299,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     }
   };
 
-  // Direct native location detector (prompts OS/Browser permission directly: While using app / Only this time / Don't allow)
+  // Direct native location detector. The OS/browser owns the permission prompt.
   const handleDetectClick = () => {
-    setShowLocationRationale(true);
-  };
-
-  const executeAfterRationale = () => {
-    setShowLocationRationale(false);
     executeDetectLocation();
   };
 
@@ -440,15 +433,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   return (
     <div className="location-picker-component neat-flow">
       {/* STEP 1: Auto-Locate Hero Button Card */}
-      <PermissionRationaleModal
-        isOpen={showLocationRationale}
-        title="Location Permission"
-        message="FindLostPuppy needs your precise location to accurately plot this area on the map and find pets nearby. We do not track you in the background."
-        continueLabel="Allow Location"
-        cancelLabel="Choose Manually"
-        onContinue={executeAfterRationale}
-        onCancel={() => setShowLocationRationale(false)}
-      />
 
       <div className="auto-locate-hero-card">
         <div className="auto-locate-header">
