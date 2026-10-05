@@ -151,6 +151,7 @@ export const Location: React.FC<LocationProps> = ({
   const pendingLocationDetectionRef = useRef(false);
   const autoDetectAttemptedRef = useRef(false);
   const locationCardsRef = useRef<HTMLDivElement | null>(null);
+  const initialLocationActionScrollRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
@@ -742,6 +743,18 @@ export const Location: React.FC<LocationProps> = ({
     mandalOrMunicipality.trim() &&
     city.trim()
   );
+
+  useEffect(() => {
+    if (initialLocationActionScrollRef.current || !isLocationValid || detecting || activeLocationModal) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      if (!locationCardsRef.current) return;
+      initialLocationActionScrollRef.current = true;
+      locationCardsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 360);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [isLocationValid, detecting, activeLocationModal]);
 
   const handleProceedToPup = () => {
     if (isTransitioningBack || isTransitioningForward) return;

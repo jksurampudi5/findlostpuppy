@@ -91,6 +91,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const ownerFormRef = useRef<HTMLFormElement | null>(null);
   const ownerActionsRef = useRef<HTMLDivElement | null>(null);
+  const initialActionScrollRef = useRef(false);
 
   // Sync when user or profile loads
   useEffect(() => {
@@ -148,6 +149,18 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     (existingProfile?.fullName && existingProfile?.phone) ||
     (user?.name && user?.phone)
   );
+
+  useEffect(() => {
+    if (initialActionScrollRef.current || isEditing || !hasProfileData || isUploadingPhoto) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      if (!ownerActionsRef.current) return;
+      initialActionScrollRef.current = true;
+      ownerActionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [hasProfileData, isEditing, isUploadingPhoto]);
 
   const photoPolicy = canChangePhoto(existingProfile);
   const photoLimitText = photoPolicy.isInitialPhoto

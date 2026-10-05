@@ -117,6 +117,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const petFormRef = useRef<HTMLFormElement | null>(null);
   const petActionsRef = useRef<HTMLDivElement | null>(null);
+  const initialPetActionScrollRef = useRef(false);
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [showPetAvatarIcons, setShowPetAvatarIcons] = useState(!primaryPhoto);
@@ -162,6 +163,18 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
       }
     }
   }, [existingPet?.id, existingPet?.name, existingPet?.breed, existingPet?.primaryPhoto]);
+
+  useEffect(() => {
+    if (initialPetActionScrollRef.current || isEditing || !isPetFilled || submitting || uploadingPhoto || isTransitioningForward) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      if (!petActionsRef.current) return;
+      initialPetActionScrollRef.current = true;
+      petActionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [isPetFilled, isEditing, submitting, uploadingPhoto, isTransitioningForward]);
 
   // Strict validation and compression for pet photos from camera or gallery
   const processAndValidateImage = async (
