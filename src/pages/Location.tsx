@@ -149,6 +149,7 @@ export const Location: React.FC<LocationProps> = ({
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const pendingLocationDetectionRef = useRef(false);
+  const autoDetectAttemptedRef = useRef(false);
   const locationCardsRef = useRef<HTMLDivElement | null>(null);
   const autoSyncTimerRef = useRef<number | null>(null);
 
@@ -423,7 +424,10 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
-    showToast('Location fields reset. Choose manually or detect again.', 'info');
+    window.setTimeout(() => {
+      pendingLocationDetectionRef.current = false;
+      executeDetectLocation();
+    }, 100);
   };
 
   // Hardware GPS & Native Geolocation Detection
@@ -590,6 +594,18 @@ export const Location: React.FC<LocationProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
+
+
+  // On entry, automatically fill the four location cards when location data is missing.
+  useEffect(() => {
+    if (autoDetectAttemptedRef.current || isDetectingRef.current) return;
+    const needsInitialDetect = !state.trim() || !district.trim() || !mandalOrMunicipality.trim() || !city.trim();
+    if (!needsInitialDetect) return;
+    autoDetectAttemptedRef.current = true;
+    window.setTimeout(() => {
+      executeDetectLocation();
+    }, 350);
+  }, [state, district, mandalOrMunicipality, city]);
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
