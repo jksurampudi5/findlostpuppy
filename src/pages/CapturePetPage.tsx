@@ -681,14 +681,11 @@ export const CapturePetPage: React.FC = () => {
       const isDenied = /permission|denied|NotAllowedError/i.test(message) || err?.code === 'PERMISSION_DENIED';
       const isDisabled = /disabled|unavailable|provider|location/i.test(message);
       if (!options?.silent) {
-        if (isDenied) {
-          alert('Location access is denied. Please enable location permissions in your browser settings to allow auto-detection.');
-        }
         showToast(
           isDenied
-            ? 'Location permission was not granted. Please allow it in settings.'
+            ? 'Location permission was not granted. Please allow location for FindLostPuppy or select the Home Base manually.'
             : isDisabled
-            ? 'Please turn on Location in Android settings to detect your location.'
+            ? 'Please turn on Location in Android settings to detect your location, or select the Home Base manually.'
             : message,
           'warning'
         );

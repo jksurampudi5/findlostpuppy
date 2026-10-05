@@ -173,11 +173,13 @@ export const MissingPetReportModal: React.FC<MissingPetReportModalProps> = ({
       if (!options?.silent) showToast('📍 Approximate lost area detected. You can edit it before broadcasting.', 'success');
     } catch (err: any) {
       if (!options?.silent) {
-        if (err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '')) {
-          alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
-        } else {
-          showToast('Could not access location. Please type the lost landmark or area manually.', 'warning');
-        }
+        const denied = err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(err?.message || '');
+        showToast(
+          denied
+            ? 'Location permission was not granted. Please allow location for FindLostPuppy or type the lost area manually.'
+            : 'Could not access location. Please type the lost landmark or area manually.',
+          'warning'
+        );
       }
     } finally {
       setIsDetectingLocation(false);
