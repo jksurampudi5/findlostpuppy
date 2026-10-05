@@ -37,3 +37,5 @@
 - For Location detection, do not claim the app can silently turn on Android Location. Android requires user action.
 - Use the native `DeviceSettings` Capacitor bridge to show the Google Play Services Location Settings resolution dialog when the master switch is off, and retry detection when the app regains focus.
 - When Location permission is denied or the master Location toggle is off, keep the user in the native app flow first: request Android permission, then use the Google Play Services Location Settings resolution dialog. Open Android settings only as fallback.
+
+- Scroll/next-action invariant: after save/detect/select actions in multi-section flows, scroll to the next useful section or primary action. Preserve this for Owner Profile, Location, Pet Details, Pet Status modals, and Capture Pet.

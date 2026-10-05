@@ -80,6 +80,10 @@ export const PetStatus: React.FC = () => {
   const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
     setSelectedStatus(status);
     setStatusPanelOpen(true);
+    window.setTimeout(() => {
+      listPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      listPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 80);
   };
 
   useEffect(() => {

@@ -115,6 +115,8 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const petFormRef = useRef<HTMLFormElement | null>(null);
+  const petActionsRef = useRef<HTMLDivElement | null>(null);
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [showPetAvatarIcons, setShowPetAvatarIcons] = useState(!primaryPhoto);
@@ -475,6 +477,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
     if (!dogName.trim()) {
       showToast('Please provide a name for your pet.', 'error');
       setSubmitting(false);
+      petFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
 
@@ -550,6 +553,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
 
       showToast(`🐾 ${profileToSave.name}'s profile saved & synced to Firestore!`, 'success');
       setIsEditing(false);
+      window.setTimeout(() => petActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       setIsTransitioningForward(true);
     } catch (saveErr) {
       console.error('[PetDetails] Save pet profile error:', saveErr);
@@ -606,6 +610,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
     setAdditionalPhotos([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
     showToast('Pet form reset. Saved profile is unchanged until you update or delete it.', 'info');
+    window.setTimeout(() => petFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
 
   // Handle Delete Pet Profile immediately
@@ -810,7 +815,10 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
               <div className="pet-profile-view-wrap">
                 <div
                   className="pet-view-card"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setIsEditing(true);
+                    window.setTimeout(() => petFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+                  }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsEditing(true); }}
@@ -891,7 +899,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
               </div>
 
               {/* View Mode Actions */}
-              <div className="pet-profile-actions-bottom view-mode-actions">
+              <div className="pet-profile-actions-bottom view-mode-actions" ref={petActionsRef}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1054,7 +1062,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
               </div>
 
               {/* 3. Fixed Information Row System */}
-              <form onSubmit={handleSubmit} className="pet-info-form">
+              <form ref={petFormRef} onSubmit={handleSubmit} className="pet-info-form">
                 <div className="pet-info-rows-container">
                   {/* ROW 1: Pet Name */}
                   <div

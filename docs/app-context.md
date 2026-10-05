@@ -256,3 +256,7 @@ Here is the authoritative system context and non-negotiable invariants:
 ### Android Location Permission Invariant — 2026-10-05
 
 FindLostPuppy directly requests the real native Android/browser location permission when detecting location. The Location page auto-detects on entry when State, District, Mandal, or Home Base is missing, fills all four cards, and scrolls to the cards plus Continue button after a successful detection. Reset clears and immediately re-detects. If the phone's master Location switch is off in the installed app, Google Play Services shows an in-app Location Settings resolution dialog so the user can turn Location on by consent. Android settings remain fallback only when the OS cannot show the resolution dialog. Android does not allow silently toggling the master Location switch from an app.
+
+### Scroll / Next-Action Invariant — 2026-10-05
+
+After a user action fills or changes a multi-section component, the app should scroll to the next useful section or primary action. Owner Profile scrolls to edit form/actions, Location scrolls to the filled four-card area and Continue button, Pet Details scrolls to form/actions, Pet Status opens list modals from the top, and Capture Pet scrolls to Select Missing Pet once Home Base is resolved.

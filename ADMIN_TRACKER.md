@@ -103,3 +103,5 @@ Keep this file only as a lightweight human checklist. The app does not need it. 
 - Location permission denial retries the in-app/native permission prompt first; Android system settings are fallback only when the OS cannot show the in-app resolution dialog.
 - App retries detection automatically when the user returns.
 - Browser/localhost still falls back to manual selection because Chrome cannot open Android system settings.
+
+- Scroll behavior invariant: after edit/save/detect/select actions, pages should scroll to the next useful section or primary action. Owner Profile scrolls to edit form/actions, Location scrolls to cards/Continue after detection, Pet Details scrolls to form/actions, Pet Status opens list modals at the top, and Capture Pet scrolls to Select Missing Pet after Home Base is ready.

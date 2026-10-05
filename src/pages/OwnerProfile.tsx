@@ -89,6 +89,8 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const ownerFormRef = useRef<HTMLFormElement | null>(null);
+  const ownerActionsRef = useRef<HTMLDivElement | null>(null);
 
   // Sync when user or profile loads
   useEffect(() => {
@@ -357,19 +359,23 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const saveProfileInternal = async (showNotification = true): Promise<boolean> => {
     if (!fullName.trim()) {
       showToast('Please enter your full name.', 'warning');
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
     if (!phone.trim()) {
       setPhoneError('Please enter your contact phone number.');
       showToast('Please enter your contact phone number.', 'warning');
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
     if (!photo.trim()) {
       showToast('Please upload a profile photo. A photo is required to verify your identity.', 'warning');
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
     if (photo.startsWith('data:')) {
       showToast('This photo has not finished uploading. Please wait or upload again.', 'warning');
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
 
@@ -377,6 +383,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
       showToast(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.', 'warning');
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
 
@@ -429,6 +436,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       showToast('🐾 Pet Parent profile saved & synced to Firestore!', 'success');
     }
     setIsEditing(false);
+    window.setTimeout(() => ownerActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     return true;
   };
 
@@ -581,10 +589,13 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
               </div>
 
               {/* Bottom Actions for View Mode */}
-              <div className="owner-actions-bottom-row view-mode-actions">
+              <div className="owner-actions-bottom-row view-mode-actions" ref={ownerActionsRef}>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setIsEditing(true);
+                    window.setTimeout(() => ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+                  }}
                   className="owner-modify-btn"
                 >
                   <Edit3 size={16} />
@@ -603,7 +614,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="onboarding-form owner-combined-form">
+            <form ref={ownerFormRef} onSubmit={handleSubmit} className="onboarding-form owner-combined-form">
               {/* 1. ENLARGED PROFILE PICTURE HERO (With Edit Badges & Actions) */}
               <div className="owner-unified-avatar-hero">
                 <div
