@@ -10,8 +10,21 @@ const requireText = (condition, message) => { if (!condition) failures.push(mess
 
 requireText(!service.includes('VITE_CLOUDINARY_API_SECRET'), 'Cloudinary API secret reference exists in client service.');
 requireText(!service.includes('VITE_CLOUDINARY_API_KEY'), 'Cloudinary API key reference exists in client service.');
-requireText(!service.includes("formData.append('upload_preset'"), 'Unsigned Cloudinary upload path remains in the client.');
-requireText(!envExample.includes('VITE_CLOUDINARY_PUBLIC_UPLOAD_PRESET'), 'Unsigned Cloudinary preset remains documented.');
+const forbiddenClientMarkers = [
+  'VITE_CLOUDINARY_UPLOAD_PRESET',
+  'VITE_CLOUDINARY_PUBLIC_UPLOAD_PRESET',
+  'CLOUDINARY_UPLOAD_PRESET',
+  'findlostpuppy_unsigned',
+  'upload_preset',
+  'uploadToCloudinaryDirect',
+];
+for (const marker of forbiddenClientMarkers) {
+  requireText(!service.includes(marker), `Forbidden Cloudinary client marker remains: ${marker}`);
+}
+for (const marker of ['VITE_CLOUDINARY_UPLOAD_PRESET', 'VITE_CLOUDINARY_PUBLIC_UPLOAD_PRESET', 'findlostpuppy_unsigned', 'upload_preset']) {
+  requireText(!envExample.includes(marker), `Unsigned Cloudinary marker remains documented: ${marker}`);
+}
+
 requireText(backend.includes("type: 'authenticated'"), 'Uploads are not restricted to authenticated delivery.');
 requireText(backend.includes('jwtVerify'), 'Worker does not verify Firebase authentication tokens.');
 requireText(backend.includes('ownedBy(publicId, uid)'), 'Cloudinary ownership validation is missing.');

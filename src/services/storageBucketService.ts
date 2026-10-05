@@ -16,7 +16,6 @@ if (typeof localStorage !== 'undefined') {
 const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS === 'true';
 const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || '').replace(/\/$/, '');
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
-const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 
 // =============================================================================
 // Canonical Cloudinary folder layout
@@ -283,17 +282,6 @@ async function secureCloudinaryUpload(
 
 const CLOUDINARY_TOKENS_KEY = 'findlostpuppy_cloudinary_tokens_v1';
 
-function saveCloudinaryDeleteToken(url: string, publicId: string, token: string): void {
-  if (typeof localStorage === 'undefined' || !token) return;
-  try {
-    const raw = localStorage.getItem(CLOUDINARY_TOKENS_KEY);
-    const tokens: Record<string, string> = raw ? JSON.parse(raw) : {};
-    if (url)      { tokens[url] = token; tokens[url.split('?')[0]] = token; }
-    if (publicId) { tokens[publicId] = token; }
-    localStorage.setItem(CLOUDINARY_TOKENS_KEY, JSON.stringify(tokens));
-  } catch {}
-}
-
 function getCloudinaryDeleteToken(urlOrPublicId: string): string | null {
   if (typeof localStorage === 'undefined' || !urlOrPublicId) return null;
   try {
@@ -321,69 +309,14 @@ function removeCloudinaryDeleteToken(urlOrPublicId: string): void {
 }
 
 // =============================================================================
-// Core Cloudinary upload (unsigned preset)
+// Cloudinary upload
 // =============================================================================
 //
-// Every upload:
-//   public_id   → deterministic path; asset lands in the EXACT folder/name
-//   overwrite=1 → replaces any existing asset at that public_id (no duplicates)
-//   invalidate=1→ purges old CDN-cached version instantly
-//   return_delete_token=1 → gives us a token for client-side deletion
-//
-// IMPORTANT: In the Cloudinary dashboard, go to:
-//   Settings → Upload → your upload preset → enable "Overwrite"
-// Without this, overwrite=1 is silently ignored for unsigned presets.
+// Cloudinary writes must go through the authenticated media worker. The client
+// must not expose or use unsigned upload presets because copied presets can be
+// abused outside the app. If the worker is unavailable, upload helpers fall back
+// to Firebase Storage instead of direct Cloudinary upload.
 // =============================================================================
-
-async function uploadToCloudinaryDirect(
-  input: File | Blob | string,
-  publicId: string,
-  tags: string,
-): Promise<{ secureUrl: string; publicId: string } | null> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) return null;
-  try {
-    const blobData = await toBlob(input);
-    if (!blobData?.blob) return null;
-
-    const sanitized = (await sanitizePublicImage(blobData.blob)) || blobData.blob;
-    if (sanitized.size > 5 * 1024 * 1024) {
-      console.error('[storageBucketService] File exceeds 5 MB after sanitization.');
-      return null;
-    }
-
-    const form = new FormData();
-    form.append('file',          sanitized, 'photo.jpg');
-    form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    form.append('public_id',     publicId); // deterministic Cloudinary path
-    if (tags) form.append('tags', tags);
-
-    console.log('[storageBucketService] Uploading →', publicId);
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-      { method: 'POST', body: form },
-    );
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[storageBucketService] Upload failed ${response.status}:`, errText);
-      return null;
-    }
-
-    const data = await response.json();
-    if (data?.secure_url) {
-      if (data.delete_token) {
-        saveCloudinaryDeleteToken(data.secure_url, data.public_id || publicId, data.delete_token);
-      }
-      console.log('[storageBucketService] Upload OK →', data.public_id, data.secure_url);
-      return { secureUrl: data.secure_url, publicId: data.public_id || publicId };
-    }
-    return null;
-  } catch (err) {
-    console.error('[storageBucketService] Upload exception:', err);
-    return null;
-  }
-}
 
 // =============================================================================
 // Cloudinary delete
@@ -464,12 +397,8 @@ export const storageBucketService = {
     const uid = userId.replace(/^(owner-)+/, '').trim();
     if (!uid) { console.error('[storageBucketService] Missing userId'); return null; }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('profile', uid, image, previousUrl);
-
-    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
-      const result = await uploadToCloudinaryDirect(image, ownerProfilePublicId(uid), 'findlostpuppy,owner_profile');
-      if (result?.secureUrl) return result.secureUrl;
-    }
+    const cloudinaryUrl = await secureCloudinaryUpload('profile', uid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
 
     const fb = await this.uploadMedia(`profiles/${uid}/avatar.jpg`, image);
     return fb ? fb.publicUrl : null;
@@ -489,14 +418,10 @@ export const storageBucketService = {
     const pid = petId.trim();
     if (!uid || !pid) { console.error('[storageBucketService] Missing userId or petId'); return null; }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('pet', pid, image, previousUrl);
+    const cloudinaryUrl = await secureCloudinaryUpload('pet', pid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
 
-    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
-      const result = await uploadToCloudinaryDirect(image, petProfilePublicId(uid, pid, index), 'findlostpuppy,pet_profile');
-      if (result?.secureUrl) return result.secureUrl;
-    }
-
-    const fb = await this.uploadMedia(`pets/${uid}/${pid}/photo.jpg`, image);
+    const fb = await this.uploadMedia(`pets/${uid}/${pid}/${index > 0 ? `photo_${index}.jpg` : 'photo.jpg'}`, image);
     return fb ? fb.publicUrl : null;
   },
 
@@ -512,14 +437,10 @@ export const storageBucketService = {
     const rid = reportId.trim();
     if (!rid) { console.error('[storageBucketService] Missing reportId'); return null; }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('missing-report', rid, image, previousUrl);
+    const cloudinaryUrl = await secureCloudinaryUpload('missing-report', rid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
 
-    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
-      const result = await uploadToCloudinaryDirect(image, missingPetPublicId(rid, index), 'findlostpuppy,missing_pets');
-      if (result?.secureUrl) return result.secureUrl;
-    }
-
-    const fb = await this.uploadMedia(`missing-reports/${rid}/photo.jpg`, image);
+    const fb = await this.uploadMedia(`missing-reports/${rid}/${index > 0 ? `photo_${index}.jpg` : 'photo.jpg'}`, image);
     return fb ? fb.publicUrl : null;
   },
 
@@ -535,14 +456,10 @@ export const storageBucketService = {
     const rid = reportId.trim();
     if (!rid) { console.error('[storageBucketService] Missing reportId'); return null; }
 
-    if (SECURE_CLOUDINARY_FUNCTIONS) return secureCloudinaryUpload('sighting', rid, image, previousUrl);
+    const cloudinaryUrl = await secureCloudinaryUpload('sighting', rid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
 
-    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
-      const result = await uploadToCloudinaryDirect(image, sightingPublicId(rid, index), 'findlostpuppy,sightings_pets');
-      if (result?.secureUrl) return result.secureUrl;
-    }
-
-    const fb = await this.uploadMedia(`sightings/${rid}/sighting.jpg`, image);
+    const fb = await this.uploadMedia(`sightings/${rid}/${index > 0 ? `sighting_${index}.jpg` : 'sighting.jpg'}`, image);
     return fb ? fb.publicUrl : null;
   },
 
