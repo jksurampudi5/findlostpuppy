@@ -18255,6 +18255,27 @@
   font-weight: 600;
 }
 
+
+.view-mode-actions .owner-modify-btn {
+  order: 1;
+}
+
+.view-mode-actions .continue-to-location-orange-btn {
+  order: 2;
+}
+
+.edit-mode-actions .owner-cancel-edit-btn {
+  order: 0;
+}
+
+.edit-mode-actions .owner-save-btn {
+  order: 1;
+}
+
+.edit-mode-actions .continue-to-location-orange-btn {
+  order: 2;
+}
+
 /* PERMANENT ORANGE CONTINUE TO LOCATION BUTTON */
 .continue-to-location-orange-btn {
   display: inline-flex !important;
@@ -18314,7 +18335,7 @@
   }
 
   .owner-actions-bottom-row {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
   }

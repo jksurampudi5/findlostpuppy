@@ -831,7 +831,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
               </div>
 
               {/* 3. ACTIONS IN EDIT MODE */}
-              <div className="owner-actions-bottom-row edit-mode-actions">
+              <div className="owner-actions-bottom-row edit-mode-actions" ref={ownerActionsRef}>
                 {hasProfileData && (
                   <button
                     type="button"
