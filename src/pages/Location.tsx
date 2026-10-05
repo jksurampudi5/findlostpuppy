@@ -17,7 +17,6 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
-import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
@@ -147,7 +146,6 @@ export const Location: React.FC<LocationProps> = ({
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const [detecting, setDetecting] = useState(false);
-  const [showLocationConsent, setShowLocationConsent] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const pendingLocationDetectionRef = useRef(false);
@@ -368,20 +366,10 @@ export const Location: React.FC<LocationProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
-  // First show a small app consent container, then let Android/browser show the real permission or settings flow.
+  // Directly ask the browser/Android for location so the real system permission popup appears.
   const handleDetectClick = () => {
     pendingLocationDetectionRef.current = false;
-    setShowLocationConsent(true);
-  };
-
-  const handleAllowLocationConsent = () => {
-    setShowLocationConsent(false);
     executeDetectLocation();
-  };
-
-  const handleDenyLocationConsent = () => {
-    pendingLocationDetectionRef.current = false;
-    setShowLocationConsent(false);
   };
 
   const handleResetLocation = () => {
@@ -1071,15 +1059,6 @@ export const Location: React.FC<LocationProps> = ({
       />
 
 
-      <PermissionRationaleModal
-        isOpen={showLocationConsent}
-        title="Allow Location"
-        message="Use precise location once to fill State, District, Mandal, and Home Base."
-        continueLabel="Allow Location"
-        cancelLabel="Deny"
-        onContinue={handleAllowLocationConsent}
-        onCancel={handleDenyLocationConsent}
-      />
 
       {isTransitioningBack && (
         <VillageDogTransition
