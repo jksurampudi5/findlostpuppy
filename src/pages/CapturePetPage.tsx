@@ -150,7 +150,7 @@ export const CapturePetPage: React.FC = () => {
   const autoLocationRequestedRef = useRef(false);
   const noHomeBaseAlertShownRef = useRef(false);
   const missingPetSectionRef = useRef<HTMLDivElement>(null);
-  const homeBaseScrollDelayRef = useRef(1200);
+  const homeBaseScrollDelayRef = useRef(2500);
 
   const [reports, setReports] = useState<LostReport[]>([]);
   const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
@@ -670,7 +670,7 @@ export const CapturePetPage: React.FC = () => {
         village: nextVillage,
         pinCode: geo.pinCode || '',
       });
-      homeBaseScrollDelayRef.current = 1200;
+      homeBaseScrollDelayRef.current = 2500;
       if (nextState) setState(nextState);
       if (nextDistrict) setDistrict(nextDistrict);
       if (nextMandal) setMandalOrMunicipality(nextMandal);
@@ -719,7 +719,7 @@ export const CapturePetPage: React.FC = () => {
     const delay = homeBaseScrollDelayRef.current;
     const scrollTimer = window.setTimeout(() => {
       missingPetSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      homeBaseScrollDelayRef.current = 1200;
+      homeBaseScrollDelayRef.current = 2500;
     }, delay);
     return () => window.clearTimeout(scrollTimer);
   }, [city, cityAlertCount, activeLocationModal, detecting]);
@@ -1410,7 +1410,7 @@ export const CapturePetPage: React.FC = () => {
         options={villageOptions}
         selectedValue={city}
         onSelect={(newCity) => {
-          homeBaseScrollDelayRef.current = 320;
+          homeBaseScrollDelayRef.current = 2500;
           setCity(newCity);
           setSelectedReportId('');
           setActiveLocationModal(null);
