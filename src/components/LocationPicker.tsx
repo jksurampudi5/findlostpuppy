@@ -413,7 +413,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       setIsEditing(true);
 
       if (isDenied) {
-        alert('Location access is denied. Please enable location permissions in your browser settings (usually the lock icon in the address bar) to allow auto-detection.');
+        showToast('Location is blocked in this browser. Click the address-bar location icon, allow Location, then try again.', 'info');
       } else {
         showToast(message, 'info');
       }

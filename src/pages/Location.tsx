@@ -22,7 +22,7 @@ import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { detectResilientLocation } from '../utils/geolocationHelper';
-import { openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
+import { openAppPermissionSettings, openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
 interface LocationProps {
@@ -560,9 +560,13 @@ export const Location: React.FC<LocationProps> = ({
           );
         }
       } else if (isDenied) {
-        pendingLocationDetectionRef.current = false;
-        setActiveLocationModal('state');
-        showToast('Location permission is blocked. Enable location permission for FindLostPuppy or choose manually.', 'warning');
+        pendingLocationDetectionRef.current = true;
+        const openedNativeSettings = await openAppPermissionSettings();
+        if (openedNativeSettings) {
+          showToast('Allow Location for FindLostPuppy, then return here. We will detect automatically.', 'info');
+        } else {
+          showToast('Location is blocked in this browser. Click the address-bar location icon, allow Location, then tap Detect again.', 'info');
+        }
       } else {
         setActiveLocationModal('district');
         showToast(
