@@ -473,10 +473,27 @@ export const Location: React.FC<LocationProps> = ({
         const geocoderCity = detectedCity && detectedCity.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
           ? detectedCity
           : undefined;
-        const finalCity = match.locality ? match.locality.localityName : (geocoderCity || '');
+        const matchedLocalities = await locationService.getLocalities(
+          match.district.districtCode,
+          match.subDistrict.subDistrictCode
+        );
+        const normalizedGeocoderCity = geocoderCity?.trim().toLowerCase();
+        const localityFromGeocoder = normalizedGeocoderCity
+          ? matchedLocalities.find(
+              (l) =>
+                l.localityName.toLowerCase() === normalizedGeocoderCity ||
+                l.localityName.toLowerCase().includes(normalizedGeocoderCity) ||
+                normalizedGeocoderCity.includes(l.localityName.toLowerCase())
+            )
+          : undefined;
+        const fallbackLocality = matchedLocalities.find(
+          (l) => l.localityName.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
+        ) || matchedLocalities[0];
+        const finalCity = match.locality?.localityName || localityFromGeocoder?.localityName || fallbackLocality?.localityName || geocoderCity || '';
         setState(match.state.name);
         setDistrict(match.district.districtName);
         setMandalOrMunicipality(match.subDistrict.subDistrictName);
+        setLocalities(matchedLocalities);
         setCity(finalCity);
         // Only set street if it doesn't look like a Plus Code
         const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
@@ -490,22 +507,17 @@ export const Location: React.FC<LocationProps> = ({
         }
 
         setHasDetected(true);
-        // If city/village is still unknown, open the village picker after detection
-        setActiveLocationModal(finalCity ? null : 'city');
+        setActiveLocationModal(null);
 
         const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
         if (geo.confidence === 'HIGH') {
           showToast(
-            finalCity
-              ? `🎯 Detected${accText}: ${finalCity}, ${match.subDistrict.subDistrictName}. Directly edit any square below!`
-              : `🎯 Mandal detected${accText}: ${match.subDistrict.subDistrictName}. Please select your village below!`,
+            `🎯 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Directly edit any square below!`,
             'success'
           );
         } else if (geo.confidence === 'MEDIUM') {
           showToast(
-            finalCity
-              ? `📍 Detected${accText}: ${finalCity}, ${match.subDistrict.subDistrictName}. Tap to adjust any square.`
-              : `📍 Mandal detected${accText}: ${match.subDistrict.subDistrictName}. Please select your village.`,
+            `📍 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Tap to adjust any square.`,
             'info'
           );
         } else {
