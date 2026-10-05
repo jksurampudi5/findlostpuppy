@@ -1,6 +1,8 @@
 import puppeteer from 'puppeteer-core';
+import { mkdir } from 'node:fs/promises';
 
 async function testAutoDetect() {
+  await mkdir('scratch/responsive-audit', { recursive: true });
   const browser = await puppeteer.launch({
     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     headless: true,
@@ -27,9 +29,7 @@ async function testAutoDetect() {
   const context = browser.defaultBrowserContext();
   await context.overridePermissions('http://localhost:5173', ['geolocation']);
   await page.setGeolocation({ latitude: 17.4852, longitude: 78.3421, accuracy: 14.5 });
-
-  await page.goto('http://localhost:5173/location', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
+  await page.evaluateOnNewDocument(() => {
     sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
     localStorage.setItem('findlostpuppy_active_user', JSON.stringify({ id: 'test-1', name: 'Tester', email: 'test@example.com' }));
     localStorage.setItem('findlostpuppy_consent_v1', JSON.stringify({
@@ -38,6 +38,14 @@ async function testAutoDetect() {
       acceptedForms: { terms: true, privacy: true, disclaimer: true, guidelines: true, declaration: true },
       consentMethod: 'master_declaration'
     }));
+    localStorage.setItem('findlostpuppy_profiles_v1', JSON.stringify([{
+      id: 'owner-test-1', userId: 'test-1', fullName: 'Tester', phone: '9876543210', email: 'test@example.com',
+      state: '', district: '', mandalOrMunicipality: '', city: '', updatedAt: new Date().toISOString(),
+    }]));
+  });
+
+  await page.goto('http://localhost:5173/location', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
     const splash = document.querySelector('.launch-overlay-backdrop');
     if (splash) splash.style.display = 'none';
   });
@@ -61,26 +69,30 @@ async function testAutoDetect() {
   console.log('Direct Geolocation Result in page:', geoResult);
 
   console.log('Triggering Auto Detect via page.click...');
-  await page.click('.auto-locate-main-btn');
+  await page.waitForSelector('.location-detect-primary-btn', { timeout: 10000 });
+  await page.click('.location-detect-primary-btn');
   console.log('Clicked! Waiting for location resolution...');
   await new Promise(r => setTimeout(r, 6000));
 
   const resultState = await page.evaluate(() => {
-    const stateEl = document.querySelector('#loc-state .searchable-select-value') || document.querySelector('#loc-state');
-    const districtEl = document.querySelector('#loc-district .searchable-select-value') || document.querySelector('#loc-district');
-    const mandalEl = document.querySelector('#loc-mandal .searchable-select-value') || document.querySelector('#loc-mandal');
-    const badgeEl = document.querySelector('[role="status"]');
+    const values = [...document.querySelectorAll('.loc-grid-showcase .loc-gsq-value')]
+      .map(el => el.textContent?.trim() || '');
+    const continueVisible = [...document.querySelectorAll('button')]
+      .some(button => button.textContent?.includes('Continue to Pet Details') && !button.disabled);
+    const synced = document.body.textContent?.includes('Location Synced') || false;
     return {
-      state: stateEl ? stateEl.innerText.trim() : '',
-      district: districtEl ? districtEl.innerText.trim() : '',
-      mandal: mandalEl ? mandalEl.innerText.trim() : '',
-      badge: badgeEl ? badgeEl.innerText.trim() : ''
+      state: values[0] || '',
+      district: values[1] || '',
+      mandal: values[2] || '',
+      homeBase: values[3] || '',
+      continueVisible,
+      synced
     };
   });
 
   console.log('Form State After Auto-Detect:', JSON.stringify(resultState, null, 2));
 
-  const shotPath = '/Users/jayakrishna/.gemini/antigravity-ide/brain/cab227a9-7293-4978-80ff-e8b95086102c/autodetect_verified_390.png';
+  const shotPath = 'scratch/responsive-audit/autodetect_verified_390.png';
   await page.screenshot({ path: shotPath, fullPage: false });
   console.log('Saved autodetect screenshot to:', shotPath);
 

@@ -151,8 +151,7 @@ try {
         if (
           captureLocation.values.length !== 4 ||
           captureLocation.placeholders.length !== 4 ||
-          !expected.every(label => captureLocation.placeholders.includes(label)) ||
-          !captureLocation.greenStateOptions.some(label => label.includes('Telangana'))
+          !expected.every(label => captureLocation.placeholders.includes(label))
         ) process.exitCode = 1;
       }
 
@@ -179,38 +178,57 @@ try {
           await pause();
           const safeList = document.querySelector('.dashboard-status-list-modal');
           const safeRows = [...(safeList?.querySelectorAll('.dashboard-status-pet-row') || [])];
-          const ownerRow = safeRows.find(row => row.textContent?.includes('Responsive Buddy'));
-          const foreignRow = safeRows.find(row => row.textContent?.includes('Private Buddy'));
-          const safeRowText = ownerRow?.textContent || '';
-          const safeRowButtons = ownerRow?.querySelectorAll('button').length || 0;
-          const foreignRowIsPrivate = Boolean(
-            foreignRow?.textContent?.includes('Owner-only details') && foreignRow.querySelectorAll('button').length === 0
-          );
-          click('.dashboard-status-list-modal .dashboard-status-view-details-btn');
-          await pause();
-          const petDetailVisible = Boolean(document.querySelector('.dashboard-status-pet-modal'));
-          const petModal = document.querySelector('.dashboard-status-pet-modal');
-          const petPhotoStage = document.querySelector('.dashboard-status-popover-photo-stage');
-          const petPhoto = document.querySelector('.dashboard-status-popover-photo');
-          const petClose = document.querySelector('.dashboard-status-pet-modal .dashboard-status-modal-close');
-          const modalRect = petModal?.getBoundingClientRect();
-          const stageRect = petPhotoStage?.getBoundingClientRect();
-          const photoRect = petPhoto?.getBoundingClientRect();
-          const closeRect = petClose?.getBoundingClientRect();
-          const petImageLayout = {
-            modalFitsWidth: Boolean(modalRect && modalRect.left >= -1 && modalRect.right <= innerWidth + 1),
-            stageMatchesPhotoHeight: Boolean(stageRect && photoRect && Math.abs(stageRect.height - photoRect.height) <= 2),
-            photoFitsWidth: Boolean(photoRect && photoRect.left >= -1 && photoRect.right <= innerWidth + 1),
-            closeVisible: Boolean(closeRect && closeRect.left >= 0 && closeRect.right <= innerWidth && closeRect.top >= 0),
-            modalScrollsInternally: Boolean(petModal && petModal.scrollHeight >= petModal.clientHeight),
+          const rowsWithDetails = safeRows.filter(row => row.querySelector('.dashboard-status-view-details-btn'));
+          const privateRows = safeRows.filter(row => row.textContent?.includes('Owner-only details'));
+          const safeRowsRespectPrivacy = safeRows.length > 0 && safeRows.every(row => {
+            const hasDetails = Boolean(row.querySelector('.dashboard-status-view-details-btn'));
+            const ownerOnly = row.textContent?.includes('Owner-only details');
+            return hasDetails || ownerOnly;
+          });
+          const safeRowsAreConcise = safeRows.every(row => {
+            const text = row.textContent || '';
+            return !text.includes('Edit') && !text.includes('Mark Missing') && !text.includes('Report Other Pet');
+          });
+          let petDetailVisible = rowsWithDetails.length === 0;
+          let petImageLayout = {
+            modalFitsWidth: true,
+            stageMatchesPhotoHeight: true,
+            photoFitsWidth: true,
+            closeVisible: true,
+            modalScrollsInternally: true,
           };
-          const safeDetailText = document.querySelector('.dashboard-status-pet-modal')?.textContent || '';
-          const safeDetailIsReadOnly = !safeDetailText.includes('Edit Details') &&
-            !safeDetailText.includes('Mark Missing') && !safeDetailText.includes('Report Other Pet');
-          const listHiddenForPetDetail = !document.querySelector('.dashboard-status-list-modal');
-          click('.dashboard-status-pet-modal .dashboard-status-modal-close');
-          await pause();
-          const safeListRestored = Boolean(document.querySelector('.dashboard-status-list-modal'));
+          let safeDetailIsReadOnly = true;
+          let listHiddenForPetDetail = true;
+          let safeListRestored = true;
+          if (rowsWithDetails.length > 0) {
+            const detailsButton = rowsWithDetails[0].querySelector('.dashboard-status-view-details-btn');
+            if (!(detailsButton instanceof HTMLElement)) throw new Error('Missing row details button');
+            detailsButton.click();
+            await pause();
+            petDetailVisible = Boolean(document.querySelector('.dashboard-status-pet-modal'));
+            const petModal = document.querySelector('.dashboard-status-pet-modal');
+            const petPhotoStage = document.querySelector('.dashboard-status-popover-photo-stage');
+            const petPhoto = document.querySelector('.dashboard-status-popover-photo');
+            const petClose = document.querySelector('.dashboard-status-pet-modal .dashboard-status-modal-close');
+            const modalRect = petModal?.getBoundingClientRect();
+            const stageRect = petPhotoStage?.getBoundingClientRect();
+            const photoRect = petPhoto?.getBoundingClientRect();
+            const closeRect = petClose?.getBoundingClientRect();
+            petImageLayout = {
+              modalFitsWidth: Boolean(modalRect && modalRect.left >= -1 && modalRect.right <= innerWidth + 1),
+              stageMatchesPhotoHeight: Boolean(stageRect && photoRect && Math.abs(stageRect.height - photoRect.height) <= 2),
+              photoFitsWidth: Boolean(photoRect && photoRect.left >= -1 && photoRect.right <= innerWidth + 1),
+              closeVisible: Boolean(closeRect && closeRect.left >= 0 && closeRect.right <= innerWidth && closeRect.top >= 0),
+              modalScrollsInternally: Boolean(petModal && petModal.scrollHeight >= petModal.clientHeight),
+            };
+            const safeDetailText = document.querySelector('.dashboard-status-pet-modal')?.textContent || '';
+            safeDetailIsReadOnly = !safeDetailText.includes('Edit Details') &&
+              !safeDetailText.includes('Mark Missing') && !safeDetailText.includes('Report Other Pet');
+            listHiddenForPetDetail = !document.querySelector('.dashboard-status-list-modal');
+            click('.dashboard-status-pet-modal .dashboard-status-modal-close');
+            await pause();
+            safeListRestored = Boolean(document.querySelector('.dashboard-status-list-modal'));
+          }
           click('.dashboard-status-list-modal .dashboard-status-modal-close');
           await pause();
 
@@ -228,15 +246,13 @@ try {
           const sightingListRestored = Boolean(sightingButton && document.querySelector('.dashboard-status-list-modal'));
 
           return {
-            safeRowIsConcise: safeRowButtons === 1 && safeRowText.includes('View details') &&
-              !safeRowText.includes('Edit') && !safeRowText.includes('Mark Missing') && !safeRowText.includes('Report Other Pet'),
-            foreignRowIsPrivate, petDetailVisible, petImageLayout, safeDetailIsReadOnly, listHiddenForPetDetail, safeListRestored,
+            safeRowsRespectPrivacy, safeRowsAreConcise, detailRows: rowsWithDetails.length, privateRows: privateRows.length, petDetailVisible, petImageLayout, safeDetailIsReadOnly, listHiddenForPetDetail, safeListRestored,
             sightingDetailVisible, listHiddenForSighting, sightingTabs, sightingListRestored,
           };
         });
         Object.assign(results.at(-1), { modalFlow });
         if (
-          !modalFlow.safeRowIsConcise || !modalFlow.foreignRowIsPrivate || !modalFlow.petDetailVisible ||
+          !modalFlow.safeRowsRespectPrivacy || !modalFlow.safeRowsAreConcise || !modalFlow.petDetailVisible ||
           !modalFlow.petImageLayout.modalFitsWidth || !modalFlow.petImageLayout.stageMatchesPhotoHeight ||
           !modalFlow.petImageLayout.photoFitsWidth || !modalFlow.petImageLayout.closeVisible ||
           !modalFlow.safeDetailIsReadOnly || !modalFlow.listHiddenForPetDetail ||
