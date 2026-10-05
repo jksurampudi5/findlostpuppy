@@ -412,9 +412,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       setGeoError(message);
       setIsEditing(true);
 
-      if (isDenied) {
-        showToast('Location is blocked in this browser. Click the address-bar location icon, allow Location, then try again.', 'info');
-      } else {
+      if (!isDenied) {
         showToast(message, 'info');
       }
     } finally {

@@ -537,7 +537,6 @@ export const Location: React.FC<LocationProps> = ({
         if (detectedPin) setPinCode(detectedPin);
       }
     } catch (hardErr: any) {
-      setHasDetected(true);
       const errorMsg = String(hardErr?.message || '');
       const isGpsOff =
         hardErr?.code === 'LOCATION_SERVICES_DISABLED' ||
@@ -548,31 +547,15 @@ export const Location: React.FC<LocationProps> = ({
       if (isGpsOff) {
         pendingLocationDetectionRef.current = true;
         const promptedInApp = await promptEnableDeviceLocation();
-        if (promptedInApp) {
-          showToast('Turn on Location, then return here. We will detect automatically.', 'info');
-        } else {
-          const openedSettings = await openDeviceLocationSettings();
-          showToast(
-            openedSettings
-              ? 'Turn on Location in Android settings, then return here. We will detect automatically.'
-              : 'Turn on Location, then tap Detect Location again.',
-            'warning'
-          );
+        if (!promptedInApp) {
+          await openDeviceLocationSettings();
         }
       } else if (isDenied) {
         pendingLocationDetectionRef.current = true;
-        const openedNativeSettings = await openAppPermissionSettings();
-        if (openedNativeSettings) {
-          showToast('Allow Location for FindLostPuppy, then return here. We will detect automatically.', 'info');
-        } else {
-          showToast('Location is blocked in this browser. Click the address-bar location icon, allow Location, then tap Detect again.', 'info');
-        }
+        await openAppPermissionSettings();
       } else {
+        setHasDetected(true);
         setActiveLocationModal('district');
-        showToast(
-          hardErr?.message || 'Location permission unavailable. Select details from squares below.',
-          'warning'
-        );
       }
     } finally {
       isDetectingRef.current = false;
