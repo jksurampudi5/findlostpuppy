@@ -26699,3 +26699,44 @@ canvas {
     grid-template-columns: 1fr;
   }
 }
+
+/* Non-blocking network notices. Never replace the app shell or splash screen. */
+.network-status-banner {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(92vw, 560px);
+  padding: 0.7rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(10, 12, 16, 0.92);
+  color: #f8fafc;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-weight: 800;
+  font-size: clamp(0.78rem, 2.6vw, 0.92rem);
+  line-height: 1.25;
+}
+
+.network-status-banner.is-online {
+  border-color: rgba(16, 185, 129, 0.42);
+  color: #d1fae5;
+}
+
+.network-status-banner.is-offline {
+  border-color: rgba(251, 146, 60, 0.5);
+  color: #ffedd5;
+}
+
+@media (max-width: 520px) {
+  .network-status-banner {
+    top: max(0.5rem, env(safe-area-inset-top));
+    max-width: calc(100vw - 1rem);
+    padding: 0.58rem 0.72rem;
+  }
+}

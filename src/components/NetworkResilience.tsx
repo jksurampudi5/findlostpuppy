@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Wifi } from 'lucide-react';
+import { Wifi, WifiOff } from 'lucide-react';
 import { storageBucketService } from '../services/storageBucketService';
 import { storageService } from '../services/storageService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { OfflineFallback } from './fallbacks/OfflineFallback';
 
 /** Shows connectivity recovery UI and retries queued media and cloud pulls after reconnection. */
 export function NetworkResilience() {
@@ -45,9 +44,12 @@ export function NetworkResilience() {
   }, []);
 
   if (!online) {
-    return <OfflineFallback onRetry={() => {
-      if (navigator.onLine) window.dispatchEvent(new Event('online'));
-    }} />;
+    return (
+      <div className="network-status-banner is-offline" role="status" aria-live="polite">
+        <WifiOff size={18} />
+        <span>Connection looks unstable. The app will keep trying in the background.</span>
+      </div>
+    );
   }
 
   if (!reconnected) return null;
