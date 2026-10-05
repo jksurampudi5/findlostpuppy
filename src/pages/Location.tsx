@@ -17,15 +17,12 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
-import { PermissionRationaleModal, type PermissionStateLabel } from '../components/PermissionRationaleModal';
 import type { OwnerProfile, LocationLocality } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import { openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
-import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
 interface LocationProps {
@@ -149,12 +146,9 @@ export const Location: React.FC<LocationProps> = ({
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const [detecting, setDetecting] = useState(false);
-  const [showLocationRationale, setShowLocationRationale] = useState(false);
-  const [locationPermissionState, setLocationPermissionState] = useState<PermissionStateLabel>('unknown');
-  const [showGpsOffModal, setShowGpsOffModal] = useState(false);
-  const [showPermissionDeniedDialog, setShowPermissionDeniedDialog] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
+  const pendingLocationDetectionRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
@@ -372,58 +366,11 @@ export const Location: React.FC<LocationProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
-  const refreshLocationPermissionState = useCallback(async (): Promise<PermissionStateLabel> => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const permission = await Geolocation.checkPermissions();
-        const nextState: PermissionStateLabel =
-          permission.location === 'granted' || permission.coarseLocation === 'granted'
-            ? 'allowed'
-            : permission.location === 'denied' || permission.coarseLocation === 'denied'
-              ? 'not-allowed'
-              : 'ask';
-        setLocationPermissionState(nextState);
-        return nextState;
-      }
-
-      if (typeof navigator !== 'undefined' && 'permissions' in navigator) {
-        const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-        const mapState = (value: PermissionState): PermissionStateLabel =>
-          value === 'granted' ? 'allowed' : value === 'denied' ? 'not-allowed' : 'ask';
-        const nextState = mapState(result.state);
-        setLocationPermissionState(nextState);
-        result.onchange = () => setLocationPermissionState(mapState(result.state));
-        return nextState;
-      }
-
-      setLocationPermissionState('ask');
-      return 'ask';
-    } catch {
-      setLocationPermissionState('unknown');
-      return 'unknown';
-    }
-  }, []);
-
-  // Direct native/browser location detector. Repeat detection skips the app explainer and asks the OS/browser directly.
-  const handleDetectClick = async () => {
-    const permissionState = await refreshLocationPermissionState();
-    if (permissionState === 'allowed' || hasDetected || hasSavedLocation) {
-      executeDetectLocation();
-      return;
-    }
-    setShowLocationRationale(true);
-  };
-
-  const handleLocationRationaleContinue = () => {
-    setShowLocationRationale(false);
+  // Direct native/browser location detector. The OS/browser owns permission prompts; users can edit squares manually after detection.
+  const handleDetectClick = () => {
+    pendingLocationDetectionRef.current = false;
     executeDetectLocation();
   };
-
-  useEffect(() => {
-    if (showLocationRationale) {
-      refreshLocationPermissionState();
-    }
-  }, [showLocationRationale, refreshLocationPermissionState]);
 
   const handleResetLocation = () => {
     hasManuallyResetRef.current = true;
@@ -543,7 +490,6 @@ export const Location: React.FC<LocationProps> = ({
         }
 
         setHasDetected(true);
-        setShowPermissionDeniedDialog(false);
         // If city/village is still unknown, open the village picker after detection
         setActiveLocationModal(finalCity ? null : 'city');
 
@@ -600,16 +546,23 @@ export const Location: React.FC<LocationProps> = ({
       const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
 
       if (isGpsOff) {
+        pendingLocationDetectionRef.current = true;
         const promptedInApp = await promptEnableDeviceLocation();
         if (promptedInApp) {
-          showToast('Turn on Location in the Android popup, then return here. Detection will retry automatically.', 'info');
+          showToast('Turn on Location, then return here. We will detect automatically.', 'info');
         } else {
-          setShowGpsOffModal(true);
-          showToast('📍 Device Location is turned off. Please enable Location to continue.', 'warning');
+          const openedSettings = await openDeviceLocationSettings();
+          showToast(
+            openedSettings
+              ? 'Turn on Location in Android settings, then return here. We will detect automatically.'
+              : 'Turn on Location, then tap Detect Location again.',
+            'warning'
+          );
         }
       } else if (isDenied) {
-        setShowPermissionDeniedDialog(true);
-        showToast('Location permission denied. Please enable Precise Location in settings.', 'warning');
+        pendingLocationDetectionRef.current = false;
+        setActiveLocationModal('state');
+        showToast('Location permission is blocked. Enable location permission for FindLostPuppy or choose manually.', 'warning');
       } else {
         setActiveLocationModal('district');
         showToast(
@@ -623,31 +576,25 @@ export const Location: React.FC<LocationProps> = ({
     }
   };
 
-  // Auto-recheck location permission / device Location after returning from Android settings.
+  // Auto-retry detection after returning from Android Location settings.
   useEffect(() => {
-    if (!showPermissionDeniedDialog && !showGpsOffModal) return;
-
-    const handleRecheckOnResume = () => {
-      if ((showPermissionDeniedDialog || showGpsOffModal) && !isDetectingRef.current) {
-        setShowPermissionDeniedDialog(false);
-        setShowGpsOffModal(false);
-        executeDetectLocation();
-      }
+    const handleResume = () => {
+      if (!pendingLocationDetectionRef.current || isDetectingRef.current) return;
+      pendingLocationDetectionRef.current = false;
+      executeDetectLocation();
     };
 
-    window.addEventListener('focus', handleRecheckOnResume);
+    window.addEventListener('focus', handleResume);
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        handleRecheckOnResume();
-      }
+      if (document.visibilityState === 'visible') handleResume();
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-      window.removeEventListener('focus', handleRecheckOnResume);
+      window.removeEventListener('focus', handleResume);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [showPermissionDeniedDialog, showGpsOffModal]);
+  }, []);
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
@@ -1122,61 +1069,6 @@ export const Location: React.FC<LocationProps> = ({
         onSelect={handleCitySelect}
         searchable
         searchPlaceholder={mandalOrMunicipality ? 'Search village...' : 'Select mandal first'}
-      />
-
-      <PermissionRationaleModal
-        isOpen={showLocationRationale}
-        variant="location"
-        permissionState={locationPermissionState}
-        title={locationPermissionState === 'allowed' ? 'Use Current Location' : 'Allow Precise Location'}
-        message={
-          locationPermissionState === 'allowed'
-            ? 'Location access is already allowed. We can now detect your current GPS and fill State, District, Mandal, and Home Base automatically.'
-            : locationPermissionState === 'not-allowed'
-              ? 'Location is currently not allowed. Tap Allow Location to request access again. If your browser already blocked it, turn on Location from the address-bar permission control and try again.'
-              : 'Tap Allow only if you consent to using precise GPS for this detection. Android or the browser will show the location permission prompt inside the app flow. We use it only to fill your location squares and do not show exact GPS publicly.'
-        }
-        continueLabel={locationPermissionState === 'allowed' ? 'Use Current Location' : 'Allow Location'}
-        cancelLabel="Choose Manually"
-        onCancel={() => {
-          setShowLocationRationale(false);
-          setActiveLocationModal('state');
-        }}
-        onContinue={handleLocationRationaleContinue}
-      />
-
-      <PermissionRationaleModal
-        isOpen={showGpsOffModal}
-        title="Turn On Device Location"
-        message="Your phone Location switch is off. Tap Open Location Settings only if you consent, turn Location on yourself, then return to FindLostPuppy. We will retry detection automatically when you come back."
-        continueLabel="Open Location Settings"
-        cancelLabel="Choose Manually"
-        onCancel={() => {
-          setShowGpsOffModal(false);
-          setActiveLocationModal('district');
-        }}
-        onContinue={async () => {
-          const opened = await openDeviceLocationSettings();
-          if (!opened) {
-            showToast('Open phone Settings > Location, turn it on, then tap Detect Location again.', 'warning');
-          }
-        }}
-      />
-
-      <PermissionRationaleModal
-        isOpen={showPermissionDeniedDialog}
-        title="Location Permission Needed"
-        message="Location helps us capture the correct last-seen place for your pet. Tap Allow Location to show the Android/browser permission prompt. Choose precise location if Android asks."
-        continueLabel="Allow Location"
-        cancelLabel="Enter Location Manually"
-        onCancel={() => {
-          setShowPermissionDeniedDialog(false);
-          setActiveLocationModal('state');
-        }}
-        onContinue={() => {
-          setShowPermissionDeniedDialog(false);
-          executeDetectLocation();
-        }}
       />
 
       {isTransitioningBack && (
