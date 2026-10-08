@@ -24,6 +24,7 @@ import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { detectResilientLocation } from '../utils/geolocationHelper';
 import { openAppPermissionSettings, openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
+import { Capacitor } from '@capacitor/core';
 
 interface LocationProps {
   onSuccess?: () => void;
@@ -557,15 +558,35 @@ export const Location: React.FC<LocationProps> = ({
 
       const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
 
+      const isNative = Capacitor.isNativePlatform();
+
       if (isGpsOff) {
         pendingLocationDetectionRef.current = true;
-        const promptedInApp = await promptEnableDeviceLocation();
-        if (!promptedInApp) {
-          await openDeviceLocationSettings();
+        if (isNative) {
+          // Android/iOS: Use native Google Play Services Location Settings resolution dialog
+          const promptedInApp = await promptEnableDeviceLocation();
+          if (!promptedInApp) {
+            await openDeviceLocationSettings();
+          }
+        } else {
+          // Web/Browser: Cannot open system settings — show custom guidance modal
+          showToast('📍 Location services are off. Please enable Location in your browser/device settings, then tap "Detect Location Again".', 'warning');
+          // Optionally open browser settings if supported (limited)
+          try {
+            await openDeviceLocationSettings(); // Will return false on web, but no harm
+          } catch {}
         }
       } else if (isDenied) {
         pendingLocationDetectionRef.current = true;
-        await openAppPermissionSettings();
+        if (isNative) {
+          await openAppPermissionSettings();
+        } else {
+          // Web: Guide user to browser address bar location icon
+          showToast('🔒 Location permission denied. Click the 🔒/📍 icon in your browser address bar → Allow Location → then tap "Detect Location Again".', 'warning');
+          try {
+            await openAppPermissionSettings(); // Returns false on web
+          } catch {}
+        }
       } else {
         setHasDetected(true);
         setActiveLocationModal('district');
