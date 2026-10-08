@@ -18,7 +18,7 @@ import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
 import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
 import type { OwnerProfile, LocationLocality } from '../types';
-import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { Geolocation } from '@capacitor/geolocation';
@@ -737,7 +737,7 @@ export const Location: React.FC<LocationProps> = ({
         userId: user.id,
         fullName: existingProfile?.fullName || user.name || 'Pet Parent',
         phone: existingProfile?.phone || user.phone || '',
-        photo: (!isPetPhotoUrl(existingProfile?.photo) ? existingProfile?.photo : undefined) || (!isPetPhotoUrl(user.avatar) ? user.avatar : undefined),
+        photo: (existingProfile?.photo && isValidOwnerPhoto(existingProfile.photo)) ? existingProfile.photo : undefined,
         email: user.email,
         state: normalizeToEnglishText(state.trim()),
         district: normalizeToEnglishText(district.trim()),

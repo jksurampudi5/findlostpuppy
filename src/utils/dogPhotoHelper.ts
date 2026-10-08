@@ -96,6 +96,29 @@ export const isPetPhotoUrl = (url?: string | null): boolean => {
 };
 
 /**
+ * Validates that an owner photo is genuinely uploaded or captured.
+ * Explicitly rejects empty values, pet photos, and Google account letter avatars/placeholders.
+ */
+export const isValidOwnerPhoto = (url?: string | null): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim();
+  if (!clean || clean.length < 5) return false;
+  if (isPetPhotoUrl(clean)) return false;
+
+  const lower = clean.toLowerCase();
+  // Reject Google default letter avatars or generic googleusercontent account profile photos
+  if (
+    lower.includes('googleusercontent.com') ||
+    lower.includes('gstatic.com') ||
+    lower.includes('gravatar.com') ||
+    (lower.includes('avatar') && lower.includes('google'))
+  ) {
+    return false;
+  }
+  return true;
+};
+
+/**
  * Dynamically resolves the dog's display name from pet profile or report
  */
 export const getDogDisplayName = (

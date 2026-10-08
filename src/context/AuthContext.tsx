@@ -72,6 +72,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (storageService.hasCompletedLocation(currentUser.id, currentUser.email)) return false;
     if (storageService.hasCompletedDogProfile(currentUser.id, currentUser.email)) return false;
     if (storageService.hasCompletedReport(currentUser.id, currentUser.email)) return false;
+
+    // Firebase Auth creation time check: if account existed prior to this session
+    if (currentUser.createdAt && currentUser.lastLoginAt) {
+      const created = new Date(currentUser.createdAt).getTime();
+      const lastLogin = new Date(currentUser.lastLoginAt).getTime();
+      if (!isNaN(created) && !isNaN(lastLogin) && (lastLogin - created) > 15000) {
+        return false;
+      }
+    }
+
+    const existingOwner = storageService.getOwnerProfileByUserId(currentUser.id, currentUser.email);
+    if (existingOwner && (existingOwner.fullName || existingOwner.phone || existingOwner.photo)) return false;
+
     const pets = storageService.getAllPets().filter((p: { ownerId?: string }) => p.ownerId === currentUser.id);
     if (pets.length > 0) return false;
     const reports = storageService.getAllReports().filter((r: { dog?: { ownerId?: string } }) => r.dog?.ownerId === currentUser.id);

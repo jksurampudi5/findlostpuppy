@@ -15,7 +15,7 @@ import type {
 import { consentService } from './consentService';
 import { isFirebaseConfigured } from './firebaseConfig';
 import { authService } from './authService';
-import { resolveGenericMediaUrl, isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { resolveGenericMediaUrl, isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { storageBucketService, isUploadablePhoto } from './storageBucketService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
@@ -1334,7 +1334,15 @@ class StorageService {
 
   hasCompletedOwnerProfile(userId: string, email?: string): boolean {
     const profile = this.getOwnerProfileByUserId(userId, email);
-    return !!(profile && profile.fullName && profile.phone);
+    return !!(
+      profile &&
+      profile.fullName &&
+      profile.fullName.trim() &&
+      profile.phone &&
+      profile.phone.trim() &&
+      profile.photo &&
+      isValidOwnerPhoto(profile.photo)
+    );
   }
 
   hasCompletedLocation(userId: string, email?: string): boolean {

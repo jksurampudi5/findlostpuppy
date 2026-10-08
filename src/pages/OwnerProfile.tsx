@@ -11,7 +11,7 @@ import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
-import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
+import { isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
 import { BackButton } from '../components/ui/back-button';
@@ -30,20 +30,28 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const initialCleanName = sanitizePersonName(existingProfile?.fullName || user?.name, user?.email || existingProfile?.email);
 
-  const rawInitialPhoto = existingProfile?.photo || user?.avatar || '';
-  const initialPhoto = isPetPhotoUrl(rawInitialPhoto) ? '' : rawInitialPhoto;
+  // Only genuine user-uploaded photos (from folder or camera) are accepted.
+  // Google avatar letter placeholders ("A", "B", "C") and pet images are strictly excluded.
+  const rawInitialPhoto = (existingProfile?.photo && isValidOwnerPhoto(existingProfile.photo))
+    ? existingProfile.photo
+    : '';
+  const initialPhoto = rawInitialPhoto;
 
   const [fullName, setFullName] = useState(initialCleanName);
   const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string>(initialPhoto);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [preferredContact, setPreferredContact] = useState<ContactMethod>(
     existingProfile?.preferredContact || 'phone'
   );
 
+  // All 3 fields (photo, fullName, and phone) are strictly mandatory.
   const isProfileFilled = Boolean(
-    (existingProfile?.fullName && existingProfile?.phone) ||
-    (user?.name && user?.phone)
+    initialCleanName.trim() &&
+    (existingProfile?.phone?.trim() || user?.phone?.trim()) &&
+    initialPhoto &&
+    isValidOwnerPhoto(initialPhoto)
   );
   const [isEditing, setIsEditing] = useState<boolean>(!isProfileFilled);
   const initialModeSetRef = useRef(false);
@@ -105,9 +113,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
         const cleanedName = sanitizePersonName(p.fullName, user.email || p.email);
         setFullName(cleanedName);
         if (p.phone) setPhone(p.phone);
-        const effectivePhoto = isPetPhotoUrl(p.photo)
-          ? ''
-          : p.photo || (!isPetPhotoUrl(user.avatar) ? user.avatar : '') || '';
+        const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo)) ? p.photo : '';
         setPhoto(effectivePhoto);
         if (p.preferredContact) setPreferredContact(p.preferredContact);
 
@@ -118,36 +124,44 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
           contact: p.preferredContact || 'phone',
         });
 
-        if (!initialModeSetRef.current && (cleanedName || user.name) && (p.phone || user.phone)) {
+        const hasAllThree = Boolean(
+          cleanedName &&
+          (p.phone || user.phone) &&
+          effectivePhoto &&
+          isValidOwnerPhoto(effectivePhoto)
+        );
+
+        if (!initialModeSetRef.current) {
           initialModeSetRef.current = true;
-          setIsEditing(false);
+          setIsEditing(!hasAllThree);
         }
       } else {
         const cleanedName = sanitizePersonName(user.name, user.email);
         setFullName(cleanedName);
         if (user.phone) setPhone(user.phone);
-        const userAvatar = !isPetPhotoUrl(user.avatar) ? user.avatar : '';
-        if (userAvatar) setPhoto(userAvatar);
+        // Do not take Gmail photo / letter avatar
+        setPhoto('');
 
         setSavedSnapshot({
           name: cleanedName,
           phone: user.phone || '',
-          photo: userAvatar || '',
+          photo: '',
           contact: 'phone',
         });
 
-        if (!initialModeSetRef.current && cleanedName && user.phone) {
+        if (!initialModeSetRef.current) {
           initialModeSetRef.current = true;
-          setIsEditing(false);
+          setIsEditing(true);
         }
       }
     }
   }, [user?.id, user?.email]);
 
   const hasProfileData = Boolean(
-    (fullName.trim() && phone.trim()) ||
-    (existingProfile?.fullName && existingProfile?.phone) ||
-    (user?.name && user?.phone)
+    fullName.trim() &&
+    phone.trim() &&
+    photo &&
+    isValidOwnerPhoto(photo)
   );
 
   useEffect(() => {
@@ -214,6 +228,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
         return;
       }
       setPhoto(finalPhotoUrl);
+      setPhotoError(null);
 
       authService.updateCurrentUser({ avatar: finalPhotoUrl });
       if (user) {
@@ -370,22 +385,41 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
   /** Validates contact fields and a completed photo upload, saves the owner profile, and returns whether it succeeded. */
   const saveProfileInternal = async (showNotification = true): Promise<boolean> => {
+    let hasError = false;
+
+    if (!photo.trim() || !isValidOwnerPhoto(photo)) {
+      setPhotoError('Profile photo is mandatory. Please upload from your album/files or use camera.');
+      showToast('⚠️ Profile photo is mandatory! Please upload from files or capture with camera.', 'warning');
+      hasError = true;
+    } else {
+      setPhotoError(null);
+    }
+
     if (!fullName.trim()) {
       showToast('Please enter your full name.', 'warning');
-      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
+      hasError = true;
     }
+
     if (!phone.trim()) {
       setPhoneError('Please enter your contact phone number.');
       showToast('Please enter your contact phone number.', 'warning');
+      hasError = true;
+    } else {
+      const phoneValidation = validateIndianPhoneNumber(phone);
+      if (!phoneValidation.isValid) {
+        setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
+        showToast(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.', 'warning');
+        hasError = true;
+      } else {
+        setPhoneError(null);
+      }
+    }
+
+    if (hasError) {
       ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return false;
     }
-    if (!photo.trim()) {
-      showToast('Please upload a profile photo. A photo is required to verify your identity.', 'warning');
-      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
-    }
+
     if (photo.startsWith('data:')) {
       showToast('This photo has not finished uploading. Please wait or upload again.', 'warning');
       ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -393,17 +427,12 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     }
 
     const phoneValidation = validateIndianPhoneNumber(phone);
-    if (!phoneValidation.isValid) {
-      setPhoneError(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.');
-      showToast(phoneValidation.error || 'Please enter a valid 10-digit Indian phone number.', 'warning');
-      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
-    }
-
+    const cleanPhoneNumber = phoneValidation.cleanDigits;
     setPhoneError(null);
+    setPhotoError(null);
+
     const effectiveUserId = user?.id || existingProfile?.userId || 'user-parent-' + Date.now();
     const effectiveEmail = user?.email || existingProfile?.email || 'parent@findlostpuppy.com';
-    const cleanPhoneNumber = phoneValidation.cleanDigits;
 
     const profile: OwnerProfileType = {
       ...(existingProfile || {}),
@@ -426,7 +455,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       updatedAt: new Date().toISOString(),
     };
 
-    storageService.saveOwnerProfile(profile, !photo.trim());
+    storageService.saveOwnerProfile(profile, false);
     authService.updateCurrentUser({
       name: fullName.trim(),
       phone: cleanPhoneNumber,
@@ -465,9 +494,31 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const handleContinueToLocation = async () => {
     if (isTransitioning || isUploadingPhoto) return;
 
+    if (isEditing) {
+      const ok = await saveProfileInternal(false);
+      if (!ok) return;
+    }
+
+    const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '', user?.email);
+    const validPhoto = (photo.trim() && isValidOwnerPhoto(photo)) || (currentProfile?.photo && isValidOwnerPhoto(currentProfile.photo));
+    const validName = Boolean(fullName.trim() || currentProfile?.fullName?.trim());
+    const validPhone = Boolean(phone.trim() || currentProfile?.phone?.trim());
+
+    if (!validPhoto || !validName || !validPhone) {
+      if (!validPhoto) {
+        setPhotoError('Profile photo is mandatory. Please upload from album/files or use camera.');
+      }
+      if (!validPhone) {
+        setPhoneError('Please enter your 10-digit phone number.');
+      }
+      showToast('⚠️ Profile photo, Name, and Phone number are all mandatory before continuing.', 'warning');
+      setIsEditing(true);
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
     // Auto-sync profile and avatar to Cloudinary & Firebase cloud
     try {
-      const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '');
       if (currentProfile) {
         await firebaseSyncService.syncOwnerProfile(currentProfile, currentProfile.id || user?.id || '').catch(() => { });
         showToast('✓ Pet Parent details & photo synced to Firestore!', 'success');
@@ -489,8 +540,15 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   };
 
   const handleExitToDashboard = () => {
+    const hasCompleted = storageService.hasCompletedOwnerProfile(user?.id || '', user?.email);
+    if (!hasCompleted) {
+      showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
+      setIsEditing(true);
+      ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     setActiveOnboardingTab('dashboard');
-    navigate('/dashboard');
+    navigate('/homepage');
   };
 
   return (
@@ -744,6 +802,54 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                   {photoLimitText}
                 </div>
 
+                <div
+                  className="owner-photo-status-badge"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginTop: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: photo ? '#15803D' : '#DC2626',
+                    backgroundColor: photo ? '#DCFCE7' : '#FEE2E2',
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    border: photo ? '1px solid #BBF7D0' : '1px solid #FECACA',
+                  }}
+                >
+                  {photo ? (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>Profile Photo Uploaded ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} />
+                      <span>* Photo Mandatory (Upload from folder/album or use camera)</span>
+                    </>
+                  )}
+                </div>
+
+                {photoError && (
+                  <div
+                    className="photo-error-message"
+                    style={{
+                      color: '#DC2626',
+                      fontWeight: 600,
+                      fontSize: '0.82rem',
+                      marginTop: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <AlertCircle size={14} />
+                    <span>{photoError}</span>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
                   {photo && (
                     <button
@@ -937,6 +1043,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
               return;
             }
             setPhoto(uploadedUrl);
+            setPhotoError(null);
             authService.updateCurrentUser({ avatar: uploadedUrl });
             const updated: OwnerProfileType = {
               ...(currentProfile || {}),

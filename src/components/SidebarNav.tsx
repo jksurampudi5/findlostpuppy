@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { AlignJustifyIcon } from './ui/align-justify-icon';
 import { useAuth, type OnboardingTab } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
@@ -48,6 +49,7 @@ export const SidebarNav: React.FC = () => {
     refreshProgress,
     logout,
   } = useAuth();
+  const { showToast } = useToast();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,6 +105,13 @@ export const SidebarNav: React.FC = () => {
   const isUserAdmin = isAdmin || user?.isAdmin || user?.email?.toLowerCase() === 'jksurampudi5@gmail.com';
 
   const handleTabClick = (tab: OnboardingTab, routePath: string) => {
+    if (isAuthenticated && !hasCompletedOwner && routePath !== '/owner') {
+      showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+      navigate('/owner');
+      setActiveOnboardingTab('owner');
+      setIsMobileMenuOpen(false);
+      return;
+    }
     setActiveOnboardingTab(tab);
     navigate(routePath);
     setIsMobileMenuOpen(false);
@@ -255,10 +264,7 @@ export const SidebarNav: React.FC = () => {
       circleClass: 'circle-suggestion',
       icon: <Camera size={20} className="text-amber-500" />,
       drawerIcon: <Camera size={18} className="text-amber-500" />,
-      onClick: () => {
-        navigate('/capture');
-        setIsMobileMenuOpen(false);
-      },
+      onClick: () => handleTabClick('dashboard', '/capture'),
     },
     // 7. Admin Portal (rendered if user is Admin)
     ...(isUserAdmin ? [{
@@ -269,10 +275,7 @@ export const SidebarNav: React.FC = () => {
       circleClass: 'circle-admin',
       icon: <Shield size={20} className="text-amber-700" />,
       drawerIcon: <Shield size={18} />,
-      onClick: () => {
-        navigate('/admin');
-        setIsMobileMenuOpen(false);
-      },
+      onClick: () => handleTabClick('dashboard', '/admin'),
     }] : []),
     // 8. Feedback / App Suggestion
     {
@@ -318,9 +321,16 @@ export const SidebarNav: React.FC = () => {
       <header className="mobile-top-header" aria-label="Mobile Header">
         <div className={`mobile-top-header-inner ${!isAuthenticated ? 'mobile-top-header-inner-guest' : ''}`}>
           <Link
-            to={isAuthenticated ? '/homepage' : '/'}
+            to={isAuthenticated ? (hasCompletedOwner ? '/homepage' : '/owner') : '/'}
             className="mobile-brand-logo"
-            onClick={() => {
+            onClick={(e) => {
+              if (isAuthenticated && !hasCompletedOwner) {
+                e.preventDefault();
+                showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                navigate('/owner');
+                setActiveOnboardingTab('owner');
+                return;
+              }
               if (isAuthenticated) {
                 setActiveOnboardingTab('dashboard');
                 navigate('/homepage');
@@ -494,9 +504,16 @@ export const SidebarNav: React.FC = () => {
           {/* Logo Header: 100% same slot geometry as nav items */}
           <div className="sidebar-logo-header">
             <Link
-              to={isAuthenticated ? '/homepage' : '/'}
+              to={isAuthenticated ? (hasCompletedOwner ? '/homepage' : '/owner') : '/'}
               className="sidebar-brand-link"
-              onClick={() => {
+              onClick={(e) => {
+                if (isAuthenticated && !hasCompletedOwner) {
+                  e.preventDefault();
+                  showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                  navigate('/owner');
+                  setActiveOnboardingTab('owner');
+                  return;
+                }
                 if (isAuthenticated) {
                   setActiveOnboardingTab('dashboard');
                   navigate('/homepage');
@@ -520,16 +537,19 @@ export const SidebarNav: React.FC = () => {
 
           {/* Navigation Items List: Single source of truth */}
           <nav className="sidebar-items-list" aria-label="Main Navigation">
-            {navigationItems.map(item => (
+            {navigationItems.map(item => {
+              const isBlocked = isAuthenticated && !hasCompletedOwner && item.id !== 'owner';
+              return (
               <button
                 key={item.id}
                 type="button"
                 id={`sidebar-${item.id}-tab`}
                 className={`sidebar-nav-tab ${item.id}-tab ${item.isActive ? 'active' : ''} ${
                   item.isEmergency ? (isLost ? 'status-lost' : isSafe ? 'status-safe' : '') : ''
-                }`}
+                } ${isBlocked ? 'nav-tab-blocked' : ''}`}
+                style={isBlocked ? { opacity: 0.45, filter: 'grayscale(0.4)' } : undefined}
                 onClick={item.onClick}
-                title={`${item.title} — ${item.subtitle}`}
+                title={isBlocked ? '⚠️ Locked until Owner Profile (Photo, Name, Phone) is completed' : `${item.title} — ${item.subtitle}`}
               >
                 {/* Fixed, invariant 44px icon slot */}
                 <div className="nav-icon-slot">
@@ -559,7 +579,8 @@ export const SidebarNav: React.FC = () => {
                   <span className="sidebar-lost-beacon-dot" />
                 )}
               </button>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Bottom Profile / Sign Out Card */}
@@ -618,6 +639,7 @@ export const SidebarNav: React.FC = () => {
             <button
               type="button"
               className={`dock-tab-btn ${isLocationActive ? 'active' : ''}`}
+              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
               onClick={() => handleTabClick('location', '/location')}
             >
               <div className="dock-icon-wrap">
@@ -632,6 +654,7 @@ export const SidebarNav: React.FC = () => {
               className={`dock-center-sos-btn ${
                 isLost ? 'dock-sos-lost' : isSafe ? 'dock-sos-safe' : ''
               } ${isAlertActive ? 'active' : ''}`}
+              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
               onClick={() => handleTabClick('report', '/alert')}
               title="Pet Safety Alert"
             >
@@ -649,6 +672,7 @@ export const SidebarNav: React.FC = () => {
             <button
               type="button"
               className={`dock-tab-btn ${isPetActive ? 'active' : ''}`}
+              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
               onClick={() => handleTabClick('choice', '/choice')}
             >
               <div className="dock-icon-wrap">

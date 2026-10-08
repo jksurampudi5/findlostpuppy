@@ -51,6 +51,7 @@ function MainAppFlow() {
     user,
     isAuthenticated,
     isLoading,
+    hasCompletedOwner,
     setActiveOnboardingTab,
     hasValidConsent,
     isFirstTimeUser,
@@ -92,7 +93,18 @@ function MainAppFlow() {
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
       {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
-      <Route path="/homepage" element={<PetStatus />} />
+      <Route
+        path="/homepage"
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
+          ) : (
+            <PetStatus />
+          )
+        }
+      />
       <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
       <Route path="/feedback" element={<PetStatus />} />
       <Route path="/suggest" element={<PetStatus />} />
@@ -107,6 +119,8 @@ function MainAppFlow() {
             <Navigate to="/login" replace />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
           ) : (
             <CapturePetPage />
           )
@@ -141,6 +155,8 @@ function MainAppFlow() {
             <Navigate to="/login" replace />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
           ) : (
             <Location
               onSuccess={() => {
@@ -164,6 +180,8 @@ function MainAppFlow() {
             <Navigate to="/login" replace />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
           ) : (
             <RegisteredPet />
           )
@@ -178,6 +196,8 @@ function MainAppFlow() {
             <Navigate to="/login" replace />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
           ) : (
             <PetDetails
               onBackToLocation={() => {
@@ -203,6 +223,8 @@ function MainAppFlow() {
             <Navigate to="/login" replace />
           ) : needsConsent ? (
             <Navigate to="/consent" replace />
+          ) : !hasCompletedOwner ? (
+            <Navigate to="/owner" replace />
           ) : (
             <PetSafety
               onBackToPet={() => {

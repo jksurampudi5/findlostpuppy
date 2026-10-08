@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { LegalModal } from '../components/LegalModal';
 import { consentService, type AcceptedFormsState } from '../services/consentService';
+import { useAuth } from '../context/AuthContext';
 
 interface ConsentPageProps {
   onConsentAgreed: (
@@ -20,6 +21,7 @@ interface ConsentPageProps {
 
 /** Presents legal consent and age confirmation before allowing the user to continue. */
 export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => {
+  const { user, isFirstTimeUser } = useAuth();
   const signatureBoxRef = useRef<HTMLDivElement>(null);
 
   // Individual forms consent state
@@ -39,9 +41,9 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     'terms' | 'privacy' | 'disclaimer' | 'guidelines' | null
   >(null);
 
-  // Auto-complete if consent is already accepted on this device
+  // Auto-complete if returning user or consent is already accepted
   useEffect(() => {
-    if (consentService.hasAcceptedCurrentConsent()) {
+    if (!isFirstTimeUser || consentService.hasAcceptedCurrentConsent(user?.id)) {
       onConsentAgreed(
         {
           terms: true,
@@ -53,7 +55,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
         'master_declaration'
       );
     }
-  }, [onConsentAgreed]);
+  }, [onConsentAgreed, user?.id, isFirstTimeUser]);
 
   // Smooth scroll down to acceptance section so user can review the 4 forms cards first
   useEffect(() => {
