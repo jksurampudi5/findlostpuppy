@@ -21,7 +21,10 @@ import type { OwnerProfile, LocationLocality } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 import { detectResilientLocation } from '../utils/geolocationHelper';
+import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import { openAppPermissionSettings, openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 
@@ -94,6 +97,12 @@ export const Location: React.FC<LocationProps> = ({
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
 
+  const [showTurnOnModal, setShowTurnOnModal] = useState(false);
+  const [showPermissionRationaleModal, setShowPermissionRationaleModal] = useState(false);
+  const [showPermissionBlockedModal, setShowPermissionBlockedModal] = useState(false);
+  const [showOutsideDeliveryModal, setShowOutsideDeliveryModal] = useState(false);
+  const sessionDeclinedTurnOnRef = useRef(false);
+
   const hasManuallyResetRef = useRef(false);
 
   // Auto-populate when profile data arrives from cloud/Firestore (unless user manually clicked reset)
@@ -149,7 +158,6 @@ export const Location: React.FC<LocationProps> = ({
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const isDetectingRef = useRef(false);
   const pendingLocationDetectionRef = useRef(false);
-  const autoDetectAttemptedRef = useRef(false);
   const locationCardsRef = useRef<HTMLDivElement | null>(null);
   const initialLocationActionScrollRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
@@ -369,13 +377,79 @@ export const Location: React.FC<LocationProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
-  // Directly ask the browser/Android for location so the real system permission popup appears.
-  const handleDetectClick = () => {
+  // Check whether location access has been granted
+  const checkPermissionStatus = useCallback(async (): Promise<'granted' | 'prompt' | 'denied'> => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const perm = await Geolocation.checkPermissions();
+        if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
+          return 'granted';
+        }
+        if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
+          return 'denied';
+        }
+        return 'prompt';
+      } catch {
+        return 'prompt';
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'geolocation' });
+        return status.state; // 'granted' | 'prompt' | 'denied'
+      } catch {
+        return 'prompt';
+      }
+    }
+    return 'prompt';
+  }, []);
+
+  // User taps "Detect Location" or "Detect Location Again"
+  const handleDetectClick = useCallback(async (options?: { bypassRationale?: boolean } | React.SyntheticEvent) => {
     pendingLocationDetectionRef.current = false;
-    executeDetectLocation();
+    const bypass = Boolean(options && 'bypassRationale' in options && options.bypassRationale);
+
+    // Check permission status before running detection
+    const permStatus = await checkPermissionStatus();
+
+    if (permStatus === 'prompt' && !bypass) {
+      // In-app permission popup with short reason before system permission prompt
+      setShowPermissionRationaleModal(true);
+      return;
+    }
+
+    if (permStatus === 'denied') {
+      // Permanently denied: show in-app popup directing to app settings
+      setShowPermissionBlockedModal(true);
+      return;
+    }
+
+    await executeDetectLocation();
+  }, [checkPermissionStatus]);
+
+  const handlePermissionRationaleContinue = async () => {
+    setShowPermissionRationaleModal(false);
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const req = await Geolocation.requestPermissions();
+        if (req.location === 'granted' || req.coarseLocation === 'granted') {
+          await executeDetectLocation();
+        } else if (req.location === 'denied' && req.coarseLocation === 'denied') {
+          setShowPermissionBlockedModal(true);
+        } else {
+          showToast('Location access was not granted.', 'warning');
+        }
+      } catch {
+        setShowPermissionBlockedModal(true);
+      }
+    } else {
+      await executeDetectLocation();
+    }
   };
 
-  const handleResetLocation = () => {
+  const handleResetLocation = async () => {
     hasManuallyResetRef.current = true;
     if (autoSyncTimerRef.current) {
       window.clearTimeout(autoSyncTimerRef.current);
@@ -425,13 +499,25 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
+    // Reset clears current location state and runs the permission check again,
+    // showing the same in-app permission popup the Capture Pet camera shows when access is missing.
+    const permStatus = await checkPermissionStatus();
+    if (permStatus !== 'granted') {
+      if (permStatus === 'denied') {
+        setShowPermissionBlockedModal(true);
+      } else {
+        setShowPermissionRationaleModal(true);
+      }
+      return;
+    }
+
     window.setTimeout(() => {
       pendingLocationDetectionRef.current = false;
       executeDetectLocation();
     }, 100);
   };
 
-  // Hardware GPS & Native Geolocation Detection
+  // Hardware and Native Geolocation Detection
   /** Detects and matches location fields, requesting manual confirmation when a locality cannot be resolved. */
   const executeDetectLocation = async () => {
     hasManuallyResetRef.current = false;
@@ -441,6 +527,10 @@ export const Location: React.FC<LocationProps> = ({
     setPinConflictNote('');
 
     try {
+      if (typeof window !== 'undefined' && (window as any).__forceLocationError) {
+        throw (window as any).__forceLocationError;
+      }
+
       const geo = await detectResilientLocation();
 
       setLatitude(geo.latitude);
@@ -464,6 +554,17 @@ export const Location: React.FC<LocationProps> = ({
         districtCode: geo.districtCode,
         subDistrictCode: geo.subDistrictCode,
       });
+
+      // Delivery area validation:
+      // Supported state codes: 28 (Andhra Pradesh), 36 (Telangana), 29 (Karnataka)
+      const isSupportedState = match?.state && [28, 36, 29].includes(match.state.code);
+      const isInsideDeliveryArea = Boolean(match && isSupportedState && match.district);
+
+      if (!isInsideDeliveryArea) {
+        setHasDetected(true);
+        setShowOutsideDeliveryModal(true);
+        return;
+      }
 
       if (match && match.state && match.district && match.subDistrict) {
         // If geocoder detected a specific village/city use it; otherwise leave blank so user picks it.
@@ -558,16 +659,16 @@ export const Location: React.FC<LocationProps> = ({
       const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
 
       if (isGpsOff) {
-        pendingLocationDetectionRef.current = true;
-        const promptedInApp = await promptEnableDeviceLocation();
-        if (!promptedInApp) {
-          await openDeviceLocationSettings();
+        if (!sessionDeclinedTurnOnRef.current) {
+          setShowTurnOnModal(true);
+        } else {
+          showToast('Device location is turned off. You can enter your location manually.', 'info');
         }
       } else if (isDenied) {
-        pendingLocationDetectionRef.current = true;
-        await openAppPermissionSettings();
+        setShowPermissionBlockedModal(true);
       } else {
         setHasDetected(true);
+        showToast('Could not detect location. Please select your area manually.', 'info');
         setActiveLocationModal('district');
       }
     } finally {
@@ -597,16 +698,6 @@ export const Location: React.FC<LocationProps> = ({
   }, []);
 
 
-  // On entry, automatically fill the four location cards when location data is missing.
-  useEffect(() => {
-    if (autoDetectAttemptedRef.current || isDetectingRef.current) return;
-    const needsInitialDetect = !state.trim() || !district.trim() || !mandalOrMunicipality.trim() || !city.trim();
-    if (!needsInitialDetect) return;
-    autoDetectAttemptedRef.current = true;
-    window.setTimeout(() => {
-      executeDetectLocation();
-    }, 350);
-  }, [state, district, mandalOrMunicipality, city]);
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
@@ -1093,6 +1184,82 @@ export const Location: React.FC<LocationProps> = ({
         onSelect={handleCitySelect}
         searchable
         searchPlaceholder={mandalOrMunicipality ? 'Search village...' : 'Select mandal first'}
+      />
+
+      {/* 1. Turn On Location Modal (when device location is turned off) */}
+      <PermissionRationaleModal
+        isOpen={showTurnOnModal}
+        title="Turn On Location / లొకేషన్ ఆన్ చేయండి"
+        message="Location is turned off on your device. Turn it on to find your area automatically."
+        continueLabel="Turn On"
+        cancelLabel="Not Now"
+        onCancel={() => {
+          setShowTurnOnModal(false);
+          sessionDeclinedTurnOnRef.current = true;
+        }}
+        onContinue={async () => {
+          setShowTurnOnModal(false);
+          const resolved = await promptEnableDeviceLocation();
+          if (resolved) {
+            showToast('Location enabled. Detecting your area...', 'info');
+            await executeDetectLocation();
+          } else {
+            const opened = await openDeviceLocationSettings();
+            if (opened) {
+              pendingLocationDetectionRef.current = true;
+            } else {
+              sessionDeclinedTurnOnRef.current = true;
+            }
+          }
+        }}
+      />
+
+      {/* 2. In-App Pre-Permission Rationale Modal (Capture Pet camera pattern) */}
+      <PermissionRationaleModal
+        isOpen={showPermissionRationaleModal}
+        title="Location Access / లొకేషన్ వివరాలు"
+        message="Location access is needed to detect your State, District, Mandal, and Home Base automatically. Your exact coordinates are never publicly shown."
+        continueLabel="Continue"
+        cancelLabel="Not Now"
+        onCancel={() => {
+          setShowPermissionRationaleModal(false);
+        }}
+        onContinue={handlePermissionRationaleContinue}
+      />
+
+      {/* 3. In-App Permission Blocked Modal (Direct link to app settings) */}
+      <PermissionRationaleModal
+        isOpen={showPermissionBlockedModal}
+        title="Location Access Needed"
+        message="Location access is blocked. Please allow location in your device settings to detect your area automatically."
+        continueLabel="Open Settings"
+        cancelLabel="Enter Location Manually"
+        onCancel={() => {
+          setShowPermissionBlockedModal(false);
+          if (!state) setActiveLocationModal('state');
+        }}
+        onContinue={async () => {
+          setShowPermissionBlockedModal(false);
+          pendingLocationDetectionRef.current = true;
+          await openAppPermissionSettings();
+        }}
+      />
+
+      {/* 4. Outside Delivery Area Modal (No dead-end error) */}
+      <PermissionRationaleModal
+        isOpen={showOutsideDeliveryModal}
+        title="We don't deliver to this area yet"
+        message="We don't deliver to this area yet. You can enter your location manually or try detecting your location again."
+        continueLabel="Detect Location Again"
+        cancelLabel="Enter Location Manually"
+        onCancel={() => {
+          setShowOutsideDeliveryModal(false);
+          setActiveLocationModal('state');
+        }}
+        onContinue={() => {
+          setShowOutsideDeliveryModal(false);
+          handleDetectClick({ bypassRationale: true });
+        }}
       />
 
 
