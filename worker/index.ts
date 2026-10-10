@@ -72,10 +72,23 @@ function folderFor(category: string, uid: string): string {
 
 /** Checks whether a public ID belongs to one of the user's permitted media-folder prefixes. */
 function ownedBy(publicId: string, uid: string): boolean {
-  return publicId.startsWith(`findlostpuppy/private/profiles/${uid}/`) ||
-    publicId.startsWith(`findlostpuppy/private/pets/${uid}/`) ||
-    publicId.startsWith(`findlostpuppy/recovery/missing-reports/${uid}/`) ||
-    publicId.startsWith(`findlostpuppy/recovery/sightings/${uid}/`);
+  const cleanUid = uid.replace(/^owner-/, '');
+  const uids = [uid, cleanUid, `owner-${cleanUid}`];
+  const folders = [
+    'findlostpuppy/private/profiles',
+    'findlostpuppy/private/pets',
+    'findlostpuppy/recovery/missing-reports',
+    'findlostpuppy/recovery/sightings',
+    'findlostpuppy/owner_profile',
+    'findlostpuppy/pet_profile',
+    'findlostpuppy/missing_pets',
+    'findlostpuppy/sightings_pets',
+    'findlostpuppy/profiles',
+    'findlostpuppy/pets',
+  ];
+  return folders.some((folder) =>
+    uids.some((u) => publicId.startsWith(`${folder}/${u}/`) || publicId.startsWith(`${folder}/${u}`))
+  );
 }
 
 /** Configures the Cloudinary SDK with the Worker's server-side credentials. */
@@ -116,32 +129,38 @@ async function body(request: Request): Promise<Record<string, unknown>> {
   return request.json<Record<string, unknown>>();
 }
 
-/** Deletes an image across supported delivery types with cache invalidation, throwing if any deletion fails. */
+/** Deletes an image across supported delivery types with cache invalidation using both Admin API and Destroy API. */
 async function deleteAsset(publicId: string, env: WorkerEnv): Promise<void> {
+  const credentials = btoa(`${env.CLOUDINARY_API_KEY}:${env.CLOUDINARY_API_SECRET}`);
   for (const type of ['authenticated', 'upload', 'private']) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signedParams = { public_id: publicId, timestamp, type, invalidate: true };
-    const form = new URLSearchParams({
-      public_id: publicId,
-      timestamp: String(timestamp),
-      type,
-      invalidate: 'true',
-      api_key: env.CLOUDINARY_API_KEY,
-      signature: cloudinary.utils.api_sign_request(signedParams, env.CLOUDINARY_API_SECRET),
-    });
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/destroy`,
-      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form },
-    );
-    const result = await response.json<{ result?: string }>();
-    if (!response.ok || !['ok', 'not found'].includes(String(result.result))) {
-      console.error(JSON.stringify({
-        message: 'cloudinary deletion rejected',
-        status: response.status,
-        deliveryType: type,
-        result: result.result || '',
-      }));
-      throw new Error('DELETE_FAILED');
+    // 1. Cloudinary Admin API: DELETE /resources/image/:type?public_ids[]=:publicId&invalidate=true
+    try {
+      await fetch(
+        `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/resources/image/${type}?public_ids[]=${encodeURIComponent(publicId)}&invalidate=true`,
+        { method: 'DELETE', headers: { Authorization: `Basic ${credentials}` } },
+      );
+    } catch (e) {
+      console.warn(`[media] Admin API delete error for ${type}:`, e);
+    }
+
+    // 2. Cloudinary Upload API: POST /image/destroy
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signedParams = { public_id: publicId, timestamp, type, invalidate: true };
+      const form = new URLSearchParams({
+        public_id: publicId,
+        timestamp: String(timestamp),
+        type,
+        invalidate: 'true',
+        api_key: env.CLOUDINARY_API_KEY,
+        signature: cloudinary.utils.api_sign_request(signedParams, env.CLOUDINARY_API_SECRET),
+      });
+      await fetch(
+        `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/destroy`,
+        { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form },
+      );
+    } catch (e) {
+      console.warn(`[media] Destroy API delete error for ${type}:`, e);
     }
   }
 }
@@ -163,7 +182,7 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = folderFor(category, uid);
     const publicId = `media_${Date.now()}_${crypto.randomUUID().replaceAll('-', '')}`;
-    const params = { timestamp, folder, public_id: publicId, type: 'authenticated' };
+    const params = { timestamp, folder, public_id: publicId, type: 'authenticated', return_delete_token: true };
     return json(request, env, {
       ...params,
       cloudName: env.CLOUDINARY_CLOUD_NAME,
@@ -189,7 +208,14 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
   }
 
   if (path === '/media/delete') {
-    const publicId = String(data.publicId || '');
+    let publicId = String(data.publicId || '');
+    if (publicId.startsWith('http')) {
+      const match = publicId.match(/(?:upload|authenticated)\/(?:(?:s--[A-Za-z0-9_-]+--|v\d+|f_[a-z]+,q_[a-z]+)\/)*(findlostpuppy\/[^\s?#]+)/);
+      if (match?.[1]) {
+        publicId = match[1].replace(/\.[a-zA-Z0-9]+$/, '');
+      }
+    }
+    if (!publicId) throw new Error('INVALID');
     if (!ownedBy(publicId, uid) && !isAdmin(claims, env)) throw new Error('FORBIDDEN');
     await deleteAsset(publicId, env);
     return json(request, env, { deleted: true });

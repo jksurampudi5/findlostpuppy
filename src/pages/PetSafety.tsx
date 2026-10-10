@@ -62,6 +62,14 @@ export const PetSafety: React.FC<PetSafetyProps> = ({
   const ownerProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
 
+  // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
+  useEffect(() => {
+    if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
+      showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
+      navigate('/owner', { replace: true });
+    }
+  }, [user, navigate, showToast]);
+
   // Active status choice: 'safe' | 'missing' | null (undecided)
   const [userSelectedChoice, setUserSelectedChoice] = useState<'safe' | 'missing' | null>(null);
 

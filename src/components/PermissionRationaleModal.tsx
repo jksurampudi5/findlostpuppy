@@ -62,7 +62,20 @@ export const PermissionRationaleModal: React.FC<PermissionRationaleModalProps> =
         <h2 id="permission-rationale-title">{title}</h2>
         {isLocationVariant ? (
           <div className="permission-location-body">
-            <div className={`permission-location-switch-row ${locationAllowed ? 'is-allowed' : 'is-blocked'}`} aria-hidden="true">
+            <div
+              className={`permission-location-switch-row ${locationAllowed ? 'is-allowed' : 'is-blocked'}`}
+              onClick={onContinue}
+              style={{ cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onContinue();
+                }
+              }}
+              title="Tap to turn on location"
+            >
               <div>
                 <strong>Location</strong>
                 <span>{permissionText}</span>

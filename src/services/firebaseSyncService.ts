@@ -560,6 +560,42 @@ export const firebaseSyncService = {
   },
 
   /**
+   * Complete Master Hard Reset for Firestore:
+   * Wipes all profiles, pets (except memorial Sonu), missing reports (except memorial Sonu),
+   * sightings, and app suggestions across all Firestore collections.
+   */
+  async hardResetAllFirestoreData(): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return true;
+    try {
+      const firestore = db;
+      const [profilesSnap, petsSnap, reportsSnap, sightingsSnap, suggestionsSnap] = await Promise.all([
+        getDocs(collection(firestore, 'profiles')).catch(() => ({ docs: [] } as any)),
+        getDocs(collection(firestore, 'pets')).catch(() => ({ docs: [] } as any)),
+        getDocs(collection(firestore, 'missing_reports')).catch(() => ({ docs: [] } as any)),
+        getDocs(collection(firestore, 'sightings')).catch(() => ({ docs: [] } as any)),
+        getDocs(collection(firestore, 'app_suggestions')).catch(() => ({ docs: [] } as any)),
+      ]);
+
+      const deletePromises: Promise<any>[] = [];
+      profilesSnap.docs.forEach((d: any) => deletePromises.push(deleteDoc(d.ref)));
+      petsSnap.docs.forEach((d: any) => {
+        if (d.id !== 'pet-1788871495754') deletePromises.push(deleteDoc(d.ref));
+      });
+      reportsSnap.docs.forEach((d: any) => {
+        if (d.id !== 'LOST-1788885000505') deletePromises.push(deleteDoc(d.ref));
+      });
+      sightingsSnap.docs.forEach((d: any) => deletePromises.push(deleteDoc(d.ref)));
+      suggestionsSnap.docs.forEach((d: any) => deletePromises.push(deleteDoc(d.ref)));
+
+      await Promise.allSettled(deletePromises);
+      return true;
+    } catch (err) {
+      console.warn('[Firebase] hardResetAllFirestoreData error:', err);
+      return false;
+    }
+  },
+
+  /**
    * Delete a pet record as admin from Firestore, along with all associated
    * missing reports, sightings, and Cloudinary/Storage images.
    */
@@ -663,18 +699,31 @@ export const firebaseSyncService = {
   },
 
 
-  async deleteUserAsAdmin(userId: string): Promise<boolean> {
+  async deleteUserAsAdmin(userId: string, email?: string): Promise<boolean> {
     if (!db || !isFirebaseConfigured()) return false;
     try {
       const cleanUserId = userId.replace(/^owner-/, '').trim();
       const firestore = db;
+      const cleanEmail = email ? email.toLowerCase().trim() : undefined;
 
-      // 1. Delete profile doc (both variants of ID)
-      const profileDeletes = [
+      // 1. Delete profile doc (both variants of ID, and by email match)
+      const profileDeletes: Promise<any>[] = [
         deleteDoc(doc(firestore, 'profiles', userId)),
         deleteDoc(doc(firestore, 'profiles', cleanUserId)),
         deleteDoc(doc(firestore, 'profiles', `owner-${cleanUserId}`)),
       ];
+
+      if (cleanEmail) {
+        try {
+          const profilesSnap = await getDocs(collection(firestore, 'profiles'));
+          profilesSnap.docs.forEach((d) => {
+            const data = d.data();
+            if (data.email?.toLowerCase?.().trim() === cleanEmail) {
+              profileDeletes.push(deleteDoc(d.ref));
+            }
+          });
+        } catch {}
+      }
 
       // 2. Query and delete all pets owned by this user
       const petsSnap = await getDocs(collection(firestore, 'pets'));
@@ -686,7 +735,8 @@ export const firebaseSyncService = {
           d.id === cleanUserId ||
           data.ownerId === userId ||
           data.ownerId === cleanUserId ||
-          data.ownerId === `owner-${cleanUserId}`
+          data.ownerId === `owner-${cleanUserId}` ||
+          (cleanEmail && (data.ownerEmail?.toLowerCase?.().trim() === cleanEmail || data.email?.toLowerCase?.().trim() === cleanEmail))
         ) {
           if (d.id !== 'pet-1788871495754') {
             petDeletes.push(deleteDoc(d.ref));
@@ -704,7 +754,8 @@ export const firebaseSyncService = {
           d.id === cleanUserId ||
           data.ownerId === userId ||
           data.ownerId === cleanUserId ||
-          data.ownerId === `owner-${cleanUserId}`
+          data.ownerId === `owner-${cleanUserId}` ||
+          (cleanEmail && data.contactMechanism?.safeContactEmail?.toLowerCase?.().trim() === cleanEmail)
         ) {
           if (d.id !== 'LOST-1788885000505') {
             reportDeletes.push(deleteDoc(d.ref));
@@ -819,7 +870,7 @@ export const firebaseSyncService = {
     const firestore = db;
     try {
       const cleanUserId = (userId || '').replace(/^owner-/, '').trim();
-      const targetProfileDocIds = Array.from(new Set([cleanUserId, userId].filter(Boolean)));
+      const targetProfileDocIds = Array.from(new Set([cleanUserId, userId, `owner-${cleanUserId}`].filter(Boolean)));
       await Promise.all(
         targetProfileDocIds.map((id) =>
           setDoc(

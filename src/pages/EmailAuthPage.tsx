@@ -110,9 +110,31 @@ export const EmailAuthPage = () => {
             </div>
             <h1 className="auth-card-title">FindLostPuppy</h1>
             <p className="auth-card-quote">"Every paw deserves to find its way home."</p>
+
+            <div
+              className="auth-india-notice-badge"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(255, 153, 51, 0.12)',
+                border: '1px solid rgba(255, 153, 51, 0.4)',
+                color: '#c2410c',
+                fontSize: '0.8125rem',
+                fontWeight: '600',
+                margin: '0.5rem auto 1rem',
+              }}
+            >
+              <span aria-hidden="true">🇮🇳</span>
+              <span>Platform Exclusive to Pet Parents & Rescuers in India</span>
+            </div>
+
             <p className="auth-card-instruction">
-              Sign in with Google to continue. This avoids email-link quota issues and keeps your
-              profile, pet details, sightings, and photos synced securely.
+              Sign in with Google to continue. FindLostPuppy operates strictly under India's Digital
+              Personal Data Protection Act, 2023 (DPDPA). A valid 10-digit Indian (+91) mobile number
+              is required to coordinate pet recovery.
             </p>
           </div>
 
@@ -150,7 +172,7 @@ export const EmailAuthPage = () => {
           <div className="auth-card-footer text-center">
             <div className="privacy-pill-subtle">
               <ShieldCheck size={16} />
-              <span>100% Privacy Protected • Google Sign-In • Firebase Auth</span>
+              <span>DPDPA 2023 & IT Act Compliant • Google Sign-In • 100% Indian Jurisdiction</span>
             </div>
           </div>
         </div>

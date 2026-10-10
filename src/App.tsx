@@ -3,9 +3,11 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { SidebarNav } from './components/SidebarNav';
 import { Footer } from './components/Footer';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { storageService } from './services/storageService';
 import { consentService } from './services/consentService';
+import { checkGeoAccess, type GeoCheckResult } from './services/geoBlockService';
+import { GeoBlockPage } from './components/GeoBlockPage';
 
 import { ConsentPage } from './pages/ConsentPage';
 
@@ -285,13 +287,57 @@ function MainAppFlow() {
 export function App() {
   const basename = import.meta.env.BASE_URL;
 
+  // ── India-only geo-block ────────────────────────────────────────────────
+  // 'checking' → waiting for IP lookup | 'allowed' → IN or indeterminate | 'blocked' → non-IN
+  const [geoStatus, setGeoStatus] = useState<'checking' | 'allowed' | 'blocked'>('checking');
+  const [geoInfo, setGeoInfo] = useState<GeoCheckResult | null>(null);
+
+  useEffect(() => {
+    checkGeoAccess().then((result) => {
+      setGeoInfo(result);
+      setGeoStatus(result.allowed ? 'allowed' : 'blocked');
+    });
+  }, []);
+
   // Single source of truth: Pull authentic Firebase cloud records on application boot, then backfill any existing offline photos to Cloudinary
   useEffect(() => {
+    if (geoStatus !== 'allowed') return; // skip cloud sync until geo passes
     storageService
       .pullFromFirebase()
       .then(() => storageService.backfillExistingPhotosToCloudinary())
       .catch(() => storageService.backfillExistingPhotosToCloudinary());
-  }, []);
+  }, [geoStatus]);
+
+  // ── Geo-block guard ──────────────────────────────────────────────────────
+  if (geoStatus === 'checking') {
+    // Minimal loading screen while IP lookup is in flight (typically < 1s)
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#050506',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: "'Inter', system-ui, sans-serif",
+        }}
+      >
+        <div style={{ textAlign: 'center', color: '#555C64' }}>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>🐾</div>
+          <p style={{ fontSize: '14px', margin: 0 }}>Loading FindLostPuppy…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (geoStatus === 'blocked') {
+    return (
+      <GeoBlockPage
+        countryCode={geoInfo?.countryCode}
+        countryName={geoInfo?.countryName}
+      />
+    );
+  }
 
   return (
     <Router basename={basename}>

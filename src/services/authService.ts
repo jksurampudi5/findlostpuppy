@@ -15,10 +15,48 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import type { User } from '../types';
 import { auth, isFirebaseConfigured } from './firebaseConfig';
 import { firebaseSyncService } from './firebaseSyncService';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 const OBSOLETE_SESSION_KEY = 'findlostpuppy_session_v1';
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+function checkIndianCompliance(fbUser: FirebaseAuthUser): { compliant: boolean; reason?: string } {
+  if (fbUser.phoneNumber) {
+    const check = validateIndianPhoneNumber(fbUser.phoneNumber);
+    if (!check.isValid) {
+      return {
+        compliant: false,
+        reason: 'FindLostPuppy is exclusively for pet owners in India. Phone number must be a valid Indian (+91) number.',
+      };
+    }
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('findlostpuppy_owner_profiles_v1');
+      if (raw) {
+        const list = JSON.parse(raw);
+        const match = list.find(
+          (p: any) =>
+            p.userId === fbUser.uid ||
+            (fbUser.email && p.email?.toLowerCase() === fbUser.email.toLowerCase())
+        );
+        if (match?.phone) {
+          const check = validateIndianPhoneNumber(match.phone);
+          if (!check.isValid) {
+            return {
+              compliant: false,
+              reason: 'Non-Indian contact details detected. FindLostPuppy is strictly for pet owners residing in India under the Digital Personal Data Protection Act, 2023.',
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return { compliant: true };
+}
 
 function getGoogleAuthErrorMessage(err: any): string {
   const code = String(err?.code || '');
@@ -51,12 +89,18 @@ export function mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Part
     ? derivedName.charAt(0).toUpperCase() + derivedName.slice(1)
     : 'Pet Parent';
 
+  // Only assign avatar if it is a verified Cloudinary-hosted image.
+  // External Google avatars or unverified links are excluded so users upload directly to Cloudinary.
+  const candidateAvatar = fallbackProfile?.avatar || '';
+  const isCloudinaryAvatar = candidateAvatar.includes('cloudinary.com') || candidateAvatar.includes('res.cloudinary.com');
+  const verifiedAvatar = isCloudinaryAvatar ? candidateAvatar : undefined;
+
   return {
     id: fbUser.uid,
     email,
     name: formattedName,
     phone: fbUser.phoneNumber || fallbackProfile?.phone,
-    avatar: fbUser.photoURL || fallbackProfile?.avatar,
+    avatar: verifiedAvatar,
     isAdmin: isEmailAdmin(email),
     createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
     lastLoginAt: fbUser.metadata.lastSignInTime || new Date().toISOString(),
@@ -125,6 +169,15 @@ class AuthService {
     if (!auth || !isFirebaseConfigured()) return null;
     return onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
+        const compliance = checkIndianCompliance(fbUser);
+        if (!compliance.compliant) {
+          console.warn('[AuthService] Non-Indian user detected on auth state:', compliance.reason);
+          if (auth) signOut(auth).catch(() => {});
+          this.setCurrentUser(null);
+          callback(null);
+          return;
+        }
+
         const mapped = mapFirebaseUser(fbUser);
         this.setCurrentUser(mapped);
         callback(mapped);
@@ -168,6 +221,13 @@ class AuthService {
           await auth.signOut();
           return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
         }
+
+        const compliance = checkIndianCompliance(result.user);
+        if (!compliance.compliant) {
+          await auth.signOut();
+          return { success: false, error: compliance.reason || 'Account not compliant with Indian territorial policy (DPDPA 2023).' };
+        }
+
         const mapped = mapFirebaseUser(result.user);
         this.setCurrentUser(mapped);
         await firebaseSyncService.syncUserProfile(mapped).catch(() => { });
@@ -179,6 +239,13 @@ class AuthService {
         await auth.signOut();
         return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
       }
+
+      const compliance = checkIndianCompliance(result.user);
+      if (!compliance.compliant) {
+        await auth.signOut();
+        return { success: false, error: compliance.reason || 'Account not compliant with Indian territorial policy (DPDPA 2023).' };
+      }
+
       const mapped = mapFirebaseUser(result.user);
       this.setCurrentUser(mapped);
       await firebaseSyncService.syncUserProfile(mapped).catch(() => { });

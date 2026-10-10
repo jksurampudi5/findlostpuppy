@@ -18,6 +18,7 @@ import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { storageBucketService, isUploadablePhoto } from './storageBucketService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
@@ -36,6 +37,7 @@ const SESSION_KEY = 'findlostpuppy_session_v1';
 const DELETED_REPORTS_KEY = 'findlostpuppy_deleted_reports_v1';
 const DELETED_PETS_KEY = 'findlostpuppy_deleted_pets_v1';
 const DELETED_USERS_KEY = 'findlostpuppy_deleted_users_v1';
+const DELETED_USER_EMAILS_KEY = 'findlostpuppy_deleted_user_emails_v1';
 const DELETED_SIGHTINGS_KEY = 'findlostpuppy_deleted_sightings_v1';
 const SUGGESTIONS_KEY = 'findlostpuppy_suggestions_v1';
 
@@ -71,6 +73,8 @@ const firebaseSyncService = {
     (await import('./firebaseSyncService')).firebaseSyncService.deleteUserDataByEmail(...args),
   syncSuggestion: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncSuggestion>) =>
     (await import('./firebaseSyncService')).firebaseSyncService.syncSuggestion(...args),
+  hardResetAllFirestoreData: async () =>
+    (await import('./firebaseSyncService')).firebaseSyncService.hardResetAllFirestoreData(),
 };
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
@@ -185,6 +189,7 @@ class StorageService {
   private deletedReportIds: string[] = [];
   private deletedPetIds: string[] = [];
   private deletedUserIds: string[] = [];
+  private deletedUserEmails: string[] = [];
   private deletedSightingIds: string[] = [];
   private suggestions: AppSuggestion[] = [];
   private isTransactionActive: boolean = false;
@@ -238,6 +243,7 @@ class StorageService {
       deletedPetIds: JSON.stringify(this.deletedPetIds),
       deletedSightingIds: JSON.stringify(this.deletedSightingIds),
       deletedUserIds: JSON.stringify(this.deletedUserIds),
+      deletedUserEmails: JSON.stringify(this.deletedUserEmails),
       suggestions: JSON.stringify(this.suggestions),
     };
 
@@ -265,6 +271,7 @@ class StorageService {
       this.deletedPetIds = JSON.parse(snapshot.deletedPetIds);
       this.deletedSightingIds = JSON.parse(snapshot.deletedSightingIds);
       if (snapshot.deletedUserIds) this.deletedUserIds = JSON.parse(snapshot.deletedUserIds);
+      if ((snapshot as any).deletedUserEmails) this.deletedUserEmails = JSON.parse((snapshot as any).deletedUserEmails);
       this.suggestions = JSON.parse(snapshot.suggestions);
       throw err;
     } finally {
@@ -438,6 +445,7 @@ class StorageService {
         localStorage.setItem(DELETED_PETS_KEY, JSON.stringify(this.deletedPetIds));
         localStorage.setItem(DELETED_SIGHTINGS_KEY, JSON.stringify(this.deletedSightingIds));
         localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(this.deletedUserIds));
+        localStorage.setItem(DELETED_USER_EMAILS_KEY, JSON.stringify(this.deletedUserEmails));
         localStorage.setItem(SKIPPED_PET_KEY, JSON.stringify(this.skippedPetUserIds));
         localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify(this.skippedReportUserIds));
       } catch {}
@@ -524,14 +532,25 @@ class StorageService {
     return false;
   }
 
-  isUserDeleted(userId: string): boolean {
-    if (!userId) return false;
-    const cleanId = userId.replace(/^owner-/, '').trim().toLowerCase();
-    return this.deletedUserIds.some((id) => {
+  isUserDeleted(userIdOrEmail: string): boolean {
+    if (!userIdOrEmail) return false;
+    const clean = userIdOrEmail.replace(/^owner-/, '').trim().toLowerCase();
+    // Check IDs
+    if (this.deletedUserIds.some((id) => {
       if (!id) return false;
-      const idClean = id.replace(/^owner-/, '').trim().toLowerCase();
-      return idClean === cleanId;
-    });
+      return id.replace(/^owner-/, '').trim().toLowerCase() === clean;
+    })) return true;
+    // Check emails (also works when passed an email directly)
+    if (clean.includes('@') && this.deletedUserEmails.some((em) => em.toLowerCase().trim() === clean)) return true;
+    // Also check stored emails in localStorage directly in case this instance is stale
+    try {
+      const raw = localStorage.getItem(DELETED_USER_EMAILS_KEY);
+      if (raw) {
+        const emails: string[] = JSON.parse(raw);
+        if (emails.some((em) => em.toLowerCase().trim() === clean)) return true;
+      }
+    } catch {}
+    return false;
   }
 
   isSightingDeleted(sightingId: string): boolean {
@@ -540,6 +559,14 @@ class StorageService {
 
   private init() {
     try {
+      if (typeof localStorage !== 'undefined') {
+        const PURGE_FLAG_KEY = 'findlostpuppy_master_photo_reset_v5';
+        if (localStorage.getItem(PURGE_FLAG_KEY) !== 'true') {
+          this.clearAllLocalStorageImages();
+          localStorage.setItem(PURGE_FLAG_KEY, 'true');
+        }
+      }
+
       const storedDeletedReports = localStorage.getItem(DELETED_REPORTS_KEY);
       this.deletedReportIds = storedDeletedReports ? JSON.parse(storedDeletedReports) : [];
 
@@ -551,6 +578,9 @@ class StorageService {
 
       const storedDeletedUsers = localStorage.getItem(DELETED_USERS_KEY);
       this.deletedUserIds = storedDeletedUsers ? JSON.parse(storedDeletedUsers) : [];
+
+      const storedDeletedEmails = localStorage.getItem(DELETED_USER_EMAILS_KEY);
+      this.deletedUserEmails = storedDeletedEmails ? JSON.parse(storedDeletedEmails) : [];
 
       const storedReports = localStorage.getItem(REPORTS_KEY);
       if (storedReports !== null) {
@@ -656,6 +686,133 @@ class StorageService {
       this.listingReports = [];
       this.userReports = [];
       this.blockedUsers = [];
+    }
+  }
+ 
+  /**
+   * Clears all cached/legacy/mock images in localStorage across owner profiles,
+   * pet profiles, reports, and sightings so all users can freshly upload their
+   * real owner and pet photos to Cloudinary.
+   */
+  clearAllLocalStorageImages(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      // 1. Purge media queues and tokens
+      localStorage.removeItem('findlostpuppy_cloudinary_tokens_v1');
+      localStorage.removeItem('findlostpuppy_media_queue_v1');
+
+      // 2. Clear owner profiles photos & reset monthly change limit
+      const storedProfiles = localStorage.getItem(PROFILES_KEY);
+      if (storedProfiles) {
+        try {
+          const profiles: OwnerProfile[] = JSON.parse(storedProfiles);
+          const sanitizedProfiles = profiles.map((p) => ({
+            ...p,
+            photo: undefined,
+            photoChangeCount: 0,
+            photoChangeMonth: undefined,
+            photoChangeApprovalRequired: false,
+            photoLastChangedAt: undefined,
+          }));
+          localStorage.setItem(PROFILES_KEY, JSON.stringify(sanitizedProfiles));
+          this.profiles = sanitizedProfiles;
+        } catch {}
+      }
+
+      // 3. Clear pet profiles photos (preserving local memorial asset Sonu)
+      const storedPets = localStorage.getItem(PETS_KEY);
+      if (storedPets) {
+        try {
+          const pets: DogProfile[] = JSON.parse(storedPets);
+          const sanitizedPets = pets.map((p) => {
+            const isSonu = (p.name || '').trim().toUpperCase() === 'SONU' || (p.id || '').includes('1788871495754');
+            return {
+              ...p,
+              primaryPhoto: isSonu ? sonuImg : '',
+              photos: isSonu ? [sonuImg] : [],
+            };
+          });
+          localStorage.setItem(PETS_KEY, JSON.stringify(sanitizedPets));
+          this.pets = sanitizedPets;
+        } catch {}
+      }
+
+      // 4. Clear reports dog photos (preserving local memorial asset Sonu)
+      const storedReports = localStorage.getItem(REPORTS_KEY);
+      if (storedReports) {
+        try {
+          const reports: LostReport[] = JSON.parse(storedReports);
+          const sanitizedReports = reports.map((r) => {
+            const isSonu = (r.dog?.name || '').trim().toUpperCase() === 'SONU' || (r.dogId || '').includes('1788871495754');
+            return {
+              ...r,
+              dog: {
+                ...r.dog,
+                primaryPhoto: isSonu ? sonuImg : '',
+                photos: isSonu ? [sonuImg] : [],
+              },
+            };
+          });
+          localStorage.setItem(REPORTS_KEY, JSON.stringify(sanitizedReports));
+          this.reports = sanitizedReports;
+        } catch {}
+      }
+
+      // 5. Clear sightings photos
+      const storedSightings = localStorage.getItem(SIGHTINGS_KEY);
+      if (storedSightings) {
+        try {
+          const sightings: Sighting[] = JSON.parse(storedSightings);
+          const sanitizedSightings = sightings.map((s) => ({
+            ...s,
+            photo: undefined,
+            photos: [],
+          }));
+          localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(sanitizedSightings));
+          this.sightings = sanitizedSightings;
+        } catch {}
+      }
+
+      // 6. Clear active user avatar in session storage
+      try {
+        const rawActive = localStorage.getItem('findlostpuppy_active_user');
+        if (rawActive) {
+          const activeUser = JSON.parse(rawActive);
+          if (activeUser && activeUser.avatar) {
+            delete activeUser.avatar;
+            localStorage.setItem('findlostpuppy_active_user', JSON.stringify(activeUser));
+          }
+        }
+      } catch {}
+
+      // 7. Clear current user avatar
+      try {
+        const rawCurrent = localStorage.getItem('findlostpuppy_current_user');
+        if (rawCurrent) {
+          const currentUser = JSON.parse(rawCurrent);
+          if (currentUser && currentUser.avatar) {
+            delete currentUser.avatar;
+            localStorage.setItem('findlostpuppy_current_user', JSON.stringify(currentUser));
+          }
+        }
+      } catch {}
+
+      // 8. Clear avatars in registered users
+      const storedUsers = localStorage.getItem(USERS_KEY);
+      if (storedUsers) {
+        try {
+          const users: User[] = JSON.parse(storedUsers);
+          const sanitizedUsers = users.map((u) => ({
+            ...u,
+            avatar: undefined,
+          }));
+          localStorage.setItem(USERS_KEY, JSON.stringify(sanitizedUsers));
+        } catch {}
+      }
+
+      this.notifyUpdate();
+    } catch (e) {
+      console.warn('[storageService] clearAllLocalStorageImages notice:', e);
     }
   }
 
@@ -1284,25 +1441,9 @@ class StorageService {
     }
 
     if (match) {
-      // Auto-heal missing photo: If matched profile has no photo, locate photo across profiles or active auth user
-      if (!match.photo) {
-        const withPhoto = this.profiles.find(
-          (p) =>
-            p.photo &&
-            ((cleanEmail && p.email && p.email.trim().toLowerCase() === cleanEmail) ||
-              (rawUserId && (p.userId === rawUserId || p.id === rawUserId || p.id === `owner-${rawUserId}`)))
-        );
-        if (withPhoto?.photo) {
-          match.photo = withPhoto.photo;
-        } else {
-          const activeUser = authService.getCurrentUser();
-          if (
-            activeUser?.avatar &&
-            (activeUser.id === rawUserId || (cleanEmail && activeUser.email?.trim().toLowerCase() === cleanEmail))
-          ) {
-            match.photo = activeUser.avatar;
-          }
-        }
+      // Validate photo: Only genuine Cloudinary photos are valid. No letter avatars, no auto-healing.
+      if (match.photo && !isValidOwnerPhoto(match.photo)) {
+        match.photo = undefined;
       }
       return match;
     }
@@ -1316,16 +1457,8 @@ class StorageService {
     const clean = email.trim().toLowerCase();
     const match = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean);
     if (match) {
-      if (!match.photo) {
-        const withPhoto = this.profiles.find((p) => p.email && p.email.trim().toLowerCase() === clean && p.photo);
-        if (withPhoto?.photo) {
-          match.photo = withPhoto.photo;
-        } else {
-          const activeUser = authService.getCurrentUser();
-          if (activeUser?.avatar && activeUser.email?.trim().toLowerCase() === clean) {
-            match.photo = activeUser.avatar;
-          }
-        }
+      if (match.photo && !isValidOwnerPhoto(match.photo)) {
+        match.photo = undefined;
       }
       return match;
     }
@@ -1334,15 +1467,12 @@ class StorageService {
 
   hasCompletedOwnerProfile(userId: string, email?: string): boolean {
     const profile = this.getOwnerProfileByUserId(userId, email);
-    return !!(
-      profile &&
-      profile.fullName &&
-      profile.fullName.trim() &&
-      profile.phone &&
-      profile.phone.trim() &&
-      profile.photo &&
-      isValidOwnerPhoto(profile.photo)
-    );
+    if (!profile) return false;
+    const hasValidName = Boolean(profile.fullName && profile.fullName.trim().length >= 2);
+    const cleanPhone = (profile.phone || '').replace(/\D/g, '');
+    const hasValidPhone = Boolean(cleanPhone && cleanPhone.length === 10);
+    const hasCloudinaryPhoto = Boolean(profile.photo && isValidOwnerPhoto(profile.photo));
+    return hasValidName && hasValidPhone && hasCloudinaryPhoto;
   }
 
   hasCompletedLocation(userId: string, email?: string): boolean {
@@ -1883,23 +2013,21 @@ class StorageService {
       }
 
       let finalPhoto: string | undefined;
-      if (forceRemovePhoto) {
+      if (forceRemovePhoto || profile.photo === '' || profile.photo === null) {
         finalPhoto = undefined;
-      } else if (profile.photo && !isPetPhotoUrl(profile.photo)) {
+      } else if (profile.photo && isValidOwnerPhoto(profile.photo)) {
         finalPhoto = profile.photo.trim();
-      } else if (index >= 0 && this.profiles[index]?.photo && !isPetPhotoUrl(this.profiles[index]?.photo)) {
+      } else if (profile.photo === undefined && index >= 0 && this.profiles[index]?.photo && isValidOwnerPhoto(this.profiles[index].photo)) {
+        // Retain existing valid Cloudinary photo only when photo is left untouched during metadata updates
         finalPhoto = this.profiles[index].photo;
-      } else if (cleanEmail) {
-        const matchingByEmail = this.profiles.find(
-          (p) => p.email && p.email.trim().toLowerCase() === cleanEmail && p.photo && !isPetPhotoUrl(p.photo)
-        );
-        if (matchingByEmail?.photo) finalPhoto = matchingByEmail.photo;
+      } else {
+        finalPhoto = undefined;
       }
 
-      if (!finalPhoto && !forceRemovePhoto) {
+      if (!finalPhoto) {
         const activeUser = authService.getCurrentUser();
-        if (activeUser?.avatar && !isPetPhotoUrl(activeUser.avatar)) {
-          finalPhoto = activeUser.avatar;
+        if (activeUser?.avatar) {
+          authService.updateCurrentUser({ avatar: undefined });
         }
       }
 
@@ -2161,9 +2289,13 @@ class StorageService {
       });
     } catch {}
 
-    return Array.from(userMap.values()).sort(
-      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
+    return Array.from(userMap.values())
+      .filter((u) => {
+        if (this.isUserDeleted(u.id)) return false;
+        if (u.email && this.isUserDeleted(u.email)) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
 
   getAllOwnerProfiles(): OwnerProfile[] {
@@ -2188,13 +2320,23 @@ class StorageService {
     );
   }
 
-  deleteUserAsAdmin(userId: string): boolean {
+  deleteUserAsAdmin(userId: string, email?: string): boolean {
+    const userEmail = email?.toLowerCase().trim() ||
+      this.profiles.find((p) => p.userId === userId || p.id === userId || p.id === userId.replace(/^owner-/, ''))?.email?.toLowerCase().trim() ||
+      this.getAllRegisteredUsers().find((u) => u.id === userId || u.id === userId.replace(/^owner-/, ''))?.email?.toLowerCase().trim();
+
     return this.executeTransaction(() => {
-      this.deleteUserAccount(userId);
-      this.deletedUserIds = Array.from(new Set([...this.deletedUserIds, userId, userId.replace(/^owner-/, '')]));
+      this.deleteUserAccount(userId, userEmail);
+      const rawId = userId.replace(/^owner-/, '');
+      this.deletedUserIds = Array.from(new Set([...this.deletedUserIds, userId, rawId, `owner-${rawId}`]));
       localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(this.deletedUserIds));
 
-      firebaseSyncService.deleteUserAsAdmin(userId).catch((e) => console.warn('[Firebase Delete User Notice]:', e));
+      if (userEmail) {
+        this.deletedUserEmails = Array.from(new Set([...this.deletedUserEmails, userEmail]));
+        localStorage.setItem(DELETED_USER_EMAILS_KEY, JSON.stringify(this.deletedUserEmails));
+      }
+
+      firebaseSyncService.deleteUserAsAdmin(userId, userEmail).catch((e) => console.warn('[Firebase Delete User Notice]:', e));
       return true;
     });
   }
@@ -2470,7 +2612,7 @@ class StorageService {
                   latitude: existing.latitude || pr.latitude,
                   longitude: existing.longitude || pr.longitude,
                   approximateArea: existing.approximateArea || pr.approximateArea,
-                  photo: (!isPetPhotoUrl(pr.photo) && pr.photo) || (!isPetPhotoUrl(existing.photo) && existing.photo) || undefined,
+                  photo: (pr.photo && isValidOwnerPhoto(pr.photo)) ? pr.photo : (existing.photo && isValidOwnerPhoto(existing.photo) && pr.photo === undefined ? existing.photo : undefined),
                 });
               } else {
                 prMap.set(key, {
@@ -2551,7 +2693,7 @@ class StorageService {
             email: p.email,
             phone: p.phone || '',
             address: p.address || '',
-            photo: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
+            photo: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
             preferredContact: p.preferredContact || 'phone',
             state: p.state || '',
             district: p.district || '',
@@ -2579,7 +2721,7 @@ class StorageService {
         name: sanitizeName(p.fullName || p.name, p.email),
         email: p.email,
         phone: p.phone,
-        avatar: isPetPhotoUrl(p.photo || p.avatar_url) ? undefined : (p.photo || p.avatar_url),
+        avatar: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
         isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
         createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
       }));
@@ -2902,14 +3044,31 @@ class StorageService {
    * Resets all mock/test community records and starts completely fresh with 0 stale data.
    * Retains only the memorial/tribute dog Sonu (#1788885000505) as mandated by repo invariant.
    */
-  async clearAllAdminTestData(): Promise<boolean> {
-    const cloudinaryReset = await storageBucketService.hardResetCloudinary();
-    if (!cloudinaryReset) {
-      throw new Error('Cloud image cleanup could not be completed. No application data was removed.');
+  /**
+   * Performs an authoritative Master Hard Reset across Cloudinary, Firestore, and LocalStorage:
+   * 1. Permanently removes all images in Cloudinary (all folders/types).
+   * 2. Purges all user profiles, pets, alerts, and sightings in Firestore (preserving memorial dog Sonu).
+   * 3. Wipes all corresponding local storage tables, queues, and user avatars.
+   */
+  async clearAllAdminTestData(): Promise<{ cloudinary: boolean; firestore: boolean; localStorage: boolean }> {
+    // 1. Cloudinary Wipe
+    let cloudinaryDeleted = false;
+    try {
+      cloudinaryDeleted = await storageBucketService.hardResetCloudinary();
+    } catch (e) {
+      console.warn('[storageService] Cloudinary hardReset notice:', e);
     }
+
+    // 2. Clear media queues & tokens
     storageBucketService.clearQueue();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('findlostpuppy_cloudinary_tokens_v1');
+      localStorage.removeItem('findlostpuppy_media_queue_v1');
+    }
+
+    // 3. LocalStorage Wipe
     this.executeTransaction(() => {
-      // 1. Keep only memorial dog Sonu
+      // Retain only community memorial dog Sonu
       const sonuReport = COMMUNITY_BASELINE_REPORTS.find((r) => r.id === 'LOST-1788885000505');
       this.reports = sonuReport ? [sonuReport] : [];
       this.pets = sonuReport ? [sonuReport.dog] : [];
@@ -2933,11 +3092,13 @@ class StorageService {
         localStorage.setItem(SKIPPED_REPORT_KEY, JSON.stringify([]));
         localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify([]));
         
-        // Preserve active admin user in USERS_KEY, remove all other test members
+        // Preserve active admin user in USERS_KEY without any avatar, remove all other test members
         try {
           const rawActive = localStorage.getItem('findlostpuppy_active_user');
           const activeUser = rawActive ? JSON.parse(rawActive) : null;
           if (activeUser) {
+            delete activeUser.avatar;
+            localStorage.setItem('findlostpuppy_active_user', JSON.stringify(activeUser));
             localStorage.setItem(USERS_KEY, JSON.stringify([activeUser]));
           } else {
             localStorage.setItem(USERS_KEY, JSON.stringify([]));
@@ -2946,15 +3107,12 @@ class StorageService {
           localStorage.setItem(USERS_KEY, JSON.stringify([]));
         }
 
-        // Clean user avatar if it's a pet photo
         try {
-          const rawUser = localStorage.getItem('findlostpuppy_active_user');
-          if (rawUser) {
-            const u = JSON.parse(rawUser);
-            if (isPetPhotoUrl(u.avatar)) {
-              delete u.avatar;
-              localStorage.setItem('findlostpuppy_active_user', JSON.stringify(u));
-            }
+          const rawCurrent = localStorage.getItem('findlostpuppy_current_user');
+          if (rawCurrent) {
+            const currentUser = JSON.parse(rawCurrent);
+            delete currentUser.avatar;
+            localStorage.setItem('findlostpuppy_current_user', JSON.stringify(currentUser));
           }
         } catch {}
       }
@@ -2962,19 +3120,97 @@ class StorageService {
       this.commitAllStorage();
     });
 
-    // Wipe Firebase cloud tables to ensure 0 stale test records
+    // 4. Firestore Wipe (All collections)
+    let firestoreDeleted = false;
     try {
-      await Promise.allSettled([
-        firebaseSyncService.deletePetAsAdmin('*'),
-      ]);
-    } catch {}
+      firestoreDeleted = await firebaseSyncService.hardResetAllFirestoreData();
+    } catch (e) {
+      console.warn('[storageService] Firestore hardReset notice:', e);
+    }
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
       window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated'));
+      window.dispatchEvent(new CustomEvent('storage'));
     }
 
-    return true;
+    return {
+      cloudinary: cloudinaryDeleted,
+      firestore: firestoreDeleted,
+      localStorage: true,
+    };
+  }
+
+  /**
+   * Scans all enrolled users and owner profiles against Indian Telecom & DPDP Act standards.
+   * Users who do not have an Indian phone number or are outside Indian territory are permanently removed.
+   */
+  purgeNonIndianUsers(): { purgedCount: number; purgedEmails: string[] } {
+    this.loadProfiles();
+    const allUsers = this.getAllRegisteredUsers();
+    const nonIndianEmails: string[] = [];
+    const nonIndianUserIds: string[] = [];
+
+    for (const u of allUsers) {
+      if (!u.email) continue;
+      const cleanEmail = u.email.toLowerCase().trim();
+      if (cleanEmail === 'jksurampudi5@gmail.com') continue; // Invariant: preserve admin
+
+      // Start with assumption: unverified (non-Indian) until a valid Indian phone is confirmed
+      let isIndian = false;
+
+      // Check user-level phone
+      if (u.phone) {
+        const check = validateIndianPhoneNumber(u.phone);
+        if (check.isValid) isIndian = true;
+      }
+
+      // Check profile-level phone (may override or confirm)
+      const prof = this.getOwnerProfileByUserId(u.id, u.email);
+      if (prof && prof.phone) {
+        const check = validateIndianPhoneNumber(prof.phone);
+        if (check.isValid) {
+          isIndian = true;
+        } else {
+          // Invalid phone found: definitely non-Indian
+          isIndian = false;
+        }
+      }
+
+      if (!isIndian) {
+        nonIndianEmails.push(cleanEmail);
+        nonIndianUserIds.push(u.id);
+      }
+    }
+
+    // Check standalone profiles — profiles with no phone or invalid Indian phone are non-Indian
+    for (const p of this.profiles) {
+      if (!p.id) continue;
+      if (p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com') continue;
+      const alreadyFlagged = nonIndianUserIds.includes(p.id) || nonIndianUserIds.includes(p.userId || '');
+      if (alreadyFlagged) continue;
+
+      let profileIsIndian = false;
+      if (p.phone) {
+        const check = validateIndianPhoneNumber(p.phone);
+        if (check.isValid) profileIsIndian = true;
+      }
+
+      if (!profileIsIndian) {
+        nonIndianUserIds.push(p.id);
+        if (p.email) nonIndianEmails.push(p.email.toLowerCase().trim());
+      }
+    }
+
+    // Purge non-Indian user IDs
+    for (const id of nonIndianUserIds) {
+      this.deleteUserAsAdmin(id);
+    }
+
+    return {
+      purgedCount: nonIndianUserIds.length,
+      purgedEmails: Array.from(new Set(nonIndianEmails)),
+    };
   }
 
   /**
@@ -3073,7 +3309,7 @@ class StorageService {
   }
 
   // ACCOUNT DELETION
-  deleteUserAccount(userId: string): { success: boolean } {
+  deleteUserAccount(userId: string, callerProvidedEmail?: string): { success: boolean } {
     return this.executeTransaction(() => {
       const rawUserId = userId.replace('owner-', '');
       
@@ -3081,7 +3317,32 @@ class StorageService {
       const matchedProfile = this.profiles.find(
         (p) => p.userId === userId || p.userId === rawUserId || p.id === userId || p.id === rawUserId
       );
-      const userEmail = matchedProfile?.email?.toLowerCase().trim();
+      // Also try USERS_KEY
+      let userEmailFromStorage: string | undefined;
+      try {
+        const storedUsersRaw = localStorage.getItem(USERS_KEY);
+        if (storedUsersRaw) {
+          const storedUsers: any[] = JSON.parse(storedUsersRaw);
+          userEmailFromStorage = storedUsers.find((u) => u.id === userId || u.id === rawUserId)?.email?.toLowerCase().trim();
+        }
+      } catch {}
+      const userEmail = callerProvidedEmail?.toLowerCase().trim() ||
+        matchedProfile?.email?.toLowerCase().trim() ||
+        userEmailFromStorage;
+
+      // Determine if the deleted user is the currently-active session user
+      // If yes, clear session; if no (admin deleting someone else), preserve it.
+      let isActiveUser = false;
+      try {
+        const activeUser = authService.getCurrentUser();
+        if (activeUser) {
+          const activeId = (activeUser.id || '').replace(/^owner-/, '').trim().toLowerCase();
+          const targetId = rawUserId.trim().toLowerCase();
+          const activeEmail = (activeUser.email || '').toLowerCase().trim();
+          isActiveUser = activeId === targetId ||
+            (!!userEmail && !!activeEmail && activeEmail === userEmail);
+        }
+      } catch {}
 
       // 1. Remove owner profile
       this.profiles = this.profiles.filter(
@@ -3131,16 +3392,15 @@ class StorageService {
         console.warn('Failed to delete from registered users:', e);
       }
 
-      // 6. Remove session
-      try {
-        localStorage.removeItem(SESSION_KEY);
-      } catch {}
-
-      // 7. Revoke consent for clean state
-      consentService.revokeConsent();
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+      // 6. Remove session ONLY if the deleted user is the currently-logged-in user
+      if (isActiveUser) {
+        try {
+          localStorage.removeItem(SESSION_KEY);
+        } catch {}
+        consentService.revokeConsent();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+        }
       }
 
       return { success: true };

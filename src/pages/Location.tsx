@@ -21,12 +21,9 @@ import type { OwnerProfile, LocationLocality } from '../types';
 import { isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
-import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
-import { detectResilientLocation } from '../utils/geolocationHelper';
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
-import { openAppPermissionSettings, openDeviceLocationSettings, promptEnableDeviceLocation } from '../services/nativeSettingsService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
+import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
 
 interface LocationProps {
   onSuccess?: () => void;
@@ -97,13 +94,16 @@ export const Location: React.FC<LocationProps> = ({
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
 
-  const [showTurnOnModal, setShowTurnOnModal] = useState(false);
-  const [showPermissionRationaleModal, setShowPermissionRationaleModal] = useState(false);
-  const [showPermissionBlockedModal, setShowPermissionBlockedModal] = useState(false);
   const [showOutsideDeliveryModal, setShowOutsideDeliveryModal] = useState(false);
-  const sessionDeclinedTurnOnRef = useRef(false);
-
   const hasManuallyResetRef = useRef(false);
+
+  // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
+  useEffect(() => {
+    if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
+      showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
+      navigate('/owner', { replace: true });
+    }
+  }, [user, navigate, showToast]);
 
   // Auto-populate when profile data arrives from cloud/Firestore (unless user manually clicked reset)
   useEffect(() => {
@@ -154,10 +154,7 @@ export const Location: React.FC<LocationProps> = ({
   // UI Flow States
   const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
-  const [detecting, setDetecting] = useState(false);
   const [lookingUpPin, setLookingUpPin] = useState(false);
-  const isDetectingRef = useRef(false);
-  const pendingLocationDetectionRef = useRef(false);
   const locationCardsRef = useRef<HTMLDivElement | null>(null);
   const initialLocationActionScrollRef = useRef(false);
   const autoSyncTimerRef = useRef<number | null>(null);
@@ -377,80 +374,133 @@ export const Location: React.FC<LocationProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
   }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
 
-  // Check whether location access has been granted
-  const checkPermissionStatus = useCallback(async (): Promise<'granted' | 'prompt' | 'denied'> => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const perm = await Geolocation.checkPermissions();
-        if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
-          return 'granted';
-        }
-        if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
-          return 'denied';
-        }
-        return 'prompt';
-      } catch {
-        return 'prompt';
-      }
-    }
+  // Handle successful detection from unified hook
+  const handleLocationDetected = useCallback(async (result: LocationDetectionResult) => {
+    const { geo, match, detectedState, detectedDistrict, detectedMandal, detectedCity, detectedStreet, detectedPin } = result;
 
-    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
-      try {
-        const status = await navigator.permissions.query({ name: 'geolocation' });
-        return status.state; // 'granted' | 'prompt' | 'denied'
-      } catch {
-        return 'prompt';
-      }
-    }
-    return 'prompt';
-  }, []);
+    setLatitude(geo.latitude);
+    setLongitude(geo.longitude);
 
-  // User taps "Detect Location" or "Detect Location Again"
-  const handleDetectClick = useCallback(async (options?: { bypassRationale?: boolean } | React.SyntheticEvent) => {
-    pendingLocationDetectionRef.current = false;
-    const bypass = Boolean(options && 'bypassRationale' in options && options.bypassRationale);
+    // Delivery area validation:
+    // Supported state codes: 28 (Andhra Pradesh), 36 (Telangana), 29 (Karnataka)
+    const isSupportedState = match?.state && [28, 36, 29].includes(match.state.code);
+    const isInsideDeliveryArea = Boolean(match && isSupportedState && match.district);
 
-    // Check permission status before running detection
-    const permStatus = await checkPermissionStatus();
-
-    if (permStatus === 'prompt' && !bypass) {
-      // In-app permission popup with short reason before system permission prompt
-      setShowPermissionRationaleModal(true);
+    if (match && !isInsideDeliveryArea) {
+      setHasDetected(true);
+      setShowOutsideDeliveryModal(true);
       return;
     }
 
-    if (permStatus === 'denied') {
-      // Permanently denied: show in-app popup directing to app settings
-      setShowPermissionBlockedModal(true);
-      return;
-    }
+    if (match && match.state && match.district && match.subDistrict) {
+      const geocoderCity = detectedCity && detectedCity.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
+        ? detectedCity
+        : undefined;
+      const matchedLocalities = await locationService.getLocalities(
+        match.district.districtCode,
+        match.subDistrict.subDistrictCode
+      );
+      const normalizedGeocoderCity = geocoderCity?.trim().toLowerCase();
+      const localityFromGeocoder = normalizedGeocoderCity
+        ? matchedLocalities.find(
+            (l) =>
+              l.localityName.toLowerCase() === normalizedGeocoderCity ||
+              l.localityName.toLowerCase().includes(normalizedGeocoderCity) ||
+              normalizedGeocoderCity.includes(l.localityName.toLowerCase())
+          )
+        : undefined;
+      const fallbackLocality = matchedLocalities.find(
+        (l) => l.localityName.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
+      ) || matchedLocalities[0];
+      const finalCity = match.locality?.localityName || localityFromGeocoder?.localityName || fallbackLocality?.localityName || geocoderCity || '';
 
-    await executeDetectLocation();
-  }, [checkPermissionStatus]);
+      setState(match.state.name);
+      setDistrict(match.district.districtName);
+      setMandalOrMunicipality(match.subDistrict.subDistrictName);
+      setLocalities(matchedLocalities);
+      setCity(finalCity);
 
-  const handlePermissionRationaleContinue = async () => {
-    setShowPermissionRationaleModal(false);
+      // Only set street if it doesn't look like a Plus Code and was actually detected
+      const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+      const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
+      setStreetOrLocality(normalizeToEnglishText(cleanStreet));
 
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const req = await Geolocation.requestPermissions();
-        if (req.location === 'granted' || req.coarseLocation === 'granted') {
-          await executeDetectLocation();
-        } else if (req.location === 'denied' && req.coarseLocation === 'denied') {
-          setShowPermissionBlockedModal(true);
-        } else {
-          showToast('Location access was not granted.', 'warning');
-        }
-      } catch {
-        setShowPermissionBlockedModal(true);
+      if (detectedPin) {
+        setPinCode(detectedPin);
+      } else if (finalCity) {
+        resolvePinCodeForLocality(finalCity, match.subDistrict.subDistrictName, match.district.districtName);
+      }
+
+      setHasDetected(true);
+      setActiveLocationModal(null);
+      window.setTimeout(() => {
+        locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+
+      const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
+      if (geo.confidence === 'HIGH') {
+        showToast(
+          `🎯 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Directly edit any square below!`,
+          'success'
+        );
+      } else if (geo.confidence === 'MEDIUM') {
+        showToast(
+          `📍 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Tap to adjust any square.`,
+          'info'
+        );
+      } else {
+        showToast(
+          `⚠️ Coarse location${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Verify your squares below.`,
+          'warning'
+        );
       }
     } else {
-      await executeDetectLocation();
+      // Coordinates acquired, but reverse geocoding or boundary match was incomplete:
+      // Set coordinates, populate any recognized parts, and guide user to select district manually.
+      setHasDetected(true);
+      if (detectedState) setState(detectedState);
+      if (detectedDistrict) setDistrict(detectedDistrict);
+      if (detectedMandal) setMandalOrMunicipality(detectedMandal);
+      if (detectedCity) setCity(detectedCity);
+      if (detectedStreet) setStreetOrLocality(detectedStreet);
+      if (detectedPin) setPinCode(detectedPin);
+
+      showToast('Coordinates detected. Please select or verify your District and Mandal below.', 'info');
+      setActiveLocationModal('district');
+      window.setTimeout(() => {
+        locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
     }
-  };
+  }, [showToast]);
+
+  const {
+    detecting,
+    showPermissionRationaleModal,
+    setShowPermissionRationaleModal,
+    showPermissionBlockedModal,
+    setShowPermissionBlockedModal,
+    showTurnOnModal,
+    setShowTurnOnModal,
+    triggerDetectLocation,
+    handlePermissionRationaleContinue,
+    handleOpenLocationSettings,
+    handleOpenAppSettings,
+    cancelDetection,
+  } = useLocationDetection({
+    onSuccess: handleLocationDetected,
+    onClearFieldsForNewDetection: () => {
+      setPinConflictNote('');
+    },
+  });
+
+  // User taps "Detect Location" or "Detect Location Again"
+  const handleDetectClick = useCallback((_e?: React.SyntheticEvent) => {
+    triggerDetectLocation();
+  }, [triggerDetectLocation]);
 
   const handleResetLocation = async () => {
     hasManuallyResetRef.current = true;
+    cancelDetection();
     if (autoSyncTimerRef.current) {
       window.clearTimeout(autoSyncTimerRef.current);
       autoSyncTimerRef.current = null;
@@ -467,7 +517,6 @@ export const Location: React.FC<LocationProps> = ({
     setPinConflictNote('');
     setHasDetected(false);
     setActiveLocationModal(null);
-    setDetecting(false);
 
     setSavedSnapshot({
       state: '',
@@ -499,203 +548,11 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
-    // Reset clears current location state and runs the permission check again,
-    // showing the same in-app permission popup the Capture Pet camera shows when access is missing.
-    const permStatus = await checkPermissionStatus();
-    if (permStatus !== 'granted') {
-      if (permStatus === 'denied') {
-        setShowPermissionBlockedModal(true);
-      } else {
-        setShowPermissionRationaleModal(true);
-      }
-      return;
-    }
-
+    // Reset clears current location state and runs detection
     window.setTimeout(() => {
-      pendingLocationDetectionRef.current = false;
-      executeDetectLocation();
+      triggerDetectLocation({ bypassRationale: false });
     }, 100);
   };
-
-  // Hardware and Native Geolocation Detection
-  /** Detects and matches location fields, requesting manual confirmation when a locality cannot be resolved. */
-  const executeDetectLocation = async () => {
-    hasManuallyResetRef.current = false;
-    if (isDetectingRef.current) return;
-    isDetectingRef.current = true;
-    setDetecting(true);
-    setPinConflictNote('');
-
-    try {
-      if (typeof window !== 'undefined' && (window as any).__forceLocationError) {
-        throw (window as any).__forceLocationError;
-      }
-
-      const geo = await detectResilientLocation();
-
-      setLatitude(geo.latitude);
-      setLongitude(geo.longitude);
-
-      const detectedState = normalizeToEnglishText(geo.state || state);
-      const rawDistrict = normalizeToEnglishText(geo.district || district);
-      const detectedMandal = normalizeToEnglishText(geo.mandal || mandalOrMunicipality);
-      const detectedCity = normalizeToEnglishText(geo.city || city);
-      const rawDetectedStreet = geo.street || streetOrLocality || (detectedCity ? `${detectedCity} Main Road` : '');
-      const detectedStreet = normalizeToEnglishText(rawDetectedStreet);
-      const detectedPin = geo.pinCode || pinCode;
-
-      const match = await locationService.matchLocation({
-        state: detectedState,
-        district: rawDistrict,
-        mandal: detectedMandal,
-        locality: detectedCity,
-        pinCode: detectedPin,
-        stateCode: geo.stateCode,
-        districtCode: geo.districtCode,
-        subDistrictCode: geo.subDistrictCode,
-      });
-
-      // Delivery area validation:
-      // Supported state codes: 28 (Andhra Pradesh), 36 (Telangana), 29 (Karnataka)
-      const isSupportedState = match?.state && [28, 36, 29].includes(match.state.code);
-      const isInsideDeliveryArea = Boolean(match && isSupportedState && match.district);
-
-      if (!isInsideDeliveryArea) {
-        setHasDetected(true);
-        setShowOutsideDeliveryModal(true);
-        return;
-      }
-
-      if (match && match.state && match.district && match.subDistrict) {
-        // If geocoder detected a specific village/city use it; otherwise leave blank so user picks it.
-        // NEVER set city = mandal name — that causes village and mandal squares to show the same value.
-        const geocoderCity = detectedCity && detectedCity.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
-          ? detectedCity
-          : undefined;
-        const matchedLocalities = await locationService.getLocalities(
-          match.district.districtCode,
-          match.subDistrict.subDistrictCode
-        );
-        const normalizedGeocoderCity = geocoderCity?.trim().toLowerCase();
-        const localityFromGeocoder = normalizedGeocoderCity
-          ? matchedLocalities.find(
-              (l) =>
-                l.localityName.toLowerCase() === normalizedGeocoderCity ||
-                l.localityName.toLowerCase().includes(normalizedGeocoderCity) ||
-                normalizedGeocoderCity.includes(l.localityName.toLowerCase())
-            )
-          : undefined;
-        const fallbackLocality = matchedLocalities.find(
-          (l) => l.localityName.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
-        ) || matchedLocalities[0];
-        const finalCity = match.locality?.localityName || localityFromGeocoder?.localityName || fallbackLocality?.localityName || geocoderCity || '';
-        setState(match.state.name);
-        setDistrict(match.district.districtName);
-        setMandalOrMunicipality(match.subDistrict.subDistrictName);
-        setLocalities(matchedLocalities);
-        setCity(finalCity);
-        // Only set street if it doesn't look like a Plus Code
-        const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-        const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
-        const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
-        if (resolvedStreet) setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
-        if (detectedPin) {
-          setPinCode(detectedPin);
-        } else if (finalCity) {
-          resolvePinCodeForLocality(finalCity, match.subDistrict.subDistrictName, match.district.districtName);
-        }
-
-        setHasDetected(true);
-        setActiveLocationModal(null);
-        window.setTimeout(() => {
-          locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 120);
-
-        const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
-        if (geo.confidence === 'HIGH') {
-          showToast(
-            `🎯 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Directly edit any square below!`,
-            'success'
-          );
-        } else if (geo.confidence === 'MEDIUM') {
-          showToast(
-            `📍 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Tap to adjust any square.`,
-            'info'
-          );
-        } else {
-          showToast(
-            `⚠️ Coarse location${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Verify your squares below.`,
-            'warning'
-          );
-        }
-      } else {
-        setHasDetected(true);
-
-        // Fallback: populate raw detected values
-        if (detectedState) setState(detectedState);
-        if (rawDistrict) setDistrict(rawDistrict);
-        if (detectedMandal) setMandalOrMunicipality(detectedMandal);
-        if (
-          detectedCity &&
-          detectedCity.trim().toLowerCase() !== detectedMandal.trim().toLowerCase()
-        ) {
-          setCity(detectedCity.trim());
-        } else {
-          setCity(detectedMandal || rawDistrict || detectedState || '');
-        }
-        const resolvedStreet = detectedStreet || (detectedCity ? `${detectedCity} Main Road` : '');
-        setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
-        if (detectedPin) setPinCode(detectedPin);
-        window.setTimeout(() => {
-          locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 120);
-      }
-    } catch (hardErr: any) {
-      const errorMsg = String(hardErr?.message || '');
-      const isGpsOff =
-        hardErr?.code === 'LOCATION_SERVICES_DISABLED' ||
-        (errorMsg.toLowerCase().includes('location') && (errorMsg.toLowerCase().includes('off') || errorMsg.toLowerCase().includes('disabled')));
-
-      const isDenied = hardErr?.code === 'PERMISSION_DENIED' || hardErr?.name === 'NotAllowedError' || /denied/i.test(errorMsg);
-
-      if (isGpsOff) {
-        if (!sessionDeclinedTurnOnRef.current) {
-          setShowTurnOnModal(true);
-        } else {
-          showToast('Device location is turned off. You can enter your location manually.', 'info');
-        }
-      } else if (isDenied) {
-        setShowPermissionBlockedModal(true);
-      } else {
-        setHasDetected(true);
-        showToast('Could not detect location. Please select your area manually.', 'info');
-        setActiveLocationModal('district');
-      }
-    } finally {
-      isDetectingRef.current = false;
-      setDetecting(false);
-    }
-  };
-
-  // Auto-retry detection after returning from Android Location settings.
-  useEffect(() => {
-    const handleResume = () => {
-      if (!pendingLocationDetectionRef.current || isDetectingRef.current) return;
-      pendingLocationDetectionRef.current = false;
-      executeDetectLocation();
-    };
-
-    window.addEventListener('focus', handleResume);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') handleResume();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      window.removeEventListener('focus', handleResume);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
 
 
 
@@ -1191,27 +1048,10 @@ export const Location: React.FC<LocationProps> = ({
         isOpen={showTurnOnModal}
         title="Turn On Location / లొకేషన్ ఆన్ చేయండి"
         message="Location is turned off on your device. Turn it on to find your area automatically."
-        continueLabel="Turn On"
+        continueLabel="Open Settings"
         cancelLabel="Not Now"
-        onCancel={() => {
-          setShowTurnOnModal(false);
-          sessionDeclinedTurnOnRef.current = true;
-        }}
-        onContinue={async () => {
-          setShowTurnOnModal(false);
-          const resolved = await promptEnableDeviceLocation();
-          if (resolved) {
-            showToast('Location enabled. Detecting your area...', 'info');
-            await executeDetectLocation();
-          } else {
-            const opened = await openDeviceLocationSettings();
-            if (opened) {
-              pendingLocationDetectionRef.current = true;
-            } else {
-              sessionDeclinedTurnOnRef.current = true;
-            }
-          }
-        }}
+        onCancel={() => setShowTurnOnModal(false)}
+        onContinue={handleOpenLocationSettings}
       />
 
       {/* 2. In-App Pre-Permission Rationale Modal (Capture Pet camera pattern) */}
@@ -1221,9 +1061,7 @@ export const Location: React.FC<LocationProps> = ({
         message="Location access is needed to detect your State, District, Mandal, and Home Base automatically. Your exact coordinates are never publicly shown."
         continueLabel="Continue"
         cancelLabel="Not Now"
-        onCancel={() => {
-          setShowPermissionRationaleModal(false);
-        }}
+        onCancel={() => setShowPermissionRationaleModal(false)}
         onContinue={handlePermissionRationaleContinue}
       />
 
@@ -1238,11 +1076,7 @@ export const Location: React.FC<LocationProps> = ({
           setShowPermissionBlockedModal(false);
           if (!state) setActiveLocationModal('state');
         }}
-        onContinue={async () => {
-          setShowPermissionBlockedModal(false);
-          pendingLocationDetectionRef.current = true;
-          await openAppPermissionSettings();
-        }}
+        onContinue={handleOpenAppSettings}
       />
 
       {/* 4. Outside Delivery Area Modal (No dead-end error) */}
@@ -1258,7 +1092,7 @@ export const Location: React.FC<LocationProps> = ({
         }}
         onContinue={() => {
           setShowOutsideDeliveryModal(false);
-          handleDetectClick({ bypassRationale: true });
+          triggerDetectLocation({ bypassRationale: true });
         }}
       />
 

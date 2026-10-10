@@ -16,9 +16,9 @@ export const TERMS_AND_CONDITIONS: LegalDocument = {
   lastUpdated: 'September 2026',
   sections: [
     {
-      heading: '1. Purpose of the Application',
+      heading: '1. Purpose & Exclusively Indian Jurisdiction',
       content:
-        'Find Lost Puppy is a community-driven digital information-sharing platform. Its sole purpose is to provide a venue where dog owners, neighbors, and volunteers can upload, view, and search information and photographs of missing or sighted dogs. The platform operates solely as a digital bulletin and communication aid.',
+        'Find Lost Puppy is a community-driven digital canine recovery network exclusively designed, operated, and intended for canine guardians and volunteers residing within the territory of India. The platform is governed by the laws of India, specifically the Information Technology Act, 2000 (and IT Rules 2021) and the Digital Personal Data Protection Act, 2023 (DPDPA 2023). All users must hold a valid Indian mobile number (+91) and be located within Indian territory. International use outside India is not supported.',
     },
     {
       heading: '2. User Responsibilities',
@@ -199,11 +199,12 @@ export const PRIVACY_POLICY: LegalDocument = {
         'FindLostPuppy uses browser or app storage for authentication remembrance, consent, pet data, seven-day form recovery, and a bounded retry queue for compressed images. These features help prevent data loss after a crash or network interruption. We do not employ third-party advertising trackers.',
     },
     {
-      heading: '9. India and United States Requests',
+      heading: '9. Exclusively Indian Policy & Digital Personal Data Protection Act (DPDPA 2023)',
       content: [
-        'For users in India, this notice is intended to describe the personal data, purposes, consent choices, grievance channel, security measures, and deletion process relevant to the Digital Personal Data Protection Act, 2023 and rules brought into force from time to time.',
-        'For users in the United States, state privacy rights and thresholds differ. We honor applicable requests and maintain the no-sale/no-targeted-advertising practice stated above. The service is not directed to children under 13 and also requires all account holders to be at least 18.',
-        'Send requests to jksurampudi5@gmail.com. If an issue is not resolved, you may use any complaint or appeal route available under the law that applies to you.',
+        'FindLostPuppy is exclusively intended and operated for pet parents and canine guardians residing within the sovereign territory of the Republic of India. The platform complies strictly with the Digital Personal Data Protection Act, 2023 (DPDPA 2023), the Information Technology Act, 2000, and the IT Rules, 2021 as enacted by the Parliament and Government of India.',
+        'All data principals retain the statutory rights of access, correction, erasure, consent withdrawal, and nomination under Section 11, 12, 13, and 14 of the DPDPA 2023.',
+        'Legal jurisdiction for any disputes or legal proceedings arising under this policy shall rest exclusively with the competent courts of Hyderabad, Telangana, India. Access and registration from outside the territory of India are expressly prohibited.',
+        'Send privacy inquiries or grievances to our resident Data Protection / Grievance Officer at jksurampudi5@gmail.com.',
       ],
     },
     {

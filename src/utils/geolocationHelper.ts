@@ -69,6 +69,7 @@ export interface LocationGeoResult {
   pinCode?: string;
   source: 'gps' | 'network' | 'ip';
   accuracyMeters?: number;
+  timestamp?: number;
   stateCode?: number;
   districtCode?: number;
   subDistrictCode?: number;
@@ -147,22 +148,49 @@ export function printLocationDiagnostic(d: LocationDiagnostic) {
  */
 async function getPositionWithConfig(options: PositionOptions): Promise<CoordsResult> {
   if (Capacitor.isNativePlatform()) {
-    let perm = await Geolocation.checkPermissions();
+    let perm: any = null;
     let permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied' = 'denied';
 
-    if (perm.location !== 'granted' && perm.coarseLocation !== 'granted') {
-      const req = await Geolocation.requestPermissions();
-      if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
-        throw new NativeLocationError('PERMISSION_DENIED', 'Location permission denied');
+    try {
+      perm = await Geolocation.checkPermissions();
+    } catch (checkErr: any) {
+      console.warn('[geolocationHelper] checkPermissions warning:', checkErr);
+      const msg = String(checkErr?.message || '').toLowerCase();
+      if (
+        msg.includes('location disabled') ||
+        msg.includes('location services are disabled') ||
+        msg.includes('provider disabled')
+      ) {
+        throw new NativeLocationError(
+          'LOCATION_SERVICES_DISABLED',
+          'Device Location (GPS) is turned off. Please turn on Location in quick settings.'
+        );
       }
-      permissionStatus = req.location === 'granted' ? 'fine' : 'coarse';
+      perm = { location: 'prompt', coarseLocation: 'prompt' };
+    }
+
+    if (perm?.location !== 'granted' && perm?.coarseLocation !== 'granted') {
+      try {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
+          throw new NativeLocationError('PERMISSION_DENIED', 'Location permission denied');
+        }
+        permissionStatus = req.location === 'granted' ? 'fine' : 'coarse';
+      } catch (reqErr: any) {
+        if (reqErr instanceof NativeLocationError) throw reqErr;
+        throw new NativeLocationError('PERMISSION_DENIED', 'Location permission request failed');
+      }
     } else {
       permissionStatus = perm.location === 'granted' ? 'fine' : 'coarse';
     }
 
+    // Android: If only approximate (coarse) permission is granted, asking for high accuracy
+    // can fail or throw SecurityException on fused location providers. Respect coarse mode.
+    const enableHighAccuracy = permissionStatus === 'coarse' ? false : options.enableHighAccuracy;
+
     try {
       const pos = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: options.enableHighAccuracy,
+        enableHighAccuracy,
         timeout: options.timeout,
         maximumAge: options.maximumAge,
       });
@@ -617,7 +645,7 @@ async function fetchIpLocation(): Promise<CoordsResult | null> {
  * - Postal PIN cross-validation without blind PostOffice[0] selection
  * - Transparent diagnostic logging
  */
-export async function detectResilientLocation(): Promise<LocationGeoResult> {
+export async function detectResilientLocation(options?: { allowIpFallback?: boolean }): Promise<LocationGeoResult> {
   let lat: number | null = null;
   let lng: number | null = null;
   let accuracyMeters: number | undefined;
@@ -625,11 +653,11 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
   let permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied' = 'browser';
   let fixTimestamp: number | undefined;
 
-  // Tier 1: Hardware High-Accuracy GPS (15s timeout)
+  // Tier 1: Hardware High-Accuracy GPS (10s timeout to keep detection snappy)
   try {
     const pos = await getPositionWithConfig({
       enableHighAccuracy: true,
-      timeout: 15000,
+      timeout: 10000,
       maximumAge: 0,
     });
     lat = pos.latitude;
@@ -637,14 +665,14 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     accuracyMeters = pos.accuracyMeters;
     permissionStatus = pos.permissionStatus;
     fixTimestamp = pos.timestamp;
-    source = 'gps';
+    source = permissionStatus === 'coarse' ? 'network' : 'gps';
 
-    // If initial GPS fix is somewhat coarse (> 50m) and we have time, attempt a 1-shot refinement
-    if (accuracyMeters && accuracyMeters > 50) {
+    // If initial GPS fix is coarse (> 60m) with fine permission, attempt a quick 1-shot refinement
+    if (permissionStatus === 'fine' && accuracyMeters && accuracyMeters > 60) {
       try {
         const refinePos = await getPositionWithConfig({
           enableHighAccuracy: true,
-          timeout: 8000,
+          timeout: 4000,
           maximumAge: 0,
         });
         if (refinePos.accuracyMeters && refinePos.accuracyMeters < accuracyMeters) {
@@ -669,8 +697,8 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
     try {
       const pos = await getPositionWithConfig({
         enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 30000,
+        timeout: 6000,
+        maximumAge: 10000,
       });
       lat = pos.latitude;
       lng = pos.longitude;
@@ -679,14 +707,23 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       fixTimestamp = pos.timestamp;
       source = 'network';
     } catch (netErr) {
-      console.warn('[geolocationHelper] Tier 2 network failed, attempting Tier 3 IP fallback...', netErr);
-      const ipResult = await fetchIpLocation();
-      if (ipResult) {
-        lat = ipResult.latitude;
-        lng = ipResult.longitude;
-        accuracyMeters = ipResult.accuracyMeters;
-        permissionStatus = 'denied';
-        source = 'ip';
+      console.warn('[geolocationHelper] Tier 2 network failed:', netErr);
+      if (options?.allowIpFallback) {
+        console.warn('[geolocationHelper] Attempting Tier 3 IP fallback...');
+        const ipResult = await fetchIpLocation();
+        if (ipResult) {
+          lat = ipResult.latitude;
+          lng = ipResult.longitude;
+          accuracyMeters = ipResult.accuracyMeters;
+          permissionStatus = 'denied';
+          source = 'ip';
+          fixTimestamp = Date.now();
+        }
+      } else {
+        throw new NativeLocationError(
+          'POSITION_UNAVAILABLE',
+          'Could not obtain location from GPS or cellular/Wi-Fi network.'
+        );
       }
     }
   }
@@ -750,15 +787,10 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       mandal = mergedMandal;
     }
     // Village/city comes from whichever geocoding tier returned it.
-    // IMPORTANT: Do NOT fall back to mandal here — that causes village and mandal to show as identical.
     // If city is truly unknown, leave it undefined and let matchLocation/locality picker resolve it.
     city = normalizeToEnglishText(mergedCity) || undefined;
+    // Do NOT invent artificial road names like "${city} Main Road" when incomplete.
     let street = normalizeToEnglishText(mergedStreet) || undefined;
-    // Only create a locality-style road label when a city/locality was actually
-    // resolved. A mandal-only result must leave this blank for manual selection.
-    if (!street && city) {
-      street = `${city} Main Road`;
-    }
     pinCode = mergedPin;
 
     // Smart Postal PIN Validation (score candidate post offices)
@@ -872,6 +904,7 @@ export async function detectResilientLocation(): Promise<LocationGeoResult> {
       pinCode,
       source,
       accuracyMeters,
+      timestamp: fixTimestamp,
       stateCode,
       districtCode,
       subDistrictCode,

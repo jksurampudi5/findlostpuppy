@@ -35,6 +35,7 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
   // Master declaration checkbox
   const [masterAgreed, setMasterAgreed] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [indiaResidentConfirmed, setIndiaResidentConfirmed] = useState(false);
 
   // Active popup form modal
   const [activeModalDocId, setActiveModalDocId] = useState<
@@ -97,11 +98,12 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
     acceptedForms.disclaimer &&
     acceptedForms.guidelines;
 
-  const canContinue = (masterAgreed || allIndividualFormsChecked) && ageConfirmed;
+  const canContinue = (masterAgreed || allIndividualFormsChecked) && ageConfirmed && indiaResidentConfirmed;
 
-  // 1-Click Accept All 4 Forms at Once (sets both age 18+ and all 4 agreements)
+  // 1-Click Accept All Forms at Once (sets age 18+, Indian residency, and all 4 agreements)
   const handleAcceptAllTogether = (checked: boolean = true) => {
     setAgeConfirmed(checked);
+    setIndiaResidentConfirmed(checked);
     setMasterAgreed(checked);
     setAcceptedForms({
       terms: checked,
@@ -120,6 +122,9 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
       guidelines: checked,
     });
     setMasterAgreed(checked);
+    if (checked) {
+      setIndiaResidentConfirmed(true);
+    }
   };
 
   const handleModalAccept = (docId: 'terms' | 'privacy' | 'disclaimer' | 'guidelines') => {
@@ -361,14 +366,14 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleAcceptAllTogether(!canContinue)}
-              title="Click to select all 4 forms and confirm age"
+              title="Click to select all forms, confirm age 18+, and confirm Indian residency"
             >
               <div className="one-click-accept-header">
                 <span className="one-click-pill">⚡ Fast Acceptance</span>
-                <span className="one-click-title">Accept All 4 Forms at Once</span>
+                <span className="one-click-title">Accept All Forms at Once</span>
               </div>
               <p className="one-click-desc">
-                Confirms age 18+ and agrees to Terms, Privacy, Dog Safety, and Guidelines in one step.
+                Confirms age 18+, Indian residency (DPDPA 2023), and agrees to Terms, Privacy, Dog Safety, and Guidelines in one step.
               </p>
             </div>
 
@@ -385,6 +390,23 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
                 <strong>I confirm that I am at least 18 years old.</strong>
               </span>
             </label>
+
+            <label className={`master-signature-label ${indiaResidentConfirmed ? 'is-checked' : ''}`}>
+              <input
+                type="checkbox"
+                id="india-resident-confirmation-checkbox"
+                checked={indiaResidentConfirmed}
+                onChange={(e) => setIndiaResidentConfirmed(e.target.checked)}
+                className="master-signature-checkbox"
+              />
+              <span className="master-signature-custom" aria-hidden="true"></span>
+              <span className="master-signature-text">
+                <strong>
+                  I confirm that I reside in India and agree to the Digital Personal Data Protection Act, 2023 (DPDPA) and Indian IT Act jurisdiction.
+                </strong>
+              </span>
+            </label>
+
             <label className={`master-signature-label ${masterAgreed || allIndividualFormsChecked ? 'is-checked' : ''}`}>
               <input
                 type="checkbox"
@@ -396,8 +418,8 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ onConsentAgreed }) => 
               <span className="master-signature-custom" aria-hidden="true"></span>
               <span className="master-signature-text">
                 <strong>
-                  I agree to the Terms, Privacy Policy, Dog Safety Disclaimer, and Community
-                  Guidelines for using FindLostPuppy safely and responsibly.
+                  I agree to the Terms of Service, Privacy Policy (DPDPA 2023 compliant), Dog Safety Disclaimer, and Community
+                  Guidelines for using FindLostPuppy safely and responsibly across India.
                 </strong>
               </span>
             </label>

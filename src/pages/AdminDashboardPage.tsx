@@ -41,6 +41,7 @@ import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestio
 import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
+import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
 /** Displays administrative records, synchronization controls, and confirmed cleanup actions. */
 export const AdminDashboardPage: React.FC = () => {
@@ -207,29 +208,52 @@ export const AdminDashboardPage: React.FC = () => {
       setIsWipingCloudinary(false);
     }
   };
-  /** Confirms test-data cleanup, awaits deletion, and refreshes the admin view. */
-  const handleClearAllTestData = async () => {
+  const [isPurgingNonIndian, setIsPurgingNonIndian] = useState(false);
+
+  /** Master Hard Reset: Completely purges all data across Cloudinary, Firestore, and LocalStorage at once. */
+  const handleMasterHardReset = async () => {
     const confirmed = window.confirm(
-      '⚠️ CLEAN SLATE CONFIRMATION:\n\nAre you sure you want to remove all test users, pets, missing alerts, and sightings from the Admin Portal and Firebase?\n\nThis will give you a completely fresh, clean database ready for real Play Store users (preserving only memorial dog Sonu).'
+      '🚨 MASTER HARD RESET CONFIRMATION:\n\nAre you sure you want to completely wipe all data at one go across:\n1. ☁️ Cloudinary (All uploaded photos)\n2. 🔥 Firestore Database (All user profiles, pets, alerts, sightings)\n3. 💾 LocalStorage & Session Cache (All records)\n\nThis will give you a 100% fresh clean slate at one go (preserving only memorial dog Sonu).'
     );
     if (!confirmed) return;
-    const typedConfirmation = window.prompt(
-      'This also permanently deletes every FindLostPuppy image from Cloudinary. Type DELETE ALL FINDLOSTPUPPY MEDIA to continue.'
-    );
-    if (typedConfirmation !== 'DELETE ALL FINDLOSTPUPPY MEDIA') {
-      showToast('Clean slate cancelled. The confirmation phrase did not match.', 'info');
-      return;
-    }
 
     setIsWiping(true);
+    showToast('⏳ Initiating Master Hard Reset across Cloudinary, Firestore & LocalStorage...', 'info');
     try {
       await storageService.clearAllAdminTestData();
       loadAllAdminData();
-      showToast('🧹 Clean Slate complete. Test data and Cloudinary images were permanently removed.', 'success');
-    } catch {
-      showToast('Failed to complete clean slate wipe.', 'error');
+      showToast(
+        `✅ Master Hard Reset Complete! All records wiped from Cloudinary, Firestore, and LocalStorage.`,
+        'success'
+      );
+    } catch (err: any) {
+      console.error('[Admin] Master Hard Reset error:', err);
+      showToast('Master hard reset encountered an issue: ' + (err?.message || 'Check connection.'), 'error');
     } finally {
       setIsWiping(false);
+    }
+  };
+
+  /** Enforces Indian-only policy: Scans and purges any users/profiles that have non-Indian phone numbers or locations. */
+  const handlePurgeNonIndianUsers = async () => {
+    const confirmed = window.confirm(
+      '🇮🇳 ENFORCE INDIAN POLICY:\n\nScan all user records and remove any users who are not based in India (i.e. do not have a valid Indian +91 10-digit mobile number)?'
+    );
+    if (!confirmed) return;
+
+    setIsPurgingNonIndian(true);
+    try {
+      const result = storageService.purgeNonIndianUsers();
+      loadAllAdminData();
+      if (result.purgedCount > 0) {
+        showToast(`🇮🇳 Successfully purged ${result.purgedCount} non-Indian user(s): ${result.purgedEmails.join(', ')}`, 'success');
+      } else {
+        showToast('🇮🇳 All registered users adhere to Indian mobile & policy standards! 0 non-Indian users found.', 'success');
+      }
+    } catch (err: any) {
+      showToast('Error purging non-Indian users.', 'error');
+    } finally {
+      setIsPurgingNonIndian(false);
     }
   };
 
@@ -248,13 +272,22 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   /** Confirms user deletion, runs the admin storage action, and refreshes the records. */
-  const handleDeleteUser = (userId: string, userName: string) => {
-    const confirmed = window.confirm(`Admin Action: Permanently delete user "${userName}" and all associated data?`);
+  const handleDeleteUser = (userId: string, userName: string, userEmail?: string) => {
+    const confirmed = window.confirm(`Admin Action: Permanently delete user "${userName}" and all associated data? This cannot be undone.`);
     if (!confirmed) return;
 
-    storageService.deleteUserAsAdmin(userId);
-    showToast(`🗑️ User ${userName} deleted.`, 'info');
-    loadAllAdminData();
+    // Optimistic UI update — remove immediately from the list
+    setUsers((prev) => prev.filter((u) => u.id !== userId && u.email?.toLowerCase() !== userEmail?.toLowerCase()));
+    setProfiles((prev) => prev.filter((p) => p.userId !== userId && p.email?.toLowerCase() !== userEmail?.toLowerCase()));
+
+    const success = storageService.deleteUserAsAdmin(userId, userEmail);
+    if (success) {
+      showToast(`🗑️ User ${userName} deleted permanently.`, 'info');
+    } else {
+      showToast(`⚠️ Could not delete ${userName}. Please try again.`, 'warning');
+      // Roll back optimistic update
+      loadAllAdminData();
+    }
   };
 
   /** Confirms pet deletion, runs the admin storage action, and refreshes the records. */
@@ -516,18 +549,34 @@ export const AdminDashboardPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={handleClearAllTestData}
+                onClick={handlePurgeNonIndianUsers}
+                disabled={isPurgingNonIndian}
+                className="btn btn-outline btn-sm"
+                style={{
+                  borderColor: 'rgba(245, 158, 11, 0.6)',
+                  color: '#D97706',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                }}
+                title="Remove any users or profiles not complying with Indian telecom (+91) standards"
+              >
+                <span>🇮🇳 {isPurgingNonIndian ? 'Purging...' : 'Purge Non-Indian Users'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleMasterHardReset}
                 disabled={isWiping}
                 className="btn btn-outline btn-sm admin-wipe-btn"
                 style={{
-                  borderColor: 'rgba(239, 68, 68, 0.65)',
+                  borderColor: 'rgba(239, 68, 68, 0.75)',
                   color: '#EF4444',
-                  background: 'rgba(239, 68, 68, 0.08)',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  fontWeight: 700,
                 }}
-                title="Wipe all stale/test records from Firebase and Local Storage to start fresh"
+                title="Wipe all data from Cloudinary, Firestore, and LocalStorage in one go"
               >
                 <Trash2 size={15} />
-                <span>{isWiping ? 'Wiping...' : 'Start Fresh (Clear Stale Data)'}</span>
+                <span>{isWiping ? 'Hard Resetting...' : '🚨 Master Hard Reset (All Data)'}</span>
               </button>
             </div>
           </div>
@@ -763,8 +812,14 @@ export const AdminDashboardPage: React.FC = () => {
                       const profile = storageService.getOwnerProfileByUserId(u.id);
                       const userPet = storageService.getPetProfileByUserId(u.id);
                       const userReports = storageService.getReportsByOwner(u.id);
-                      const phone = profile?.phone || u.phone || '-';
+                      const phone = profile?.phone || u.phone || '';
                       const location = profile?.approximateArea || profile?.district || profile?.city || '-';
+
+                      // Indian phone verification
+                      const isAdmin = u.isAdmin || u.email?.toLowerCase() === 'jksurampudi5@gmail.com';
+                      const phoneCheck = phone ? validateIndianPhoneNumber(phone) : { isValid: false };
+                      const isVerifiedIndian = phoneCheck.isValid;
+                      const hasMissingPhone = !phone;
 
                       return (
                         <tr key={`${u.id}-${u.email || idx}`}>
@@ -800,7 +855,7 @@ export const AdminDashboardPage: React.FC = () => {
                             </div>
                           </td>
                           <td>
-                            {phone !== '-' ? (
+                            {phone ? (
                               <div className="contact-cell">
                                 <a href={`tel:${phone}`} className="phone-link">
                                   <Phone size={13} />
@@ -814,9 +869,19 @@ export const AdminDashboardPage: React.FC = () => {
                                 >
                                   <Copy size={12} />
                                 </button>
+                                {!isAdmin && (
+                                  <span
+                                    className={`indian-verify-badge ${isVerifiedIndian ? 'verified' : 'unverified'}`}
+                                    title={isVerifiedIndian ? 'Valid Indian phone (+91)' : 'Non-Indian / invalid phone'}
+                                  >
+                                    {isVerifiedIndian ? '🇮🇳' : '⚠️'}
+                                  </span>
+                                )}
                               </div>
                             ) : (
-                              <span className="text-gray-400">Not provided</span>
+                              <span className="text-gray-400 non-indian-tag" title="No phone — cannot verify Indian residency">
+                                No phone ⚠️
+                              </span>
                             )}
                           </td>
                           <td>
@@ -859,19 +924,24 @@ export const AdminDashboardPage: React.FC = () => {
                             </div>
                           </td>
                           <td>
-                            {u.isAdmin || u.email.toLowerCase() === 'jksurampudi5@gmail.com' ? (
+                            {u.isAdmin || u.email?.toLowerCase() === 'jksurampudi5@gmail.com' ? (
                               <span className="role-badge admin-role">Admin 🛡️</span>
+                            ) : isVerifiedIndian ? (
+                              <span className="role-badge member-role">Member 🇮🇳</span>
+                            ) : hasMissingPhone ? (
+                              <span className="role-badge unverified-role" title="No phone number — Indian status unverified">Member ⚠️</span>
                             ) : (
-                              <span className="role-badge member-role">Member</span>
+                              <span className="role-badge non-indian-role" title="Phone number is not a valid Indian (+91) number">Non-Indian ⛔</span>
                             )}
                           </td>
                           <td>
                             <div className="table-actions-cell">
                               <button
                                 type="button"
-                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                onClick={() => handleDeleteUser(u.id, u.name, u.email)}
                                 className="admin-delete-btn"
                                 title={`Delete user ${u.name}`}
+                                disabled={u.email?.toLowerCase() === 'jksurampudi5@gmail.com'}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -1576,6 +1646,61 @@ export const AdminDashboardPage: React.FC = () => {
                       style={{ display: 'none' }}
                     />
                   </label>
+                </div>
+              </div>
+
+              {/* Card 3: Master Hard Reset */}
+              <div className="backup-panel-card card" style={{ borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.03)' }}>
+                <div className="panel-card-header">
+                  <Trash2 size={24} className="text-red-600" />
+                  <h3 className="panel-card-title text-red-600">🚨 Master Hard Reset (All Data)</h3>
+                </div>
+                <p className="panel-card-text">
+                  Permanently deletes all records simultaneously across <strong>Cloudinary</strong> (all images), <strong>Firestore</strong> (all cloud collections), and <strong>LocalStorage</strong> (all cached tables) in one single action.
+                </p>
+                <div className="backup-actions-stack">
+                  <button
+                    type="button"
+                    onClick={handleMasterHardReset}
+                    disabled={isWiping}
+                    className="btn btn-outline btn-block"
+                    style={{
+                      borderColor: '#EF4444',
+                      color: '#EF4444',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    <span>{isWiping ? 'Wiping All Data Everywhere...' : 'Wipe All Data (Cloudinary + Firestore + Local)'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 4: Indian Policy Compliance & Purge */}
+              <div className="backup-panel-card card" style={{ borderColor: 'rgba(245, 158, 11, 0.4)', background: 'rgba(245, 158, 11, 0.03)' }}>
+                <div className="panel-card-header">
+                  <Shield size={24} className="text-amber-600" />
+                  <h3 className="panel-card-title text-amber-600">🇮🇳 Indian DPDP Act Compliance & User Audit</h3>
+                </div>
+                <p className="panel-card-text">
+                  FindLostPuppy is exclusively for Indian pet parents. Audit and purge any user accounts or profiles that do not comply with Indian telecom standards (+91 10-digit mobile number) or Indian territorial jurisdiction.
+                </p>
+                <div className="backup-actions-stack">
+                  <button
+                    type="button"
+                    onClick={handlePurgeNonIndianUsers}
+                    disabled={isPurgingNonIndian}
+                    className="btn btn-outline btn-block"
+                    style={{
+                      borderColor: '#D97706',
+                      color: '#D97706',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>🇮🇳 {isPurgingNonIndian ? 'Auditing & Purging...' : 'Purge Non-Indian Users Now'}</span>
+                  </button>
                 </div>
               </div>
             </div>

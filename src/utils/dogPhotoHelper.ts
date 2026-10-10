@@ -96,8 +96,9 @@ export const isPetPhotoUrl = (url?: string | null): boolean => {
 };
 
 /**
- * Validates that an owner photo is genuinely uploaded or captured.
- * Explicitly rejects empty values, pet photos, and Google account letter avatars/placeholders.
+ * Validates that an owner photo is genuinely uploaded to Cloudinary.
+ * Explicitly rejects empty values, pet photos, Google account letter avatars/placeholders,
+ * and requires a valid Cloudinary-hosted URL.
  */
 export const isValidOwnerPhoto = (url?: string | null): boolean => {
   if (!url || typeof url !== 'string') return false;
@@ -115,7 +116,8 @@ export const isValidOwnerPhoto = (url?: string | null): boolean => {
   ) {
     return false;
   }
-  return true;
+  // Mandatory condition: Owner profile photo MUST be successfully uploaded to Cloudinary
+  return clean.includes('cloudinary.com') || clean.includes('res.cloudinary.com');
 };
 
 /**

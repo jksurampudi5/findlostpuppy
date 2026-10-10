@@ -11,6 +11,7 @@ import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
+import { auth } from '../services/firebaseConfig';
 import { isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
@@ -220,11 +221,45 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     showToast('Uploading profile picture to Cloudinary... Please wait.', 'info');
 
     try {
+      let currentAuthUser = auth?.currentUser;
+      if (!currentAuthUser && auth && typeof (auth as any).authStateReady === 'function') {
+        try {
+          await Promise.race([
+            (auth as any).authStateReady(),
+            new Promise((r) => setTimeout(r, 2000)),
+          ]);
+          currentAuthUser = auth.currentUser;
+        } catch {}
+      }
+
+      if (!currentAuthUser) {
+        showToast('Connecting Google account for Cloudinary photo upload...', 'info');
+        try {
+          const signInRes = await authService.signInWithGoogle();
+          if (!signInRes.success || !auth?.currentUser) {
+            showToast(signInRes.error || 'Please sign in with Google to upload your profile photo.', 'error');
+            setIsUploadingPhoto(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            if (cameraInputRef.current) cameraInputRef.current.value = '';
+            return;
+          }
+          currentAuthUser = auth.currentUser;
+        } catch (err: any) {
+          showToast(err?.message || 'Please sign in with Google to upload your profile photo.', 'error');
+          setIsUploadingPhoto(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          if (cameraInputRef.current) cameraInputRef.current.value = '';
+          return;
+        }
+      }
+
       const compressed = await compressImage(file, 600, 600, 0.85);
-      if (!user?.id) throw new Error('AUTH_REQUIRED');
-      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
+      const activeUserId = currentAuthUser?.uid || user?.id;
+      if (!activeUserId) throw new Error('AUTH_REQUIRED');
+      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed);
       if (!finalPhotoUrl) {
-        showToast('Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
+        const errorDetail = storageBucketService.getLastError();
+        showToast(errorDetail || 'Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
         return;
       }
       setPhoto(finalPhotoUrl);
@@ -278,6 +313,8 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
     // Optimistically clear UI immediately so the user sees instant feedback
     setPhoto('');
+    setPhotoError('Profile photo is mandatory. Please upload from album/files or use camera.');
+    setIsEditing(true);
     setSavedSnapshot((prev) => ({ ...prev, photo: '' }));
     authService.updateCurrentUser({ avatar: undefined });
     if (user) {
@@ -500,18 +537,20 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     }
 
     const currentProfile = storageService.getOwnerProfileByUserId(user?.id || '', user?.email);
-    const validPhoto = (photo.trim() && isValidOwnerPhoto(photo)) || (currentProfile?.photo && isValidOwnerPhoto(currentProfile.photo));
+    const validPhoto = Boolean(photo.trim() && isValidOwnerPhoto(photo));
     const validName = Boolean(fullName.trim() || currentProfile?.fullName?.trim());
-    const validPhone = Boolean(phone.trim() || currentProfile?.phone?.trim());
+    const targetPhone = phone.trim() || currentProfile?.phone?.trim() || '';
+    const phoneCheck = validateIndianPhoneNumber(targetPhone);
+    const validPhone = Boolean(targetPhone && phoneCheck.isValid);
 
     if (!validPhoto || !validName || !validPhone) {
       if (!validPhoto) {
         setPhotoError('Profile photo is mandatory. Please upload from album/files or use camera.');
       }
       if (!validPhone) {
-        setPhoneError('Please enter your 10-digit phone number.');
+        setPhoneError(phoneCheck.error || 'Please enter a valid 10-digit Indian phone number.');
       }
-      showToast('⚠️ Profile photo, Name, and Phone number are all mandatory before continuing.', 'warning');
+      showToast('⚠️ Profile photo, Name, and Valid Indian Phone (+91) are all mandatory before continuing.', 'warning');
       setIsEditing(true);
       ownerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
@@ -676,8 +715,13 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                 <button
                   type="button"
                   onClick={handleContinueToLocation}
-                  disabled={isTransitioning}
+                  disabled={isTransitioning || !photo || !isValidOwnerPhoto(photo)}
                   className="btn btn-primary btn-lg continue-to-location-orange-btn"
+                  title={(!photo || !isValidOwnerPhoto(photo)) ? "Upload profile photo first to continue" : "Continue to Location"}
+                  style={{
+                    opacity: (!photo || !isValidOwnerPhoto(photo)) ? 0.6 : 1,
+                    cursor: (!photo || !isValidOwnerPhoto(photo)) ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   <span>Continue to Location</span>
                   <ArrowRight size={18} />
@@ -982,9 +1026,10 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
                 <button
                   type="button"
-                  disabled={isTransitioning || isUploadingPhoto}
+                  disabled={isTransitioning || isUploadingPhoto || !photo || !isValidOwnerPhoto(photo)}
+                  title={(!photo || !isValidOwnerPhoto(photo)) ? "Upload profile photo first to continue" : "Continue to Location"}
                   onClick={async () => {
-                    if (isTransitioning || isUploadingPhoto) return;
+                    if (isTransitioning || isUploadingPhoto || !photo || !isValidOwnerPhoto(photo)) return;
                     const ok = await saveProfileInternal(false);
                     if (ok) {
                       handleContinueToLocation();
@@ -999,12 +1044,12 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                     borderRadius: '8px',
                     fontWeight: 700,
                     fontSize: '13px',
-                    cursor: (isTransitioning || isUploadingPhoto) ? 'not-allowed' : 'pointer',
+                    cursor: (isTransitioning || isUploadingPhoto || !photo || !isValidOwnerPhoto(photo)) ? 'not-allowed' : 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
                     boxShadow: '0 4px 12px rgba(255, 121, 0, 0.35)',
-                    opacity: (isTransitioning || isUploadingPhoto) ? 0.7 : 1,
+                    opacity: (isTransitioning || isUploadingPhoto || !photo || !isValidOwnerPhoto(photo)) ? 0.6 : 1,
                   }}
                 >
                   <span>Continue to Location</span>
@@ -1034,12 +1079,24 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
             }
             const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
             const compressed = await compressImage(file, 600, 600, 0.85);
-            if (!user?.id) throw new Error('AUTH_REQUIRED');
-            const currentProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
+            let currentAuthUser = auth?.currentUser;
+            if (!currentAuthUser && auth && typeof (auth as any).authStateReady === 'function') {
+              try {
+                await Promise.race([
+                  (auth as any).authStateReady(),
+                  new Promise((r) => setTimeout(r, 2000)),
+                ]);
+                currentAuthUser = auth.currentUser;
+              } catch {}
+            }
+            const activeUserId = currentAuthUser?.uid || user?.id;
+            if (!activeUserId) throw new Error('AUTH_REQUIRED');
+            const currentProfile = storageService.getOwnerProfileByUserId(activeUserId, user?.email);
             if (!compressed) throw new Error('COMPRESSION_FAILED');
-            const uploadedUrl = await storageBucketService.uploadProfileAvatar(user.id, compressed);
+            const uploadedUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed);
             if (!uploadedUrl) {
-              showToast('Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
+              const errorDetail = storageBucketService.getLastError();
+              showToast(errorDetail || 'Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
               return;
             }
             setPhoto(uploadedUrl);
@@ -1047,11 +1104,11 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
             authService.updateCurrentUser({ avatar: uploadedUrl });
             const updated: OwnerProfileType = {
               ...(currentProfile || {}),
-              id: user.id,
-              userId: user.id,
-              fullName: fullName.trim() || user.name || '',
-              phone: phone.trim() || user.phone || '',
-              email: user.email,
+              id: activeUserId,
+              userId: activeUserId,
+              fullName: fullName.trim() || user?.name || '',
+              phone: phone.trim() || user?.phone || '',
+              email: user?.email || currentAuthUser?.email || '',
               photo: uploadedUrl,
               preferredContact,
               address: currentProfile?.address || '',
@@ -1063,7 +1120,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
             };
             const saved = applyPhotoChangeTracking(updated, currentProfile);
             storageService.saveOwnerProfile(saved);
-            await firebaseSyncService.syncOwnerProfile(saved, user.id).catch((e) => {
+            await firebaseSyncService.syncOwnerProfile(saved, activeUserId).catch((e) => {
               console.warn('[Firebase Sync Owner Profile Notice]:', e);
             });
             setSavedSnapshot((prev) => ({ ...prev, photo: uploadedUrl }));

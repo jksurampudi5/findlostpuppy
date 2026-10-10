@@ -88,6 +88,14 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
   const [isEditing, setIsEditing] = useState<boolean>(!isPetFilled);
   const initialPetModeSetRef = useRef(false);
 
+  // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
+  useEffect(() => {
+    if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
+      showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
+      navigate('/owner', { replace: true });
+    }
+  }, [user, navigate, showToast]);
+
   // Collar, Tag, or Microchip: Yes/No + companion detail
   const [collarChoice, setCollarChoice] = useState<'Yes' | 'No' | ''>(() => {
     if (!existingPet?.collarInfo) return '';

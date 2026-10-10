@@ -17567,6 +17567,41 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.role-badge.unverified-role {
+  background: rgba(251, 191, 36, 0.15);
+  color: #FCD34D !important;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.role-badge.non-indian-role {
+  background: rgba(239, 68, 68, 0.15);
+  color: #FCA5A5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Inline Indian phone verification badge */
+.indian-verify-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 4px;
+  cursor: default;
+}
+
+.indian-verify-badge.verified {
+  filter: none;
+}
+
+.indian-verify-badge.unverified {
+  filter: grayscale(0.2);
+}
+
+.non-indian-tag {
+  color: #FCA5A5 !important;
+  font-size: 0.75rem;
+}
+
 .admin-data-table th:nth-last-child(2),
 .admin-data-table td:nth-last-child(2) {
   min-width: 100px;

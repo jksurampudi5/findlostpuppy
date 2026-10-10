@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { locationService } from '../services/locationService';
-import { detectResilientLocation } from '../utils/geolocationHelper';
+import { PermissionRationaleModal } from './PermissionRationaleModal';
+import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
 import { SearchableSelect, type SelectOption } from './SearchableSelect';
 import type { LocationLocality } from '../types';
 
@@ -66,7 +67,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 }) => {
   const { showToast } = useToast();
 
-  const [detecting, setDetecting] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [accuracyRadius, setAccuracyRadius] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -299,125 +299,107 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     }
   };
 
-  // Direct native location detector. The OS/browser owns the permission prompt.
-  const handleDetectClick = () => {
-    executeDetectLocation();
-  };
+  const handleLocationDetected = (result: LocationDetectionResult) => {
+    const { geo, match, detectedState, detectedDistrict, detectedMandal, detectedCity, detectedStreet, detectedPin } = result;
 
-  // Hardware GPS detection
-  // Resilient Multi-Tier Location Detection (Hardware GPS -> Network/Wi-Fi -> IP Fallback)
-  const executeDetectLocation = async () => {
-    setDetecting(true);
-    setGeoError(null);
+    setAccuracyRadius(geo.accuracyMeters || (geo.source === 'gps' ? 20 : 100));
 
-    try {
-      const geo = await detectResilientLocation();
-      const exactLat = geo.latitude;
-      const exactLng = geo.longitude;
-      setAccuracyRadius(geo.accuracyMeters || (geo.source === 'gps' ? 20 : 100));
-
-      const detectedState = geo.state || currentState;
-      const rawDistrict = geo.district || currentDistrict;
-      const detectedMandal = geo.mandal || currentMandal;
-      const detectedCity = geo.city || currentCity;
-      const detectedStreet = geo.street || '';
-      const detectedPin = geo.pinCode || currentPin;
-
-      const match = await locationService.matchLocation({
-        state: detectedState,
-        district: rawDistrict,
-        mandal: detectedMandal,
-        locality: detectedCity,
+    if (match) {
+      updateFields({
+        state: match.state.name,
+        district: match.district.districtName,
+        mandalOrMunicipality: match.subDistrict.subDistrictName,
+        streetOrLocality: detectedStreet,
+        city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
         pinCode: detectedPin,
-        stateCode: geo.stateCode,
-        districtCode: geo.districtCode,
-        subDistrictCode: geo.subDistrictCode,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
       });
+      setIsEditing(false);
+      setIsConfirmed(false);
+      showToast(
+        `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+        'success'
+      );
+    } else {
+      const partialUpdates: Partial<{
+        state: string;
+        district: string;
+        city: string;
+        mandalOrMunicipality: string;
+        streetOrLocality: string;
+        pinCode: string;
+        latitude: number;
+        longitude: number;
+      }> = {
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+      };
+      let matchedSomething = false;
 
-      if (match) {
-        updateFields({
-          state: match.state.name,
-          district: match.district.districtName,
-          mandalOrMunicipality: match.subDistrict.subDistrictName,
-          streetOrLocality: detectedStreet,
-          city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
-          pinCode: detectedPin,
-          latitude: exactLat,
-          longitude: exactLng,
-        });
-        setIsEditing(false);
-        setIsConfirmed(false);
-        showToast(
-          `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
-          'success'
-        );
-      } else {
-        const partialUpdates: Partial<{
-          state: string;
-          district: string;
-          city: string;
-          mandalOrMunicipality: string;
-          streetOrLocality: string;
-          pinCode: string;
-          latitude: number;
-          longitude: number;
-        }> = {
-          latitude: exactLat,
-          longitude: exactLng,
-        };
-        let matchedSomething = false;
-
-        if (detectedState) {
-          const st = locationService.getState(detectedState);
-          if (st) {
-            partialUpdates.state = st.name;
-            matchedSomething = true;
-            if (rawDistrict) {
-              const d = locationService.getDistrict(st.name, rawDistrict);
-              if (d) {
-                partialUpdates.district = d.districtName;
-                if (detectedMandal) {
-                  const m = locationService.getSubDistrict(d.districtCode, detectedMandal);
-                  if (m) partialUpdates.mandalOrMunicipality = m.subDistrictName;
-                }
+      if (detectedState) {
+        const st = locationService.getState(detectedState);
+        if (st) {
+          partialUpdates.state = st.name;
+          matchedSomething = true;
+          if (detectedDistrict) {
+            const d = locationService.getDistrict(st.name, detectedDistrict);
+            if (d) {
+              partialUpdates.district = d.districtName;
+              if (detectedMandal) {
+                const m = locationService.getSubDistrict(d.districtCode, detectedMandal);
+                if (m) partialUpdates.mandalOrMunicipality = m.subDistrictName;
               }
             }
           }
         }
-        if (detectedCity) {
-          partialUpdates.city = detectedCity;
-          matchedSomething = true;
-        }
-        if (detectedStreet) partialUpdates.streetOrLocality = detectedStreet;
-        if (detectedPin) partialUpdates.pinCode = detectedPin;
-
-        updateFields(partialUpdates);
-        setIsEditing(true);
-        if (matchedSomething) {
-          showToast(
-            `📍 Location detected: ${detectedCity || rawDistrict || 'Current area'}. Please confirm details below.`,
-            'info'
-          );
-        } else {
-          showToast(
-            'Location locked. Please choose your District and Mandal below.',
-            'info'
-          );
-        }
       }
-    } catch (err: any) {
-      const message = err?.message || 'Could not acquire location fix. Please select location manually.';
-      const isDenied = err?.code === 'PERMISSION_DENIED' || err?.name === 'NotAllowedError' || /denied/i.test(message);
-      
-      setGeoError(message);
+      if (detectedCity) {
+        partialUpdates.city = detectedCity;
+        matchedSomething = true;
+      }
+      if (detectedStreet) partialUpdates.streetOrLocality = detectedStreet;
+      if (detectedPin) partialUpdates.pinCode = detectedPin;
+
+      updateFields(partialUpdates);
       setIsEditing(true);
-
-      if (!isDenied) {
-        showToast(message, 'info');
+      if (matchedSomething) {
+        showToast(
+          `📍 Location detected: ${detectedCity || detectedDistrict || 'Current area'}. Please confirm details below.`,
+          'info'
+        );
+      } else {
+        showToast('Coordinates detected. Please choose your District and Mandal below.', 'info');
       }
-    } finally {
-      setDetecting(false);
     }
+  };
+
+  const {
+    detecting,
+    showPermissionRationaleModal,
+    setShowPermissionRationaleModal,
+    showPermissionBlockedModal,
+    setShowPermissionBlockedModal,
+    showTurnOnModal,
+    setShowTurnOnModal,
+    triggerDetectLocation,
+    handlePermissionRationaleContinue,
+    handleOpenLocationSettings,
+    handleOpenAppSettings,
+  } = useLocationDetection({
+    onSuccess: handleLocationDetected,
+    onError: (err) => {
+      setGeoError(err?.message || 'Could not acquire location fix.');
+      setIsEditing(true);
+    },
+    onClearFieldsForNewDetection: () => {
+      setGeoError(null);
+    },
+  });
+
+  // Direct native location detector using shared robust flow
+  const handleDetectClick = () => {
+    triggerDetectLocation();
   };
 
   const handleConfirmLocation = () => {
@@ -797,6 +779,40 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           />
         </div>
       </div>
+
+      {/* Modals for Location Permission and Device Services */}
+      <PermissionRationaleModal
+        isOpen={showTurnOnModal}
+        title="Turn On Location / లొకేషన్ ఆన్ చేయండి"
+        message="Location is turned off on your device. Turn it on to find your area automatically."
+        continueLabel="Open Settings"
+        cancelLabel="Not Now"
+        onCancel={() => setShowTurnOnModal(false)}
+        onContinue={handleOpenLocationSettings}
+      />
+
+      <PermissionRationaleModal
+        isOpen={showPermissionRationaleModal}
+        title="Location Access / లొకేషన్ వివరాలు"
+        message="Location access is needed to detect your State, District, Mandal, and Home Base automatically. Your exact coordinates are never publicly shown."
+        continueLabel="Continue"
+        cancelLabel="Not Now"
+        onCancel={() => setShowPermissionRationaleModal(false)}
+        onContinue={handlePermissionRationaleContinue}
+      />
+
+      <PermissionRationaleModal
+        isOpen={showPermissionBlockedModal}
+        title="Location Access Needed"
+        message="Location access is blocked. Please allow location in your device settings to detect your area automatically."
+        continueLabel="Open Settings"
+        cancelLabel="Enter Location Manually"
+        onCancel={() => {
+          setShowPermissionBlockedModal(false);
+          setIsEditing(true);
+        }}
+        onContinue={handleOpenAppSettings}
+      />
     </div>
   );
 };
