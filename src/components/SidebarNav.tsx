@@ -105,7 +105,7 @@ export const SidebarNav: React.FC = () => {
   const isUserAdmin = isAdmin || user?.isAdmin || user?.email?.toLowerCase() === 'jksurampudi5@gmail.com';
 
   const handleTabClick = (tab: OnboardingTab, routePath: string) => {
-    if (isAuthenticated && !hasCompletedOwner && routePath !== '/owner') {
+    if (isAuthenticated && !hasCompletedOwner && routePath !== '/owner' && routePath !== '/admin') {
       showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
       navigate('/owner');
       setActiveOnboardingTab('owner');

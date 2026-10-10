@@ -108,8 +108,8 @@ function MainAppFlow() {
         }
       />
       <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
-      <Route path="/feedback" element={<PetStatus />} />
-      <Route path="/suggest" element={<PetStatus />} />
+      <Route path="/feedback" element={<Navigate to="/homepage" replace />} />
+      <Route path="/suggest" element={<Navigate to="/homepage" replace />} />
       <Route path="/next-step" element={<Navigate to="/homepage" replace />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route path="/shortcuts" element={<ShortcutsPage />} />

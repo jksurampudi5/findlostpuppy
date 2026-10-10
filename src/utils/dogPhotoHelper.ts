@@ -117,7 +117,10 @@ export const isValidOwnerPhoto = (url?: string | null): boolean => {
     return false;
   }
   // Mandatory condition: Owner profile photo MUST be successfully uploaded to Cloudinary
-  return clean.includes('cloudinary.com') || clean.includes('res.cloudinary.com');
+  return (
+    (clean.startsWith('https://') || clean.startsWith('http://')) &&
+    (clean.includes('cloudinary.com') || clean.includes('res.cloudinary.com'))
+  );
 };
 
 /**

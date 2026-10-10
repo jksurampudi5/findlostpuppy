@@ -6,8 +6,13 @@ import { join } from 'node:path';
 async function runTests() {
   console.log('🚀 Starting Location Component Automated Test Suite...');
   const userDataDir = mkdtempSync(join(tmpdir(), 'puppeteer-loc-'));
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : '/usr/bin/google-chrome-stable');
   const browser = await puppeteer.launch({
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    executablePath,
     headless: true,
     userDataDir,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
@@ -384,6 +389,7 @@ async function runTests() {
     console.log('🎉 ALL 8 TESTS PASSED SUCCESSFULLY!');
   } else {
     console.log('⚠️ SOME TESTS FAILED. PLEASE REVIEW.');
+    process.exit(1);
   }
 }
 

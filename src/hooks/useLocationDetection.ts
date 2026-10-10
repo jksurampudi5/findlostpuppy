@@ -60,7 +60,7 @@ export function useLocationDetection({
     setDetecting(true);
 
     try {
-      if (typeof window !== 'undefined' && (window as any).__forceLocationError) {
+      if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__forceLocationError) {
         throw (window as any).__forceLocationError;
       }
 
