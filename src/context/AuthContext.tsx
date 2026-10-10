@@ -114,12 +114,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const firstTime = checkIfFirstTimeUser(currentUser);
       setIsFirstTimeUser(firstTime);
 
-      if (!firstTime) {
-        // Returning user - permanently satisfy consent and skip it completely
+      const hasExplicitConsent =
+        consentService.hasAcceptedCurrentConsent(currentUser.id) ||
+        localStorage.getItem(`findlostpuppy_consent_accepted_${currentUser.id}`) === 'true' ||
+        localStorage.getItem('findlostpuppy_has_accepted_consent') === 'true';
+
+      if (hasExplicitConsent) {
         consentService.markConsentCompletedForUser(currentUser.id);
         setHasValidConsent(true);
       } else {
-        setHasValidConsent(consentService.hasAcceptedCurrentConsent(currentUser.id));
+        setHasValidConsent(false);
       }
 
       setActiveOnboardingTab((prev) => {

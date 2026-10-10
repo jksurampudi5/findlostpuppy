@@ -127,7 +127,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
         const hasAllThree = Boolean(
           cleanedName &&
-          (p.phone || user.phone) &&
+          p.phone &&
           effectivePhoto &&
           isValidOwnerPhoto(effectivePhoto)
         );
