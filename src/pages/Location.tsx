@@ -24,6 +24,7 @@ import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
+import { checkAppLocationPermission } from '../services/nativeSettingsService';
 
 interface LocationProps {
   onSuccess?: () => void;
@@ -548,13 +549,14 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
-    // Reset clears current location state and runs detection
-    window.setTimeout(() => {
-      triggerDetectLocation({ bypassRationale: false });
-    }, 100);
+    // Reset clears current location state and only re-detects if permission is already granted
+    const permStatus = await checkAppLocationPermission();
+    if (permStatus === 'granted' || permStatus === 'approximate') {
+      window.setTimeout(() => {
+        triggerDetectLocation({ bypassRationale: true });
+      }, 100);
+    }
   };
-
-
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
