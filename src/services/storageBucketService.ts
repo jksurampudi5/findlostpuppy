@@ -11,9 +11,9 @@ let queueFlushPromise: Promise<{ uploaded: number; pending: number }> | null = n
 // Media queue key for background synchronization
 
 
-const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS === 'true';
-const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || '').replace(/\/$/, '');
-const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
+const SECURE_CLOUDINARY_FUNCTIONS = import.meta.env.VITE_CLOUDINARY_SECURE_FUNCTIONS !== 'false';
+const MEDIA_WORKER_URL = String(import.meta.env.VITE_MEDIA_WORKER_URL || 'https://findlostpuppy-media.findlostpuppy.workers.dev').replace(/\/$/, '');
+const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'ymrxc4mq').trim();
 
 // =============================================================================
 // Canonical Cloudinary folder layout
