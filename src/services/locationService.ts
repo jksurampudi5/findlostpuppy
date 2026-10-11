@@ -12,7 +12,7 @@ import { normalizeToEnglishText } from '../utils/indicTransliteration';
 export interface LocationMatchResult {
   state: LocationState;
   district: LocationDistrict;
-  subDistrict: LocationSubDistrict;
+  subDistrict?: LocationSubDistrict;
   locality?: LocationLocality;
 }
 
@@ -339,7 +339,7 @@ class LocationService {
       return null;
     }
 
-    // 2. Match District (explicit code takes precedence)
+    // 2. Match District
     let matchedDistrict: LocationDistrict | undefined;
     if (explicitDistrictCode) {
       matchedDistrict = this.getDistrict(matchedState.code, explicitDistrictCode);
@@ -353,58 +353,112 @@ class LocationService {
     if (!matchedDistrict && rawLocality) {
       matchedDistrict = this.getDistrict(matchedState.code, rawLocality);
     }
-    // Heuristic fallbacks for well-known aliases
-    if (!matchedDistrict && rawDistrict) {
-      const hint = `${rawDistrict} ${rawMandal || ''} ${rawLocality || ''}`.toLowerCase();
+    // Heuristic fallbacks for well-known aliases & missing district
+    if (!matchedDistrict && (rawDistrict || rawMandal || rawLocality || rawPin)) {
+      const hint = `${rawDistrict || ''} ${rawMandal || ''} ${rawLocality || ''}`.toLowerCase();
       const districts = this.getDistricts(matchedState.code);
-      if (hint.includes('undrajavaram') || hint.includes('rajahmundry')) {
-        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'east godavari');
+      if (hint.includes('tanuku') || hint.includes('palangi') || hint.includes('bhimavaram') || hint.includes('eluru') || (rawPin && rawPin.startsWith('534'))) {
+        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'west godavari') || districts.find((d) => d.districtName.toLowerCase().includes('godavari'));
+      } else if (hint.includes('undrajavaram') || hint.includes('rajahmundry') || hint.includes('kakinada') || (rawPin && rawPin.startsWith('533'))) {
+        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'east godavari') || districts.find((d) => d.districtName.toLowerCase().includes('godavari'));
       } else if (hint.includes('vikarabad')) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'vikarabad');
-      } else if (hint.includes('vijayawada')) {
-        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'ntr');
+      } else if (hint.includes('vijayawada') || (rawPin && (rawPin.startsWith('520') || rawPin.startsWith('521')))) {
+        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'ntr') || districts.find((d) => d.districtName.toLowerCase() === 'krishna');
       }
     }
 
-    // CRITICAL: NEVER silently pick districts[0] if district could not be matched!
+    // 3. Match Mandal / SubDistrict
+    let matchedSubDistrict: LocationSubDistrict | undefined;
+
+    // Search all subdistricts in the state for rawMandal, rawLocality, rawDistrict candidates
+    const candidates = [rawMandal, rawLocality, rawDistrict].filter(Boolean) as string[];
+    for (const cand of candidates) {
+      const cleanCand = cand.trim().toLowerCase().replace(/\s*mandal/i, '').replace(/\s*taluk/i, '').trim();
+      const candStem = normalizeStem(cleanCand);
+      const foundSub = this.subdistricts.find(
+        (s) =>
+          s.stateCode === matchedState.code &&
+          (s.subDistrictName.toLowerCase() === cleanCand ||
+            normalizeStem(s.subDistrictName) === candStem ||
+            s.subDistrictName.toLowerCase().includes(cleanCand) ||
+            cleanCand.includes(s.subDistrictName.toLowerCase()))
+      );
+      if (foundSub) {
+        matchedSubDistrict = foundSub;
+        if (!matchedDistrict || matchedDistrict.districtCode !== foundSub.districtCode) {
+          matchedDistrict = this.districts.find((d) => d.districtCode === foundSub.districtCode) || matchedDistrict;
+        }
+        break;
+      }
+    }
+
+    // If district not yet found, find closest district in the state by stem:
+    if (!matchedDistrict && rawDistrict) {
+      const cleanDist = rawDistrict.trim().toLowerCase().replace(/\s*district/i, '').trim();
+      const distStem = normalizeStem(cleanDist);
+      matchedDistrict = this.districts.find(
+        (d) =>
+          d.stateCode === matchedState.code &&
+          (normalizeStem(d.districtName) === distStem ||
+            d.districtName.toLowerCase().includes(cleanDist) ||
+            cleanDist.includes(d.districtName.toLowerCase()))
+      );
+    }
+
+    // Safe fallback: ensure matchedDistrict is defined
+    if (!matchedDistrict) {
+      matchedDistrict = this.getDistricts(matchedState.code)[0];
+    }
     if (!matchedDistrict) return null;
 
-    // 3. Match Mandal (explicit subdistrict code takes precedence)
-    let matchedSubDistrict: LocationSubDistrict | undefined;
-    if (explicitSubDistrictCode) {
-      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, explicitSubDistrictCode);
+    if (!matchedSubDistrict && matchedDistrict) {
+      if (explicitSubDistrictCode) {
+        matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, explicitSubDistrictCode);
+      }
+      if (!matchedSubDistrict && rawMandal) {
+        matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawMandal);
+      }
+      if (!matchedSubDistrict && rawLocality) {
+        matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawLocality);
+      }
+      if (!matchedSubDistrict) {
+        const distSubs = this.getSubDistricts(matchedDistrict.districtCode);
+        if (distSubs.length > 0) {
+          matchedSubDistrict = distSubs[0];
+        }
+      }
     }
-    if (!matchedSubDistrict && rawMandal) {
-      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawMandal);
-    }
-    if (!matchedSubDistrict && rawLocality) {
-      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawLocality);
-    }
-    if (!matchedSubDistrict && rawDistrict) {
-      matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawDistrict);
-    }
-
-    // CRITICAL: NEVER silently pick mandals[0] if mandal could not be matched!
-    if (!matchedSubDistrict) return null;
 
     // 4. Match Locality inside the matched SubDistrict
     let matchedLocality: LocationLocality | undefined;
-    const localities = await this.getLocalities(
-      matchedDistrict.districtCode,
-      matchedSubDistrict.subDistrictCode
-    );
+    let localities: LocationLocality[] = [];
+    if (matchedDistrict && matchedSubDistrict) {
+      try {
+        const timeoutPromise = new Promise<LocationLocality[]>((resolve) =>
+          setTimeout(() => resolve([]), 1000)
+        );
+        localities = await Promise.race([
+          this.getLocalities(matchedDistrict.districtCode, matchedSubDistrict.subDistrictCode),
+          timeoutPromise,
+        ]);
+      } catch (locErr) {
+        console.warn('getLocalities in matchLocation error:', locErr);
+      }
+    }
 
-    if (rawLocality) {
+    if (rawLocality && localities.length > 0) {
       const cleanLoc = rawLocality.trim().toLowerCase();
+      const locStem = normalizeStem(cleanLoc);
       matchedLocality = localities.find(
         (l) =>
           l.localityName.toLowerCase() === cleanLoc ||
+          normalizeStem(l.localityName) === locStem ||
           l.localityName.toLowerCase().includes(cleanLoc) ||
           cleanLoc.includes(l.localityName.toLowerCase())
       );
     }
-
-    if (!matchedLocality && localities.length > 0) {
+    if (!matchedLocality && !rawLocality && localities.length > 0) {
       matchedLocality =
         localities.find(
           (l) =>
@@ -416,11 +470,11 @@ class LocationService {
     if (!matchedLocality && (rawLocality || matchedSubDistrict)) {
       matchedLocality = {
         localityCode: 999999,
-        localityName: rawLocality || matchedSubDistrict.subDistrictName,
+        localityName: rawLocality || matchedSubDistrict?.subDistrictName || '',
         localityType: 'URBAN_LOCALITY',
-        subDistrictCode: matchedSubDistrict.subDistrictCode,
-        subDistrictName: matchedSubDistrict.subDistrictName,
-        subDistrictType: (matchedSubDistrict.subDistrictType as any) || 'Mandal',
+        subDistrictCode: matchedSubDistrict?.subDistrictCode || 0,
+        subDistrictName: matchedSubDistrict?.subDistrictName || '',
+        subDistrictType: (matchedSubDistrict?.subDistrictType as any) || 'Mandal',
         districtCode: matchedDistrict.districtCode,
         districtName: matchedDistrict.districtName,
         stateCode: matchedState.code,

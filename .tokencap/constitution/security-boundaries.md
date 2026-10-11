@@ -30,17 +30,17 @@
 
 > **What breaks:** All protected routes return 401. User sessions invalidated. Logout flows break.
 
-*Files:* `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase_sync.test.mjs`, `scripts/validate_firebase_env.mjs`, `src/context/AuthContext.tsx`
+*Files:* `scratch/check_firebase_storage.mjs`, `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase-sync.test.mjs`, `scripts/unit/firebase_sync.test.mjs`
 
 ## 🔒 CONST-SEC-004 — IMMUTABLE
 
-**Authentication middleware (scripts/test_auth_consent_flow.mjs, scripts/unit/firebase_sync.test.mjs) must remain enabled on all protected routes.**
+**Authentication middleware (scratch/check_firebase_storage.mjs, scripts/test_auth_consent_flow.mjs) must remain enabled on all protected routes.**
 
 > **Why:** These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
 
 > **What breaks:** Unauthorized users gain access to protected routes, user data, and admin features.
 
-*Files:* `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase_sync.test.mjs`, `scripts/validate_firebase_env.mjs`, `src/context/AuthContext.tsx`
+*Files:* `scratch/check_firebase_storage.mjs`, `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase-sync.test.mjs`, `scripts/unit/firebase_sync.test.mjs`
 
 ## 🔒 CONST-SEC-005 — IMMUTABLE
 
@@ -50,7 +50,7 @@
 
 > **What breaks:** All existing users are locked out. Passwords unverifiable without a migration.
 
-*Files:* `android/app/src/main/assets/public/assets/index-CDlfJJiG.js`
+*Files:* `android/app/src/main/assets/public/assets/index-CR8f12aF.js`, `scripts/unit/media-worker.test.mjs`
 
 ## 🔴 CONST-SEC-006 — CRITICAL
 

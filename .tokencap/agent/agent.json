@@ -1,7 +1,7 @@
 {
   "version": "0.8",
   "projectName": "findlostpuppy",
-  "generatedAt": "2026-10-02T04:45:29.737Z",
+  "generatedAt": "2026-10-11T13:34:02.583Z",
   "projectType": "React",
   "techStack": {
     "languages": [
@@ -36,51 +36,51 @@
     "clusters": [
       {
         "name": "Unclassified",
-        "size": 142,
+        "size": 149,
         "risk": "MEDIUM",
         "centralFile": "deploy.yml"
       },
       {
         "name": "Testing",
-        "size": 30,
+        "size": 41,
         "risk": "MEDIUM",
         "centralFile": "test_admin.cjs"
       },
       {
-        "name": "Pages (index)",
-        "size": 25,
-        "risk": "HIGH",
-        "centralFile": "index.ts"
-      },
-      {
-        "name": "Components (legalContent)",
-        "size": 17,
-        "risk": "MEDIUM",
-        "centralFile": "legalContent.ts"
-      },
-      {
-        "name": "Services (AuthContext)",
-        "size": 17,
+        "name": "Components (AuthContext)",
+        "size": 23,
         "risk": "HIGH",
         "centralFile": "AuthContext.tsx"
       },
       {
-        "name": "Utils (ToastContext)",
+        "name": "Components (index)",
+        "size": 21,
+        "risk": "HIGH",
+        "centralFile": "index.ts"
+      },
+      {
+        "name": "Components (storageBucketService)",
+        "size": 20,
+        "risk": "HIGH",
+        "centralFile": "storageBucketService.ts"
+      },
+      {
+        "name": "Pages (storageService)",
         "size": 15,
         "risk": "HIGH",
-        "centralFile": "ToastContext.tsx"
+        "centralFile": "storageService.ts"
       },
       {
         "name": "Services",
         "size": 11,
-        "risk": "MEDIUM",
+        "risk": "LOW",
         "centralFile": "generate_pdf.mjs"
       },
       {
         "name": "Frontend",
         "size": 11,
-        "risk": "MEDIUM",
-        "centralFile": "inspect_page.mjs"
+        "risk": "LOW",
+        "centralFile": "check_update_mail_ui.mjs"
       },
       {
         "name": "Scripts (qa_lib)",
@@ -89,10 +89,10 @@
         "centralFile": "qa_lib.mjs"
       },
       {
-        "name": "Fallbacks (FallbackShell)",
-        "size": 10,
-        "risk": "MEDIUM",
-        "centralFile": "FallbackShell.tsx"
+        "name": "Unit (test-support)",
+        "size": 9,
+        "risk": "HIGH",
+        "centralFile": "test-support.mjs"
       },
       {
         "name": "Unit (test_harness)",
@@ -101,10 +101,22 @@
         "centralFile": "test_harness.mjs"
       },
       {
+        "name": "Fallbacks (FallbackShell)",
+        "size": 9,
+        "risk": "MEDIUM",
+        "centralFile": "FallbackShell.tsx"
+      },
+      {
         "name": "Config",
-        "size": 4,
+        "size": 5,
         "risk": "MEDIUM",
         "centralFile": "capacitor.config.ts"
+      },
+      {
+        "name": "Dashboard",
+        "size": 4,
+        "risk": "LOW",
+        "centralFile": "check_cloudinary_and_analytics.mjs"
       },
       {
         "name": "Database",
@@ -113,16 +125,16 @@
         "centralFile": "schema-invariants.yaml"
       },
       {
-        "name": "Dashboard",
-        "size": 3,
-        "risk": "LOW",
-        "centralFile": "test_dashboard_multiuser.cjs"
-      },
-      {
         "name": "Authentication",
         "size": 2,
-        "risk": "MEDIUM",
+        "risk": "LOW",
         "centralFile": "extract_session.cjs"
+      },
+      {
+        "name": "Debug",
+        "size": 1,
+        "risk": "MEDIUM",
+        "centralFile": "debug_runtime.mjs"
       },
       {
         "name": "Utilities",
@@ -135,7 +147,7 @@
     "evidence": [
       "App.tsx -> storageService.ts",
       "App.tsx -> consentService.ts",
-      "AuthContext.tsx -> authService.ts"
+      "App.tsx -> geoBlockService.ts"
     ]
   },
   "criticalFiles": [
@@ -146,9 +158,9 @@
     "src/utils/dogPhotoHelper.ts",
     "src/services/storageBucketService.ts",
     "scripts/qa_lib.mjs",
+    "scripts/unit/test-support.mjs",
     "scripts/unit/test_harness.mjs",
-    "src/services/consentService.ts",
-    "src/utils/imageCompressor.ts"
+    "src/services/locationService.ts"
   ],
   "riskAreas": [
     {
@@ -169,6 +181,14 @@
       "reason": "Scripts (qa_lib) contains 11 modules with elevated risk. Most-connected file: qa_lib.mjs (10 importers)."
     },
     {
+      "cluster": "Unit (test-support)",
+      "level": "HIGH",
+      "files": [
+        "scripts/unit/test-support.mjs"
+      ],
+      "reason": "Unit (test-support) contains 9 modules with elevated risk. Most-connected file: test-support.mjs (8 importers)."
+    },
+    {
       "cluster": "Unit (test_harness)",
       "level": "HIGH",
       "files": [
@@ -177,91 +197,69 @@
       "reason": "Unit (test_harness) contains 9 modules with elevated risk. Most-connected file: test_harness.mjs (8 importers)."
     },
     {
-      "cluster": "Services (AuthContext)",
+      "cluster": "Components (AuthContext)",
       "level": "HIGH",
       "files": [
         "src/context/AuthContext.tsx",
-        "src/services/storageBucketService.ts",
-        "src/services/consentService.ts",
-        "src/utils/imageCompressor.ts",
-        "src/services/firebaseSyncService.ts",
-        "src/services/firebaseConfig.ts"
+        "src/services/consentService.ts"
       ],
-      "reason": "Services (AuthContext) contains 17 modules with elevated risk. Most-connected file: AuthContext.tsx (20 importers)."
+      "reason": "Components (AuthContext) contains 23 modules with elevated risk. Most-connected file: AuthContext.tsx (21 importers)."
     },
     {
-      "cluster": "Utils (ToastContext)",
-      "level": "HIGH",
-      "files": [
-        "src/context/ToastContext.tsx",
-        "src/services/locationService.ts",
-        "src/utils/geolocationHelper.ts"
-      ],
-      "reason": "Utils (ToastContext) contains 15 modules with elevated risk. Most-connected file: ToastContext.tsx (18 importers)."
-    },
-    {
-      "cluster": "Pages (index)",
+      "cluster": "Components (index)",
       "level": "HIGH",
       "files": [
         "src/types/index.ts",
+        "src/context/ToastContext.tsx",
+        "src/services/locationService.ts",
+        "src/utils/geolocationHelper.ts",
+        "src/utils/indicTransliteration.ts"
+      ],
+      "reason": "Components (index) contains 21 modules with elevated risk. Most-connected file: index.ts (31 importers)."
+    },
+    {
+      "cluster": "Pages (storageService)",
+      "level": "HIGH",
+      "files": [
         "src/services/storageService.ts",
         "src/utils/dogPhotoHelper.ts",
         "src/components/ui/VillageDogTransition.tsx",
         "src/components/ui/back-button.tsx"
       ],
-      "reason": "Pages (index) contains 25 modules with elevated risk. Most-connected file: index.ts (31 importers)."
+      "reason": "Pages (storageService) contains 15 modules with elevated risk. Most-connected file: storageService.ts (25 importers)."
+    },
+    {
+      "cluster": "Components (storageBucketService)",
+      "level": "HIGH",
+      "files": [
+        "src/services/storageBucketService.ts",
+        "src/utils/phoneValidator.ts",
+        "src/utils/imageCompressor.ts",
+        "src/services/firebaseSyncService.ts",
+        "src/services/firebaseConfig.ts"
+      ],
+      "reason": "Components (storageBucketService) contains 20 modules with elevated risk. Most-connected file: storageBucketService.ts (11 importers)."
+    },
+    {
+      "cluster": "Unclassified: .tokencap/constitution",
+      "level": "MEDIUM",
+      "files": [
+        ".tokencap/constitution/api-contracts.yaml",
+        ".tokencap/constitution/constitution.yaml"
+      ],
+      "reason": "Unclassified: .tokencap/constitution contains 2 modules with elevated risk."
     },
     {
       "cluster": "Config",
       "level": "MEDIUM",
       "files": [
         "capacitor.config.ts",
+        "scripts/test_device_settings.mjs",
         "scripts/validate_firebase_env.mjs",
         "src/vite-env.d.ts",
         "vite.config.ts"
       ],
       "reason": "Configuration controls runtime behavior. Misconfiguration causes outages."
-    },
-    {
-      "cluster": "Services",
-      "level": "MEDIUM",
-      "files": [
-        "docs/generate_pdf.mjs",
-        "scratch/capture_full_navigation_flow.mjs",
-        "scratch/capture_full_tabs.cjs",
-        "scratch/capture_owner_glow.mjs",
-        "scratch/capture_tribute.mjs"
-      ],
-      "reason": "Services contain core business logic. Errors propagate to all dependent features."
-    },
-    {
-      "cluster": "Unclassified: functions",
-      "level": "MEDIUM",
-      "files": [
-        "functions/index.js"
-      ],
-      "reason": "Unclassified: functions contains 1 modules with elevated risk."
-    },
-    {
-      "cluster": "Authentication",
-      "level": "MEDIUM",
-      "files": [
-        "scratch/extract_session.cjs",
-        "scripts/test_auth_consent_flow.mjs"
-      ],
-      "reason": "Authentication controls access to the entire application. Bugs here cause security breaches."
-    },
-    {
-      "cluster": "Frontend",
-      "level": "MEDIUM",
-      "files": [
-        "scratch/inspect_page.mjs",
-        "scratch/test_pet_profile_ui.mjs",
-        "scripts/test_all_components_flow.mjs",
-        "scripts/test_component_transitions.mjs",
-        "scripts/test_feedback_component.mjs"
-      ],
-      "reason": "Frontend contains 11 modules with elevated risk."
     },
     {
       "cluster": "Testing",
@@ -271,53 +269,41 @@
         "scratch/test_admin.js",
         "scratch/test_delete_and_sync.cjs",
         "scratch/test_deletion_and_privacy.cjs",
-        "scratch/test_dynamic_images.cjs"
+        "scratch/test_destroy.mjs"
       ],
-      "reason": "Testing contains 30 modules with elevated risk."
+      "reason": "Testing contains 41 modules with elevated risk."
     },
     {
       "cluster": "Unclassified: scripts",
       "level": "MEDIUM",
       "files": [
+        "scripts/check_btn_state.mjs",
+        "scripts/check_webview_state.mjs",
         "scripts/cloudinary_delete_all_images.mjs",
-        "scripts/notify_testers.mjs",
-        "scripts/verify_admin_shortcuts_tabs.mjs",
-        "scripts/verify_android_assets.mjs",
-        "scripts/verify_automotive_theme.mjs"
+        "scripts/get_logs.mjs",
+        "scripts/inspect_onclick.mjs"
       ],
-      "reason": "Unclassified: scripts contains 12 modules with elevated risk."
+      "reason": "Unclassified: scripts contains 18 modules with elevated risk."
     },
     {
-      "cluster": "Components (legalContent)",
+      "cluster": "Debug",
       "level": "MEDIUM",
       "files": [
-        "src/App.tsx",
-        "src/components/SidebarNav.tsx",
-        "src/components/Footer.tsx",
-        "src/pages/ConsentPage.tsx",
-        "src/components/ui/AnimationShowcaseStudio.tsx"
+        "scripts/debug_runtime.mjs"
       ],
-      "reason": "Components (legalContent) contains 17 modules with elevated risk. Most-connected file: legalContent.ts (4 importers)."
+      "reason": "Debug contains 1 modules with elevated risk."
     },
     {
       "cluster": "Fallbacks (FallbackShell)",
       "level": "MEDIUM",
       "files": [
-        "src/components/NetworkResilience.tsx",
+        "src/pages/GuestSightingPage.tsx",
         "src/components/fallbacks/LoadingFallback.tsx",
-        "src/components/CameraModal.tsx",
-        "src/components/fallbacks/PermissionFallback.tsx",
-        "src/components/ErrorBoundary.tsx"
+        "src/components/ErrorBoundary.tsx",
+        "src/components/fallbacks/AppErrorBoundary.tsx",
+        "src/hooks/useCrashSafeDraft.ts"
       ],
-      "reason": "Fallbacks (FallbackShell) contains 10 modules with elevated risk. Most-connected file: FallbackShell.tsx (4 importers)."
-    },
-    {
-      "cluster": "Unclassified: worker",
-      "level": "MEDIUM",
-      "files": [
-        "worker/index.ts"
-      ],
-      "reason": "Unclassified: worker contains 1 modules with elevated risk."
+      "reason": "Fallbacks (FallbackShell) contains 9 modules with elevated risk. Most-connected file: FallbackShell.tsx (4 importers)."
     }
   ],
   "reviewGroups": [
@@ -349,6 +335,22 @@
       "risk": "HIGH"
     },
     {
+      "name": "Unit (test-support) Review Group",
+      "files": [
+        "scripts/unit/test-support.mjs",
+        "scripts/unit/consent-page.test.mjs",
+        "scripts/unit/drafts-consent.test.mjs",
+        "scripts/unit/firebase-sync.test.mjs",
+        "scripts/unit/geolocation.test.mjs",
+        "scripts/unit/media-functions.test.mjs",
+        "scripts/unit/media-storage.test.mjs",
+        "scripts/unit/media-worker.test.mjs",
+        "scripts/unit/storage-recovery.test.mjs"
+      ],
+      "reason": "Shared dependency chain (9 files). Central file: test-support.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
       "name": "Unit (test_harness) Review Group",
       "files": [
         "scripts/unit/test_harness.mjs",
@@ -365,66 +367,87 @@
       "risk": "HIGH"
     },
     {
-      "name": "Services (AuthContext) Review Group",
+      "name": "Components (AuthContext) Review Group",
       "files": [
         "src/context/AuthContext.tsx",
-        "src/services/storageBucketService.ts",
         "src/services/consentService.ts",
-        "src/utils/imageCompressor.ts",
-        "src/services/firebaseSyncService.ts",
-        "src/services/firebaseConfig.ts",
-        "src/services/authService.ts",
-        "src/components/PetProfileSelector.tsx",
-        "src/pages/PetParentContactPage.tsx",
-        "src/utils/breedAssetHelper.tsx",
+        "src/data/legal/legalContent.ts",
+        "src/components/ui/LoadingButton.tsx",
+        "src/components/admin/AdminShortcuts.tsx",
         "src/App.tsx",
-        "src/components/Navbar.tsx",
-        "src/components/SettingsLegalModal.tsx",
-        "src/components/SidebarNav.tsx"
+        "src/components/SidebarNav.tsx",
+        "src/components/Footer.tsx",
+        "src/services/geoBlockService.ts",
+        "src/components/GeoBlockPage.tsx",
+        "src/context/ToastContext.tsx",
+        "src/services/storageService.ts",
+        "src/pages/OwnerProfile.tsx",
+        "src/pages/Location.tsx"
       ],
-      "reason": "Shared dependency chain (17 files). Central file: AuthContext.tsx with 20 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "reason": "Shared dependency chain (23 files). Central file: AuthContext.tsx with 21 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
       "risk": "HIGH"
     },
     {
-      "name": "Utils (ToastContext) Review Group",
+      "name": "Components (index) Review Group",
       "files": [
+        "src/types/index.ts",
         "src/context/ToastContext.tsx",
         "src/services/locationService.ts",
         "src/utils/geolocationHelper.ts",
         "src/utils/indicTransliteration.ts",
         "src/components/PermissionRationaleModal.tsx",
-        "src/utils/locationMatchHelper.ts",
-        "src/pages/LocationOnboardingPage.tsx",
-        "src/pages/DashboardPage.tsx",
-        "src/pages/CapturePetPage.tsx",
-        "src/components/LocationPicker.tsx",
+        "src/components/SuggestionWidget.tsx",
+        "src/hooks/useLocationDetection.ts",
+        "src/pages/Location.tsx",
+        "src/pages/PetStatus.tsx",
         "src/App.tsx",
-        "src/components/AdminUserProximityMap.tsx",
         "src/components/CameraModal.tsx",
+        "src/components/SidebarNav.tsx",
         "src/components/SightingModal.tsx"
       ],
-      "reason": "Shared dependency chain (15 files). Central file: ToastContext.tsx with 18 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "reason": "Shared dependency chain (21 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
       "risk": "HIGH"
     },
     {
-      "name": "Pages (index) Review Group",
+      "name": "Pages (storageService) Review Group",
       "files": [
-        "src/types/index.ts",
         "src/services/storageService.ts",
         "src/utils/dogPhotoHelper.ts",
         "src/components/ui/VillageDogTransition.tsx",
         "src/components/ui/back-button.tsx",
-        "src/utils/privacyUtils.ts",
-        "src/utils/phoneValidator.ts",
         "src/utils/shareHelper.ts",
         "src/components/StatusBadge.tsx",
-        "src/hooks/useCrashSafeDraft.ts",
+        "src/utils/confettiHelper.ts",
+        "src/components/DogCard.tsx",
+        "src/pages/PetSafety.tsx",
+        "src/pages/RegisteredPet.tsx",
         "src/App.tsx",
+        "src/components/Navbar.tsx",
         "src/components/NetworkResilience.tsx",
-        "src/components/SettingsLegalModal.tsx",
-        "src/components/SidebarNav.tsx"
+        "src/components/SettingsLegalModal.tsx"
       ],
-      "reason": "Shared dependency chain (25 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "reason": "Shared dependency chain (15 files). Central file: storageService.ts with 25 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
+      "risk": "HIGH"
+    },
+    {
+      "name": "Components (storageBucketService) Review Group",
+      "files": [
+        "src/services/storageBucketService.ts",
+        "src/utils/phoneValidator.ts",
+        "src/utils/imageCompressor.ts",
+        "src/services/firebaseSyncService.ts",
+        "src/services/firebaseConfig.ts",
+        "src/utils/privacyUtils.ts",
+        "src/services/authService.ts",
+        "src/components/PetProfileSelector.tsx",
+        "src/pages/OwnerProfile.tsx",
+        "src/components/CameraModal.tsx",
+        "src/App.tsx",
+        "src/context/AuthContext.tsx",
+        "src/context/ToastContext.tsx",
+        "src/services/storageService.ts"
+      ],
+      "reason": "Shared dependency chain (20 files). Central file: storageBucketService.ts with 11 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.",
       "risk": "HIGH"
     }
   ],
@@ -442,14 +465,14 @@
     "Write tests for all service-layer functions"
   ],
   "coreFeatures": [
-    "Pages (index)",
-    "Components (legalContent)",
-    "Services (AuthContext)",
-    "Utils (ToastContext)",
+    "Components (AuthContext)",
+    "Components (index)",
+    "Components (storageBucketService)",
+    "Pages (storageService)",
     "Services",
     "Frontend",
     "Scripts (qa_lib)",
-    "Fallbacks (FallbackShell)"
+    "Unit (test-support)"
   ],
   "agentInjectHooks": {}
 }

@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "generatedAt": "2026-10-02T04:45:56.225Z",
+  "generatedAt": "2026-10-11T13:34:27.978Z",
   "rules": [
     {
       "id": "CONST-SEC-001",
@@ -65,10 +65,10 @@
         "Do not remove auth middleware from protected routes."
       ],
       "derivedFrom": [
+        "scratch/check_firebase_storage.mjs",
         "scripts/test_auth_consent_flow.mjs",
-        "scripts/unit/firebase_sync.test.mjs",
-        "scripts/validate_firebase_env.mjs",
-        "src/context/AuthContext.tsx"
+        "scripts/unit/firebase-sync.test.mjs",
+        "scripts/unit/firebase_sync.test.mjs"
       ],
       "relationships": [],
       "manual": false
@@ -79,17 +79,17 @@
       "severity": "IMMUTABLE",
       "confidence": 0.91,
       "source": "firebase",
-      "description": "Authentication middleware (scripts/test_auth_consent_flow.mjs, scripts/unit/firebase_sync.test.mjs) must remain enabled on all protected routes.",
+      "description": "Authentication middleware (scratch/check_firebase_storage.mjs, scripts/test_auth_consent_flow.mjs) must remain enabled on all protected routes.",
       "reason": "These files guard access to protected resources. Disabling or bypassing them exposes all protected data.",
       "whatBreaks": "Unauthorized users gain access to protected routes, user data, and admin features.",
       "examples": [
-        "Do not remove the auth check from scripts/test_auth_consent_flow.mjs."
+        "Do not remove the auth check from scratch/check_firebase_storage.mjs."
       ],
       "derivedFrom": [
+        "scratch/check_firebase_storage.mjs",
         "scripts/test_auth_consent_flow.mjs",
-        "scripts/unit/firebase_sync.test.mjs",
-        "scripts/validate_firebase_env.mjs",
-        "src/context/AuthContext.tsx"
+        "scripts/unit/firebase-sync.test.mjs",
+        "scripts/unit/firebase_sync.test.mjs"
       ],
       "relationships": [
         "protects:CONST-SEC-001",
@@ -190,10 +190,11 @@
       "reason": "The hashing algorithm is the last line of defence for stored credentials. Changing it invalidates all existing password hashes.",
       "whatBreaks": "All existing users are locked out. Passwords unverifiable without a migration.",
       "examples": [
-        "Found in: android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+        "Found in: android/app/src/main/assets/public/assets/index-CR8f12aF.js, scripts/unit/media-worker.test.mjs"
       ],
       "derivedFrom": [
-        "android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+        "android/app/src/main/assets/public/assets/index-CR8f12aF.js",
+        "scripts/unit/media-worker.test.mjs"
       ],
       "relationships": [
         "protects:CONST-SEC-001",
@@ -314,13 +315,13 @@
       "whatBreaks": "GDPR violation. Regulatory fines. User data rights cannot be exercised.",
       "examples": [
         "Always review GDPR-related code before merging.",
-        "Found in: .tokencap/agent/START_HERE.md, .tokencap/agent/agent-pack.md"
+        "Found in: .agents/rules/workflow.md, .tokencap/agent/START_HERE.md"
       ],
       "derivedFrom": [
+        ".agents/rules/workflow.md",
         ".tokencap/agent/START_HERE.md",
         ".tokencap/agent/agent-pack.md",
-        ".tokencap/agent/architecture.md",
-        ".tokencap/agent/model-instructions.md"
+        ".tokencap/agent/architecture.md"
       ],
       "relationships": [],
       "manual": false
@@ -342,7 +343,7 @@
         ".tokencap/constitution/compliance-rules.md",
         ".tokencap/constitution/constitution.md",
         ".tokencap/constitution/constitution.yaml",
-        "android/app/src/main/assets/public/assets/516-VkbN94rn.js"
+        ".tokencap/snapshot.md"
       ],
       "relationships": [],
       "manual": false
@@ -364,7 +365,7 @@
         ".tokencap/constitution/compliance-rules.md",
         ".tokencap/constitution/constitution.md",
         ".tokencap/constitution/constitution.yaml",
-        "ADMIN_TRACKER.md"
+        ".tokencap/snapshot.md"
       ],
       "relationships": [],
       "manual": false
@@ -413,9 +414,8 @@
       "derivedFrom": [
         "scripts/execute_onboarding_and_alert_flows.mjs",
         "scripts/run_continuous_onboarding.mjs",
-        "src/pages/DogOnboardingPage.tsx",
-        "src/pages/LocationOnboardingPage.tsx",
-        "src/pages/OnboardingChoicePage.tsx"
+        "src/pages/OwnerOnboardingPage.tsx",
+        "src/pages/RegisteredPet.tsx"
       ],
       "relationships": [
         "dependsOn:CONST-SEC-001",

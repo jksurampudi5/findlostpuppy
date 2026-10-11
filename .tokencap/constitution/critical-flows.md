@@ -20,7 +20,7 @@
 
 > **What breaks:** New users cannot create accounts. User acquisition blocked.
 
-*Files:* `scripts/execute_onboarding_and_alert_flows.mjs`, `scripts/run_continuous_onboarding.mjs`, `src/pages/DogOnboardingPage.tsx`, `src/pages/LocationOnboardingPage.tsx`, `src/pages/OnboardingChoicePage.tsx`
+*Files:* `scripts/execute_onboarding_and_alert_flows.mjs`, `scripts/run_continuous_onboarding.mjs`, `src/pages/OwnerOnboardingPage.tsx`, `src/pages/RegisteredPet.tsx`
 
 ## 🔴 CONST-FLOW-003 — CRITICAL
 

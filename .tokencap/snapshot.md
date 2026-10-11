@@ -1,4 +1,4 @@
-<!-- TokenCap v1.6 Savings: baseline 5,507,136 tok → actual 32,348 tok (99.4% saved) -->
+<!-- TokenCap v1.6 Savings: baseline 6,348,818 tok → actual 30,805 tok (99.5% saved) -->
 # AI ENTRY POINT
 
 This repository has been indexed by TokenCap.
@@ -21,12 +21,12 @@ Do not rediscover the repository from scratch.
 
 | Field | Value |
 | --- | --- |
-| Generated | 2026-10-01T17:13:57.016Z |
+| Generated | 2026-10-11T13:33:46.304Z |
 | Workspace | /Users/jayakrishna/Desktop/findlostpuppy/findlostpuppy |
 | Profile | balanced |
-| Selected files | 27 |
-| Source bytes | 219983 |
-| Estimated source tokens | 50510 |
+| Selected files | 36 |
+| Source bytes | 219985 |
+| Estimated source tokens | 52388 |
 
 ## Read First
 
@@ -41,13 +41,13 @@ This file is a compressed coding-session handoff. Read it before editing, then i
 
 | Field | Value |
 | --- | --- |
-| Read order | package.json > vite.config.ts > src/App.tsx > src/components/SuggestionWidget.tsx > src/pages/EmailAuthPage.tsx |
-| Primary anchors | package.json, vite.config.ts, src/App.tsx |
-| Changed files | 65 |
-| TODO notes | 0 |
-| File budget used | 30% |
+| Read order | .tokencap/agent/START_HERE.md > .tokencap/agent/architecture.md > android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java > android/app/src/main/java/com/findlostpuppy/app/MainActivity.java > src/services/nativeSettingsService.ts |
+| Primary anchors | .tokencap/agent/START_HERE.md, .tokencap/agent/architecture.md, android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java |
+| Changed files | 51 |
+| TODO notes | 17 |
+| File budget used | 40% |
 | Source budget used | 100% |
-| Token estimate | 50510 |
+| Token estimate | 52388 |
 | Contents mode | enabled |
 
 ## Handoff Guidelines
@@ -61,88 +61,74 @@ This file is a compressed coding-session handoff. Read it before editing, then i
 
 | Field | Value |
 | --- | --- |
-| Branch | fixes |
+| Branch | main |
 | Git root | /Users/jayakrishna/Desktop/findlostpuppy/findlostpuppy |
 
 Recent commits:
 ```text
-fa9d5ca chore(android): bump versionCode 41→42, versionName 1.0.2→1.0.3 (30 Sep release)
-1db4c9b test: add unit coverage for media privacy, Firebase sync, storage recovery, drafts, consent, location, and UI fallbacks
-267c82d fix: address PR security and retry findings
-29185cb docs: add JSDoc comments across UI flows, services, media backends, and automation scripts
-dd76ee3 feat: harden media privacy and mobile flows
-fa0dff8 chore(android): bump versionCode 40→41, versionName 1.0.1→1.0.2
-7c424fc fix(camera): camera only turns on when explicitly clicked — never auto-starts
-94445e5 fix(images): center and fill all photos correctly — no more cut sides or black bars
+51954f9 chore(release): bump version to 45 (1.0.6) and add Cloudinary production fallbacks
+529f061 Merge branch 'fixes' into main: unified location flow, CodeRabbit fixes, and owner photo reliability
+388a6e1 Merge remote-tracking branch 'origin/main' into main (resolve Location.tsx conflicts)
+de0ac3d fix(review): address CodeRabbit feedback on location flow, consent check, and navigation
+9d38e2d feat(reliability): unified location flow, native dialog handling, and owner photo upload reliability
+d124f3e Enforce mandatory owner photo, name, phone and block tab navigation until completed
+3c2f2e7 feat(location): add in-app location enablement, permission modals, and fresh fix
+333560c Merge branch 'fixes' - location detection platform-specific error handling
 ```
 
 Status:
 ```text
- M .gitignore
- M AGENTS.md
- M android/app/build.gradle
- M firebase.firestore.rules
- M package-lock.json
- M package.json
- M scripts/test_feedback_component.mjs
- M scripts/test_responsive.mjs
- M src/App.css
- M src/App.tsx
- M src/components/LaunchTributeOverlay.tsx
- M src/components/SidebarNav.tsx
- M src/components/SuggestionWidget.tsx
- M src/pages/AdminDashboardPage.tsx
- M src/pages/CapturePetPage.tsx
- M src/pages/ConsentPage.tsx
- M src/pages/DashboardPage.tsx
- M src/pages/DogOnboardingPage.tsx
- M src/pages/EmailAuthPage.tsx
- M src/pages/LocationOnboardingPage.tsx
- M src/pages/OnboardingChoicePage.tsx
- M src/pages/PetParentContactPage.tsx
- M src/pages/ReportLostDogPage.tsx
- M src/services/authService.ts
- M src/services/firebaseSyncService.ts
- M src/services/storageService.ts
- M tsconfig.app.json
- M vite.config.ts
-?? .agents/rules/graphify.md
-?? .agents/workflows/
-?? .gitattributes
-?? .tokencap/
-?? components.json
-?? docs/DESIGN_DOCUMENT.md
-?? docs/IMPLEMENTATION_PLAN.md
-?? docs/PRD.md
-?? docs/TRD.md
-?? docs/findlostpuppy-app-context.md
-?? docs/generate_pdf.mjs
-?? docs/local-development.md
-?? memory-bank/
-?? public/app-logo.png
-?? public/docs/
-?? public/dog_isolated_draft.png
-?? public/logo.png
-?? public/splash_dog_exact.png
-?? public/splash_dog_only.png
-?? scripts/capture_animation_showcase.mjs
-?? scripts/capture_logo_flow.mjs
-?? scripts/generate_all_docs_pdfs.mjs
-?? scripts/notify_testers.mjs
-?? scripts/test_admin_security_guard.mjs
-?? scripts/test_auth_consent_flow.mjs
-?? scripts/test_component_transitions.mjs
-?? scripts/test_fast_capture.mjs
-?? scripts/test_interstitial_transition.mjs
-?? scripts/test_table_launch_transition.mjs
-?? scripts/verify_admin_shortcuts_tabs.mjs
-?? src/components/admin/
-?? src/components/ui/
-?? src/lib/
-?? src/pages/PrivacyPolicyPage.tsx
-?? src/pages/ShortcutsPage.tsx
-?? src/utils/locationMatchHelper.ts
-?? src/vite-env.d.ts
+ M .tokencap/agent/START_HERE.md
+ M .tokencap/agent/agent-pack.md
+ M .tokencap/agent/agent.json
+ M .tokencap/agent/architecture.md
+ M .tokencap/agent/context-manifest.json
+ M .tokencap/agent/model-instructions.md
+ M .tokencap/agent/review-rules.md
+ M .tokencap/agent/risk-map.md
+ M .tokencap/agent/rules.md
+ M .tokencap/agent/skills.md
+ M .tokencap/agent/tech-stack.md
+ M .tokencap/brain/brain-index.json
+ M .tokencap/brain/knowledge.json
+ M .tokencap/constitution/compliance-rules.md
+ M .tokencap/constitution/constitution-graph.html
+ M .tokencap/constitution/constitution.json
+ M .tokencap/constitution/constitution.md
+ M .tokencap/constitution/constitution.yaml
+ M .tokencap/constitution/critical-flows.md
+ M .tokencap/constitution/security-boundaries.md
+ M .tokencap/debug/notes.md
+ M .tokencap/graph/summary.md
+ M .tokencap/memory/current.md
+ M .tokencap/memory/dev-notes.md
+ M .tokencap/savings.json
+ M .tokencap/snapshot.md
+ M .tokencap/stats.json
+ M android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
+ M android/app/src/main/java/com/findlostpuppy/app/MainActivity.java
+ M src/components/LocationPicker.tsx
+ M src/hooks/useLocationDetection.ts
+ M src/pages/Location.tsx
+ M src/services/locationService.ts
+ M src/services/nativeSettingsService.ts
+ M src/utils/geolocationHelper.ts
+?? .tokencap/constitution/constitution-history/constitution-2026-10-11.json
+?? scripts/check_btn_state.mjs
+?? scripts/check_webview_state.mjs
+?? scripts/debug_runtime.mjs
+?? scripts/get_logs.mjs
+?? scripts/inspect_onclick.mjs
+?? scripts/monitor_detection.mjs
+?? scripts/step_test.mjs
+?? scripts/test_apis.mjs
+?? scripts/test_chunk.mjs
+?? scripts/test_detect_cdp.mjs
+?? scripts/test_device_settings.mjs
+?? scripts/test_geo_in_webview.mjs
+?? scripts/test_nominatim.mjs
+?? scripts/test_plugins.mjs
+?? scripts/trigger_and_listen.mjs
 ```
 
 ## Project Map
@@ -161,6 +147,7 @@ Status:
 .agents/workflows/
 .github/
 .github/workflows/
+.mail-data.local/
 .tokencap/
 .tokencap/agent/
 .tokencap/agent/detail/
@@ -206,6 +193,12 @@ docs/
 functions/
 graphify-out/
 graphify-out/2026-10-01/
+graphify-out/2026-10-02/
+graphify-out/2026-10-05/
+graphify-out/2026-10-07/
+graphify-out/2026-10-08/
+graphify-out/2026-10-10/
+graphify-out/2026-10-11/
 graphify-out/cache/
 graphify-out/cache/ast/
 graphify-out/cache/ast/v0.9.72-s4/
@@ -251,6 +244,7 @@ worker/
 .agents/skills/responsive-design/references/fluid-layouts.md
 .agents/workflows/graphify.md
 .github/workflows/deploy.yml
+.mail-data.local/state.json
 .oxlintrc.json
 .tokencap/agent/START_HERE.md
 .tokencap/agent/agent-pack.md
@@ -272,6 +266,8 @@ worker/
 .tokencap/constitution/compliance-rules.md
 .tokencap/constitution/constitution-graph.html
 .tokencap/constitution/constitution-history/constitution-2026-10-01.json
+.tokencap/constitution/constitution-history/constitution-2026-10-02.json
+.tokencap/constitution/constitution-history/constitution-2026-10-11.json
 .tokencap/constitution/constitution.json
 .tokencap/constitution/constitution.md
 .tokencap/constitution/constitution.yaml
@@ -358,2680 +354,1238 @@ android/app/src/main/assets/public/assets/746-CMIxdwyq.js
 android/app/src/main/assets/public/assets/747-Dm8KGMxE.js
 android/app/src/main/assets/public/assets/748-Bt5bY80A.js
 android/app/src/main/assets/public/assets/749-DKOwrRjb.js
-android/app/src/main/assets/public/assets/750-CrQ8iF97.js
-android/app/src/main/assets/public/assets/751-BNd53R4M.js
-android/app/src/main/assets/public/assets/753-C2l6WBY4.js
-android/app/src/main/assets/public/assets/754-BWKBOdRJ.js
-android/app/src/main/assets/public/assets/755-Gme_wl79.js
-android/app/src/main/assets/public/assets/790-C7om_uC-.js
-android/app/src/main/assets/public/assets/web-BWStb2OY.js
-android/app/src/main/assets/public/assets/web-C1f0M_I9.js
-android/app/src/main/assets/public/assets/web-CXDVJ7zT.js
-android/app/src/main/assets/public/cordova.js
-... 386 more entries omitted
+... 568 more entries omitted
 ```
 
 ## File Manifest
 
 | File | Bytes | Score | Why |
 | --- | ---: | ---: | --- |
-| package.json | 1912 | 190 | changed, project-metadata |
-| vite.config.ts | 605 | 190 | changed, project-metadata |
-| src/App.tsx | 11566 | 150 | changed, source |
-| src/components/SuggestionWidget.tsx | 11994 | 150 | changed, source |
-| src/pages/EmailAuthPage.tsx | 4724 | 150 | changed, source |
-| src/pages/OnboardingChoicePage.tsx | 4424 | 150 | changed, source |
-| src/pages/PrivacyPolicyPage.tsx | 6797 | 150 | changed, source |
-| src/pages/ShortcutsPage.tsx | 207 | 150 | changed, source |
-| src/services/authService.ts | 8417 | 150 | changed, source |
-| src/utils/locationMatchHelper.ts | 5755 | 150 | changed, source |
-| src/vite-env.d.ts | 38 | 150 | changed, source |
-| src/components/LaunchTributeOverlay.tsx | 12276 | 149 | changed, source |
-| src/pages/ConsentPage.tsx | 16178 | 149 | changed, source |
-| src/pages/ReportLostDogPage.tsx | 19816 | 149 | changed, source |
-| src/components/SidebarNav.tsx | 26561 | 148 | changed, source |
-| src/pages/PetParentContactPage.tsx | 34603 | 148 | changed, source |
-| src/services/firebaseSyncService.ts | 28819 | 148 | changed, source |
-| scripts/test_admin_security_guard.mjs | 3163 | 138 | changed, test |
-| scripts/test_auth_consent_flow.mjs | 4035 | 138 | changed, test |
-| scripts/test_component_transitions.mjs | 3309 | 138 | changed, test |
-| scripts/test_fast_capture.mjs | 9906 | 138 | changed, test |
-| scripts/test_interstitial_transition.mjs | 3194 | 138 | changed, test |
-| .agents/rules/graphify.md | 933 | 120 | changed |
-| AGENTS.md | 381 | 120 | changed |
-| components.json | 370 | 120 | changed |
-| android/app/src/main/assets/public/cordova_plugins.js | 0 | 30 | source |
-| android/app/src/main/assets/public/cordova.js | 0 | 30 | source |
+| .tokencap/agent/START_HERE.md | 1332 | 225 | changed, project-metadata, high-signal-doc |
+| .tokencap/agent/architecture.md | 1511 | 155 | changed, high-signal-doc |
+| android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java | 9799 | 150 | changed, source |
+| android/app/src/main/java/com/findlostpuppy/app/MainActivity.java | 770 | 150 | changed, source |
+| src/services/nativeSettingsService.ts | 6099 | 150 | changed, source |
+| src/hooks/useLocationDetection.ts | 16231 | 149 | changed, source |
+| src/services/locationService.ts | 18343 | 149 | changed, source |
+| src/components/LocationPicker.tsx | 29110 | 148 | changed, source |
+| src/pages/Location.tsx | 43647 | 147 | changed, source |
+| src/utils/geolocationHelper.ts | 37826 | 147 | changed, source |
+| scripts/test_apis.mjs | 1733 | 138 | changed, test |
+| scripts/test_chunk.mjs | 873 | 138 | changed, test |
+| scripts/test_detect_cdp.mjs | 2017 | 138 | changed, test |
+| scripts/test_device_settings.mjs | 956 | 138 | changed, test |
+| scripts/test_geo_in_webview.mjs | 1034 | 138 | changed, test |
+| scripts/test_nominatim.mjs | 1127 | 138 | changed, test |
+| scripts/test_plugins.mjs | 1659 | 138 | changed, test |
+| .tokencap/agent/agent-pack.md | 7990 | 120 | changed |
+| .tokencap/agent/context-manifest.json | 5659 | 120 | changed |
+| .tokencap/agent/model-instructions.md | 2517 | 120 | changed |
+| .tokencap/agent/review-rules.md | 5473 | 120 | changed |
+| .tokencap/agent/risk-map.md | 3352 | 120 | changed |
+| .tokencap/agent/rules.md | 2107 | 120 | changed |
+| .tokencap/agent/skills.md | 2052 | 120 | changed |
+| .tokencap/agent/tech-stack.md | 654 | 120 | changed |
+| .tokencap/constitution/compliance-rules.md | 2214 | 120 | changed |
+| .tokencap/constitution/critical-flows.md | 1390 | 120 | changed |
+| .tokencap/constitution/security-boundaries.md | 3964 | 120 | changed |
+| .tokencap/debug/notes.md | 499 | 120 | changed |
+| .tokencap/memory/current.md | 1432 | 120 | changed |
+| .tokencap/memory/dev-notes.md | 2814 | 120 | changed |
+| scripts/check_btn_state.mjs | 852 | 120 | changed |
+| scripts/check_webview_state.mjs | 1303 | 120 | changed |
+| scripts/debug_runtime.mjs | 1053 | 120 | changed |
+| scripts/get_logs.mjs | 555 | 120 | changed |
+| src/vite-env.d.ts | 38 | 30 | source |
 
 ## Changed Files
 
--  M .gitignore
--  M AGENTS.md
--  M android/app/build.gradle
--  M firebase.firestore.rules
--  M package-lock.json
--  M package.json
--  M scripts/test_feedback_component.mjs
--  M scripts/test_responsive.mjs
--  M src/App.css
--  M src/App.tsx
--  M src/components/LaunchTributeOverlay.tsx
--  M src/components/SidebarNav.tsx
--  M src/components/SuggestionWidget.tsx
--  M src/pages/AdminDashboardPage.tsx
--  M src/pages/CapturePetPage.tsx
--  M src/pages/ConsentPage.tsx
--  M src/pages/DashboardPage.tsx
--  M src/pages/DogOnboardingPage.tsx
--  M src/pages/EmailAuthPage.tsx
--  M src/pages/LocationOnboardingPage.tsx
--  M src/pages/OnboardingChoicePage.tsx
--  M src/pages/PetParentContactPage.tsx
--  M src/pages/ReportLostDogPage.tsx
--  M src/services/authService.ts
--  M src/services/firebaseSyncService.ts
--  M src/services/storageService.ts
--  M tsconfig.app.json
--  M vite.config.ts
-- ?? .agents/rules/graphify.md
-- ?? .agents/workflows/
-- ?? .gitattributes
-- ?? .tokencap/
-- ?? components.json
-- ?? docs/DESIGN_DOCUMENT.md
-- ?? docs/IMPLEMENTATION_PLAN.md
-- ?? docs/PRD.md
-- ?? docs/TRD.md
-- ?? docs/findlostpuppy-app-context.md
-- ?? docs/generate_pdf.mjs
-- ?? docs/local-development.md
-- ?? memory-bank/
-- ?? public/app-logo.png
-- ?? public/docs/
-- ?? public/dog_isolated_draft.png
-- ?? public/logo.png
-- ?? public/splash_dog_exact.png
-- ?? public/splash_dog_only.png
-- ?? scripts/capture_animation_showcase.mjs
-- ?? scripts/capture_logo_flow.mjs
-- ?? scripts/generate_all_docs_pdfs.mjs
-- ?? scripts/notify_testers.mjs
-- ?? scripts/test_admin_security_guard.mjs
-- ?? scripts/test_auth_consent_flow.mjs
-- ?? scripts/test_component_transitions.mjs
-- ?? scripts/test_fast_capture.mjs
-- ?? scripts/test_interstitial_transition.mjs
-- ?? scripts/test_table_launch_transition.mjs
-- ?? scripts/verify_admin_shortcuts_tabs.mjs
-- ?? src/components/admin/
-- ?? src/components/ui/
-- ?? src/lib/
-- ?? src/pages/PrivacyPolicyPage.tsx
-- ?? src/pages/ShortcutsPage.tsx
-- ?? src/utils/locationMatchHelper.ts
-- ?? src/vite-env.d.ts
+-  M .tokencap/agent/START_HERE.md
+-  M .tokencap/agent/agent-pack.md
+-  M .tokencap/agent/agent.json
+-  M .tokencap/agent/architecture.md
+-  M .tokencap/agent/context-manifest.json
+-  M .tokencap/agent/model-instructions.md
+-  M .tokencap/agent/review-rules.md
+-  M .tokencap/agent/risk-map.md
+-  M .tokencap/agent/rules.md
+-  M .tokencap/agent/skills.md
+-  M .tokencap/agent/tech-stack.md
+-  M .tokencap/brain/brain-index.json
+-  M .tokencap/brain/knowledge.json
+-  M .tokencap/constitution/compliance-rules.md
+-  M .tokencap/constitution/constitution-graph.html
+-  M .tokencap/constitution/constitution.json
+-  M .tokencap/constitution/constitution.md
+-  M .tokencap/constitution/constitution.yaml
+-  M .tokencap/constitution/critical-flows.md
+-  M .tokencap/constitution/security-boundaries.md
+-  M .tokencap/debug/notes.md
+-  M .tokencap/graph/summary.md
+-  M .tokencap/memory/current.md
+-  M .tokencap/memory/dev-notes.md
+-  M .tokencap/savings.json
+-  M .tokencap/snapshot.md
+-  M .tokencap/stats.json
+-  M android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
+-  M android/app/src/main/java/com/findlostpuppy/app/MainActivity.java
+-  M src/components/LocationPicker.tsx
+-  M src/hooks/useLocationDetection.ts
+-  M src/pages/Location.tsx
+-  M src/services/locationService.ts
+-  M src/services/nativeSettingsService.ts
+-  M src/utils/geolocationHelper.ts
+- ?? .tokencap/constitution/constitution-history/constitution-2026-10-11.json
+- ?? scripts/check_btn_state.mjs
+- ?? scripts/check_webview_state.mjs
+- ?? scripts/debug_runtime.mjs
+- ?? scripts/get_logs.mjs
+- ?? scripts/inspect_onclick.mjs
+- ?? scripts/monitor_detection.mjs
+- ?? scripts/step_test.mjs
+- ?? scripts/test_apis.mjs
+- ?? scripts/test_chunk.mjs
+- ?? scripts/test_detect_cdp.mjs
+- ?? scripts/test_device_settings.mjs
+- ?? scripts/test_geo_in_webview.mjs
+- ?? scripts/test_nominatim.mjs
+- ?? scripts/test_plugins.mjs
+- ?? scripts/trigger_and_listen.mjs
 
 ## Git Diff Snippets
 
 ### Unstaged Changes Diff
 
 ```diff
-// … lines 1–49
-diff --git a/.gitignore b/.gitignore
-index aaa4c09..73ede82 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -26,6 +26,7 @@ dist-ssr
- *.sln
- *.sw?
- scratch/
-+graphify-out/
+// … lines 1–55
+diff --git a/.tokencap/agent/START_HERE.md b/.tokencap/agent/START_HERE.md
+index 3939305..6699add 100644
+--- a/.tokencap/agent/START_HERE.md
++++ b/.tokencap/agent/START_HERE.md
+@@ -1,6 +1,6 @@
+ # START HERE - findlostpuppy
  
- # Android Signing and Keystores
- *.jks
-diff --git a/AGENTS.md b/AGENTS.md
-index 9125eaa..6471386 100644
---- a/AGENTS.md
-+++ b/AGENTS.md
-@@ -1,116 +1,8 @@
--# FindLostPuppy Repository Instructions
-+# TokenCap Start Here
+-> Generated by TokenCap - 2026-10-02T04:45:29.738Z
++> Generated by TokenCap - 2026-10-11T06:39:23.730Z
  
--## Working and Release Workflow
-+Project intelligence is generated locally in `.tokencap/`.
+ Project type: React + TypeScript
+ Architecture: Component Layer -> Service Layer
+@@ -15,7 +15,7 @@ Architecture: Component Layer -> Service Layer
  
--- Work locally on the `fixes` branch unless the user explicitly requests another branch.
--- Never modify or push directly to `main`.
--- Do not commit, push, merge, create a pull request, deploy, publish, or distribute a release without explicit user approval.
--- Test changes at `http://localhost:5173` before requesting approval.
--- Before any release, run `npm run lint`, `npm run build`, `npm run build:android`, `npm run sync:android`, and the relevant browser automation.
--- When building an Android release AAB, copy it to Desktop as both `findlostpuppy-release.aab` and `findlostpuppy-v{versionName}-code{versionCode}-release.aab`.
--
--## Security and Privacy Invariants
--
--- Never commit `.env`, service-account files, private keys, signing credentials, access tokens, tester email lists, or real user exports.
--- Client Firebase configuration values may come from approved `VITE_*` variables, but privileged credentials must never be bundled into the web or Android client.
--- Keep Firestore and Storage rules deny-by-default. Public reads or writes require an explicit product requirement and a rule-level validation review.
--- Firestore pet documents and SAFE reports are readable only by their owner or an administrator. Signed-in community users may read only sanitized LOST reports and sanitized sightings.
--- Normal-user cloud synchronization must fetch the signed-in user's private documents directly and query shared collections only with the same privacy predicates enforced by Firestore rules.
--- Firebase Storage profile and pet media are owner/admin-only. Shared missing-report and sighting media must not contain owner contact details or exact coordinates.
--- Unsigned Cloudinary uploads are limited to sanitized public missing-report and sighting images under the configured public-alerts folder. Profile and normal pet media must never use an unsigned public Cloudinary preset.
--- Cloudinary API secrets, signed-upload signatures, deletion credentials, moderation webhooks, and administrative operations belong only on an authenticated backend.
--- Android application backup remains disabled because local WebView storage contains authenticated profile and pet data.
--- Do not log authentication tokens, exact private coordinates, phone numbers, email addresses, or unmasked user records.
--- Public owner contact details must remain masked, for example `+91 86••••••48` and `j•••5@gmail.com`.
--- Exact home addresses and GPS coordinates must never appear in public listings.
--- Phone fields must use `validateIndianPhoneNumber`: exactly 10 digits beginning with 6, 7, 8, or 9.
--- Compress every user photo through `compressImage` before local persistence or upload.
--- Critical report forms must use bounded, expiring local drafts. Failed compressed-image uploads must use the bounded retry queue and retry after connectivity returns.
--- Production crash handling must not log form contents, contact data, exact location, images, credentials, or tokens.
--- Material Terms or Privacy Policy changes must increment the consent versions and require renewed affirmative acceptance.
-// … lines 322–327
-+++ b/scripts/test_feedback_component.mjs
-@@ -67,7 +67,7 @@ async function runTests() {
-       const el = document.querySelector('.suggestion-modal-title');
-       return el ? el.textContent : '';
-     });
--    assert(modalTitle.includes('App Suggestion & Feedback'), `Modal title is correct: "${modalTitle.trim()}"`);
-// … lines 405–410
-+          /** Waits for modal updates before the next browser assertion. */
-+          const pause = (ms = 120) => new Promise(resolve => setTimeout(resolve, ms));
-           /** Clicks the first matching HTML element, throwing if the selector does not resolve to one. */
-           const click = (selector) => {
-             const element = document.querySelector(selector);
-@@ -162,6 +162,14 @@ try {
-// … lines 985–990
+ - [HIGH] Database - HIGH
+ - [HIGH] Scripts (qa_lib) - HIGH
+-- [HIGH] Unit (test_harness) - HIGH
++- [HIGH] Unit (test-support) - HIGH
+ 
+ ## Review Groups
+ 
+diff --git a/.tokencap/agent/agent-pack.md b/.tokencap/agent/agent-pack.md
+index 36ca435..3cd7198 100644
+--- a/.tokencap/agent/agent-pack.md
++++ b/.tokencap/agent/agent-pack.md
+@@ -4,7 +4,7 @@
+ > Paste this entire file into ChatGPT, Claude, Gemini, Cursor, Windsurf, Cline, Roo Code, or OpenHands
+ > to give the AI agent full project intelligence before it touches any code.
+ 
+-**Generated:** 2026-10-02T04:45:29.736Z
++**Generated:** 2026-10-11T06:39:23.729Z
+ **Project:** findlostpuppy
+ **Type:** React
+ 
+@@ -25,7 +25,7 @@
+ Component Layer -> Service Layer
+ ```
+ 
+-The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; AuthContext.tsx -> authService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Pages (index), Components (legalContent), Services (AuthContext).
++The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; App.tsx -> geoBlockService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Components (storageService), Components (legalContent), Components (ToastContext).
+ 
+ ---
+ 
+@@ -54,9 +54,9 @@ The import graph supports a **Component Layer -> Service Layer** flow. Observed
+ - `src/utils/dogPhotoHelper.ts`
+/* ↑ block repeated 3× (3 lines folded to 1) */
++- `scripts/unit/test-support.mjs`
+ - `scripts/unit/test_harness.mjs`
+-- `src/services/consentService.ts`
+-- `src/utils/imageCompressor.ts`
++- `src/services/locationService.ts`
+ 
+ ---
+ 
+@@ -64,10 +64,10 @@ The import graph supports a **Component Layer -> Service Layer** flow. Observed
+// … lines 3946–3951
+++++ b/android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
++@@ -183,10 +183,20 @@ public class DeviceSettingsPlugin extends Plugin {
++             result.put("opened", true);
++             call.resolve(result);
++         } catch (Exception ex) {
++-            JSObject result = new JSObject();
+// … lines 4267–4272
+-       window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
+-@@ -170,7 +170,7 @@ class AuthService {
+-         }
+-         const mapped = mapFirebaseUser(result.user);
+-         this.setCurrentUser(mapped);
+--        await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
+// … lines 5178–5183
+ 
+-  const handleSubmit = async (e: React.FormEvent) => {
+-    e.preventDefault();
++      if (attemptIdRef.current !== attemptId) return;
+ 
+-    setIsSubmitting(true);
+// … lines 5897–5902
 +
-+.capture-instant-submit-btn:hover:not(:disabled) {
-+  transform: translateY(-1px);
-+  box-shadow: 0 8px 30px rgba(255, 102, 0, 0.5);
++  const handleDistrictChange = (newDistrict: string) => {
++    setDistrict(newDistrict);
++    setMandalOrMunicipality('');
++    setCity('');
++    setPinCode('');
+// … lines 6984–6989
++    @Override
++    public void onCreate(Bundle savedInstanceState) {
++        registerPlugin(DeviceSettingsPlugin.class);
++        super.onCreate(savedInstanceState);
++    }
 +}
-+
-// … lines 1540–1545
- function DevelopmentErrorProbe() {
-@@ -58,12 +62,20 @@ function MainAppFlow() {
+// … lines 8850–8855
+-
+-interface LaunchTributeOverlayProps {
+-  forceOpen?: boolean;
+-  onClose?: () => void;
+-}
+-
+// … lines 9401–9406
+-
+-  const handleModalAccept = (docId: 'terms' | 'privacy' | 'disclaimer' | 'guidelines') => {
+-    const updated = { ...acceptedForms, [docId]: true };
+-    setAcceptedForms(updated);
+-    if (updated.terms && updated.privacy && updated.disclaimer && updated.guidelines) {
+-      setMasterAgreed(true);
+// … lines 9662–9667
++    /** Shows the notice when cloud synchronization fails. */
++    const failed = () => setVisible(true);
++    /** Hides the notice when synchronized data becomes available. */
++    const recovered = () => {
++      setVisible(false);
++      setDismissed(false);
+// … lines 10076–10081
++ */
++export function GeoBlockPage({ countryName, countryCode }: GeoBlockPageProps) {
++  const displayCountry = countryName || countryCode || 'your region';
  
-   return (
-     <Routes>
-+      {/* 0. INTERACTIVE DEMO ROUTE */}
-// … lines 1635–1640
-               onBackToLocation={() => {
-@@ -171,10 +185,10 @@ function MainAppFlow() {
-       <Route
-         path="/alert"
-         element={
--          !hasValidConsent ? (
-// … lines 1892–1897
-+
-   const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
+-  const page = await browser.newPage();
+-  await page.setViewport({ width: 1280, height: 900 });
+// … lines 11641–11646
+-4. Do not scan the repository broadly unless the generated context is insufficient.
++export function AlignJustifyIcon({ size = 24, ...props }: SVGProps<SVGSVGElement> & { size?: number }) {
++  return (
++    <svg width={size} height={size} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" {...props}>
++      <g fill="none" stroke="currentColor" strokeDasharray="8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
++        <path d="M12 5h6M12 5h-6">
+// … lines 12178–12183
  
-@@ -129,9 +142,9 @@ export const SuggestionWidget: React.FC = () => {
-       localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
-// … lines 2625–2630
-+  /** Uploads or queues captured photos and saves a sighting or unknown missing-pet alert. */
-   const handleSubmit = async () => {
--    if (!user || !selectedReport) return;
-+    if (!user) return;
-+    if (!selectedReport && !isUnknownSelected) {
-+      showToast('Please select a missing pet or choose "Report Unknown Roaming Pet".', 'warning');
-// … lines 3695–3700
+@@ -154,47 +192,64 @@ export function useLocationDetection({
  
-   const handleContinue = () => {
--    if (!canContinue) return;
-+    // 1-Click: auto-accept all 4 forms and continue immediately
-+    handleAcceptAllTogether(true);
-     onConsentAgreed(
-// … lines 4543–4548
-       } else {
-@@ -31,7 +34,7 @@ export const EmailAuthPage = () => {
-         navigate('/owner', { replace: true });
-       }
-     }
--  }, [isAuthenticated, hasCompletedOwner, hasCompletedLocation, navigate, setActiveOnboardingTab]);
-// … lines 4641–4646
-+
-+  const handleForwardTransitionComplete = () => {
-+    setIsTransitioningForward(false);
-     if (onSuccess) {
-       onSuccess();
-     } else {
-// … lines 5146–5151
+     pendingSettingsReturnRef.current = null;
+     const currentAttemptId = ++attemptIdRef.current;
++    isDetectingRef.current = true;
+// … lines 13213–13218
+       lng = pos.longitude;
+@@ -739,34 +829,14 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
+     let subDistrictCode: number | undefined;
+     let boundaryMatched = false;
  
-+  const handleTransitionComplete = () => {
-+    setIsTransitioning(false);
-     if (onSuccess) {
-       onSuccess();
-     } else {
-// … lines 5310–5315
-       window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
-@@ -170,7 +170,7 @@ class AuthService {
-         }
-         const mapped = mapFirebaseUser(result.user);
-         this.setCurrentUser(mapped);
--        await firebaseSyncService.syncUserProfile(mapped).catch(() => {});
-// … lines 5424–5429
-   deleteUserAsAdmin: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteUserAsAdmin>) =>
-@@ -2401,8 +2403,14 @@ class StorageService {
-   /** Merges accessible Firebase records into local storage and signals synchronization success or failure; returns a success flag. */
-   async pullFromFirebase(): Promise<boolean> {
-     try {
-+      if (!isFirebaseConfigured()) return true;
+-    // Authoritative Point-in-Polygon Boundary Lookup (Tier 1 GPS & Tier 2 Network)
+// … lines 13252–13257
+     const mergedMandal = nativeGeo?.mandal || webGeo?.mandal;
+@@ -777,33 +847,49 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
+       ? 'nativegeocoder' + (webGeo ? `+${webGeo.provider}` : '')
+       : (webGeo?.provider || 'none');
+ 
+-    // AUTHORITY RULE for District + Mandal:
 
-_Not shown (ask if needed): runTests, pause, media, not, MainAppFlow, App, LaunchTributeOverlayProps, handleOpenPlayStore, ReportGeoLocation, handleEnableCamera, handleProceedToReview, handleRetake, handleCloseReview, ConsentPageProps, cancelAutoScroll … and 18 more._
+_Not shown (ask if needed): useLocationDetection, runTests, pause, click, not, DevelopmentErrorProbe, MainAppFlow, handleSubmit, handleContinue, EmailAuthPage, handleForwardTransitionComplete, handleTransitionComplete, StorageService, transform, DeviceSettingsPlugin … and 133 more._
 ```
 
 ## TODO / FIXME / HACK Notes
 
-No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/memory/current.md:25 - .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/current.md:26 - .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/current.md:27 - .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/current.md:28 - .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/memory/current.md:29 - .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/memory/dev-notes.md:27 - .tokencap/memory/current.md:25:- .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:28 - .tokencap/memory/current.md:26:- .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:29 - .tokencap/memory/current.md:27:- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/dev-notes.md:30 - .tokencap/memory/current.md:28:- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/memory/dev-notes.md:31 - .tokencap/memory/current.md:29:- .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/memory/dev-notes.md:32 - .tokencap/memory/dev-notes.md:23:- .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:33 - .tokencap/memory/dev-notes.md:24:- .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:34 - .tokencap/memory/dev-notes.md:25:- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/dev-notes.md:35 - .tokencap/memory/dev-notes.md:26:- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/memory/dev-notes.md:36 - .tokencap/memory/dev-notes.md:27:- .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/memory/dev-notes.md:37 - .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/dev-notes.md:38 - .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
 
 ## Selected File Context
 
-### package.json
+### .tokencap/agent/START_HERE.md
 
 | Field | Value |
 | --- | --- |
-| Bytes | 1912 |
-| Score | 190 |
-| Why | changed, project-metadata |
+| Bytes | 1332 |
+| Score | 225 |
+| Why | changed, project-metadata, high-signal-doc |
 | Status | Full content |
 
 
-```json
-{
-  "name": "findlostpuppy",
-  "private": true,
-  "version": "1.0.7",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:android": "node scripts/validate_firebase_env.mjs && CAPACITOR_BUILD=true tsc -b && CAPACITOR_BUILD=true vite build",
-    "sync:android": "npx cap copy android && node scripts/verify_android_assets.mjs",
-    "verify:firestore-privacy": "node scripts/verify_firestore_privacy.mjs",
-    "verify:cloudinary-privacy": "node scripts/verify_cloudinary_privacy.mjs",
-    "cloudinary:delete-all-images": "node scripts/cloudinary_delete_all_images.mjs",
-    "worker:types": "wrangler types worker-configuration.d.ts",
-    "worker:check": "wrangler deploy --dry-run",
-    "lint": "oxlint",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@capacitor-firebase/authentication": "^8.5.2",
-    "@capacitor/core": "^8.5.2",
-    "@capacitor/geolocation": "^8.2.2",
-    "@capgo/capacitor-nativegeocoder": "^8.0.48",
-    "@radix-ui/react-slot": "^1.3.3",
-    "@turf/boolean-point-in-polygon": "^7.4.0",
-    "@turf/helpers": "^7.4.0",
-    "canvas-confetti": "^1.9.4",
-    "class-variance-authority": "^0.7.1",
-    "cloudinary": "^2.11.0",
-    "clsx": "^2.1.1",
-    "firebase": "^12.19.0",
-    "gsap": "^3.15.0",
-    "jose": "^6.2.12",
-    "lucide-react": "^1.42.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3",
-    "tailwind-merge": "^3.7.0"
-  },
-  "devDependencies": {
-    "@capacitor/android": "^8.5.2",
-    "@capacitor/cli": "^8.5.2",
-    "@cloudflare/workers-types": "^5.20260929.1",
-    "@types/canvas-confetti": "^1.9.0",
-    "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
-    "oxlint": "^1.79.0",
-    "puppeteer-core": "^25.11.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.2.2",
-    "wrangler": "^4.143.1"
-  }
+```markdown
+# START HERE - findlostpuppy
+
+> Generated by TokenCap - 2026-10-11T06:39:23.730Z
+
+Project type: React + TypeScript
+Architecture: Component Layer -> Service Layer
+
+## Read in This Order
+
+1. `allowed-context.json` - locate files for the current task.
+2. `detail/index.md` - choose only the intelligence needed.
+3. Use TokenCap MCP for overview, search, impact, memory, and debug context.
+
+## Critical Areas
+
+- [HIGH] Database - HIGH
+- [HIGH] Scripts (qa_lib) - HIGH
+- [HIGH] Unit (test-support) - HIGH
+
+## Review Groups
+
+- **Database Review Group**: schema-invariants.yaml, execute_media_migration.ts, execute_safe_migration_workflow.mjs
+- **Scripts (qa_lib) Review Group**: qa_lib.mjs, test_consent_flow.mjs, capture_card_and_sighting.mjs
+
+## Non-Negotiable Rules
+
+- Business logic belongs in services
+- Custom React hooks live in hooks/ - prefix with 'use'
+- Shared utilities live in utils/ - keep them pure and side-effect free
+
+## Detail Map
+
+- `agent-pack.md`: full onboarding and architecture context
+- `architecture.md`: dependency chains and boundaries
+- `rules.md` and `review-rules.md`: conventions and review scope
+- `risk-map.md`: high-risk files before editing
+- `tech-stack.md` and `skills.md`: platform-specific context
+
+Do not scan the repository broadly unless the generated context and MCP results are insufficient.
+```
+
+### .tokencap/agent/architecture.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1511 |
+| Score | 155 |
+| Why | changed, high-signal-doc |
+| Status | Full content |
+
+
+```markdown
+# Architecture - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.728Z
+
+---
+
+## Overview
+
+The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; App.tsx -> geoBlockService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Components (storageService), Components (legalContent), Components (ToastContext).
+
+---
+
+## Architecture Pattern
+
+```
+Component Layer -> Service Layer
+```
+
+## Layers
+
+1. **Component Layer**
+2. **Service Layer**
+
+## Evidence
+
+The architecture pattern above is supported by these observed imports:
+
+- `App.tsx -> storageService.ts`
+- `App.tsx -> consentService.ts`
+- `App.tsx -> geoBlockService.ts`
+
+---
+
+## Subsystems
+
+| Cluster | Files | Risk | Central File |
+| --- | --- | --- | --- |
+| **Unclassified** | 143 | [LOW] LOW | `deploy.yml` |
+| **Testing** | 34 | [LOW] LOW | `test_admin.cjs` |
+| **Components (storageService)** | 23 | [HIGH] HIGH | `storageService.ts` |
+| **Components (legalContent)** | 19 | [MEDIUM] MEDIUM | `legalContent.ts` |
+| **Components (ToastContext)** | 16 | [HIGH] HIGH | `ToastContext.tsx` |
+| **Pages (index)** | 16 | [HIGH] HIGH | `index.ts` |
+| **Services** | 11 | [LOW] LOW | `generate_pdf.mjs` |
+| **Frontend** | 11 | [LOW] LOW | `check_update_mail_ui.mjs` |
+| **Scripts (qa_lib)** | 11 | [HIGH] HIGH | `qa_lib.mjs` |
+| **Unit (test-support)** | 9 | [HIGH] HIGH | `test-support.mjs` |
+```
+
+### android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
+
+| Field | Value |
+| --- | --- |
+| Bytes | 9799 |
+| Score | 150 |
+| Why | changed, source |
+| Status | Full content |
+
+
+```java
+package com.findlostpuppy.app;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentSender;
+import android.location.LocationManager;
+import android.os.Build;
+import android.provider.Settings;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.location.SettingsClient;
+
+@CapacitorPlugin(name = "DeviceSettings", requestCodes = {9207})
+public class DeviceSettingsPlugin extends Plugin {
+
+    public static final int REQUEST_CODE_ENABLE_LOCATION = 9207;
+    private static PluginCall sPendingCall = null;
+
+    public static void onLocationResolutionResult(int resultCode) {
+        if (sPendingCall != null) {
+            JSObject result = new JSObject();
+            if (resultCode == Activity.RESULT_OK) {
+                result.put("resolved", true);
+                result.put("enabled", true);
+                result.put("status", "enabled");
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                result.put("resolved", false);
+                result.put("enabled", false);
+                result.put("status", "cancelled");
+            } else {
+                result.put("resolved", false);
+                result.put("enabled", false);
+                result.put("status", "dismissed");
+            }
+            try {
+                sPendingCall.resolve(result);
+            } catch (Exception ignored) {}
+            sPendingCall = null;
+        }
+    }
+
+    private boolean isLocationEnabledInternal() {
+        try {
+            LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+            if (locationManager == null) {
+                return false;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return locationManager.isLocationEnabled();
+            } else {
+                return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                       locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @PluginMethod
+    public void isLocationEnabled(PluginCall call) {
+        try {
+            boolean isEnabled = isLocationEnabledInternal();
+            JSObject result = new JSObject();
+            result.put("enabled", isEnabled);
+            call.resolve(result);
+        } catch (Exception ex) {
+            JSObject fallback = new JSObject();
+            fallback.put("enabled", false);
+            call.resolve(fallback);
+        }
+    }
+
+    @PluginMethod
+    public void promptEnableLocation(PluginCall call) {
+        try {
+            if (isLocationEnabledInternal()) {
+                JSObject result = new JSObject();
+                result.put("resolved", true);
+                result.put("enabled", true);
+                result.put("alreadyEnabled", true);
+                result.put("status", "already_enabled");
+                call.resolve(result);
+                return;
+            }
+
+            Activity activity = getActivity();
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                JSObject result = new JSObject();
+                result.put("resolved", false);
+                result.put("enabled", false);
+                result.put("status", "unavailable");
+                call.resolve(result);
+                return;
+            }
+
+            LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L)
+                    .setMinUpdateIntervalMillis(5000L)
+                    .build();
+
+            LocationSettingsRequest request = new LocationSettingsRequest.Builder()
+                    .addLocationRequest(locationRequest)
+                    .setAlwaysShow(true)
+                    .build();
+
+            SettingsClient client = LocationServices.getSettingsClient(activity);
+            client.checkLocationSettings(request)
+                    .addOnSuccessListener(response -> {
+                        boolean enabled = isLocationEnabledInternal();
+                        JSObject result = new JSObject();
+                        result.put("resolved", true);
+                        result.put("enabled", enabled);
+                        result.put("alreadyEnabled", true);
+                        result.put("status", enabled ? "already_enabled" : "failed_to_enable");
+                        call.resolve(result);
+                    })
+                    .addOnFailureListener(exception -> {
+                        if (exception instanceof ResolvableApiException) {
+                            try {
+                                PluginCall existingCall = getSavedCall();
+                                if (existingCall != null) {
+                                    JSObject cancelOld = new JSObject();
+                                    cancelOld.put("resolved", false);
+                                    cancelOld.put("enabled", false);
+                                    cancelOld.put("status", "cancelled");
+                                    existingCall.resolve(cancelOld);
+                                    freeSavedCall();
+                                }
+                                sPendingCall = call;
+                                saveCall(call);
+                                ((ResolvableApiException) exception).startResolutionForResult(activity, REQUEST_CODE_ENABLE_LOCATION);
+                            } catch (IntentSender.SendIntentException sendEx) {
+                                sPendingCall = null;
+                                freeSavedCall();
+                                JSObject result = new JSObject();
+                                result.put("resolved", false);
+                                result.put("enabled", false);
+                                result.put("status", "launch_failed");
+                                call.resolve(result);
+                            } catch (Exception ex) {
+                                sPendingCall = null;
+                                freeSavedCall();
+                                JSObject result = new JSObject();
+                                result.put("resolved", false);
+                                result.put("enabled", false);
+                                result.put("status", "launch_failed");
+                                call.resolve(result);
+                            }
+                        } else {
+                            JSObject result = new JSObject();
+                            result.put("resolved", false);
+                            result.put("enabled", false);
+                            result.put("status", "unavailable");
+                            call.resolve(result);
+                        }
+                    });
+        } catch (Exception ex) {
+            JSObject result = new JSObject();
+            result.put("resolved", false);
+            result.put("enabled", false);
+            result.put("status", "error");
+            call.resolve(result);
+        }
+    }
+
+    @Override
+    protected void handleOnActivityResult(int requestCode, int resultCode, Intent data) {
+        super.handleOnActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_ENABLE_LOCATION) {
+            onLocationResolutionResult(resultCode);
+            PluginCall savedCall = getSavedCall();
+            if (savedCall != null) {
+                freeSavedCall();
+            }
+        }
+    }
+
+    @PluginMethod
+    public void openLocationSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception ex) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+
+                JSObject result = new JSObject();
+                result.put("opened", true);
+                call.resolve(result);
+            } catch (Exception fallbackEx) {
+                JSObject result = new JSObject();
+                result.put("opened", false);
+                result.put("error", ex.getMessage());
+                call.resolve(result);
+            }
+        }
+    }
+
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(android.net.Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception ex) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            result.put("error", ex.getMessage());
+            call.resolve(result);
+        }
+    }
 }
 ```
 
-### vite.config.ts
+### android/app/src/main/java/com/findlostpuppy/app/MainActivity.java
 
 | Field | Value |
 | --- | --- |
-| Bytes | 605 |
-| Score | 190 |
-| Why | changed, project-metadata |
-| Status | Full content |
-
-
-```ts
-import path from 'path'
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'geojson-loader',
-      transform(code, id) {
-        if (id.endsWith('.geojson')) {
-          return {
-            code: `export default ${code};`,
-            map: null,
-          };
-        }
-      },
-    },
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  base: process.env.CAPACITOR_BUILD === 'true'
-    ? '/'
-    : (process.env.VITE_BASE_URL || '/'),
-})
-```
-
-### src/App.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 11566 |
+| Bytes | 770 |
 | Score | 150 |
 | Why | changed, source |
 | Status | Full content |
 
 
-```tsx
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
-import { SidebarNav } from './components/SidebarNav';
-import { Footer } from './components/Footer';
-import { useEffect } from 'react';
-import { storageService } from './services/storageService';
+```java
+package com.findlostpuppy.app;
 
-import { ConsentPage } from './pages/ConsentPage';
+import android.content.Intent;
+import android.os.Bundle;
+import android.webkit.WebView;
 
-// Guided Sequential Flow & Dedicated Tab Pages
-import { EmailAuthPage } from './pages/EmailAuthPage';
-import { PetParentContactPage } from './pages/PetParentContactPage';
-import { LocationOnboardingPage } from './pages/LocationOnboardingPage';
-import { DogOnboardingPage } from './pages/DogOnboardingPage';
-import { ReportLostDogPage } from './pages/ReportLostDogPage';
-import { GuestSightingPage } from './pages/GuestSightingPage';
-import { OnboardingChoicePage } from './pages/OnboardingChoicePage';
-import { AnimationShowcaseStudio } from './components/ui/AnimationShowcaseStudio';
+import com.getcapacitor.BridgeActivity;
 
-// Unlocked Experience Pages
-import { DiscoveryPage } from './pages/DiscoveryPage';
-import { DogDetailPage } from './pages/DogDetailPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
-import { CapturePetPage } from './pages/CapturePetPage';
-import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
-import { ShortcutsPage } from './pages/ShortcutsPage';
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(DeviceSettingsPlugin.class);
+        super.onCreate(savedInstanceState);
+        WebView.setWebContentsDebuggingEnabled(true);
+    }
 
-import { LaunchTributeOverlay } from './components/LaunchTributeOverlay';
-import { SuggestionWidget } from './components/SuggestionWidget';
-import { NetworkResilience } from './components/NetworkResilience';
-import { ServerFailureNotice } from './components/fallbacks/ServerFailureNotice';
-import { LoadingFallback } from './components/fallbacks/LoadingFallback';
-import { PageTransition } from './components/ui/PageTransition';
-
-/** Throws when the development-only forceErrorBoundary query flag is present; otherwise renders nothing. */
-function DevelopmentErrorProbe() {
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('forceErrorBoundary')) {
-    throw new Error('Intentional development-only error boundary check');
-  }
-  return null;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == DeviceSettingsPlugin.REQUEST_CODE_ENABLE_LOCATION) {
+            DeviceSettingsPlugin.onLocationResolutionResult(resultCode);
+        }
+    }
 }
-
-import './App.css';
-
-/** Renders application routes according to session loading, authentication, consent, and onboarding state. */
-function MainAppFlow() {
-  const {
-    isAuthenticated,
-    isLoading,
-    activeOnboardingTab,
-    setActiveOnboardingTab,
-    hasValidConsent,
-    agreeToConsent,
-  } = useAuth();
-  const navigate = useNavigate();
-
-  if (isLoading) {
-    return <LoadingFallback message="Checking your saved session…" />;
-  }
-
-  return (
-    <Routes>
-      {/* 0. INTERACTIVE DEMO ROUTE */}
-      <Route
-        path="/demo"
-        element={<AnimationShowcaseStudio />}
-      />
-
-      {/* 1. PUBLIC EMERGENCY & DIRECT DETAIL ROUTES (Instant 0-roadblock access anywhere) */}
-      <Route path="/report-sighting/:id" element={<GuestSightingPage />} />
-      <Route path="/found/:id" element={<GuestSightingPage />} />
-      <Route path="/alert/:id" element={<GuestSightingPage />} />
-      <Route path="/dog/:id" element={<DogDetailPage />} />
-      <Route path="/find" element={<DiscoveryPage />} />
-      <Route path="/privacy" element={<PrivacyPolicyPage />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-
-      {/* 2. COMMUNITY RECOVERY DASHBOARD & ADMIN PORTAL */}
-      <Route path="/homepage" element={<DashboardPage />} />
-      <Route path="/dashboard" element={<Navigate to="/homepage" replace />} />
-      <Route path="/feedback" element={<DashboardPage />} />
-      <Route path="/suggest" element={<DashboardPage />} />
-      <Route path="/next-step" element={<Navigate to="/homepage" replace />} />
-      <Route path="/admin" element={<AdminDashboardPage />} />
-      <Route path="/shortcuts" element={<ShortcutsPage />} />
-      <Route path="/admin/shortcuts" element={<ShortcutsPage />} />
-      <Route
-        path="/capture"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <CapturePetPage />
-          )
-        }
-      />
-
-      {/* 3. DEDICATED DIRECT ROUTES FOR ALL TABS (Fast, lag-free navigation) */}
-      <Route
-        path="/owner"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <PetParentContactPage
-              onSuccess={() => {
-                setActiveOnboardingTab('location');
-                navigate('/location');
-              }}
-            />
-          )
-        }
-      />
-      <Route path="/edit-parent" element={<Navigate to="/owner" replace />} />
-      <Route path="/profile" element={<Navigate to="/owner" replace />} />
-
-      <Route
-        path="/location"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <LocationOnboardingPage
-              onSuccess={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onBack={() => {
-                setActiveOnboardingTab('owner');
-                navigate('/owner');
-              }}
-            />
-          )
-        }
-      />
-      <Route path="/edit-location" element={<Navigate to="/location" replace />} />
-
-      <Route
-        path="/choice"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <OnboardingChoicePage />
-          )
-        }
-      />
-      <Route path="/pet-choice" element={<Navigate to="/choice" replace />} />
-
-      <Route
-        path="/pet"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <DogOnboardingPage
-              onBackToLocation={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('report');
-                navigate('/alert');
-              }}
-            />
-          )
-        }
-      />
-      <Route path="/dog" element={<Navigate to="/pet" replace />} />
-      <Route path="/dog-profile" element={<Navigate to="/pet" replace />} />
-      <Route path="/report-another" element={<Navigate to="/pet" replace />} />
-
-      <Route
-        path="/alert"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage onConsentAgreed={agreeToConsent} />
-          ) : (
-            <ReportLostDogPage
-              onBackToPet={() => {
-                setActiveOnboardingTab('dog');
-                navigate('/pet');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('dashboard');
-                navigate('/homepage');
-              }}
-            />
-          )
-        }
-      />
-      <Route path="/report" element={<Navigate to="/alert" replace />} />
-      <Route path="/report-lost" element={<Navigate to="/alert" replace />} />
-
-      <Route
-        path="/consent"
-        element={
-          !isAuthenticated ? (
-            <Navigate to="/login" replace />
-          ) : hasValidConsent ? (
-            <Navigate to={activeOnboardingTab === 'completed' ? '/homepage' : `/${activeOnboardingTab === 'dog' ? 'pet' : activeOnboardingTab}`} replace />
-          ) : (
-            <ConsentPage
-              onConsentAgreed={(forms, method) => {
-                agreeToConsent(forms, method);
-                navigate(activeOnboardingTab === 'completed' ? '/homepage' : `/${activeOnboardingTab === 'dog' ? 'pet' : activeOnboardingTab}`);
-              }}
-            />
-          )
-        }
-      />
-      <Route path="/login" element={<EmailAuthPage />} />
-
-      {/* 4. ROOT ROUTE (Smart dynamic resolution based on onboarding progress) */}
-      <Route
-        path="/"
-        element={
-          !isAuthenticated ? (
-            <EmailAuthPage />
-          ) : !hasValidConsent ? (
-            <ConsentPage
-              onConsentAgreed={(forms, method) => {
-                agreeToConsent(forms, method);
-                navigate(activeOnboardingTab === 'completed' ? '/homepage' : `/${activeOnboardingTab === 'dog' ? 'pet' : activeOnboardingTab}`);
-              }}
-            />
-          ) : activeOnboardingTab === 'owner' ? (
-            <PetParentContactPage
-              onSuccess={() => {
-                setActiveOnboardingTab('location');
-                navigate('/location');
-              }}
-            />
-          ) : activeOnboardingTab === 'location' ? (
-            <LocationOnboardingPage
-              onSuccess={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onBack={() => {
-                setActiveOnboardingTab('owner');
-                navigate('/owner');
-              }}
-            />
-          ) : activeOnboardingTab === 'choice' ? (
-            <OnboardingChoicePage />
-          ) : activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet' ? (
-            <DogOnboardingPage
-              onBackToLocation={() => {
-                setActiveOnboardingTab('choice');
-                navigate('/choice');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('report');
-                navigate('/alert');
-              }}
-            />
-          ) : activeOnboardingTab === 'report' ? (
-            <ReportLostDogPage
-              onBackToPet={() => {
-                setActiveOnboardingTab('dog');
-                navigate('/pet');
-              }}
-              onSuccess={() => {
-                setActiveOnboardingTab('dashboard');
-                navigate('/homepage');
-              }}
-            />
-          ) : (
-            <DashboardPage />
-          )
-        }
-      />
-
-      {/* 5. CATCH-ALL FALLBACK */}
-      <Route path="*" element={<Navigate to="/homepage" replace />} />
-    </Routes>
-  );
-}
-
-/** Composes routing, session providers, recovery notices, and the app shell, and starts cloud synchronization. */
-export function App() {
-  const basename = import.meta.env.BASE_URL;
-
-  // Single source of truth: Pull authentic Firebase cloud records on application boot
-  useEffect(() => {
-    storageService.pullFromFirebase().catch(() => {});
-  }, []);
-
-  return (
-    <Router basename={basename}>
-      <ToastProvider>
-        <AuthProvider>
-          <DevelopmentErrorProbe />
-          <NetworkResilience />
-          <ServerFailureNotice />
-          <LaunchTributeOverlay />
-          <div className="app-layout-sidebar">
-            <SidebarNav />
-            <div className="app-main-viewport">
-              <main className="main-content">
-                <PageTransition>
-                  <MainAppFlow />
-                </PageTransition>
-              </main>
-              <Footer />
-            </div>
-          </div>
-          <SuggestionWidget />
-        </AuthProvider>
-      </ToastProvider>
-    </Router>
-  );
-}
-
-export default App;
 ```
 
-### src/components/SuggestionWidget.tsx
+### src/services/nativeSettingsService.ts
 
 | Field | Value |
 | --- | --- |
-| Bytes | 11994 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  X,
-  Send,
-  CheckCircle2,
-  Star,
-  ExternalLink,
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { storageService } from '../services/storageService';
-import type { SuggestionCategory } from '../types';
-
-const PLAY_STORE_TESTING_URL = 'https://play.google.com/apps/testing/om.findlostpuppy.app';
-const PLAY_STORE_REVIEW_URL =
-  import.meta.env.VITE_PLAY_STORE_URL || PLAY_STORE_TESTING_URL;
-const PLAY_STORE_MARKET_URL = 'market://details?id=om.findlostpuppy.app';
-
-export const SuggestionWidget: React.FC = () => {
-  const { user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { showToast } = useToast();
-
-  const [isOpen, setIsOpen] = useState(false);
-  const pathname = location.pathname;
-
-  // Auto-open on feedback routes or when query parameter indicates feedback
-  useEffect(() => {
-    const isFeedbackRoute = pathname === '/feedback' || pathname === '/suggest';
-    const searchParams = new URLSearchParams(location.search);
-    const hasFeedbackParam =
-      searchParams.get('feedback') === 'true' || searchParams.get('openFeedback') === 'true';
-
-    if (isFeedbackRoute || hasFeedbackParam) {
-      setIsOpen(true);
-      setIsSuccess(false);
-    }
-  }, [pathname, location.search]);
-
-  // Form states
-  const [suggestionText, setSuggestionText] = useState('');
-  const [rating, setRating] = useState<number>(5);
-  const [hoverRating, setHoverRating] = useState<number>(0);
-
-  // Identity states (prefilled silently)
-  const [name, setName] = useState(user?.name || '');
-  const [contact, setContact] = useState(user?.email || user?.phone || '');
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-
-  // Sync user info when auth updates
-  useEffect(() => {
-    if (user) {
-      setName((prev) => prev || user.name || '');
-      setContact((prev) => prev || user.email || user.phone || '');
-    }
-  }, [user?.name, user?.email, user?.phone]);
-
-  // Global listener to open suggestion modal from any button in navbar, drawer, or footer
-  useEffect(() => {
-    const handleOpen = () => {
-      setIsOpen(true);
-      setIsSuccess(false);
-    };
-    window.addEventListener('open-suggestion-modal', handleOpen);
-    return () => window.removeEventListener('open-suggestion-modal', handleOpen);
-  }, []);
-
-  const handleClose = () => {
-    setIsOpen(false);
-    // Record the timestamp of the last shown popup
-    localStorage.setItem('suggestion_last_shown', Date.now().toString());
-    // Preserve old flags for backward compatibility
-    localStorage.setItem('suggestion_shown', 'true');
-    localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
-    if (pathname === '/feedback' || pathname === '/suggest') {
-      navigate('/homepage');
-    }
-  };
-
-  const handleRatingClick = (val: number) => {
-    setRating(val);
-  };
-
-  const handleOpenPlayStore = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    try {
-      const isCapacitor =
-        typeof (window as any).Capacitor !== 'undefined' &&
-        (window as any).Capacitor?.isNativePlatform?.();
-
-      if (isCapacitor) {
-        window.location.href = PLAY_STORE_MARKET_URL;
-      } else {
-        const win = window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          window.location.href = PLAY_STORE_REVIEW_URL;
-        }
-      }
-      showToast('⭐ Opening Google Play Store...', 'info');
-    } catch {
-      window.open(PLAY_STORE_REVIEW_URL, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    setIsSubmitting(true);
-
-    try {
-      const trimmed = suggestionText.trim();
-      const firstLine = trimmed ? trimmed.split('\n')[0].trim() : `App Rating: ${rating} Stars`;
-      const derivedTitle = firstLine.length > 70 ? `${firstLine.substring(0, 67)}...` : firstLine;
-
-      const descriptionWithContext = trimmed || `User rated ${rating} out of 5 stars.`;
-
-      const derivedCategory: SuggestionCategory =
-        rating <= 2 ? 'bug' : rating === 3 ? 'improvement' : 'praise';
-
-      storageService.saveSuggestion({
-        userId: user?.id,
-        userName: name.trim() || user?.name || 'Community Member',
-        userEmail: contact.includes('@') ? contact.trim() : user?.email,
-        userPhone: !contact.includes('@') && contact.trim() ? contact.trim() : user?.phone,
-        category: derivedCategory,
-        title: derivedTitle,
-        description: descriptionWithContext,
-        rating,
-        pageUrl: location.pathname,
-      });
-
-      // Record timestamp so popup won't re-appear for 5 days
-      localStorage.setItem('suggestion_last_shown', Date.now().toString());
-      localStorage.setItem('suggestion_shown', 'true');
-      localStorage.setItem('findlostpuppy_suggestion_shown', 'true');
-
-      setIsSuccess(true);
-      showToast('🎉 Thank you! Your rating was recorded.', 'success');
-
-      // Auto close after 2s
-      setTimeout(() => {
-        setIsSuccess(false);
-        setIsOpen(false);
-        setSuggestionText('');
-        if (pathname === '/feedback' || pathname === '/suggest') {
-          navigate('/homepage');
-        }
-      }, 2000);
-    } catch {
-      showToast('Could not save rating. Please try again.', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const ratingDescriptions = [
-    '',
-    'Needs attention 🛠️',
-    'Fair, could be better 💡',
-    'Good experience 👍',
-    'Great experience! 🌟',
-    'Loved it! ❤️',
-  ];
-
-  if (!isOpen) {
-    return null;
-  }
-
-  return (
-    <>
-      {/* ========================================================================= */}
-      {/* APP RATING POPUP MODAL                                                    */}
-      {/* ========================================================================= */}
-      {isOpen && (
-        <div className="suggestion-modal-overlay" onClick={handleClose}>
-          <div
-            className="suggestion-modal-dialog"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="suggestion-modal-title"
-          >
-            {/* Modal Header: Clean title with Star Badge and Close button */}
-            <div className="suggestion-modal-header suggestion-clean-header">
-              <div className="suggestion-modal-title-wrap">
-                <span className="suggestion-modal-star-badge" aria-hidden="true">
-                  <Star size={18} fill="#FFB800" stroke="#FFB800" />
-                </span>
-                <h3 id="suggestion-modal-title" className="suggestion-modal-title">
-                  App Rating
-                </h3>
-              </div>
-              <button
-                type="button"
-                className="suggestion-modal-close"
-                onClick={handleClose}
-                aria-label="Close dialog"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            {isSuccess ? (
-              <div className="suggestion-success-view">
-                <div className="suggestion-success-icon-wrap">
-                  <CheckCircle2 size={54} className="text-success" />
-                </div>
-                <h4>Thank You for Rating! 🎉</h4>
-                <p>
-                  You rated FindLostPuppy {rating} out of 5 stars. Thank you for helping keep community pets safe!
-                </p>
-                <div className="suggestion-success-actions">
-                  <a
-                    href={PLAY_STORE_REVIEW_URL}
-                    onClick={handleOpenPlayStore}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                  >
-                    ⭐ Review on Google Play <ExternalLink size={14} />
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={handleClose}
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="suggestion-form">
-                {/* 1. Rating & Direct Review Link Row */}
-                <div className="suggestion-rating-review-card">
-                  <div className="rating-review-top">
-                    <span className="rating-question-label">Rate your app experience:</span>
-                    <span className="suggestion-rating-desc">
-                      {ratingDescriptions[hoverRating || rating]}
-                    </span>
-                  </div>
-
-                  <div className="rating-review-row">
-                    {/* Stars */}
-                    <div className="suggestion-stars-row">
-                      {[1, 2, 3, 4, 5].map((val) => {
-                        const active = (hoverRating || rating) >= val;
-                        return (
-                          <button
-                            key={val}
-                            type="button"
-                            className={`suggestion-star-btn ${active ? 'star-active' : ''}`}
-                            onClick={() => handleRatingClick(val)}
-                            onMouseEnter={() => setHoverRating(val)}
-                            onMouseLeave={() => setHoverRating(0)}
-                            aria-label={`Rate ${val} out of 5 stars`}
-                          >
-                            <Star
-                              size={26}
-                              fill={active ? '#FFB800' : 'none'}
-                              stroke={active ? '#FFB800' : '#94a3b8'}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Direct Review Link Button */}
-                    <a
-                      href={PLAY_STORE_REVIEW_URL}
-                      onClick={handleOpenPlayStore}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="suggestion-playstore-link-btn"
-                      title="Rate on Google Play Store"
-                    >
-                      <span>⭐ Rate on Google Play</span>
-                      <ExternalLink size={13} />
-                    </a>
-                  </div>
-                </div>
-
-                {/* 2. Review Text Input Bar */}
-                <div className="suggestion-field-group">
-                  <textarea
-                    id="suggestion-desc-input"
-                    rows={4}
-                    className="suggestion-textarea simplified-textarea"
-                    value={suggestionText}
-                    onChange={(e) => setSuggestionText(e.target.value)}
-                    placeholder="Share any review, thoughts, or suggestions (optional)..."
-                    maxLength={1500}
-                    autoFocus
-                  />
-                </div>
-
-                {/* 3. Centered Submit Button */}
-                <div className="suggestion-modal-footer suggestion-footer-centered">
-                  <button
-                    type="submit"
-                    className="btn btn-primary suggestion-submit-btn"
-                    disabled={isSubmitting}
-                  >
-                    <Send size={15} />
-                    <span>{isSubmitting ? 'Sending...' : 'Submit Rating ⭐'}</span>
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-```
-
-### src/pages/EmailAuthPage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 4724 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, PawPrint, ShieldCheck, RotateCcw } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-
-export const EmailAuthPage = () => {
-  const {
-    signInWithGoogle,
-    isAuthenticated,
-    hasValidConsent,
-    setActiveOnboardingTab,
-    isLoading,
-    authNotice,
-    hasCompletedOwner,
-    hasCompletedLocation,
-  } = useAuth();
-  const { showToast } = useToast();
-  const navigate = useNavigate();
-  const [errorMsg, setErrorMsg] = useState('');
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const visibleError = errorMsg || authNotice;
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (!hasValidConsent) {
-        navigate('/consent', { replace: true });
-      } else if (hasCompletedOwner && hasCompletedLocation) {
-        setActiveOnboardingTab('dashboard');
-        navigate('/homepage', { replace: true });
-      } else {
-        setActiveOnboardingTab('owner');
-        navigate('/owner', { replace: true });
-      }
-    }
-  }, [isAuthenticated, hasValidConsent, hasCompletedOwner, hasCompletedLocation, navigate, setActiveOnboardingTab]);
-
-  const handleGoogleSignIn = async () => {
-    setErrorMsg('');
-    setIsSigningIn(true);
-    const res = await signInWithGoogle();
-    
-    if (isMountedRef.current) {
-      setIsSigningIn(false);
-    }
-
-    if (res.success) {
-      if (!res.redirected) {
-        showToast('Signed in with Google.', 'success');
-        if (!hasValidConsent) {
-          navigate('/consent', { replace: true });
-        } else if (hasCompletedOwner && hasCompletedLocation) {
-          setActiveOnboardingTab('dashboard');
-          navigate('/homepage', { replace: true });
-        } else {
-          setActiveOnboardingTab('owner');
-          navigate('/owner', { replace: true });
-        }
-      }
-      return;
-    }
-
-    const nextRetry = retryCount + 1;
-    setRetryCount(nextRetry);
-
-    if (nextRetry >= 3) {
-      sessionStorage.setItem('findlostpuppy_limited_mode', 'true');
-      showToast('Login failed after 3 attempts. Entering Dashboard in Limited Guest Mode. You can retry from Profile anytime.', 'info');
-      setActiveOnboardingTab('dashboard');
-      navigate('/homepage', { replace: true });
-      return;
-    }
-
-    setErrorMsg(res.error || `Could not sign in with Google (Attempt ${nextRetry}/3). Please try again.`);
-  };
-
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  return (
-    <div className="auth-landing-page">
-      <div className="auth-landing-container">
-        <div className="auth-card card">
-          <div className="auth-card-header text-center">
-            <div className="auth-paw-icon-bubble">
-              <PawPrint size={36} />
-            </div>
-            <h1 className="auth-card-title">FindLostPuppy</h1>
-            <p className="auth-card-quote">"Every paw deserves to find its way home."</p>
-            <p className="auth-card-instruction">
-              Sign in with Google to continue. This avoids email-link quota issues and keeps your
-              profile, pet details, sightings, and photos synced securely.
-            </p>
-          </div>
-
-          {visibleError && (
-            <div className="auth-error-banner" role="alert" style={{ marginBottom: '1.25rem' }}>
-              <span>{visibleError}</span>
-            </div>
-          )}
-
-          <div className="auth-card-form">
-            <button
-              type="button"
-              className="btn btn-primary btn-lg btn-block auth-submit-btn"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading || isSigningIn}
-            >
-              {isSigningIn ? (
-                <span>Signing you in...</span>
-              ) : isLoading ? (
-                <span>Loading...</span>
-              ) : retryCount > 0 ? (
-                <>
-                  <RotateCcw size={18} />
-                  <span>Retry Google Sign-In ({retryCount}/3)</span>
-                </>
-              ) : (
-                <>
-                  <span>Continue with Google</span>
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="auth-card-footer text-center">
-            <div className="privacy-pill-subtle">
-              <ShieldCheck size={16} />
-              <span>100% Privacy Protected • Google Sign-In • Firebase Auth</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-```
-
-### src/pages/OnboardingChoicePage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 4424 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Dog, LayoutDashboard, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { storageService } from '../services/storageService';
-import { getDogPhotoUrl } from '../utils/dogPhotoHelper';
-import { BackButton } from '../components/ui/back-button';
-
-/** Offers pet registration or the existing-pet flow, with an option to skip to the dashboard. */
-export const OnboardingChoicePage: React.FC = () => {
-  const navigate = useNavigate();
-  const { user, setActiveOnboardingTab } = useAuth();
-
-  const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
-  const hasExistingPet = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
-  const petPhotoUrl = existingPet ? getDogPhotoUrl(existingPet) : '';
-
-  const handleBack = () => {
-    setActiveOnboardingTab('location');
-    navigate('/location');
-  };
-
-  const exitToDashboard = () => {
-    setActiveOnboardingTab('dashboard');
-    navigate('/homepage');
-  };
-
-  const goToPetDetails = () => {
-    setActiveOnboardingTab('dog');
-    navigate('/pet');
-  };
-
-  const goToCapturePet = () => {
-    setActiveOnboardingTab('dashboard');
-    navigate('/capture');
-  };
-
-  // Preserve feature for reference
-  void goToCapturePet;
-
-  return (
-    <div className="onboarding-page onboarding-choice-page">
-      <div className="app-container onboarding-container">
-        <section className="onboarding-card card owner-theme-card onboarding-choice-card">
-          <button
-            type="button"
-            className="onboarding-exit-btn"
-            onClick={exitToDashboard}
-            aria-label="Exit onboarding and go to dashboard"
-            title="Exit to dashboard"
-          >
-            <X size={19} />
-          </button>
-
-          {/* Top-left back button inside container for going back to Location */}
-          <div className="pet-profile-header-bar choice-header-bar">
-            <div className="pet-profile-header-left">
-              <BackButton
-                onClick={handleBack}
-                title="Go back to Location"
-                aria-label="Back to Location"
-              />
-            </div>
-          </div>
-
-          <div className="section-card-title-block">
-            <h1>{hasExistingPet ? 'Pet Registered' : 'Pet Choice'}</h1>
-          </div>
-
-          <div className="onboarding-choice-grid">
-            {hasExistingPet && existingPet ? (
-              <button
-                type="button"
-                className="onboarding-choice-option pet-option existing-pet-active-option"
-                onClick={goToPetDetails}
-              >
-                <span className="choice-icon-wrap choice-pet-avatar-wrap">
-                  {petPhotoUrl ? (
-                    <img
-                      src={petPhotoUrl}
-                      alt={existingPet.name}
-                      className="choice-pet-avatar-img"
-                    />
-                  ) : (
-                    <Dog size={30} />
-                  )}
-                </span>
-                <span className="choice-copy">
-                  <strong>You already had a pet: {existingPet.name}</strong>
-                </span>
-                <ArrowRight size={20} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="onboarding-choice-option pet-option"
-                onClick={goToPetDetails}
-              >
-                <span className="choice-icon-wrap">
-                  <Dog size={30} />
-                </span>
-                <span className="choice-copy">
-                  <strong>Add My Pet</strong>
-                  <small>Create or update your pet details and photo.</small>
-                </span>
-                <ArrowRight size={20} />
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="onboarding-choice-option skip-option"
-              onClick={exitToDashboard}
-            >
-              <span className="choice-icon-wrap">
-                <LayoutDashboard size={30} />
-              </span>
-              <span className="choice-copy">
-                <strong>Skip</strong>
-              </span>
-              <ArrowRight size={20} />
-            </button>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-};
-```
-
-### src/pages/PrivacyPolicyPage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 6797 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, Lock } from 'lucide-react';
-import { PRIVACY_POLICY } from '../data/legal/legalContent';
-
-export const PrivacyPolicyPage: React.FC = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#08090A', color: '#E1E4EA', paddingBottom: '60px' }}>
-      {/* Top sticky nav */}
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          background: 'rgba(12, 14, 18, 0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '14px 20px',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '860px',
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '9999px',
-              padding: '8px 16px',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            aria-label="Go back"
-          >
-            <ArrowLeft size={16} />
-            <span>Back</span>
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Shield size={18} style={{ color: '#FF9800' }} />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#A0AEC0' }}>Official Policy</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Wrap */}
-      <main style={{ maxWidth: '860px', margin: '0 auto', padding: '32px 20px' }}>
-        {/* Title Card */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 121, 0, 0.12), rgba(15, 23, 42, 0.6))',
-            border: '1px solid rgba(255, 152, 0, 0.3)',
-            borderRadius: '20px',
-            padding: '28px 24px',
-            marginBottom: '32px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-            <div
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '12px',
-                background: 'rgba(255, 152, 0, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FF9800',
-              }}
-            >
-              <Lock size={24} />
-            </div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
-                {PRIVACY_POLICY.title}
-              </h1>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#A0AEC0' }}>
-                Version {PRIVACY_POLICY.version} • Effective {PRIVACY_POLICY.lastUpdated}
-              </p>
-            </div>
-          </div>
-          <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#CBD5E1' }}>
-            FindLostPuppy is dedicated to helping reunite lost pets with their families while strictly protecting
-            owner privacy, phone numbers, and exact home addresses through administrative boundary masking.
-          </p>
-        </div>
-
-        {/* Policy Sections */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {PRIVACY_POLICY.sections.map((section, idx) => (
-            <section
-              key={idx}
-              style={{
-                background: 'rgba(18, 20, 26, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '22px 24px',
-              }}
-            >
-              <h2
-                style={{
-                  margin: '0 0 14px',
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: '#FFB74D',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {section.heading}
-              </h2>
-              {Array.isArray(section.content) ? (
-                <ul
-                  style={{
-                    margin: 0,
-                    paddingLeft: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    fontSize: '14px',
-                    lineHeight: 1.65,
-                    color: '#D1D5DB',
-                  }}
-                >
-                  {section.content.map((item, itemIdx) => (
-                    <li key={itemIdx}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.65, color: '#D1D5DB' }}>
-                  {section.content}
-                </p>
-              )}
-            </section>
-          ))}
-        </div>
-
-        {/* Contact & Grievance Box */}
-        <div
-          style={{
-            marginTop: '36px',
-            background: 'rgba(12, 14, 18, 0.9)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>Questions or Privacy Requests?</div>
-            <div style={{ fontSize: '13px', color: '#9CA3AF', marginTop: '2px' }}>
-              Direct data inquiries or account deletion requests to{' '}
-              <a href="mailto:jksurampudi5@gmail.com" style={{ color: '#FF9800', textDecoration: 'underline' }}>
-                jksurampudi5@gmail.com
-              </a>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/homepage')}
-            style={{
-              background: '#FF7900',
-              color: '#111827',
-              border: 'none',
-              borderRadius: '9999px',
-              padding: '10px 22px',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Return to Dashboard
-          </button>
-        </div>
-      </main>
-    </div>
-  );
-};
-```
-
-### src/pages/ShortcutsPage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 207 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import React from 'react';
-import { AdminShortcuts } from '../components/admin/AdminShortcuts';
-
-export const ShortcutsPage: React.FC = () => {
-  return <AdminShortcuts />;
-};
-
-export default ShortcutsPage;
-```
-
-### src/services/authService.ts
-
-| Field | Value |
-| --- | --- |
-| Bytes | 8417 |
+| Bytes | 6099 |
 | Score | 150 |
 | Why | changed, source |
 | Status | Full content |
 
 
 ```ts
-import {
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  browserLocalPersistence,
-  signInWithPopup,
-  signInWithCredential,
-  setPersistence,
-  signOut,
-  updateProfile,
-  type User as FirebaseAuthUser,
-  type Unsubscribe,
-} from 'firebase/auth';
-import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import type { User } from '../types';
-import { auth, isFirebaseConfigured } from './firebaseConfig';
-import { firebaseSyncService } from './firebaseSyncService';
 
-const OBSOLETE_SESSION_KEY = 'findlostpuppy_session_v1';
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
-function getGoogleAuthErrorMessage(err: any): string {
-  const code = String(err?.code || '');
-  if (code.includes('operation-not-allowed')) {
-    return 'Google Sign-In is not enabled in Firebase yet. Enable the Google provider in Firebase Authentication, then try again.';
-  }
-  if (code.includes('unauthorized-domain')) {
-    return 'This app URL is not allowed in Firebase Authentication. Add localhost and the app domain under Authorized domains.';
-  }
-  if (code.includes('popup-closed-by-user')) {
-    return 'Google Sign-In was closed before it finished. Please try again.';
-  }
-  return err?.message || 'Could not sign in with Google.';
+export type PromptLocationStatus =
+  | 'already_enabled'
+  | 'enabled'
+  | 'cancelled'
+  | 'launch_failed'
+  | 'unavailable'
+  | 'failed_to_enable'
+  | 'error';
+
+export interface PromptLocationResult {
+  resolved: boolean;
+  enabled: boolean;
+  status: PromptLocationStatus;
 }
 
-export const ADMIN_EMAILS = ['jksurampudi5@gmail.com'];
+export type AppLocationPermissionStatus = 'granted' | 'approximate' | 'prompt' | 'denied';
 
-export function isEmailAdmin(email?: string): boolean {
-  if (!email) return false;
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
+interface DeviceSettingsPlugin {
+  isLocationEnabled(): Promise<{ enabled: boolean }>;
+  promptEnableLocation(): Promise<{
+    resolved: boolean;
+    enabled?: boolean;
+    alreadyEnabled?: boolean;
+    status?: PromptLocationStatus;
+  }>;
+  openLocationSettings(): Promise<{ opened: boolean; error?: string }>;
+  openAppSettings(): Promise<{ opened: boolean; error?: string }>;
 }
 
-export function mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Partial<User>): User {
-  const email = (fbUser.email || fallbackProfile?.email || '').toLowerCase().trim();
-  const derivedName =
-    fbUser.displayName ||
-    fallbackProfile?.name ||
-    (email.includes('@') ? email.split('@')[0].replace(/[^a-zA-Z]/g, ' ') : 'Pet Parent');
-  const formattedName = derivedName
-    ? derivedName.charAt(0).toUpperCase() + derivedName.slice(1)
-    : 'Pet Parent';
+const DeviceSettings = registerPlugin<DeviceSettingsPlugin>('DeviceSettings');
 
-  return {
-    id: fbUser.uid,
-    email,
-    name: formattedName,
-    phone: fbUser.phoneNumber || fallbackProfile?.phone,
-    avatar: fbUser.photoURL || fallbackProfile?.avatar,
-    isAdmin: isEmailAdmin(email),
-    createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
-    lastLoginAt: fbUser.metadata.lastSignInTime || new Date().toISOString(),
-  };
-}
-
-class AuthService {
-  private currentUser: User | null = null;
-
-  constructor() {
-    this.cleanObsoleteSessionStorage();
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('findlostpuppy_active_user');
-        if (saved) this.currentUser = JSON.parse(saved);
-      } catch { }
-    }
+/**
+ * Checks whether device Location services (GPS master switch) are enabled.
+ */
+export async function isDeviceLocationEnabled(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    return true; // Browser handles this via navigator.geolocation directly
   }
 
-  mapFirebaseUser(fbUser: FirebaseAuthUser, fallbackProfile?: Partial<User>): User {
-    return mapFirebaseUser(fbUser, fallbackProfile);
-  }
-
-  private cleanObsoleteSessionStorage() {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.removeItem(OBSOLETE_SESSION_KEY);
-      } catch (e) {
-        console.warn('[AuthService] Storage cleanup notice:', e);
-      }
-    }
-  }
-
-  getCurrentUser(): User | null {
-    if (!this.currentUser && typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('findlostpuppy_active_user');
-        if (saved) this.currentUser = JSON.parse(saved);
-      } catch { }
-    }
-    return this.currentUser;
-  }
-
-  setCurrentUser(user: User | null) {
-    this.currentUser = user;
-    if (typeof localStorage !== 'undefined') {
-      try {
-        if (user) localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
-        else localStorage.removeItem('findlostpuppy_active_user');
-      } catch { }
-    }
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: user }));
-    }
-  }
-
-  isAdmin(): boolean {
-    return !!(this.currentUser?.isAdmin || isEmailAdmin(this.currentUser?.email));
-  }
-
-  isAuthenticated(): boolean {
-    return !!this.currentUser;
-  }
-
-  onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe | null {
-    if (!auth || !isFirebaseConfigured()) return null;
-    return onAuthStateChanged(auth, (fbUser) => {
-      if (fbUser) {
-        const mapped = mapFirebaseUser(fbUser);
-        this.setCurrentUser(mapped);
-        callback(mapped);
-        firebaseSyncService.syncUserProfile(mapped).catch((e) =>
-          console.warn('[Firebase Sync User Notice]:', e)
-        );
-      } else {
-        const cached = this.getCurrentUser();
-        callback(cached);
-      }
-    });
-  }
-
-  async completeGoogleRedirectSignIn(): Promise<{ success: boolean; user?: User; error?: string }> {
-    return { success: false };
-  }
-
-  async getSession(): Promise<{ session: null; user: User | null }> {
-    return { session: null, user: this.getCurrentUser() };
-  }
-
-  async signInWithGoogle(): Promise<{ success: boolean; user?: User; error?: string; redirected?: boolean }> {
-    if (!auth || !isFirebaseConfigured()) {
-      return { success: false, error: 'Firebase authentication is not configured. Add Firebase web config values first.' };
-    }
-
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      if (Capacitor.isNativePlatform()) {
-        // Use the legacy Google Sign-In path on Android while we work around the
-        // Credential Manager re-authentication failure ([16] Account reauth failed).
-        const nativeResult = await FirebaseAuthentication.signInWithGoogle({
-          useCredentialManager: false,
-        });
-        const idToken = nativeResult.credential?.idToken;
-        if (!idToken) {
-          return { success: false, error: 'Google Sign-In did not return an ID token.' };
-        }
-        const result = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
-        if (result.user?.email && !result.user.email.toLowerCase().endsWith('@gmail.com')) {
-          await auth.signOut();
-          return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
-        }
-        const mapped = mapFirebaseUser(result.user);
-        this.setCurrentUser(mapped);
-        await firebaseSyncService.syncUserProfile(mapped).catch(() => { });
-        return { success: true, user: mapped };
-      }
-
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user?.email && !result.user.email.toLowerCase().endsWith('@gmail.com')) {
-        await auth.signOut();
-        return { success: false, error: 'Only @gmail.com accounts are allowed for security purposes.' };
-      }
-      const mapped = mapFirebaseUser(result.user);
-      this.setCurrentUser(mapped);
-      await firebaseSyncService.syncUserProfile(mapped).catch(() => { });
-      return { success: true, user: mapped };
-    } catch (err: any) {
-      const code = String(err?.code || '');
-      if (
-        code.includes('popup-blocked') ||
-        code.includes('popup-closed-by-user') ||
-        code.includes('operation-not-supported-in-this-environment') ||
-        code.includes('cancelled-popup-request')
-      ) {
-        return {
-          success: false,
-          error:
-            'Google Sign-In popup was blocked or closed. Allow popups for this site and try again.',
-        };
-      }
-      return { success: false, error: getGoogleAuthErrorMessage(err) };
-    }
-  }
-
-  async updateCurrentUser(partial: Partial<User>): Promise<User | null> {
-    if (!this.currentUser) return null;
-    const updated: User = { ...this.currentUser, ...partial };
-    this.setCurrentUser(updated);
-
-    if (auth?.currentUser) {
-      try {
-        await updateProfile(auth.currentUser, {
-          displayName: updated.name,
-          photoURL: updated.avatar || null,
-        });
-      } catch (e) {
-        console.warn('[AuthService] Firebase updateProfile notice:', e);
-      }
-    }
-
-    firebaseSyncService.syncUserProfile(updated).catch((e) =>
-      console.warn('[Firebase Sync Profile Notice]:', e)
-    );
-    return updated;
-  }
-
-  async logout(): Promise<void> {
-    if (auth && isFirebaseConfigured()) {
-      try {
-        await signOut(auth);
-      } catch (e) {
-        console.warn('[AuthService] Firebase signOut notice:', e);
-      }
-    }
-    this.setCurrentUser(null);
-    this.cleanObsoleteSessionStorage();
-  }
-}
-
-export const authService = new AuthService();
-```
-
-### src/utils/locationMatchHelper.ts
-
-| Field | Value |
-| --- | --- |
-| Bytes | 5755 |
-| Score | 150 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```ts
-import type { LostReport, OwnerProfile } from '../types';
-
-export interface ReportGeoLocation {
-  state: string;
-  district: string;
-  mandal: string;
-  village: string;
-}
-
-export const getReportGeo = (r: LostReport, profiles: OwnerProfile[] = []): ReportGeoLocation => {
-  const cleanOwnerId = (r.ownerId || '').replace(/^owner-/, '').toLowerCase().trim();
-  const safeContact = (r.contactMechanism?.safeContactEmail || '').toLowerCase().trim();
-
-  const p = profiles.find((pr) => {
-    const prId = (pr.id || '').replace(/^owner-/, '').toLowerCase().trim();
-    const prUserId = (pr.userId || '').replace(/^owner-/, '').toLowerCase().trim();
-    const prEmail = (pr.email || '').toLowerCase().trim();
-    return (
-      (prId && prId === cleanOwnerId) ||
-      (prUserId && prUserId === cleanOwnerId) ||
-      (prEmail && safeContact && prEmail === safeContact)
-    );
-  });
-
-  const dogAny = (r.dog || {}) as Record<string, any>;
-  let state = (dogAny.state || p?.state || '').trim();
-  let district = (dogAny.district || p?.district || '').trim();
-  let mandal = (dogAny.mandalOrMunicipality || p?.mandalOrMunicipality || '').trim();
-  let village = (dogAny.city || dogAny.streetOrLocality || p?.city || p?.streetOrLocality || '').trim();
-
-  const combinedText = `${r.lastKnownLocation || ''} ${r.ownerApproximateLocation || ''} ${p?.approximateArea || ''} ${p?.address || ''}`.trim();
-
-  // If state is missing, infer from combinedText
-  if (!state) {
-    if (/andhra pradesh|\bap\b/i.test(combinedText)) state = 'Andhra Pradesh';
-    else if (/telangana|\bts\b/i.test(combinedText)) state = 'Telangana';
-    else if (/karnataka|\bka\b/i.test(combinedText)) state = 'Karnataka';
-    else if (/tamil nadu|\btn\b/i.test(combinedText)) state = 'Tamil Nadu';
-    else if (/maharashtra/i.test(combinedText)) state = 'Maharashtra';
-    else if (/kerala/i.test(combinedText)) state = 'Kerala';
-    else if (/vikarabad|hyderabad|rangareddy|yennaepally/i.test(combinedText)) state = 'Telangana';
-    else if (/godavari|palangi|undrajavaram|tanuku|guntur|krishna/i.test(combinedText)) state = 'Andhra Pradesh';
-    else if (/bengaluru|bangalore|mysuru|mysore/i.test(combinedText)) state = 'Karnataka';
-  }
-
-  // If district is missing, infer
-  if (!district && combinedText) {
-    if (/west godavari/i.test(combinedText)) district = 'West Godavari';
-    else if (/east godavari/i.test(combinedText)) district = 'East Godavari';
-    else if (/vikarabad|yennaepally/i.test(combinedText)) district = 'Vikarabad';
-    else if (/hyderabad/i.test(combinedText)) district = 'Hyderabad';
-    else if (/rangareddy|ranga reddy/i.test(combinedText)) district = 'Rangareddy';
-    else if (/bengaluru|bangalore/i.test(combinedText)) district = 'Bengaluru Urban';
-    else if (/palangi|undrajavaram|tanuku/i.test(combinedText)) district = 'West Godavari';
-  }
-
-  // If mandal is missing, infer
-  if (!mandal && combinedText) {
-    if (/undrajavaram/i.test(combinedText)) mandal = 'Undrajavaram';
-    else if (/vikarabad|yennaepally/i.test(combinedText)) mandal = 'Vikarabad';
-    else if (/tanuku/i.test(combinedText)) mandal = 'Tanuku';
-    else if (/palangi/i.test(combinedText)) mandal = 'Undrajavaram';
-  }
-
-  // If village is missing, infer
-  if (!village && combinedText) {
-    if (/palangi/i.test(combinedText)) village = 'Palangi';
-    else if (/yennaepally/i.test(combinedText)) village = 'Yennaepally';
-  }
-
-  return { state, district, mandal, village };
-};
-
-export const isMatchState = (r: LostReport, targetState: string, profiles: OwnerProfile[] = []): boolean => {
-  if (!targetState) return true;
-  const geo = getReportGeo(r, profiles);
-  const ts = targetState.trim().toLowerCase();
-  if (geo.state && geo.state.toLowerCase() === ts) return true;
-  const combinedText = `${r.lastKnownLocation || ''} ${r.ownerApproximateLocation || ''}`.toLowerCase();
-  return combinedText.includes(ts);
-};
-
-export const isMatchDistrict = (
-  r: LostReport,
-  targetState: string,
-  targetDistrict: string,
-  profiles: OwnerProfile[] = []
-): boolean => {
-  if (!isMatchState(r, targetState, profiles)) return false;
-  if (!targetDistrict) return true;
-  const geo = getReportGeo(r, profiles);
-  const td = targetDistrict.trim().toLowerCase();
-  if (geo.district && geo.district.toLowerCase() === td) return true;
-  const combinedText = `${r.lastKnownLocation || ''} ${r.ownerApproximateLocation || ''}`.toLowerCase();
-  return combinedText.includes(td);
-};
-
-export const isMatchMandal = (
-  r: LostReport,
-  targetState: string,
-  targetDistrict: string,
-  targetMandal: string,
-  profiles: OwnerProfile[] = []
-): boolean => {
-  if (!isMatchDistrict(r, targetState, targetDistrict, profiles)) return false;
-  if (!targetMandal) return true;
-  const geo = getReportGeo(r, profiles);
-  const tm = targetMandal.trim().toLowerCase();
-  if (geo.mandal && geo.mandal.toLowerCase() === tm) return true;
-  const combinedText = `${r.lastKnownLocation || ''} ${r.ownerApproximateLocation || ''}`.toLowerCase();
-  return combinedText.includes(tm);
-};
-
-export const isMatchCity = (
-  r: LostReport,
-  targetState: string,
-  targetDistrict: string,
-  targetMandal: string,
-  targetCity: string,
-  profiles: OwnerProfile[] = []
-): boolean => {
-  if (!isMatchMandal(r, targetState, targetDistrict, targetMandal, profiles)) return false;
-  if (!targetCity) return true;
-  const geo = getReportGeo(r, profiles);
-  const tc = targetCity.trim().toLowerCase();
-  if (
-    geo.village &&
-    (geo.village.toLowerCase() === tc ||
-      geo.village.toLowerCase().includes(tc) ||
-      tc.includes(geo.village.toLowerCase()))
-  ) {
+  try {
+    const result = await DeviceSettings.isLocationEnabled();
+    return Boolean(result?.enabled);
+  } catch (error) {
+    console.warn('[nativeSettingsService] Unable to check device location status:', error);
     return true;
   }
-  const combinedText = `${r.lastKnownLocation || ''} ${r.ownerApproximateLocation || ''}`.toLowerCase();
-  return combinedText.includes(tc);
-};
+}
+
+/**
+ * Triggers Google Play Services in-app Location resolution dialog if disabled.
+ * Settle with explicit status ('enabled', 'cancelled', 'unavailable', etc.).
+ */
+export async function promptEnableDeviceLocation(): Promise<PromptLocationResult> {
+  if (!Capacitor.isNativePlatform()) {
+    return { resolved: true, enabled: true, status: 'already_enabled' };
+  }
+
+  try {
+    const alreadyOn = await isDeviceLocationEnabled();
+    if (alreadyOn) {
+      return { resolved: true, enabled: true, status: 'already_enabled' };
+    }
+
+    let pollTimer: any = null;
+    const pollGpsPromise = new Promise<PromptLocationResult>((resolve) => {
+      let checks = 0;
+      pollTimer = setInterval(async () => {
+        checks++;
+        const enabled = await isDeviceLocationEnabled();
+        if (enabled) {
+          if (pollTimer) clearInterval(pollTimer);
+          resolve({ resolved: true, enabled: true, status: 'enabled' });
+        } else if (checks >= 40) { // 10 seconds (40 * 250ms)
+          if (pollTimer) clearInterval(pollTimer);
+          resolve({ resolved: false, enabled: false, status: 'cancelled' });
+        }
+      }, 250);
+    });
+
+    const nativePromise = (async (): Promise<PromptLocationResult> => {
+      const result = await DeviceSettings.promptEnableLocation();
+      const enabled = Boolean(result?.enabled || result?.alreadyEnabled);
+      const status: PromptLocationStatus =
+        (result?.status as PromptLocationStatus) || (enabled ? 'enabled' : 'unavailable');
+      return {
+        resolved: Boolean(result?.resolved),
+        enabled,
+        status,
+      };
+    })();
+
+    const winner = await Promise.race([nativePromise, pollGpsPromise]);
+    if (pollTimer) clearInterval(pollTimer);
+    return winner;
+  } catch (error) {
+    console.warn('[nativeSettingsService] Unable to show Android Location enable dialog:', error);
+    return { resolved: false, enabled: false, status: 'error' };
+  }
+}
+
+/**
+ * Opens native Android Location Source Settings.
+ */
+export async function openDeviceLocationSettings(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    return false;
+  }
+
+  try {
+    const result = await DeviceSettings.openLocationSettings();
+    return Boolean(result?.opened);
+  } catch (error) {
+    console.warn('[nativeSettingsService] Unable to open device Location settings:', error);
+    return false;
+  }
+}
+
+/**
+ * Opens native Android App Details Settings (to change runtime permissions).
+ */
+export async function openAppPermissionSettings(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    return false;
+  }
+
+  try {
+    const result = await DeviceSettings.openAppSettings();
+    return Boolean(result?.opened);
+  } catch (error) {
+    console.warn('[nativeSettingsService] Unable to open app permission settings:', error);
+    return false;
+  }
+}
+
+/**
+ * Accurately checks current app location permission state across platforms,
+ * explicitly respecting approximate (coarse) permission.
+ */
+export async function checkAppLocationPermission(): Promise<AppLocationPermissionStatus> {
+  if (!Capacitor.isNativePlatform()) {
+    if (typeof navigator === 'undefined' || !navigator.permissions) {
+      return 'prompt';
+    }
+    try {
+      const status = await navigator.permissions.query({ name: 'geolocation' });
+      if (status.state === 'granted') return 'granted';
+      if (status.state === 'denied') return 'denied';
+      return 'prompt';
+    } catch {
+      return 'prompt';
+    }
+  }
+
+  try {
+    const perm = await Geolocation.checkPermissions();
+    if (perm.location === 'granted') return 'granted';
+    if (perm.coarseLocation === 'granted') return 'approximate';
+    if (perm.location === 'denied' && perm.coarseLocation === 'denied') return 'denied';
+    return 'prompt';
+  } catch (error) {
+    console.warn('[nativeSettingsService] checkPermissions error:', error);
+    // If device location is disabled, some Android versions may throw: treat as prompt
+    return 'prompt';
+  }
+}
+
+/**
+ * Prompts user for app location permission and returns resulting state.
+ */
+export async function requestAppLocationPermission(): Promise<AppLocationPermissionStatus> {
+  if (!Capacitor.isNativePlatform()) {
+    return 'prompt';
+  }
+
+  try {
+    const req = await Geolocation.requestPermissions();
+    if (req.location === 'granted') return 'granted';
+    if (req.coarseLocation === 'granted') return 'approximate';
+    if (req.location === 'denied' && req.coarseLocation === 'denied') return 'denied';
+    return 'prompt';
+  } catch (error) {
+    console.warn('[nativeSettingsService] requestPermissions error:', error);
+    return 'denied';
+  }
+}
 ```
 
-### src/vite-env.d.ts
+### src/hooks/useLocationDetection.ts
 
 | Field | Value |
 | --- | --- |
-| Bytes | 38 |
-| Score | 150 |
+| Bytes | 16231 |
+| Score | 149 |
 | Why | changed, source |
-| Status | Full content |
+| Status | Truncated (budget limit) |
+
+**Structural Outline:**
+  - `interface LocationDetectionResult` (line 18)
+  - `interface UseLocationDetectionOptions` (line 30)
+  - `fn useLocationDetection` (line 36)
+  - `fn onFocus` (line 396)
+  - `fn onVisibilityChange` (line 399)
 
 
 ```ts
-/// <reference types="vite/client" />
-```
-
-### src/components/LaunchTributeOverlay.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 12276 |
-| Score | 149 |
-| Why | changed, source |
-| Status | Full content |
-
-
-```tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, PawPrint, ArrowRight, X } from 'lucide-react';
-import logoTopHandImg from '../assets/logo_top_hand.png';
-import logoBottomHandImg from '../assets/logo_bottom_hand.png';
-import logoCenterSanctuaryImg from '../assets/logo_center_sanctuary.png';
-import './LaunchTributeOverlay.css';
-
-interface LaunchTributeOverlayProps {
-  forceOpen?: boolean;
-  onClose?: () => void;
-}
-
-/** Coordinates the launch animation and authenticated first-time tribute, with manual tribute access. */
-export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
-  const [visible, setVisible] = useState(() => {
-    if (forceOpen) return true;
-    return sessionStorage.getItem('findlostpuppy_launch_seen') !== 'true';
-  });
-  const [phase, setPhase] = useState<'logo' | 'tribute'>('logo');
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-  const [showProceedBtn, setShowProceedBtn] = useState(false);
-  const [replayKey] = useState(0);
-  const dismissalTimerRef = useRef<number | undefined>(undefined);
-
-  const paragraph1Words = [
-    "A", "very", "special", "note", "of", "gratitude", "to", "Priyanka", "Sharma", "—",
-    "a", "gifted", "artist,", "inspiring", "educator,", "and", "devoted", "pet", "lover."
-  ];
-
-  const paragraph2Words = [
-    "Your", "boundless", "love", "for", "animals", "and", "creative", "perspective", "were", "a",
-    "guiding", "light", "in", "shaping", "this", "app.", "Thank", "you", "for", "your", "warmth,",
-    "insight,", "and", "faith", "in", "this", "journey", "to", "ensure", "no", "lost", "pet", "is",
-    "ever", "forgotten", "and", "every", "puppy", "finds", "its", "way", "home."
-  ];
-
-  const totalWords = paragraph1Words.length + paragraph2Words.length;
-
-  const [isFadingOut, setIsFadingOut] = useState(false);
-
-  useEffect(() => {
-    if (forceOpen) {
-      setVisible(true);
-      setPhase('tribute');
-      setShowProceedBtn(false);
-      setCurrentWordIndex(0);
-      return;
-    }
-
-    if (sessionStorage.getItem('findlostpuppy_launch_seen') === 'true') {
-      return; // Already seen splash in this session
-    }
-
-    setPhase('logo');
-    setIsFadingOut(false);
-
-    // The animated logo is the only app-controlled launch artwork.
-    // Automatic inauguration notes popup is disabled so launch timing is fast for all users.
-    const logoTimer = setTimeout(() => {
-      setIsFadingOut(true);
-      dismissalTimerRef.current = window.setTimeout(() => {
-        setVisible(false);
-        sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-        setIsFadingOut(false);
-        if (onClose) onClose();
-      }, 350);
-    }, 1200);
-
-    return () => {
-      clearTimeout(logoTimer);
-      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
-    };
-  }, [forceOpen, onClose, replayKey]);
-
-  // Global event listener to re-open from footer button
-  useEffect(() => {
-    const handleReopen = () => {
-      if (dismissalTimerRef.current) window.clearTimeout(dismissalTimerRef.current);
-      dismissalTimerRef.current = undefined;
-      setVisible(true);
-      setIsFadingOut(false);
-      setPhase('tribute');
-      setShowProceedBtn(false);
-      setCurrentWordIndex(0);
-    };
-
-    window.addEventListener('open-tribute-modal', handleReopen);
-    return () => window.removeEventListener('open-tribute-modal', handleReopen);
-  }, []);
-
-  // Lock body scroll when overlay is active to eliminate background judder
-  useEffect(() => {
-    if (visible) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [visible]);
-
-  // Word-by-word reading progression at a relaxed, comfortable cadence (~380ms per word)
-  useEffect(() => {
-    if (visible && phase === 'tribute') {
-      setCurrentWordIndex(0);
-      setShowProceedBtn(false);
-
-      const wordInterval = setInterval(() => {
-        setCurrentWordIndex((prev) => {
-          if (prev < totalWords) {
-            return prev + 1;
-          }
-          return prev;
-        });
-      }, 380);
-
-      return () => clearInterval(wordInterval);
-    }
-  }, [visible, phase, totalWords]);
-
-  // Once reading finishes ("finds its way home."), pause for 3 seconds then gracefully reveal the proceed button
-  useEffect(() => {
-    if (visible && phase === 'tribute' && currentWordIndex >= totalWords) {
-      const pauseTimer = setTimeout(() => {
-        setShowProceedBtn(true);
-      }, 3000);
-
-      return () => clearTimeout(pauseTimer);
-    }
-  }, [visible, phase, currentWordIndex, totalWords]);
-
-  const handleDismiss = () => {
-    localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-    setVisible(false);
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    if (onClose) onClose();
-  };
-
-  if (!visible) return null;
-
-  return (
-    <div className={`launch-overlay-backdrop ${phase} ${isFadingOut ? 'fade-out' : ''}`} role="dialog" aria-modal="true" aria-label="Launch dedication">
-      {/* Background ambient orbs */}
-      <div className="launch-ambient-glow glow-1" />
-      <div className="launch-ambient-glow glow-2" />
-      <div className="launch-ambient-glow glow-3" />
-
-      {phase === 'logo' ? (
-        <div key={replayKey} className="launch-logo-stage animate-fade-in" onClick={handleDismiss} title="Click anywhere to enter app">
-          <div className="launch-logo-container">
-            {/* The Badge Container */}
-            <div className="launch-logo-badge protective-sanctuary-card">
-              {/* Warm Hearth Fire Glow behind dog inside home */}
-              <div className="safe-dog-hearth-glow" />
-
-              {/* 1. Center Sanctuary: Home, Locator Pin & Safe Dog with Leash */}
-              <img
-                src={logoCenterSanctuaryImg}
-                alt="Dog safe at home in locator"
-                className="sanctuary-center-img"
-              />
-
-              {/* 2. Top Hand: Comes in from outside above to shelter over home */}
-              <img
-                src={logoTopHandImg}
-                alt="Protective hand sheltering dog from above"
-                className="protective-hand-img hand-top-incoming"
-              />
-
-              {/* 3. Bottom Hand: Comes in from outside below to cradle under locator */}
-              <img
-                src={logoBottomHandImg}
-                alt="Protective hand cradling dog from below"
-                className="protective-hand-img hand-bottom-incoming"
-              />
-            </div>
-          </div>
-
-          <h1 className="launch-brand-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <div>
-              <span className="brand-find">find</span>
-              <span className="brand-lost">lost</span>
-              <span className="brand-puppy">puppy</span>
-            </div>
-          </h1>
-
-          <p className="launch-brand-tagline">
-            Every puppy deserves to find its way home 🐾
-          </p>
-
-          <div className="launch-progress-bar-wrap">
-            <div className="launch-progress-bar-fill" />
-          </div>
-        </div>
-      ) : (
-        <div className="launch-tribute-stage animate-slide-up">
-          <div className="launch-tribute-card">
-            {/* Top Close Button */}
-            <button
-              type="button"
-              className="tribute-close-btn"
-              onClick={handleDismiss}
-              aria-label="Close and continue to home"
-            >
-              <X size={18} />
-            </button>
-
-            {/* Header: Inaugural Launch & Brand */}
-            <div className="tribute-editorial-header">
-              <div className="tribute-header-eyebrow">
-                <Sparkles size={13} className="eyebrow-sparkle" />
-                <span>INAUGURAL LAUNCH • 2026</span>
-              </div>
-              <h2 className="tribute-launch-title">
-                Welcome to <span className="highlight-brand">findlostpuppy</span>
-              </h2>
-            </div>
-
-            {/* Prestigious Honoree Hero Presentation */}
-            <div className="tribute-honoree-banner">
-              <div className="honoree-eyebrow-chip">
-                <Sparkles size={12} className="chip-sparkle" />
-                <span>A SPECIAL NOTE OF GRATITUDE</span>
-                <Sparkles size={12} className="chip-sparkle" />
-              </div>
-              <h3 className="honoree-signature-name">Priyanka Sharma</h3>
-              <p className="honoree-signature-subtitle">
-                Inspiring Art Teacher & Devoted Pet Lover
-              </p>
-            </div>
-
-            {/* Editorial Quote Passage (Liquid Light Typography) */}
-            <div className="tribute-passage-section">
-              <div className="passage-quote-mark top-mark">“</div>
-
-              {/* Paragraph 1 */}
-              <p className="tribute-paragraph illuminated-text">
-                {paragraph1Words.map((word, idx) => {
-                  const globalIdx = idx;
-                  let wordClass = 'word-upcoming';
-                  if (globalIdx < currentWordIndex) {
-                    wordClass = 'word-read';
-                  } else if (globalIdx === currentWordIndex) {
-                    wordClass = 'word-active';
-                  }
-                  const isSpecialName = word === 'Priyanka' || word === 'Sharma';
-                  return (
-                    <React.Fragment key={idx}>
-                      <span
-                        className={`reading-word ${wordClass} ${isSpecialName ? 'word-name' : ''}`}
-                        onClick={() => setCurrentWordIndex(globalIdx)}
-                      >
-                        {word}
-                      </span>{' '}
-                    </React.Fragment>
-                  );
-                })}
-              </p>
-
-              {/* Paragraph 2 */}
-              <p className="tribute-paragraph illuminated-text">
-                {paragraph2Words.map((word, idx) => {
-                  const globalIdx = paragraph1Words.length + idx;
-                  let wordClass = 'word-upcoming';
-                  if (globalIdx < currentWordIndex) {
-                    wordClass = 'word-read';
-                  } else if (globalIdx === currentWordIndex) {
-                    wordClass = 'word-active';
-                  }
-                  return (
-                    <React.Fragment key={idx}>
-                      <span
-                        className={`reading-word ${wordClass}`}
-                        onClick={() => setCurrentWordIndex(globalIdx)}
-                      >
-                        {word}
-                      </span>{' '}
-                    </React.Fragment>
-                  );
-                })}
-              </p>
-
-              <div className="passage-quote-mark bottom-mark">”</div>
-            </div>
-
-            {/* Actions Bar - Gracefully reveals Continue button after tribute finishes */}
-            <div className="tribute-actions-row">
-              {showProceedBtn ? (
-                <button
-                  type="button"
-                  className="tribute-enter-btn animate-proceed-reveal"
-                  onClick={handleDismiss}
-                  autoFocus
-                >
-                  <span>Continue to Home Page</span>
-                  <PawPrint size={18} className="btn-paw-icon" />
-                  <ArrowRight size={18} className="btn-arrow-icon" />
-                </button>
-              ) : (
-                <div 
-                  className="tribute-actions-holding" 
-                  onClick={() => setShowProceedBtn(true)}
-                  onMouseEnter={() => setShowProceedBtn(true)}
-                  title="Click to proceed immediately"
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className="holding-pulse-dot" />
-                  <span className="holding-text">Reading tribute note...</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-```
-
-### src/pages/ConsentPage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 16178 |
-| Score | 149 |
-| Why | changed, source |
-| Status | Truncated (budget limit) |
-
-**Structural Outline:**
-  - `interface ConsentPageProps` (line 14)
-  - `fn cancelAutoScroll` (line 57)
-  - `fn scrollToSignature` (line 71)
-  - `fn handleAcceptAllTogether` (line 85)
-  - `fn handleToggleAllForms` (line 97)
-  - `fn handleModalAccept` (line 107)
-  - `fn handleContinue` (line 115)
-
-
-```tsx
-// … lines 1–18
-import React, { useState, useEffect, useRef } from 'react';
+// … lines 1–22
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import {
-  FileText,
-  ShieldCheck,
-  AlertTriangle,
-  BookOpen,
-  CheckCircle2,
-  ArrowRight,
-  ExternalLink,
-} from 'lucide-react';
-import { LegalModal } from '../components/LegalModal';
-import type { AcceptedFormsState } from '../services/consentService';
-
-interface ConsentPageProps {
-  onConsentAgreed: (
-    acceptedForms?: Partial<AcceptedFormsState>,
-    method?: 'all_forms_accepted' | 'master_declaration'
-  ) => void;
-// … lines 56–61
-    // Cancel auto-scroll if user interacts/scrolls manually
-    const cancelAutoScroll = () => {
-      clearTimeout(autoScrollTimer);
-    };
-
-    window.addEventListener('wheel', cancelAutoScroll, { passive: true });
-// … lines 70–75
-
-  const scrollToSignature = () => {
-    signatureBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
-  // Sync master checkmark when all 4 individual forms are checked
-// … lines 84–89
-  // 1-Click Accept All 4 Forms at Once (sets both age 18+ and all 4 agreements)
-  const handleAcceptAllTogether = (checked: boolean = true) => {
-    setAgeConfirmed(checked);
-    setMasterAgreed(checked);
-    setAcceptedForms({
-      terms: checked,
-// … lines 96–101
-  // Toggle all forms at once
-  const handleToggleAllForms = (checked: boolean) => {
-    setAcceptedForms({
-      terms: checked,
-      privacy: checked,
-      disclaimer: checked,
-// … lines 106–119
-
-  const handleModalAccept = (docId: 'terms' | 'privacy' | 'disclaimer' | 'guidelines') => {
-    const updated = { ...acceptedForms, [docId]: true };
-    setAcceptedForms(updated);
-    if (updated.terms && updated.privacy && updated.disclaimer && updated.guidelines) {
-      setMasterAgreed(true);
-    }
-  };
-
-  const handleContinue = () => {
-    // 1-Click: auto-accept all 4 forms and continue immediately
-    handleAcceptAllTogether(true);
-    onConsentAgreed(
-      {
-```
-
-### src/pages/ReportLostDogPage.tsx
-
-| Field | Value |
-| --- | --- |
-| Bytes | 19816 |
-| Score | 149 |
-| Why | changed, source |
-| Status | Truncated (budget limit) |
-
-**Structural Outline:**
-  - `interface ReportLostDogPageProps` (line 23)
-  - `fn handleUpdate` (line 46)
-  - `fn handleMarkSafe` (line 91)
-  - `fn handleSelectMissing` (line 107)
-  - `fn handleMarkSafeFromFlyer` (line 212)
-  - `fn handleDeleteAlert` (line 223)
-  - `fn handleWhatsAppShare` (line 241)
-  - `fn handleBack` (line 285)
-  - `fn handleCardKey` (line 296)
-
-
-```tsx
-// … lines 1–27
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  AlertTriangle,
-  Check,
-  ShieldCheck,
-  PawPrint,
-  House,
-  Siren,
-  LayoutDashboard,
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+  isDeviceLocationEnabled,
+  promptEnableDeviceLocation,
+  openDeviceLocationSettings,
+  openAppPermissionSettings,
+  checkAppLocationPermission,
+  requestAppLocationPermission,
+  type AppLocationPermissionStatus,
+} from '../services/nativeSettingsService';
+import { detectResilientLocation, type LocationGeoResult, NativeLocationError } from '../utils/geolocationHelper';
+import { locationService, type LocationMatchResult } from '../services/locationService';
+import { normalizeToEnglishText } from '../utils/indicTransliteration';
 import { useToast } from '../context/ToastContext';
-import { storageService } from '../services/storageService';
-import type { LostReport, DogProfile } from '../types';
-import { triggerStarCelebration } from '../utils/confettiHelper';
-import { MissingPetReportModal } from '../components/MissingPetReportModal';
-import abulluImg from '../assets/abullu.jpg';
-import { getDogPhotoUrl, handleDogImageError } from '../utils/dogPhotoHelper';
-import { generateWhatsAppSosMessage } from '../utils/shareHelper';
-import { BackButton } from '../components/ui/back-button';
 
-interface ReportLostDogPageProps {
-  onBackToPet?: () => void;
-  onSuccess?: () => void;
+export interface LocationDetectionResult {
+  geo: LocationGeoResult;
+  match: LocationMatchResult | null;
+  detectedState: string;
+  detectedDistrict: string;
+// … lines 29–40
+
+export interface UseLocationDetectionOptions {
+  onSuccess: (result: LocationDetectionResult) => void;
+  onError?: (error: any) => void;
+  onClearFieldsForNewDetection?: () => void;
 }
 
-// … lines 45–50
-  useEffect(() => {
-    const handleUpdate = () => {
-      setForceUpdate((prev) => prev + 1);
-    };
-    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
-// … lines 90–95
-  // ACTION 1: User chooses "My Pet is Safe" -> Go to Dashboard Pets At Home tab
-  const handleMarkSafe = () => {
-    markPetSafe();
-    setUserSelectedChoice('safe');
-    setIsMissingModalOpen(false);
+export function useLocationDetection({
+  onSuccess,
+  onError,
+  onClearFieldsForNewDetection,
+}: UseLocationDetectionOptions) {
+// … lines 394–402
+    } else {
+      const onFocus = () => {
+        if (isMounted) handleSettingsReturn();
+      };
+      const onVisibilityChange = () => {
+        if (isMounted && document.visibilityState === 'visible') handleSettingsReturn();
+      };
 
-// … lines 106–111
-  /** Opens the missing-report form, or shows an existing-broadcast notice when the pet is already reported missing. */
-  const handleSelectMissing = () => {
-    setUserSelectedChoice('missing');
-    if (existingReport?.status === 'LOST') {
-      setIsMissingModalOpen(false);
-      setShowAlreadyBroadcast(true);
-// … lines 211–216
-  // ACTION 4: Mark safe at home from existing report context (preserved)
-  const handleMarkSafeFromFlyer = () => {
-    if (!existingReport || !user) return;
-    storageService.updateReportStatus(existingReport.id, 'SAFE');
-    markPetSafe();
-    setUserSelectedChoice('safe');
-// … lines 222–227
-  // ACTION 5: Delete / Remove Alert permanently (preserved)
-  const handleDeleteAlert = () => {
-    if (!existingReport && !user) return;
-    const targetId = existingReport?.id;
-    const confirmed = window.confirm(`Are you sure you want to remove the missing alert for ${dogName}?`);
-    if (!confirmed) return;
-// … lines 240–245
-  /** Builds a WhatsApp SOS link from the active report or pet details and attempts to copy the dashboard URL. */
-  const handleWhatsAppShare = () => {
-    const activeReport = existingReport || (user ? storageService.getLatestReportByUserId(user.id) : null);
-    const contactPhone =
-      activeReport?.contactMechanism?.safeContactPhone ||
-      ownerProfile?.phone ||
-// … lines 284–289
-  // Back navigation
-  const handleBack = () => {
-    if (onBackToPet) {
-      onBackToPet();
-    } else if (onSuccess) {
-      onSuccess();
-// … lines 295–300
-  // Keyboard handler for cards
-  const handleCardKey = (e: React.KeyboardEvent, action: () => void) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      action();
-    }
+      window.addEventListener('focus', onFocus);
 ```
 
-### src/components/SidebarNav.tsx
+### src/services/locationService.ts
 
 | Field | Value |
 | --- | --- |
-| Bytes | 26561 |
+| Bytes | 18343 |
+| Score | 149 |
+| Why | changed, source |
+| Status | Truncated (budget limit) |
+
+**Structural Outline:**
+  - `interface LocationMatchResult` (line 12)
+  - `fn normalizeStem` (line 59)
+  - `class LocationService` (line 72)
+
+
+```ts
+// … lines 1–20
+import statesData from '../data/location/states.json';
+import districtsData from '../data/location/districts.json';
+import subdistrictsData from '../data/location/subdistricts.json';
+import type {
+  LocationState,
+  LocationDistrict,
+  LocationSubDistrict,
+  LocationLocality,
+} from '../types';
+import { normalizeToEnglishText } from '../utils/indicTransliteration';
+
+export interface LocationMatchResult {
+  state: LocationState;
+  district: LocationDistrict;
+  subDistrict?: LocationSubDistrict;
+  locality?: LocationLocality;
+}
+
+// Vite glob loader for code-split district locality files
+const localityModules = import.meta.glob<LocationLocality[] | { default: LocationLocality[] }>(
+// … lines 58–63
+
+function normalizeStem(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/mandal|taluk|district|\(urban\)|\(rural\)|\(mdl\)/gi, '')
+// … lines 71–76
+
+class LocationService {
+  private states: LocationState[] = statesData as LocationState[];
+  private districts: LocationDistrict[] = districtsData as LocationDistrict[];
+  private subdistricts: LocationSubDistrict[] = subdistrictsData as LocationSubDistrict[];
+  private localityCache: Map<number, LocationLocality[]> = new Map();
+```
+
+### src/components/LocationPicker.tsx
+
+| Field | Value |
+| --- | --- |
+| Bytes | 29110 |
 | Score | 148 |
 | Why | changed, source |
 | Status | Truncated (budget limit) |
 
 **Structural Outline:**
-  - `interface NavigationItem` (line 24)
-  - `fn handleUpdate` (line 69)
-  - `fn handleTabClick` (line 111)
+  - `interface LocationPickerProps` (line 24)
+  - `fn handleStateChange` (line 223)
+  - `fn handleDistrictChange` (line 232)
+  - `fn handleMandalSelect` (line 240)
+  - `fn handleCitySelect` (line 247)
+  - `fn handleLocationDetected` (line 303)
+  - `fn handleDetectClick` (line 403)
+  - `fn handleConfirmLocation` (line 407)
 
 
 ```tsx
 // … lines 1–28
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  PawPrint,
-  Radio,
   MapPin,
-  User,
-  AlertTriangle,
-  Shield,
-  LogOut,
-  X,
-  Check,
-  Lightbulb,
   ShieldCheck,
-  Camera,
+  Navigation,
+  Lock,
+  Crosshair,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Edit3,
+  Check,
+  Building,
+  Sparkles,
+  Landmark,
 } from 'lucide-react';
-import { AlignJustifyIcon } from './ui/align-justify-icon';
-import { useAuth, type OnboardingTab } from '../context/AuthContext';
-import { storageService } from '../services/storageService';
-import safePuppyImg from '../assets/safe_puppy.jpg';
-import missingPuppyImg from '../assets/missing_puppy.jpg';
-import appLogoImg from '../assets/app_logo.png';
+import { useToast } from '../context/ToastContext';
+import { locationService } from '../services/locationService';
+import { PermissionRationaleModal } from './PermissionRationaleModal';
+import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
+import { SearchableSelect, type SelectOption } from './SearchableSelect';
+import type { LocationLocality } from '../types';
 
-interface NavigationItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  isActive: boolean;
-// … lines 68–73
-  useEffect(() => {
-    const handleUpdate = () => {
-      setForceUpdate(n => n + 1);
-      refreshProgress();
-    };
-    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
-// … lines 110–115
+interface LocationPickerProps {
+  state: string;
+  district: string;
+  city?: string;
+  mandalOrMunicipality?: string;
+// … lines 221–226
+  // Cascading Selection Handlers with Strict Reset
+  const handleStateChange = (newState: string) => {
+    updateFields({
+      state: newState,
+      district: '',
+      mandalOrMunicipality: '',
+// … lines 230–257
 
-  const handleTabClick = (tab: OnboardingTab, routePath: string) => {
-    setActiveOnboardingTab(tab);
-    navigate(routePath);
-    setIsMobileMenuOpen(false);
+  const handleDistrictChange = (newDistrict: string) => {
+    updateFields({
+      district: newDistrict,
+      mandalOrMunicipality: '',
+      city: '',
+    });
+  };
+
+  const handleMandalSelect = (newMandal: string) => {
+    updateFields({
+      mandalOrMunicipality: newMandal,
+      city: '',
+    });
+  };
+
+  const handleCitySelect = (newCity: string) => {
+    updateFields({
+      city: newCity,
+    });
+  };
+
+  // 6-digit PIN lookup
+  const handlePinChange = async (pinValue: string) => {
+    updateFields({ pinCode: pinValue });
+    if (pinValue.trim().length === 6 && /^\d{6}$/.test(pinValue.trim())) {
+      setLookingUpPin(true);
+      try {
+// … lines 299–304
+
+  const handleLocationDetected = (result: LocationDetectionResult) => {
+    const { geo, match, detectedState, detectedDistrict, detectedMandal, detectedCity, detectedStreet, detectedPin } = result;
+
+    setAccuracyRadius(geo.accuracyMeters || (geo.source === 'gps' ? 20 : 100));
+
+// … lines 396–405
+  // Direct native location detector using shared robust flow
+  const handleDetectClick = () => {
+    triggerDetectLocation();
+  };
+
+  const handleConfirmLocation = () => {
+    setIsConfirmed(true);
+    setIsEditing(false);
+    showToast('✓ Location confirmed!', 'success');
   };
 ```
 
-### src/pages/PetParentContactPage.tsx
+### src/pages/Location.tsx
 
 | Field | Value |
 | --- | --- |
-| Bytes | 34603 |
-| Score | 148 |
+| Bytes | 43647 |
+| Score | 147 |
 | Why | changed, source |
 | Status | Truncated (budget limit) |
 
 **Structural Outline:**
-  - `interface PetParentContactPageProps` (line 19)
-  - `fn handleRetriedUpload` (line 67)
-  - `fn handleCancelEdit` (line 277)
-  - `fn handleSubmit` (line 359)
-  - `fn handleTransitionComplete` (line 379)
-  - `fn handleExitToDashboard` (line 390)
+  - `interface LocationProps` (line 28)
+  - `fn handleUpdate` (line 47)
+  - `fn cleanSavedStreet` (line 85)
+  - `fn handleStateChange` (line 332)
+  - `fn handleDistrictChange` (line 342)
+  - `fn handleMandalSelect` (line 351)
+  - `fn handleCitySelect` (line 360)
+  - `fn handleProceedToPup` (line 739)
+  - `fn handleForwardTransitionComplete` (line 749)
+  - `fn handleBack` (line 760)
+  - `fn handleBackTransitionComplete` (line 765)
+  - `fn handleExitToDashboard` (line 776)
 
 
 ```tsx
-// … lines 1–23
-import React, { useState, useRef, useEffect } from 'react';
+// … lines 1–32
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X, Upload, Phone, Mail } from 'lucide-react';
+import {
+  Navigation,
+  RefreshCw,
+  Building,
+  Building2,
+  Home,
+  MapPin,
+  Landmark,
+  Check,
+  ArrowRight,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
-import { authService } from '../services/authService';
-import type { ContactMethod, OwnerProfile } from '../types';
-import { compressImage } from '../utils/imageCompressor';
-import { validateIndianPhoneNumber } from '../utils/phoneValidator';
-import { sanitizePersonName } from '../utils/privacyUtils';
-import { storageBucketService } from '../services/storageBucketService';
-import { firebaseSyncService } from '../services/firebaseSyncService';
-import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
-import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
-import { CameraModal } from '../components/CameraModal';
-import { DogRunFlowTransition } from '../components/ui/DogRunFlowTransition';
+import { locationService } from '../services/locationService';
+import { PetProfileSelector, type SelectorOption } from '../components/PetProfileSelector';
+import type { OwnerProfile, LocationLocality } from '../types';
+import { isValidOwnerPhoto } from '../utils/dogPhotoHelper';
+import { BackButton } from '../components/ui/back-button';
+import { VillageDogTransition } from '../components/ui/VillageDogTransition';
+import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
+import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
+import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
 
-interface PetParentContactPageProps {
+interface LocationProps {
   onSuccess?: () => void;
+  onBack?: () => void;
 }
 
-/** Displays saved owner contact details and an editing form with managed profile-photo uploads. */
-// … lines 66–71
-    /** Applies a completed queued profile upload to the current owner's stored profile, session, and form. */
-    const handleRetriedUpload = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (!user || detail?.category !== 'profile' || detail?.referenceId !== user.id || !detail?.publicUrl) return;
-      const currentProfile = storageService.getOwnerProfileByUserId(user.id, user.email);
-      if (!currentProfile) return;
-// … lines 154–159
-  /** Compresses and uploads a selected owner photo, queuing unsuccessful uploads for retry. */
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      showToast('Please select an image file (JPG, PNG, WebP).', 'warning');
-// … lines 226–231
-  /** Deletes the managed profile photo before clearing the owner's saved name, phone, and avatar. */
-  const handleHardReset = async () => {
-    const isAppManagedPhoto = photo.includes('cloudinary.com') || photo.includes('firebasestorage');
-    const publicId = storageBucketService.extractPublicId(photo);
-    const cleanUserId = user?.id.replace(/^(owner-)+/, '') || '';
-    const isCurrentWorkerPhoto = Boolean(publicId && cleanUserId && (
-// … lines 273–278
-
-  const handleCancelEdit = () => {
-    setFullName(savedSnapshot.name);
-    setPhone(savedSnapshot.phone);
-    setPhoto(savedSnapshot.photo);
-    setPreferredContact(savedSnapshot.contact);
-// … lines 355–365
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveProfileInternal(true);
+// … lines 46–51
+  useEffect(() => {
+    const handleUpdate = () => {
+      setForceUpdate((prev) => prev + 1);
+      refreshProgress();
+    };
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+// … lines 80–85
+  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes, and normalizes Indic scripts to English. */
+  const cleanSavedStreet = (v?: string) => {
+    if (!v || PLUS_CODE_RE.test(v.trim())) return '';
+    return normalizeToEnglishText(v.trim());
   };
 
-  const handleContinueToLocation = async () => {
-    if (isTransitioning) return;
+// … lines 324–329
+  // Cascading Selection Handlers with Strict Reset
+  const handleStateChange = (newState: string) => {
+    setState(newState);
+    setDistrict('');
+    setMandalOrMunicipality('');
+    setCity('');
+// … lines 334–339
 
-    // Auto-sync profile and avatar to Cloudinary & Firebase cloud
-    try {
-// … lines 375–380
+  const handleDistrictChange = (newDistrict: string) => {
+    setDistrict(newDistrict);
+    setMandalOrMunicipality('');
+    setCity('');
+    setPinCode('');
+// … lines 343–348
 
-  const handleTransitionComplete = () => {
-    setIsTransitioning(false);
+  const handleMandalSelect = (newMandal: string) => {
+    setMandalOrMunicipality(newMandal);
+    setCity('');
+    setPinCode('');
+    setLocalities([]);
+// … lines 352–357
+  /** Selects a locality, fills a missing street placeholder, closes the picker, and resolves its PIN code. */
+  const handleCitySelect = (newCity: string) => {
+    setCity(newCity);
+    // Only auto-fill street if there is no human-readable street already
+    // (and the existing value is not a Plus Code which we should treat as empty)
+    const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+// … lines 530–535
+
+  const handleResetLocation = async () => {
+    hasManuallyResetRef.current = true;
+    cancelDetection();
+    if (autoSyncTimerRef.current) {
+      window.clearTimeout(autoSyncTimerRef.current);
+// … lines 731–736
+
+  const handleProceedToPup = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    if (!isLocationValid) {
+      showToast('Please select State, District, Mandal, and Home Base before continuing.', 'warning');
+      return;
+// … lines 741–746
+
+  const handleForwardTransitionComplete = () => {
+    setIsTransitioningForward(false);
     if (onSuccess) {
       onSuccess();
     } else {
-// … lines 386–391
+// … lines 752–762
+
+  const handleBack = () => {
+    if (isTransitioningBack || isTransitioningForward) return;
+    setIsTransitioningBack(true);
+  };
+
+  const handleBackTransitionComplete = () => {
+    setIsTransitioningBack(false);
+    if (onBack) {
+      onBack();
+    } else {
+// … lines 768–773
 
   const handleExitToDashboard = () => {
     setActiveOnboardingTab('dashboard');
@@ -3039,756 +1593,750 @@ interface PetParentContactPageProps {
   };
 ```
 
-### src/services/firebaseSyncService.ts
+### src/utils/geolocationHelper.ts
 
 | Field | Value |
 | --- | --- |
-| Bytes | 28819 |
-| Score | 148 |
+| Bytes | 37826 |
+| Score | 147 |
 | Why | changed, source |
 | Status | Truncated (budget limit) |
 
 **Structural Outline:**
-  - `interface FirebaseSyncStatus` (line 27)
+  - `interface LocationDiagnostic` (line 19)
+  - `interface LocationGeoResult` (line 62)
+  - `interface CoordsResult` (line 84)
+  - `class NativeLocationError` (line 92)
+  - `fn printLocationDiagnostic` (line 108)
+  - `fn getPositionWithConfig` (line 149)
+  - `fn enrichWithPostalPin` (line 283)
+  - `fn reverseGeocodeCoords` (line 376)
+  - `fn getNativeGeocodedAddress` (line 536)
+  - `fn fetchIpLocation` (line 704)
+  - `fn detectResilientLocation` (line 757)
 
 
 ```ts
-// … lines 1–31
-import {
-  doc,
-  setDoc,
-  getDocs,
-  getDoc,
-  collection,
-  deleteDoc,
-  query,
-  where,
-} from 'firebase/firestore';
-import {
-  ref as storageRef,
-  uploadString,
-  getDownloadURL,
-} from 'firebase/storage';
-import { auth, db, storage, isFirebaseConfigured } from './firebaseConfig';
-import { storageBucketService } from './storageBucketService';
-import type {
-  OwnerProfile,
-  DogProfile,
-  LostReport,
-  Sighting,
-  AppSuggestion,
-} from '../types';
-import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
+// … lines 1–23
+/**
+ * Resilient Multi-Tier Geolocation & Administrative Resolver for FindLostPuppy
+ * 
+ * Pipeline:
+ * 1. Physical Device Location (Capacitor Native GPS / Fused Location or Browser Geolocation API)
+ * 2. Accuracy Validation (thresholds: 0-20m Excellent, 20-50m Good, 50-100m Moderate, >100m Low)
+ * 3. Authoritative Point-in-Polygon Administrative Boundary Containment (State -> District -> Mandal)
+ * 4. Reverse Geocoding (Village / Locality & PIN) without overriding authoritative boundary polygons
+ * 5. Smart Multi-Office Postal PIN Cross-Validation (scores candidate post offices)
+ * 6. Confidence Model (HIGH, MEDIUM, LOW) & Transparent Diagnostics
+ */
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
+import { NativeGeocoder } from '@capgo/capacitor-nativegeocoder';
+import { findMandalByCoordinates } from './boundaryLookup';
+import { normalizeToEnglishText } from './indicTransliteration';
+import subdistrictsData from '../data/location/subdistricts.json';
 
-export interface FirebaseSyncStatus {
-  isConfigured: boolean;
-  isOnline: boolean;
-  lastSyncTime: string | null;
-  syncedMembersCount: number;
+export interface LocationDiagnostic {
+  platform: string;
+  permission: 'fine' | 'coarse' | 'browser' | 'denied';
+  coordinates: {
+    latitude: number;
+// … lines 61–66
+
+export interface LocationGeoResult {
+  latitude: number;
+  longitude: number;
+  state?: string;
+  district?: string;
+// … lines 83–96
+
+interface CoordsResult {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
+  permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied';
+  timestamp?: number;
+}
+
+export class NativeLocationError extends Error {
+  code: 'PERMISSION_DENIED' | 'LOCATION_SERVICES_DISABLED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED';
+
+  constructor(
+    code: 'PERMISSION_DENIED' | 'LOCATION_SERVICES_DISABLED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED',
+// … lines 107–112
+ */
+export function printLocationDiagnostic(d: LocationDiagnostic) {
+  const lines = [
+    '=== FINDLOSTPUPPY LOCATION DIAGNOSTIC ===',
+    `Platform: ${d.platform}`,
+/* ↑ block repeated 3× (6 lines folded to 2) */
+// … lines 126–131
+ */
+async function getPositionWithConfig(options: PositionOptions): Promise<CoordsResult> {
+  if (Capacitor.isNativePlatform()) {
+    let perm: any = null;
+    let permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied' = 'denied';
+
+// … lines 254–259
+ */
+export async function enrichWithPostalPin(
+  pinCode: string,
+  context: { state?: string; district?: string; mandal?: string; city?: string }
+): Promise<{
+  bestOffice?: string;
+// … lines 346–351
+ */
+async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
+  state?: string;
+  district?: string;
+  mandal?: string;
+  city?: string;
+// … lines 505–510
+ */
+async function getNativeGeocodedAddress(
+  lat: number,
+  lng: number
+): Promise<Partial<LocationGeoResult> | null> {
+  // Only attempt on native Android — this plugin has no web/iOS key-free equivalent
+// … lines 673–678
+ */
+async function fetchIpLocation(): Promise<CoordsResult | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch('https://ipwho.is/', { signal: controller.signal });
+// … lines 726–731
+ */
+export async function detectResilientLocation(options?: { allowIpFallback?: boolean }): Promise<LocationGeoResult> {
+  let lat: number | null = null;
+  let lng: number | null = null;
+  let accuracyMeters: number | undefined;
+  let source: 'gps' | 'network' | 'ip' = 'gps';
 ```
 
-### scripts/test_admin_security_guard.mjs
+### scripts/test_apis.mjs
 
 | Field | Value |
 | --- | --- |
-| Bytes | 3163 |
+| Bytes | 1733 |
 | Score | 138 |
 | Why | changed, test |
 | Status | Full content |
 
 
 ```mjs
-import puppeteer from 'puppeteer-core';
-
-const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
-async function testSecurity() {
-  console.log('Testing AdminShortcuts access control security guard...');
-  const browser = await puppeteer.launch({
-    executablePath: chromePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,900']
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
-
-  // TEST 1: Plain user (non-admin)
-  console.log('Case 1: Plain user (regularuser@example.com)...');
-  await page.goto('http://localhost:5173/shortcuts', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify({
-      id: 'plain-user-1',
-      email: 'regularuser@example.com',
-      name: 'Regular Pet Parent',
-      isAdmin: false
-    }));
-    localStorage.setItem('findlostpuppy_consent_agreed_v1', 'true');
-    localStorage.setItem('findlostpuppy_launch_seen', 'true');
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-  });
-
-  await page.goto('http://localhost:5173/shortcuts', { waitUntil: 'networkidle0' });
-  await new Promise(r => setTimeout(r, 600));
-
-  const pageText = await page.evaluate(() => document.body.innerText);
-  if (!pageText.includes('Administrator Access Required')) {
-    throw new Error('FAILED: Plain user was able to bypass admin check on /shortcuts!');
-  }
-  if (pageText.includes('Product Requirements Document') || pageText.includes('Firestore Security Rules')) {
-    throw new Error('FAILED: Sensitive documents or rules leaked to plain user!');
-  }
-  console.log('✅ Case 1 Passed: Plain user successfully blocked with Administrator Access Required screen');
-
-  // TEST 2: Authorized Admin
-  console.log('Case 2: Authorized Admin (jksurampudi5@gmail.com)...');
-  await page.evaluate(() => {
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify({
-      id: 'admin-user-1',
-      email: 'jksurampudi5@gmail.com',
-      name: 'Jaya Krishna',
-      isAdmin: true
-    }));
-    localStorage.setItem('findlostpuppy_consent_agreed_v1', 'true');
-    localStorage.setItem('findlostpuppy_launch_seen', 'true');
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-  });
-
-  await page.goto('http://localhost:5173/shortcuts', { waitUntil: 'networkidle0' });
-  await new Promise(r => setTimeout(r, 600));
-
-  const adminPageText = await page.evaluate(() => document.body.innerText);
-  if (!adminPageText.includes('FindLostPuppy Admin Shortcuts')) {
-    throw new Error('FAILED: Authorized admin was blocked from /shortcuts!');
-  }
-  if (!adminPageText.includes('Navigation Flow') || !adminPageText.includes('Official Documents & PDFs')) {
-    throw new Error('FAILED: Admin dashboard did not load correctly for admin!');
-  }
-  console.log('✅ Case 2 Passed: Authorized Admin successfully granted full access');
-
-  await browser.close();
-  console.log('🎉 All security access control tests passed!');
-}
-
-testSecurity().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
-```
-
-### scripts/test_auth_consent_flow.mjs
-
-| Field | Value |
-| --- | --- |
-| Bytes | 4035 |
-| Score | 138 |
-| Why | changed, test |
-| Status | Full content |
-
-
-```mjs
-import puppeteer from 'puppeteer-core';
-import fs from 'fs';
-import path from 'path';
-
-const chromePaths = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-];
-
-const executablePath = chromePaths.find((p) => fs.existsSync(p));
-const artifactDir = '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
-
-async function main() {
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1400,900'],
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1400, height: 900 });
-
-  // TEST 1: Logged Out user visits root '/' -> MUST see Sign In page (NOT Consent)
-  await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0' });
-  await new Promise((r) => setTimeout(r, 600));
-
-  const test1Screenshot = path.join(artifactDir, 'flow_test1_logged_out_shows_signin.png');
-  await page.screenshot({ path: test1Screenshot });
-  console.log('Saved Test 1 (Logged Out -> Shows Sign In):', test1Screenshot);
-
-  // Check if sign-in button or text exists
-  const hasSignIn = await page.evaluate(() => {
-    return document.body.innerText.includes('Sign in with Google') || document.body.innerText.includes('FindLostPuppy');
-  });
-  console.log('Test 1 Verified - Sign In displayed for unauthenticated user:', hasSignIn);
-
-  // TEST 2: New signed-in user without consent -> MUST see ConsentPage
-  await page.evaluate(() => {
-    const newUser = {
-      id: 'new_user_1',
-      email: 'newuser@example.com',
-      name: 'New Puppy Parent',
-      isAdmin: false,
-    };
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify(newUser));
-    localStorage.setItem('findlostpuppy_current_user_v1', JSON.stringify(newUser));
-    localStorage.removeItem('findlostpuppy_consent_v1');
-    localStorage.removeItem('findlostpuppy_consent_records_v1');
-  });
-
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0' });
-  await new Promise((r) => setTimeout(r, 600));
-
-  const test2Screenshot = path.join(artifactDir, 'flow_test2_new_signedin_shows_consent.png');
-  await page.screenshot({ path: test2Screenshot });
-  console.log('Saved Test 2 (New Signed In -> Shows Consent):', test2Screenshot);
-
-  // TEST 3: Returning signed-in user WITH consent -> MUST NOT see Consent, goes to onboarding/dashboard
-  await page.evaluate(() => {
-    const returningUser = {
-      id: 'returning_user_1',
-      email: 'returning@example.com',
-      name: 'Returning Parent',
-      isAdmin: false,
-    };
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify(returningUser));
-    localStorage.setItem('findlostpuppy_current_user_v1', JSON.stringify(returningUser));
-    localStorage.setItem('findlostpuppy_consent_v1', JSON.stringify({
-      consentVersion: '1.1',
-      termsVersion: '1.1',
-      privacyVersion: '1.1',
-      disclaimerVersion: '1.0',
-      guidelinesVersion: '1.0',
-      agreedAt: new Date().toISOString(),
-      acceptedForms: { terms: true, privacy: true, disclaimer: true, guidelines: true, declaration: true },
-      consentMethod: 'all_forms_accepted',
-    }));
-  });
-
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0' });
-  await new Promise((r) => setTimeout(r, 600));
-
-  const test3Screenshot = path.join(artifactDir, 'flow_test3_returning_signedin_bypasses_consent.png');
-  await page.screenshot({ path: test3Screenshot });
-  console.log('Saved Test 3 (Returning Signed In -> Bypasses Consent to Onboarding/Dashboard):', test3Screenshot);
-
-  await browser.close();
-  console.log('All 3 Auth/Consent flow tests passed successfully!');
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
-```
-
-### scripts/test_component_transitions.mjs
-
-| Field | Value |
-| --- | --- |
-| Bytes | 3309 |
-| Score | 138 |
-| Why | changed, test |
-| Status | Full content |
-
-
-```mjs
-import puppeteer from 'puppeteer-core';
-import fs from 'fs';
-import path from 'path';
-
-const chromePaths = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-];
-
-const executablePath = chromePaths.find((p) => fs.existsSync(p));
-if (!executablePath) {
-  console.error('No Chrome binary found!');
-  process.exit(1);
-}
-
-const artifactDir = '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
-
-async function main() {
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1400,900'],
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1400, height: 900 });
-
-  // 1. Seed admin state in localStorage so we bypass the admin guard seamlessly
-  await page.goto('http://localhost:5173/shortcuts', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    const adminUser = {
-      id: 'admin_test_14',
-      email: 'jayakrishna.jk14@gmail.com',
-      name: 'Jayakrishna',
-      isAdmin: true,
-    };
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify(adminUser));
-    localStorage.setItem('findlostpuppy_current_user_v1', JSON.stringify(adminUser));
-    localStorage.setItem('findlostpuppy_consent_records_v1', JSON.stringify({
-      hasAgreed: true,
-      agreedAt: new Date().toISOString(),
-      forms: ['terms', 'privacy', 'disclaimer', 'guidelines'],
-    }));
-  });
-
-  // 2. Reload shortcuts page
-  await page.goto('http://localhost:5173/shortcuts', { waitUntil: 'networkidle0' });
-  await new Promise((r) => setTimeout(r, 800));
-
-  // Capture Admin Shortcuts with new 21st.dev Component Transition Engine
-  const shortcutsScreenshot = path.join(artifactDir, 'admin_shortcuts_with_transition_engine.png');
-  await page.screenshot({ path: shortcutsScreenshot });
-  console.log('Saved:', shortcutsScreenshot);
-
-  // 3. Test component transition by clicking a step button
-  // Find the button for Step 04 (/choice) or Step 09 (/privacy)
-  const buttons = await page.$$('.btn-21st-loading');
-  console.log(`Found ${buttons.length} 21st.dev loading buttons on page.`);
-
-  if (buttons.length > 0) {
-    // Click the 4th button (Step 04 - Choice or similar)
-    const targetBtn = buttons[3] || buttons[0];
-    await targetBtn.click();
-
-    // Immediately capture the mid-transition gap (showing button loading state + top progress bar)
-    await new Promise((r) => setTimeout(r, 120));
-    const loadingGapScreenshot = path.join(artifactDir, 'component_switching_loading_gap.png');
-    await page.screenshot({ path: loadingGapScreenshot });
-    console.log('Saved mid-transition loading gap screenshot:', loadingGapScreenshot);
-
-    // Wait for the transition to finish and target component to animate in
-    await new Promise((r) => setTimeout(r, 650));
-    const arrivedScreenshot = path.join(artifactDir, 'component_transition_arrived.png');
-    await page.screenshot({ path: arrivedScreenshot });
-    console.log('Saved arrived component screenshot:', arrivedScreenshot);
-  }
-
-  await browser.close();
-  console.log('All component transition tests completed successfully!');
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
-```
-
-### scripts/test_fast_capture.mjs
-
-| Field | Value |
-| --- | --- |
-| Bytes | 9906 |
-| Score | 138 |
-| Why | changed, test |
-| Status | Full content |
-
-
-```mjs
-import puppeteer from 'puppeteer-core';
-import fs from 'fs';
-import path from 'path';
-
-const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const artifactDir = '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
-
-async function run() {
-  const browser = await puppeteer.launch({
-    executablePath: chromePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream']
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-
-  console.log('1. Navigating to http://localhost:5173/ ...');
-  await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-  await new Promise(r => setTimeout(r, 600));
-
-  // Seed user, completed profile, consent, and skip inauguration/launch screens
-  await page.evaluate(() => {
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-    localStorage.setItem('findlostpuppy_gratitude_seen', 'true');
-
-    const user = {
-      id: 'test-user-commuter',
-      name: 'Rider Tester',
-      email: 'rider@example.com',
-      phone: '9876543210',
-      avatar: ''
-    };
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify(user));
-
-    const profile = {
-      id: 'profile-rider',
-      userId: 'test-user-commuter',
-      fullName: 'Rider Tester',
-      phone: '9876543210',
-      email: 'rider@example.com',
-      state: 'Telangana',
-      district: 'Medchal-Malkajgiri',
-      mandalOrMunicipality: 'Kukatpally',
-      city: 'Kukatpally Locality',
-      streetOrLocality: 'Highway Road',
-      hasLocationConsent: true,
-      updatedAt: new Date().toISOString()
-    };
-    localStorage.setItem('findlostpuppy_owner_profile', JSON.stringify(profile));
-    localStorage.setItem('findlostpuppy_owner_profiles', JSON.stringify([profile]));
-
-    const consentRecord = {
-      consentVersion: '1.1',
-      termsVersion: '1.1',
-      privacyVersion: '1.1',
-      disclaimerVersion: '1.0',
-      guidelinesVersion: '1.0',
-      agreedAt: new Date().toISOString(),
-      userId: 'test-user-commuter',
-      appVersion: '0.1.0',
-      acceptedForms: { terms: true, privacy: true, disclaimer: true, guidelines: true, declaration: true },
-      consentMethod: 'master_declaration'
-    };
-    localStorage.setItem('findlostpuppy_consent_v1', JSON.stringify(consentRecord));
-  });
-
-  // Navigate to Dashboard
-  console.log('2. Navigating to Dashboard (/homepage)...');
-  await page.goto('http://localhost:5173/homepage', { waitUntil: 'domcontentloaded' });
-  await new Promise(r => setTimeout(r, 1200));
-
-  // 1. Verify "Spotted a Roaming or Lost Pet?" is NOT on Dashboard
-  const pageText = await page.evaluate(() => document.body.innerText);
-  const hasSpottedBlock = pageText.includes('Spotted a Roaming or Lost Pet');
-  console.log(`[CHECK 1] "Spotted a Roaming or Lost Pet?" block absent: ${!hasSpottedBlock}`);
-  if (hasSpottedBlock) {
-    throw new Error('FAIL: "Spotted a Roaming or Lost Pet?" is still present on Dashboard!');
-  }
-
-  // 2. Verify floating camera button exists
-  const fabExists = await page.evaluate(() => {
-    const fab = document.querySelector('#dashboard-floating-capture-fab') || document.querySelector('.dashboard-floating-camera-btn');
-    return !!fab;
-  });
-  console.log(`[CHECK 2] Dashboard floating camera button present: ${fabExists}`);
-
-  await page.screenshot({ path: path.join(artifactDir, 'dashboard_no_spotted_card.png') });
-  console.log('Saved dashboard_no_spotted_card.png');
-
-  // 3. Navigate to Capture Pet page via floating camera button or URL
-  console.log('3. Opening Quick Capture Pet (/capture?mode=unknown)...');
-  await page.goto('http://localhost:5173/capture?mode=unknown', { waitUntil: 'domcontentloaded' });
-  await new Promise(r => setTimeout(r, 1500));
-
-  // Check UI elements on Capture Pet page
-  const captureCheck = await page.evaluate(() => {
-    const backBtn = document.querySelector('.back-button-root');
-    const privacyNotice = document.querySelector('.capture-consent-box')?.innerText || '';
-    const cameraFrame = document.querySelector('.capture-camera-frame');
-    const gpsPill = document.querySelector('.capture-camera-gps-pill')?.innerText || '';
-    const snapBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Snap Pet Photo'));
-    const manualAccordion = document.querySelector('.capture-manual-toggle-btn');
-
-    return {
-      hasBackButton: !!backBtn,
-      privacyNoticeHasFrameOnly: privacyNotice.includes('Frame Pet Only') || privacyNotice.includes('strictly photograph the animal'),
-      hasCameraFrameAtTop: !!cameraFrame,
-      gpsPillText: gpsPill,
-      hasSnapBtn: !!snapBtn,
-      hasManualAccordion: !!manualAccordion
-    };
-  });
-
-  console.log('[CHECK 3] Capture Pet Page Elements:', JSON.stringify(captureCheck, null, 2));
-  await page.screenshot({ path: path.join(artifactDir, 'capture_screen_commute_ready.png') });
-  console.log('Saved capture_screen_commute_ready.png');
-
-  // 4. Simulate snapping a photo by adding a mock photo to test instant submit flow
-  console.log('4. Simulating photo snap...');
-  await page.evaluate(() => {
-    // Generate a simple 1x1 data URL jpeg
-    const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 300;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#E06D44';
-      ctx.fillRect(0, 0, 400, 300);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '24px sans-serif';
-      ctx.fillText('Spotted Dog Photo', 80, 150);
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/F71A143ACA0EF3B342F4BA0C48E20EC8');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+
+  // Run detectResilientLocation directly from the bundled code!
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        // Let's test boundary lookup vs reverse geocode
+        const out = {};
+        const lat = 16.7689026;
+        const lng = 81.697225;
+        
+        // 1. Test fetch nominatim
+        const t0 = performance.now();
+        try {
+          const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', {
+            headers: { 'User-Agent': 'FindLostPuppy-MobileApp/1.0' }
+          });
+          out.nominatim = { ok: res.ok, ms: Math.round(performance.now() - t0) };
+        } catch(e) {
+          out.nominatim = { err: e.message, ms: Math.round(performance.now() - t0) };
+        }
+
+        // 2. Test postal pincode
+        const t1 = performance.now();
+        try {
+          const res2 = await fetch('https://api.postalpincode.in/pincode/534211');
+          out.postal = { ok: res2.ok, ms: Math.round(performance.now() - t1) };
+        } catch(e) {
+          out.postal = { err: e.message, ms: Math.round(performance.now() - t1) };
+        }
+
+        return out;
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
     }
-    const photoData = canvas.toDataURL('image/jpeg');
+  }));
+});
 
-    // Trigger frame capture or set photos state through standard UI
-    const snapBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Snap Pet Photo'));
-    if (snapBtn) {
-      snapBtn.click();
+ws.on('message', (msg) => {
+  const d = JSON.parse(msg.toString());
+  if (d.id === 2) {
+    console.log('Result:', JSON.stringify(d.result?.result?.value, null, 2));
+    process.exit(0);
+  }
+});
+```
+
+### scripts/test_chunk.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 873 |
+| Score | 138 |
+| Why | changed, test |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/F71A143ACA0EF3B342F4BA0C48E20EC8');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+
+  // Test dynamic import in webview!
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        try {
+          const res = await fetch('https://localhost/assets/523-C1oINcei.js');
+          return { ok: res.ok, status: res.status };
+        } catch (e) {
+          return { error: e.message };
+        }
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
     }
-  });
+  }));
+});
 
-  await new Promise(r => setTimeout(r, 1200));
+ws.on('message', (msg) => {
+  const d = JSON.parse(msg.toString());
+  if (d.id === 2) {
+    console.log('Chunk fetch test:', JSON.stringify(d.result?.result?.value, null, 2));
+    process.exit(0);
+  }
+});
+```
 
-  // Check if instant submit card is rendered
-  let hasInstantCard = await page.evaluate(() => !!document.querySelector('.capture-instant-submit-card'));
+### scripts/test_detect_cdp.mjs
 
-  // If fake video stream didn't have videoWidth in headless test, inject a test photo directly to evaluate instant submit card
-  if (!hasInstantCard) {
-    await page.evaluate(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 300;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#E06D44';
-        ctx.fillRect(0, 0, 400, 300);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '20px sans-serif';
-        ctx.fillText('Spotted Dog 🐕', 120, 150);
+| Field | Value |
+| --- | --- |
+| Bytes | 2017 |
+| Score | 138 |
+| Why | changed, test |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+async function test() {
+  const ws = new WebSocket('ws://localhost:9222/devtools/page/24AD561B09EE620027028A9D6B742871');
+
+  ws.on('open', () => {
+    ws.send(JSON.stringify({ id: 1, method: 'Console.enable' }));
+    ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
+
+    console.log('Clicking detect location button...');
+    ws.send(JSON.stringify({
+      id: 3,
+      method: 'Runtime.evaluate',
+      params: {
+        expression: 'document.querySelector(".location-detect-primary-btn")?.click()',
+        returnByValue: true
       }
-      const dummyPhoto = canvas.toDataURL('image/jpeg');
-
-      // Add to React state via clicking hidden input file dispatch or mock
-      const input = document.querySelector('input[type="file"]');
-      if (input) {
-        const file = new File(['dog'], 'pet.jpg', { type: 'image/jpeg' });
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-    await new Promise(r => setTimeout(r, 1000));
-    hasInstantCard = await page.evaluate(() => !!document.querySelector('.capture-instant-submit-card'));
-  }
-
-  console.log(`[CHECK 4] Instant Submit Card visible after snap/photo: ${hasInstantCard}`);
-  await page.screenshot({ path: path.join(artifactDir, 'capture_instant_submit_card.png') });
-  console.log('Saved capture_instant_submit_card.png');
-
-  // 5. Test expanding manual location/pet accordion
-  console.log('5. Clicking optional manual details accordion...');
-  await page.evaluate(() => {
-    const acc = document.querySelector('.capture-manual-toggle-btn');
-    if (acc) acc.click();
+    }));
   });
-  await new Promise(r => setTimeout(r, 600));
 
-  const manualCheck = await page.evaluate(() => {
-    const grid = document.querySelector('.loc-grid-2x2');
-    const stateSq = document.querySelector('.loc-gsq-state');
-    const distSq = document.querySelector('.loc-gsq-district');
-    const mandSq = document.querySelector('.loc-gsq-mandal');
-    const homeSq = document.querySelector('.loc-gsq-home');
-    const unknownCard = document.querySelector('.capture-unknown-choice-card');
-
-    return {
-      hasGrid: !!grid,
-      hasStateSq: !!stateSq,
-      hasDistSq: !!distSq,
-      hasMandSq: !!mandSq,
-      hasHomeSq: !!homeSq,
-      hasUnknownCard: !!unknownCard
-    };
-  });
-  console.log('[CHECK 5] Expanded Manual Controls:', JSON.stringify(manualCheck, null, 2));
-  await page.screenshot({ path: path.join(artifactDir, 'capture_expanded_manual_details.png') });
-  console.log('Saved capture_expanded_manual_details.png');
-
-  // 6. Test 1-click submit
-  console.log('6. Submitting sighting via 1-click submit button...');
-  const submitBtnExists = await page.evaluate(() => {
-    const btn = document.querySelector('.capture-instant-submit-btn');
-    if (btn) {
-      btn.click();
-      return true;
+  ws.on('message', (msg) => {
+    const d = JSON.parse(msg.toString());
+    if (d.method === 'Console.messageAdded') {
+      console.log('CONSOLE:', d.params.message.text);
+    } else if (d.method === 'Runtime.consoleAPICalled') {
+      console.log('CONSOLE_API:', d.params.args.map(a => a.value || JSON.stringify(a)).join(' '));
+    } else if (d.id === 4) {
+      console.log('FORM_STATE:', JSON.stringify(d.result?.result?.value, null, 2));
     }
-    return false;
   });
-  console.log(`[CHECK 6] 1-Click submit button clicked: ${submitBtnExists}`);
 
-  await new Promise(r => setTimeout(r, 400));
-  const successTickVisible = await page.evaluate(() => !!document.querySelector('.success-tick-overlay'));
-  console.log(`[CHECK 7] Success tick overlay rendered: ${successTickVisible}`);
-  await page.screenshot({ path: path.join(artifactDir, 'capture_success_tick.png') });
-  console.log('Saved capture_success_tick.png');
+  setTimeout(() => {
+    ws.send(JSON.stringify({
+      id: 4,
+      method: 'Runtime.evaluate',
+      params: {
+        expression: `(() => {
+          const cards = Array.from(document.querySelectorAll(".location-field-card")).map(c => ({
+            label: c.querySelector(".location-field-label")?.innerText?.trim(),
+            value: (c.querySelector("select") ? c.querySelector("select").value : (c.querySelector("input") ? c.querySelector("input").value : c.innerText))
+          }));
+          const btn = document.querySelector(".location-detect-primary-btn")?.innerText?.trim();
+          const badge = document.querySelector(".location-status-badge")?.innerText?.trim();
+          const banner = document.querySelector(".location-detected-banner")?.innerText?.trim();
+          return { btn, badge, banner, cards };
+        })()`,
+        returnByValue: true
+      }
+    }));
+  }, 4000);
 
-  await new Promise(r => setTimeout(r, 1400));
-  const currentUrl = page.url();
-  console.log(`[CHECK 8] Redirected after submission to: ${currentUrl}`);
-
-  await browser.close();
-  console.log('All verification checks completed successfully!');
+  setTimeout(() => {
+    process.exit(0);
+  }, 6000);
 }
 
-run().catch(err => {
-  console.error('Test run failed:', err);
-  process.exit(1);
-});
+test();
 ```
 
-### scripts/test_interstitial_transition.mjs
+### scripts/test_device_settings.mjs
 
 | Field | Value |
 | --- | --- |
-| Bytes | 3194 |
+| Bytes | 956 |
 | Score | 138 |
 | Why | changed, test |
 | Status | Full content |
 
 
 ```mjs
-import puppeteer from 'puppeteer-core';
-import path from 'path';
+import WebSocket from 'ws';
 
-const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const ARTIFACTS_DIR = '/Users/jayakrishna/.gemini/antigravity-ide/brain/14a5c867-efb6-4e2c-b19b-304469980ec9';
+const ws = new WebSocket('ws://localhost:9222/devtools/page/773E5B600F2D20260AD61C182F2C1042');
 
-async function testTransition() {
-  const browser = await puppeteer.launch({
-    executablePath: CHROME_PATH,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,900'],
-  });
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+  
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        const out = {};
+        try {
+          const ds = window.Capacitor?.Plugins?.DeviceSettings;
+          out.hasDeviceSettings = !!ds;
+          if (ds) {
+            out.isLocEnabled = await ds.isLocationEnabled();
+          }
+        } catch (e) {
+          out.err = e.message || String(e);
+        }
+        return out;
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
+    }
+  }));
+});
 
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
-
-  // Set auth & consent & launch_seen so user is directly in app
-  await page.evaluateOnNewDocument(() => {
-    sessionStorage.setItem('findlostpuppy_launch_seen', 'true');
-    localStorage.setItem('findlostpuppy_launch_seen', 'true');
-    const mockUser = {
-      id: 'usr_test_123',
-      email: 'jayakrishna.jk14@gmail.com',
-      name: 'Jayakrishna',
-      phone: '9876543210',
-      isAdmin: true,
-    };
-    localStorage.setItem('findlostpuppy_active_user', JSON.stringify(mockUser));
-    localStorage.setItem('findlostpuppy_current_user_v1', JSON.stringify(mockUser));
-    localStorage.setItem('findlostpuppy_consent_v1', JSON.stringify({
-      agreed: true,
-      timestamp: Date.now(),
-      consentVersion: '1.1',
-      termsAgreed: true,
-      disclaimerAgreed: true,
-      guidelinesAgreed: true,
-      privacyAgreed: true,
-    }));
-    const mockProfile = {
-      id: 'usr_test_123',
-      userId: 'usr_test_123',
-      fullName: 'Jayakrishna',
-      phone: '9876543210',
-      email: 'jayakrishna.jk14@gmail.com',
-      preferredContact: 'phone',
-      hasLocationConsent: true,
-      updatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem('findlostpuppy_profiles_v1', JSON.stringify([mockProfile]));
-    localStorage.setItem('findlostpuppy_owner_profile_usr_test_123', JSON.stringify(mockProfile));
-    localStorage.setItem('findlostpuppy_owner_profile', JSON.stringify(mockProfile));
-  });
-
-  console.log('Navigating to http://localhost:5173/owner ...');
-  await page.goto('http://localhost:5173/owner', { waitUntil: 'networkidle2' });
-  await new Promise(r => setTimeout(r, 600));
-
-  // Find Continue to Location button
-  const continueBtn = await page.$('.continue-to-location-orange-btn');
-  if (continueBtn) {
-    console.log('Clicking Continue to Location button...');
-    await continueBtn.click();
-    
-    // Screenshot 1: In the middle (interstitial loading animation active!)
-    await new Promise(r => setTimeout(r, 400));
-    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'interstitial_transition_in_middle.png') });
-    console.log('Captured interstitial transition loading screen!');
-
-    // Wait for transition to complete (duration is 1500ms)
-    await new Promise(r => setTimeout(r, 1600));
-    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'interstitial_transition_landed_location.png') });
-    console.log('Captured location page landed screenshot!');
-  } else {
-    console.log('Could not find continue button, checking form view...');
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg.toString());
+  if (data.id === 2) {
+    console.log('DeviceSettings test result:', JSON.stringify(data.result, null, 2));
+    process.exit(0);
   }
-
-  await browser.close();
-}
-
-testTransition().catch((err) => {
-  console.error(err);
-  process.exit(1);
 });
 ```
 
-### .agents/rules/graphify.md
+### scripts/test_geo_in_webview.mjs
 
 | Field | Value |
 | --- | --- |
-| Bytes | 933 |
+| Bytes | 1034 |
+| Score | 138 |
+| Why | changed, test |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/773E5B600F2D20260AD61C182F2C1042');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+  
+  // Test Geolocation directly in the WebView!
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        try {
+          console.log('[EVAL] Testing navigator.geolocation...');
+          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 }));
+          return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        } catch (e) {
+          return { error: e.message, code: e.code };
+        }
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg.toString());
+  if (data.id === 2) {
+    console.log('Geolocation test result:', JSON.stringify(data.result, null, 2));
+    process.exit(0);
+  }
+});
+```
+
+### scripts/test_nominatim.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1127 |
+| Score | 138 |
+| Why | changed, test |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/F71A143ACA0EF3B342F4BA0C48E20EC8');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        const t0 = performance.now();
+        try {
+          const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=16.7689&lon=81.6972&zoom=18&addressdetails=1', {
+            headers: { 'User-Agent': 'FindLostPuppy-MobileApp/1.0' }
+          });
+          const dt = Math.round(performance.now() - t0);
+          return { ok: res.ok, status: res.status, dt };
+        } catch (e) {
+          return { error: e.message, dt: Math.round(performance.now() - t0) };
+        }
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const d = JSON.parse(msg.toString());
+  if (d.id === 2) {
+    console.log('Nominatim fetch test:', JSON.stringify(d.result?.result?.value, null, 2));
+    process.exit(0);
+  }
+});
+```
+
+### scripts/test_plugins.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1659 |
+| Score | 138 |
+| Why | changed, test |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/773E5B600F2D20260AD61C182F2C1042');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+  
+  ws.send(JSON.stringify({
+    id: 2,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(async () => {
+        const out = {};
+        try {
+          const cap = window.Capacitor;
+          out.isNative = cap?.isNativePlatform?.();
+          out.platform = cap?.getPlatform?.();
+          
+          const geoPlugin = cap?.Plugins?.Geolocation;
+          if (geoPlugin) {
+            out.geoPerm = await geoPlugin.checkPermissions();
+            const pos = await geoPlugin.getCurrentPosition({ enableHighAccuracy: true, timeout: 3000 });
+            out.geoPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          }
+          
+          const nativeGeo = cap?.Plugins?.NativeGeocoder;
+          if (nativeGeo && out.geoPos) {
+            out.reverse = await nativeGeo.reverseGeocode({
+              latitude: out.geoPos.lat,
+              longitude: out.geoPos.lng,
+              useLocale: false,
+              defaultLocale: 'en_IN',
+              maxResults: 1
+            });
+          }
+        } catch (e) {
+          out.err = e.message || String(e);
+          out.stack = e.stack;
+        }
+        return out;
+      })()`,
+      awaitPromise: true,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg.toString());
+  if (data.id === 2) {
+    console.log('Native Plugins test result:', JSON.stringify(data.result, null, 2));
+    process.exit(0);
+  }
+});
+```
+
+### .tokencap/agent/agent-pack.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 7990 |
 | Score | 120 |
 | Why | changed |
 | Status | Full content |
 
 
 ```markdown
+# Agent Pack - findlostpuppy
+
+> This file was auto-generated by **TokenCap v0.8**.
+> Paste this entire file into ChatGPT, Claude, Gemini, Cursor, Windsurf, Cline, Roo Code, or OpenHands
+> to give the AI agent full project intelligence before it touches any code.
+
+**Generated:** 2026-10-11T06:39:23.729Z
+**Project:** findlostpuppy
+**Type:** React
+
 ---
-trigger: always_on
-description: Consult the graphify knowledge graph at graphify-out/ for codebase and architecture questions.
+
+## 1. Tech Stack
+
+**Languages:** TypeScript
+**Frameworks:** React
+**Auth:** Firebase Auth, JOSE (JWT)
+**Build:** Vite
+
 ---
 
-## graphify
+## 2. Architecture
 
-This project has a graphify knowledge graph at graphify-out/.
-
-Rules:
-- For codebase or architecture questions, when `graphify-out/graph.json` exists, first run `graphify query "<question>"` (CLI) or `query_graph` (MCP). Use `graphify path "<A>" "<B>"` / `shortest_path` for relationships and `graphify explain "<concept>"` / `get_node` for focused concepts. These return a scoped subgraph, usually much smaller than `GRAPH_REPORT.md` or raw grep output.
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context
-- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+```
+Component Layer -> Service Layer
 ```
 
-### AGENTS.md
+The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; App.tsx -> geoBlockService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Components (storageService), Components (legalContent), Components (ToastContext).
+
+---
+
+## 3. Project Rules
+
+- Business logic belongs in services
+- Custom React hooks live in hooks/ - prefix with 'use'
+- Shared utilities live in utils/ - keep them pure and side-effect free
+- Core library code lives in lib/ - keep it framework-agnostic
+- UI components live in components/ - keep them presentational
+- Page components live in pages/ - route-level only, no business logic
+- App Router entry points live in app/ - follow Next.js file conventions
+- Shared TypeScript types live in types/ - import from here, not redeclared inline
+- React context providers live in context/
+- Use TypeScript strictly - avoid `any` types
+- Write tests for all service-layer functions
+
+---
+
+## 4. Important Files
+
+- `src/types/index.ts`
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/context/ToastContext.tsx`
+- `src/utils/dogPhotoHelper.ts`
+- `src/services/storageBucketService.ts`
+- `scripts/qa_lib.mjs`
+- `scripts/unit/test-support.mjs`
+- `scripts/unit/test_harness.mjs`
+- `src/services/locationService.ts`
+
+---
+
+## 5. High-Risk Areas
+
+- [HIGH] **Database** - HIGH: Database layer holds all persistent state. Schema changes can corrupt or lose data.
+- [HIGH] **Scripts (qa_lib)** - HIGH: Scripts (qa_lib) contains 11 modules with elevated risk. Most-connected file: qa_lib.mjs (10 importers).
+- [HIGH] **Unit (test-support)** - HIGH: Unit (test-support) contains 9 modules with elevated risk. Most-connected file: test-support.mjs (8 importers).
+- [HIGH] **Unit (test_harness)** - HIGH: Unit (test_harness) contains 9 modules with elevated risk. Most-connected file: test_harness.mjs (8 importers).
+- [HIGH] **Components (storageService)** - HIGH: Components (storageService) contains 23 modules with elevated risk. Most-connected file: storageService.ts (25 importers).
+- [HIGH] **Components (ToastContext)** - HIGH: Components (ToastContext) contains 16 modules with elevated risk. Most-connected file: ToastContext.tsx (20 importers).
+
+---
+
+## 6. Review Rules
+
+When any of these files change, review ALL files in the group together:
+
+### [HIGH] Database Review Group
+
+Shared dependency chain (3 files). Central file: schema-invariants.yaml with 0 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+- `.tokencap/constitution/schema-invariants.yaml`
+- `scratch/execute_media_migration.ts`
+- `scratch/execute_safe_migration_workflow.mjs`
+
+### [HIGH] Scripts (qa_lib) Review Group
+
+Shared dependency chain (11 files). Central file: qa_lib.mjs with 10 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+- `scripts/qa_lib.mjs`
+- `scratch/test_consent_flow.mjs`
+- `scripts/capture_card_and_sighting.mjs`
+- `scripts/capture_clean_remaining.mjs`
+- `scripts/capture_deep_flows.mjs`
+- `scripts/capture_exact_checkpoints.mjs`
+- `scripts/execute_onboarding_and_alert_flows.mjs`
+- `scripts/release_regression_verify.mjs`
+
+### [HIGH] Unit (test-support) Review Group
+
+Shared dependency chain (9 files). Central file: test-support.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+- `scripts/unit/test-support.mjs`
+- `scripts/unit/consent-page.test.mjs`
+- `scripts/unit/drafts-consent.test.mjs`
+- `scripts/unit/firebase-sync.test.mjs`
+- `scripts/unit/geolocation.test.mjs`
+- `scripts/unit/media-functions.test.mjs`
+- `scripts/unit/media-storage.test.mjs`
+- `scripts/unit/media-worker.test.mjs`
+
+### [HIGH] Unit (test_harness) Review Group
+
+Shared dependency chain (9 files). Central file: test_harness.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+- `scripts/unit/test_harness.mjs`
+- `scripts/unit/drafts_and_consent.test.mjs`
+- `scripts/unit/fallbacks.test.mjs`
+- `scripts/unit/firebase_sync.test.mjs`
+- `scripts/unit/location_regressions.test.mjs`
+- `scripts/unit/media_client.test.mjs`
+- `scripts/unit/media_functions.test.mjs`
+- `scripts/unit/media_worker.test.mjs`
+
+### [HIGH] Components (storageService) Review Group
+
+Shared dependency chain (23 files). Central file: storageService.ts with 25 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/services/storageBucketService.ts`
+- `src/utils/phoneValidator.ts`
+- `src/services/consentService.ts`
+- `src/services/firebaseSyncService.ts`
+- `src/services/firebaseConfig.ts`
+- `src/utils/privacyUtils.ts`
+
+### [HIGH] Components (ToastContext) Review Group
+
+Shared dependency chain (16 files). Central file: ToastContext.tsx with 20 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+- `src/context/ToastContext.tsx`
+- `src/services/locationService.ts`
+- `src/utils/geolocationHelper.ts`
+- `src/utils/indicTransliteration.ts`
+- `src/components/PermissionRationaleModal.tsx`
+- `src/hooks/useCrashSafeDraft.ts`
+- `src/hooks/useLocationDetection.ts`
+- `src/services/nativeSettingsService.ts`
+
+### [HIGH] Pages (imageCompressor) Review Group
+
+Shared dependency chain (6 files). Central file: imageCompressor.ts with 6 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+- `src/utils/imageCompressor.ts`
+- `src/components/PetProfileSelector.tsx`
+- `src/utils/breedAssetHelper.tsx`
+- `src/data/dogBreeds.ts`
+- `src/pages/PetDetails.tsx`
+- `src/pages/CapturePetPage.tsx`
+- `src/App.tsx`
+- `src/context/AuthContext.tsx`
+
+### [HIGH] Pages (index) Review Group
+
+Shared dependency chain (16 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+- `src/types/index.ts`
+- `src/utils/dogPhotoHelper.ts`
+- `src/components/ui/VillageDogTransition.tsx`
+- `src/components/ui/back-button.tsx`
+- `src/utils/shareHelper.ts`
+- `src/components/StatusBadge.tsx`
+- `src/utils/confettiHelper.ts`
+- `src/components/DogCard.tsx`
+
+---
+
+## 7. Core Features
+
+- Components (storageService)
+- Components (legalContent)
+- Components (ToastContext)
+- Pages (index)
+- Services
+- Frontend
+- Scripts (qa_lib)
+- Unit (test-support)
+
+---
+
+## 8. Agent Instructions
+
+You are an AI agent working on **findlostpuppy**.
+
+Before making any changes:
+1. Understand the **Component Layer -> Service Layer** architecture pattern.
+2. Follow all **Project Rules** listed in Section 3.
+3. Check the **High-Risk Areas** - any change there requires extra review.
+4. When touching files in a **Review Group**, review all files in that group together.
+5. Never hard-code secrets or skip validation at API boundaries.
+
+The most important files in this project are:
+- `src/types/index.ts`
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/context/ToastContext.tsx`
+- `src/utils/dogPhotoHelper.ts`
+
+Start here. Work methodically. Ask before making assumptions about intent.
+```
+
+### .tokencap/agent/context-manifest.json
 
 | Field | Value |
 | --- | --- |
-| Bytes | 381 |
-| Score | 120 |
-| Why | changed |
-| Status | Full content |
-
-
-```markdown
-# TokenCap Start Here
-
-Project intelligence is generated locally in `.tokencap/`.
-
-1. Read `.tokencap/agent/START_HERE.md`.
-2. Use `.tokencap/agent/allowed-context.json` to find task-relevant files.
-3. Use the connected TokenCap MCP server for overview, search, impact, memory, and debug context.
-4. Do not scan the repository broadly unless the generated context is insufficient.
-```
-
-### components.json
-
-| Field | Value |
-| --- | --- |
-| Bytes | 370 |
+| Bytes | 5659 |
 | Score | 120 |
 | Why | changed |
 | Status | Full content |
@@ -3796,49 +2344,1515 @@ Project intelligence is generated locally in `.tokencap/`.
 
 ```json
 {
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "default",
-  "rsc": false,
-  "tsx": true,
-  "tailwind": {
-    "config": "tailwind.config.js",
-    "css": "src/index.css",
-    "baseColor": "slate",
-    "cssVariables": true,
-    "prefix": ""
+  "version": "1.0.0",
+  "generatedAt": "2026-10-11T06:39:23.731Z",
+  "entry": "START_HERE.md",
+  "project": {
+    "name": "findlostpuppy",
+    "type": "React + TypeScript",
+    "architectureStyle": "Component Layer -> Service Layer"
   },
-  "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui"
+  "clusters": [
+    "database",
+    "scripts-(qa_lib)",
+    "unit-(test_harness)",
+    "components-(authcontext)",
+    "components-(toastcontext)",
+    "pages-(index)",
+    "other",
+    "config",
+    "services",
+    "authentication",
+    "frontend",
+    "testing",
+    "components-(fallbackshell)",
+    "dashboard",
+    "utilities"
+  ],
+  "criticalFiles": [
+    "src/types/index.ts",
+    "src/services/storageService.ts",
+    "src/context/AuthContext.tsx",
+    "src/context/ToastContext.tsx",
+    "src/utils/dogPhotoHelper.ts",
+    "src/services/storageBucketService.ts",
+    "scripts/qa_lib.mjs",
+    "scripts/unit/test_harness.mjs",
+    "src/utils/imageCompressor.ts",
+    "src/services/locationService.ts"
+  ],
+  "riskAreas": [
+    {
+      "cluster": "database",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "scripts-(qa_lib)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "unit-(test_harness)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "components-(authcontext)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "components-(toastcontext)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "pages-(index)",
+      "level": "HIGH"
+    }
+  ],
+  "reviewGroups": [
+    {
+      "name": "Database Review Group",
+      "fileCount": 3
+    },
+    {
+      "name": "Scripts (qa_lib) Review Group",
+      "fileCount": 10
+    },
+    {
+      "name": "Unit (test_harness) Review Group",
+      "fileCount": 9
+    },
+    {
+      "name": "Components (AuthContext) Review Group",
+      "fileCount": 14
+    },
+    {
+      "name": "Components (ToastContext) Review Group",
+      "fileCount": 14
+    },
+    {
+      "name": "Pages (index) Review Group",
+      "fileCount": 14
+    }
+  ],
+  "allowedContext": {
+    "database": [
+      ".tokencap/constitution/schema-invariants*",
+      "scratch/**"
+    ],
+    "scripts-qalib": [
+      "scratch/test_consent_flow*",
+      "scripts/**"
+    ],
+    "unit-testharness": [
+      "scripts/unit/**"
+    ],
+    "components-authcontext": [
+      "src/context/AuthContext*",
+      "src/pages/**",
+      "src/components/**",
+      "src/utils/**",
+      "src/services/**",
+      "src/data/dogBreeds*"
+    ],
+    "components-toastcontext": [
+      "src/context/ToastContext*",
+      "src/pages/**",
+      "src/components/**",
+      "src/services/locationService*",
+      "src/utils/**",
+      "src/hooks/useCrashSafeDraft*"
+    ],
+    "pages-index": [
+      "src/services/**",
+      "src/pages/**",
+      "src/components/**",
+      "src/types/index*",
+      "src/utils/**"
+    ],
+    "other": [
+      ".github/workflows/deploy*",
+      ".tokencap/constitution/**",
+      "android/app/src/main/assets/public/**",
+      "cleanup_cloudinary*",
+      "functions/index*",
+      "scratch/**",
+      "scripts/**",
+      "src/types/geojson.d*",
+      "worker-configuration.d*",
+      "worker/index*"
+    ],
+    "config": [
+      "capacitor.config*",
+      "scripts/validate_firebase_env*",
+      "src/vite-env.d*",
+      "vite.config*"
+    ],
+    "services": [
+      "docs/generate_pdf*",
+      "scratch/**",
+      "scripts/**"
+    ],
+    "authentication": [
+      "scratch/extract_session*",
+      "scripts/test_auth_consent_flow*"
+    ],
+    "frontend": [
+      "scratch/**",
+      "scripts/**",
+      "src/components/**"
+    ],
+    "testing": [
+      "scratch/**",
+      "scripts/**"
+    ],
+    "components-fallbackshell": [
+      "src/**"
+    ],
+    "dashboard": [
+      "scratch/**"
+    ],
+    "utilities": [
+      "src/lib/utils*"
+    ]
+  },
+  "recommendedReads": {
+    "database": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "scripts-(qa_lib)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "unit-(test_harness)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "components-(authcontext)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "components-(toastcontext)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "pages-(index)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
+    "config": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "services": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "authentication": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "frontend": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "testing": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "unclassified:-scripts": [
+      "architecture.md",
+      "rules.md"
+    ],
+    "components-(fallbackshell)": [
+      "architecture.md",
+      "rules.md"
+    ]
+  },
+  "files": {
+    "entry": "START_HERE.md",
+    "intelligence": "agent-pack.md",
+    "allowedContext": "allowed-context.json",
+    "modelInstructions": "model-instructions.md",
+    "architecture": "architecture.md",
+    "rules": "rules.md",
+    "reviewRules": "review-rules.md",
+    "riskMap": "risk-map.md",
+    "techStack": "tech-stack.md",
+    "skills": "skills.md",
+    "machineReadable": "agent.json"
+  },
+  "meta": {
+    "tokencapVersion": "1.0.0",
+    "description": "Self-Loading Universal Context Layer - machine-readable repository intelligence index.",
+    "usage": "Read entry file first, then use allowedContext and recommendedReads for navigation."
   }
 }
 ```
 
-### android/app/src/main/assets/public/cordova_plugins.js
+### .tokencap/agent/model-instructions.md
 
 | Field | Value |
 | --- | --- |
-| Bytes | 0 |
-| Score | 30 |
-| Why | source |
+| Bytes | 2517 |
+| Score | 120 |
+| Why | changed |
 | Status | Full content |
 
 
-```js
+```markdown
+# Model Instructions - findlostpuppy
 
+> Generated by TokenCap v1.0.0 - 2026-10-11T06:39:23.731Z
+
+---
+
+## Before Touching Code
+
+1. Read `START_HERE.md` - repository overview
+2. Read `agent-pack.md` - full project intelligence
+3. Use `allowed-context.json` - locate files for your task
+4. Read `risk-map.md` before modifying HIGH or CRITICAL areas
+
+---
+
+## Architecture
+
+Component Layer -> Service Layer
+
+---
+
+## Where Things Live
+
+- **Database** -> `.tokencap/constitution/schema-invariants*, scratch/**`
+- **Scripts qalib** -> `scratch/test_consent_flow*, scripts/**`
+- **Unit testharness** -> `scripts/unit/**`
+- **Components authcontext** -> `src/context/AuthContext*, src/pages/**`
+- **Components toastcontext** -> `src/context/ToastContext*, src/pages/**`
+- **Pages index** -> `src/services/**, src/pages/**`
+- **Other** -> `.github/workflows/deploy*, .tokencap/constitution/**`
+- **Config** -> `capacitor.config*, scripts/validate_firebase_env*`
+
+---
+
+## Non-Negotiable Rules
+
+- Business logic belongs in services
+- Custom React hooks live in hooks/ - prefix with 'use'
+- Shared utilities live in utils/ - keep them pure and side-effect free
+- Core library code lives in lib/ - keep it framework-agnostic
+- UI components live in components/ - keep them presentational
+- Page components live in pages/ - route-level only, no business logic
+- App Router entry points live in app/ - follow Next.js file conventions
+- Shared TypeScript types live in types/ - import from here, not redeclared inline
+
+---
+
+## High-Risk Files - Extra Care Required
+
+- [HIGH] `scratch/execute_media_migration.ts`
+- [HIGH] `scratch/execute_safe_migration_workflow.mjs`
+- [HIGH] `scripts/qa_lib.mjs`
+- [HIGH] `scripts/unit/test-support.mjs`
+- [HIGH] `scripts/unit/test_harness.mjs`
+- [HIGH] `src/services/storageService.ts`
+
+---
+
+## Do Not
+
+- Scan the full repository unless the task specifically requires it
+- Make assumptions about architecture - read `architecture.md` first
+- Modify HIGH or CRITICAL files without checking `risk-map.md`
+- Change files in multiple clusters in one pass without checking review groups
+- Create new patterns that contradict `rules.md`
+
+---
+
+## Navigation
+
+| Tool | How to use it |
+|---|---|
+| Find files for a feature | Look up topic in `allowed-context.json` |
+| Understand the full project | Read `agent-pack.md` |
+| Check what changed recently | Read `TOKENCAP.md` Recent Changes section |
+| Understand dependencies | Read `architecture.md` |
+| Know what to review together | Read `review-rules.md` |
 ```
 
-### android/app/src/main/assets/public/cordova.js
+### .tokencap/agent/review-rules.md
 
 | Field | Value |
 | --- | --- |
-| Bytes | 0 |
+| Bytes | 5473 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Review Rules - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.728Z
+> When reviewing changes in any of these groups, review ALL listed files together.
+
+---
+
+## Database Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (3 files). Central file: schema-invariants.yaml with 0 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `.tokencap/constitution/schema-invariants.yaml`
+- `scratch/execute_media_migration.ts`
+- `scratch/execute_safe_migration_workflow.mjs`
+
+---
+
+## Scripts (qa_lib) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (11 files). Central file: qa_lib.mjs with 10 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `scripts/qa_lib.mjs`
+- `scratch/test_consent_flow.mjs`
+- `scripts/capture_card_and_sighting.mjs`
+- `scripts/capture_clean_remaining.mjs`
+- `scripts/capture_deep_flows.mjs`
+- `scripts/capture_exact_checkpoints.mjs`
+- `scripts/execute_onboarding_and_alert_flows.mjs`
+- `scripts/release_regression_verify.mjs`
+- `scripts/run_all_qa_checkpoints.mjs`
+- `scripts/run_complete_qa.mjs`
+
+---
+
+## Unit (test-support) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (9 files). Central file: test-support.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `scripts/unit/test-support.mjs`
+- `scripts/unit/consent-page.test.mjs`
+- `scripts/unit/drafts-consent.test.mjs`
+- `scripts/unit/firebase-sync.test.mjs`
+- `scripts/unit/geolocation.test.mjs`
+- `scripts/unit/media-functions.test.mjs`
+- `scripts/unit/media-storage.test.mjs`
+- `scripts/unit/media-worker.test.mjs`
+- `scripts/unit/storage-recovery.test.mjs`
+
+---
+
+## Unit (test_harness) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (9 files). Central file: test_harness.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `scripts/unit/test_harness.mjs`
+- `scripts/unit/drafts_and_consent.test.mjs`
+- `scripts/unit/fallbacks.test.mjs`
+- `scripts/unit/firebase_sync.test.mjs`
+- `scripts/unit/location_regressions.test.mjs`
+- `scripts/unit/media_client.test.mjs`
+- `scripts/unit/media_functions.test.mjs`
+- `scripts/unit/media_worker.test.mjs`
+- `scripts/unit/storage_recovery.test.mjs`
+
+---
+
+## Components (storageService) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (23 files). Central file: storageService.ts with 25 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/services/storageBucketService.ts`
+- `src/utils/phoneValidator.ts`
+- `src/services/consentService.ts`
+- `src/services/firebaseSyncService.ts`
+- `src/services/firebaseConfig.ts`
+- `src/utils/privacyUtils.ts`
+- `src/services/authService.ts`
+- `src/pages/OwnerProfile.tsx`
+- `src/App.tsx`
+- `src/components/SuggestionWidget.tsx`
+- `src/components/admin/AdminShortcuts.tsx`
+- `src/types/index.ts`
+
+---
+
+## Components (ToastContext) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (16 files). Central file: ToastContext.tsx with 20 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `src/context/ToastContext.tsx`
+- `src/services/locationService.ts`
+- `src/utils/geolocationHelper.ts`
+- `src/utils/indicTransliteration.ts`
+- `src/components/PermissionRationaleModal.tsx`
+- `src/hooks/useCrashSafeDraft.ts`
+- `src/hooks/useLocationDetection.ts`
+- `src/services/nativeSettingsService.ts`
+- `src/pages/Location.tsx`
+- `src/pages/GuestSightingPage.tsx`
+- `src/App.tsx`
+- `src/components/AdminUserProximityMap.tsx`
+- `src/components/CameraModal.tsx`
+- `src/components/SidebarNav.tsx`
+
+---
+
+## Pages (imageCompressor) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (6 files). Central file: imageCompressor.ts with 6 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `src/utils/imageCompressor.ts`
+- `src/components/PetProfileSelector.tsx`
+- `src/utils/breedAssetHelper.tsx`
+- `src/data/dogBreeds.ts`
+- `src/pages/PetDetails.tsx`
+- `src/pages/CapturePetPage.tsx`
+- `src/App.tsx`
+- `src/context/AuthContext.tsx`
+- `src/context/ToastContext.tsx`
+- `src/services/storageService.ts`
+
+---
+
+## Pages (index) Review Group
+
+**Risk:** [HIGH] HIGH
+
+**Reason:** Shared dependency chain (16 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+**Review Together:**
+
+- `src/types/index.ts`
+- `src/utils/dogPhotoHelper.ts`
+- `src/components/ui/VillageDogTransition.tsx`
+- `src/components/ui/back-button.tsx`
+- `src/utils/shareHelper.ts`
+- `src/components/StatusBadge.tsx`
+- `src/utils/confettiHelper.ts`
+- `src/components/DogCard.tsx`
+- `src/pages/PetSafety.tsx`
+- `src/pages/RegisteredPet.tsx`
+- `src/App.tsx`
+- `src/context/AuthContext.tsx`
+- `src/context/ToastContext.tsx`
+- `src/services/storageService.ts`
+
+---
+```
+
+### .tokencap/agent/risk-map.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 3352 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Risk Map - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.728Z
+
+---
+
+## Summary
+
+[HIGH] **HIGH clusters:** Database, Scripts (qa_lib), Unit (test-support), Unit (test_harness), Components (storageService), Components (ToastContext), Pages (imageCompressor), Pages (index)
+
+---
+
+## Risk Areas
+
+### [HIGH] Database
+
+**Risk Level:** HIGH
+
+**Why:** Database layer holds all persistent state. Schema changes can corrupt or lose data.
+
+**Key Files:**
+
+- `scratch/execute_media_migration.ts`
+- `scratch/execute_safe_migration_workflow.mjs`
+
+### [HIGH] Scripts (qa_lib)
+
+**Risk Level:** HIGH
+
+**Why:** Scripts (qa_lib) contains 11 modules with elevated risk. Most-connected file: qa_lib.mjs (10 importers).
+
+**Key Files:**
+
+- `scripts/qa_lib.mjs`
+
+### [HIGH] Unit (test-support)
+
+**Risk Level:** HIGH
+
+**Why:** Unit (test-support) contains 9 modules with elevated risk. Most-connected file: test-support.mjs (8 importers).
+
+**Key Files:**
+
+- `scripts/unit/test-support.mjs`
+
+### [HIGH] Unit (test_harness)
+
+**Risk Level:** HIGH
+
+**Why:** Unit (test_harness) contains 9 modules with elevated risk. Most-connected file: test_harness.mjs (8 importers).
+
+**Key Files:**
+
+- `scripts/unit/test_harness.mjs`
+
+### [HIGH] Components (storageService)
+
+**Risk Level:** HIGH
+
+**Why:** Components (storageService) contains 23 modules with elevated risk. Most-connected file: storageService.ts (25 importers).
+
+**Key Files:**
+
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/services/storageBucketService.ts`
+- `src/utils/phoneValidator.ts`
+- `src/services/consentService.ts`
+- `src/services/firebaseSyncService.ts`
+
+### [HIGH] Components (ToastContext)
+
+**Risk Level:** HIGH
+
+**Why:** Components (ToastContext) contains 16 modules with elevated risk. Most-connected file: ToastContext.tsx (20 importers).
+
+**Key Files:**
+
+- `src/context/ToastContext.tsx`
+- `src/services/locationService.ts`
+- `src/utils/geolocationHelper.ts`
+- `src/utils/indicTransliteration.ts`
+
+### [HIGH] Pages (imageCompressor)
+
+**Risk Level:** HIGH
+
+**Why:** Pages (imageCompressor) contains 6 modules with elevated risk. Most-connected file: imageCompressor.ts (6 importers).
+
+**Key Files:**
+
+- `src/utils/imageCompressor.ts`
+
+### [HIGH] Pages (index)
+
+**Risk Level:** HIGH
+
+**Why:** Pages (index) contains 16 modules with elevated risk. Most-connected file: index.ts (31 importers).
+
+**Key Files:**
+
+- `src/types/index.ts`
+- `src/utils/dogPhotoHelper.ts`
+- `src/components/ui/VillageDogTransition.tsx`
+- `src/components/ui/back-button.tsx`
+
+### [MEDIUM] Components (legalContent)
+
+**Risk Level:** MEDIUM
+
+**Why:** Components (legalContent) contains 19 modules with elevated risk. Most-connected file: legalContent.ts (4 importers).
+
+**Key Files:**
+
+- `src/App.tsx`
+- `src/components/Footer.tsx`
+- `src/services/geoBlockService.ts`
+- `src/components/GeoBlockPage.tsx`
+- `src/components/ui/AnimationShowcaseStudio.tsx`
+
+### [MEDIUM] Fallbacks (FallbackShell)
+
+**Risk Level:** MEDIUM
+
+**Why:** Fallbacks (FallbackShell) contains 8 modules with elevated risk. Most-connected file: FallbackShell.tsx (4 importers).
+
+**Key Files:**
+
+- `src/components/fallbacks/LoadingFallback.tsx`
+- `src/components/CameraModal.tsx`
+- `src/components/fallbacks/PermissionFallback.tsx`
+- `src/components/ErrorBoundary.tsx`
+- `src/components/fallbacks/AppErrorBoundary.tsx`
+```
+
+### .tokencap/agent/rules.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 2107 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Project Rules - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.728Z
+> These rules are inferred automatically from the project structure and tech stack.
+
+---
+
+## Folder Conventions
+
+### `services/`
+
+**Rule:** Business logic belongs in services
+
+**Example:** `src/services/storageService.ts`
+
+### `hooks/`
+
+**Rule:** Custom React hooks live in hooks/ - prefix with 'use'
+
+**Example:** `src/hooks/useLocationDetection.ts`
+
+### `utils/`
+
+**Rule:** Shared utilities live in utils/ - keep them pure and side-effect free
+
+**Example:** `src/utils/dogPhotoHelper.ts`
+
+### `lib/`
+
+**Rule:** Core library code lives in lib/ - keep it framework-agnostic
+
+**Example:** `src/lib/utils.ts`
+
+### `components/`
+
+**Rule:** UI components live in components/ - keep them presentational
+
+**Example:** `src/components/SidebarNav.tsx`
+
+### `pages/`
+
+**Rule:** Page components live in pages/ - route-level only, no business logic
+
+**Example:** `src/pages/ConsentPage.tsx`
+
+### `app/`
+
+**Rule:** App Router entry points live in app/ - follow Next.js file conventions
+
+**Example:** `android/app/src/main/assets/public/assets/28_mandals-CVEUtnws.js`
+
+### `types/`
+
+**Rule:** Shared TypeScript types live in types/ - import from here, not redeclared inline
+
+**Example:** `src/types/index.ts`
+
+### `context/`
+
+**Rule:** React context providers live in context/
+
+**Example:** `src/context/AuthContext.tsx`
+
+---
+
+## Quick Reference
+
+All conventions at a glance:
+
+- Business logic belongs in services
+- Custom React hooks live in hooks/ - prefix with 'use'
+- Shared utilities live in utils/ - keep them pure and side-effect free
+- Core library code lives in lib/ - keep it framework-agnostic
+- UI components live in components/ - keep them presentational
+- Page components live in pages/ - route-level only, no business logic
+- App Router entry points live in app/ - follow Next.js file conventions
+- Shared TypeScript types live in types/ - import from here, not redeclared inline
+- React context providers live in context/
+- Use TypeScript strictly - avoid `any` types
+- Write tests for all service-layer functions
+```
+
+### .tokencap/agent/skills.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 2052 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Agent Skills - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.729Z
+> This file teaches an AI agent the essential knowledge needed to work on this project.
+
+---
+
+## Project Type
+
+You are working on a **React** project.
+
+---
+
+## Core Features
+
+- Components (storageService)
+- Components (legalContent)
+- Components (ToastContext)
+- Pages (index)
+- Services
+- Frontend
+- Scripts (qa_lib)
+- Unit (test-support)
+
+---
+
+## Architecture
+
+```
+Component Layer -> Service Layer
+```
+
+---
+
+## Project Conventions
+
+Follow these rules when writing or reviewing code:
+
+- Business logic belongs in services
+- Custom React hooks live in hooks/ - prefix with 'use'
+- Shared utilities live in utils/ - keep them pure and side-effect free
+- Core library code lives in lib/ - keep it framework-agnostic
+- UI components live in components/ - keep them presentational
+- Page components live in pages/ - route-level only, no business logic
+- App Router entry points live in app/ - follow Next.js file conventions
+- Shared TypeScript types live in types/ - import from here, not redeclared inline
+- React context providers live in context/
+- Use TypeScript strictly - avoid `any` types
+- Write tests for all service-layer functions
+
+---
+
+## Important Files
+
+These files are critical - understand them before making changes:
+
+- `src/types/index.ts`
+- `src/services/storageService.ts`
+- `src/context/AuthContext.tsx`
+- `src/context/ToastContext.tsx`
+- `src/utils/dogPhotoHelper.ts`
+- `src/services/storageBucketService.ts`
+- `scripts/qa_lib.mjs`
+- `scripts/unit/test-support.mjs`
+- `scripts/unit/test_harness.mjs`
+- `src/services/locationService.ts`
+
+---
+
+## High-Risk Areas
+
+Changes to these areas require extra care and thorough review:
+
+- [HIGH] **Database** - HIGH
+- [HIGH] **Scripts (qa_lib)** - HIGH
+- [HIGH] **Unit (test-support)** - HIGH
+- [HIGH] **Unit (test_harness)** - HIGH
+- [HIGH] **Components (storageService)** - HIGH
+- [HIGH] **Components (ToastContext)** - HIGH
+- [HIGH] **Pages (imageCompressor)** - HIGH
+- [HIGH] **Pages (index)** - HIGH
+```
+
+### .tokencap/agent/tech-stack.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 654 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Tech Stack - findlostpuppy
+
+> Generated by TokenCap v0.8 - 2026-10-11T06:39:23.727Z
+
+---
+
+## Languages
+
+- TypeScript
+
+## Frameworks
+
+- React
+
+## Authentication
+
+- Firebase Auth
+- JOSE (JWT)
+
+## Build Tools
+
+- Vite
+
+## Other Dependencies
+
+- @capacitor-firebase/authentication
+- @capacitor/app
+- @capacitor/core
+- @capacitor/geolocation
+- @capgo/capacitor-nativegeocoder
+- @radix-ui/react-slot
+- @turf/boolean-point-in-polygon
+- @turf/helpers
+
+## External Services
+
+- External API via VITE_BASE_URL: /findlostpuppy/
+- External API via VITE_FIREBASE_API_KEY: [REDACTED:KEY]
+- External API via VITE_FIREBASE_API_KEY: your-api-key
+```
+
+### .tokencap/constitution/compliance-rules.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 2214 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Compliance Rules
+
+> TokenCap Constitution Engine
+
+## 🔴 CONST-COMP-001 — CRITICAL
+
+**Payment processing (PCI-DSS) — all Stripe/payment code requires compliance review.**
+
+> **Why:** PCI-DSS requires that all payment card data handling meets security standards. Any change to payment flows must be reviewed.
+
+> **What breaks:** PCI compliance violation. Payment processor account suspension. Legal liability.
+
+*Files:* `.agents/skills/responsive-design/references/container-queries.md`, `.agents/skills/responsive-design/references/details.md`, `.agents/skills/responsive-design/references/fluid-layouts.md`, `.tokencap/constitution/compliance-rules.md`
+
+## 🔴 CONST-COMP-002 — CRITICAL
+
+**GDPR compliance — personal data handling must preserve user rights (consent, erasure, portability).**
+
+> **Why:** GDPR requires explicit consent for data collection, the right to erasure, and data portability. Removing these breaks legal compliance.
+
+> **What breaks:** GDPR violation. Regulatory fines. User data rights cannot be exercised.
+
+*Files:* `.agents/rules/workflow.md`, `.tokencap/agent/START_HERE.md`, `.tokencap/agent/agent-pack.md`, `.tokencap/agent/architecture.md`
+
+## 🔴 CONST-COMP-003 — CRITICAL
+
+**HIPAA compliance — protected health information (PHI) handling must remain compliant.**
+
+> **Why:** HIPAA requires strict access control, audit logging, and encryption for all PHI. Removing protections is illegal.
+
+> **What breaks:** HIPAA violation. Criminal liability. Patient data exposed.
+
+*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `android/app/src/main/assets/public/assets/516-VkbN94rn.js`
+
+## 🔴 CONST-COMP-004 — CRITICAL
+
+**Audit logging must always be written and never removed.**
+
+> **Why:** Audit logs provide the immutable record required for compliance, forensic investigation, and regulatory review.
+
+> **What breaks:** Compliance audit failures. Inability to investigate security incidents. Regulatory violations.
+
+*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `docs/PRD.md`
+```
+
+### .tokencap/constitution/critical-flows.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1390 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Critical Flows
+
+> TokenCap Constitution Engine
+
+## 🔴 CONST-FLOW-001 — CRITICAL
+
+**Authentication Flow is repository-critical and must remain intact end-to-end.**
+
+> **Why:** Every protected page and authenticated feature depends on this flow working correctly.
+
+> **What breaks:** Users cannot log in. All authenticated features become unreachable. Sessions invalidated.
+
+*Files:* `scripts/test_auth_consent_flow.mjs`, `src/context/AuthContext.tsx`, `src/pages/EmailAuthPage.tsx`, `src/services/authService.ts`
+
+## 🔴 CONST-FLOW-002 — CRITICAL
+
+**User Registration Flow must remain functional. New users must be able to create accounts.**
+
+> **Why:** Registration is the entry point for all new users. Breaking it stops user growth.
+
+> **What breaks:** New users cannot create accounts. User acquisition blocked.
+
+*Files:* `scripts/execute_onboarding_and_alert_flows.mjs`, `scripts/run_continuous_onboarding.mjs`, `src/pages/OwnerOnboardingPage.tsx`, `src/pages/RegisteredPet.tsx`
+
+## 🔴 CONST-FLOW-003 — CRITICAL
+
+**Notification Pipeline (email, webhook, SMS) must remain operational.**
+
+> **Why:** Notifications are critical for transactional communication (receipts, alerts, order updates).
+
+> **What breaks:** Users stop receiving transactional emails. Webhooks fail silently. Integrations break.
+
+*Files:* `scratch/send_tester_emails.mjs`, `src/pages/EmailAuthPage.tsx`
+```
+
+### .tokencap/constitution/security-boundaries.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 3964 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Security Boundaries
+
+> TokenCap Constitution Engine
+
+## 🔴 CONST-SEC-001 — CRITICAL
+
+**JWT authentication flow must remain operational.**
+
+> **Why:** JWT is detected as the active auth system. Changing or removing it invalidates all existing sessions.
+
+> **What breaks:** All protected routes return 401. User sessions invalidated. Logout flows break.
+
+*Files:* `scripts/test_auth_consent_flow.mjs`, `src/context/AuthContext.tsx`, `src/pages/EmailAuthPage.tsx`, `src/services/authService.ts`
+
+## 🔒 CONST-SEC-002 — IMMUTABLE
+
+**Authentication middleware (scripts/test_auth_consent_flow.mjs, src/context/AuthContext.tsx) must remain enabled on all protected routes.**
+
+> **Why:** These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
+
+> **What breaks:** Unauthorized users gain access to protected routes, user data, and admin features.
+
+*Files:* `scripts/test_auth_consent_flow.mjs`, `src/context/AuthContext.tsx`, `src/pages/EmailAuthPage.tsx`, `src/services/authService.ts`
+
+## 🔴 CONST-SEC-003 — CRITICAL
+
+**Firebase Auth authentication flow must remain operational.**
+
+> **Why:** Firebase Auth is detected as the active auth system. Changing or removing it invalidates all existing sessions.
+
+> **What breaks:** All protected routes return 401. User sessions invalidated. Logout flows break.
+
+*Files:* `scratch/check_firebase_storage.mjs`, `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase-sync.test.mjs`, `scripts/unit/firebase_sync.test.mjs`
+
+## 🔒 CONST-SEC-004 — IMMUTABLE
+
+**Authentication middleware (scratch/check_firebase_storage.mjs, scripts/test_auth_consent_flow.mjs) must remain enabled on all protected routes.**
+
+> **Why:** These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
+
+> **What breaks:** Unauthorized users gain access to protected routes, user data, and admin features.
+
+*Files:* `scratch/check_firebase_storage.mjs`, `scripts/test_auth_consent_flow.mjs`, `scripts/unit/firebase-sync.test.mjs`, `scripts/unit/firebase_sync.test.mjs`
+
+## 🔒 CONST-SEC-005 — IMMUTABLE
+
+**Password hashing algorithm must not be changed or removed.**
+
+> **Why:** The hashing algorithm is the last line of defence for stored credentials. Changing it invalidates all existing password hashes.
+
+> **What breaks:** All existing users are locked out. Passwords unverifiable without a migration.
+
+*Files:* `android/app/src/main/assets/public/assets/index-BgJgrvH4.js`, `scripts/unit/media-worker.test.mjs`
+
+## 🔴 CONST-SEC-006 — CRITICAL
+
+**Encryption implementation must remain algorithm-compatible.**
+
+> **Why:** Changing the encryption algorithm or key derivation method makes all existing encrypted data unreadable.
+
+> **What breaks:** Encrypted data (tokens, at-rest fields, backups) cannot be decrypted.
+
+*Files:* `worker-configuration.d.ts`
+
+## 🔴 CONST-SEC-007 — CRITICAL
+
+**Environment secrets must never be hardcoded in source files.**
+
+> **Why:** Secrets committed to source are exposed via version control history and repository access.
+
+> **What breaks:** Security breach. API keys, database credentials, and tokens compromised.
+
+*Files:* `docs/generate_pdf.mjs`, `scratch/generate_pdf.mjs`, `scratch/send_tester_emails.mjs`, `scripts/cloudinary_delete_all_images.mjs`
+
+## 🟠 CONST-SEC-008 — HIGH
+
+**Rate limiting must not be removed from public endpoints.**
+
+> **Why:** Rate limiting prevents brute-force attacks and denial-of-service.
+
+> **What breaks:** Brute-force login attacks. API abuse. Service degradation under load.
+
+*Files:* `worker-configuration.d.ts`
+
+## 🔴 CONST-SEC-009 — CRITICAL
+
+**Environment variable files (.env) must never be committed to version control.**
+
+> **Why:** .env files contain secrets. Committing them exposes credentials to all repository users.
+
+> **What breaks:** All secrets in .env become public. Immediate security incident.
+
+*Files:* `.env`, `.env.example`
+```
+
+### .tokencap/debug/notes.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 499 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# Debug Notes
+
+<!-- Managed by TokenCap. Generated 2026-10-11T06:39:48.897Z. -->
+
+## Problem
+
+No active failure has been captured.
+
+## Error Logs
+
+```
+No captured error output is available.
+```
+
+## Stack Trace
+
+```
+No captured stack trace is available.
+```
+
+## Failed Tests
+
+- No captured failed tests.
+
+## Attempted Fixes
+
+- No attempted fixes captured in this debug session.
+
+## Suspected Files
+
+- No suspected files inferred yet.
+
+## Unresolved Questions
+
+- No unresolved questions inferred yet.
+```
+
+### .tokencap/memory/current.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1432 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# TokenCap Memory
+
+Generated: October 11, 2026 at 12:09 PM
+
+**Branch:** `main`
+
+## Current Task
+
+Working on `main` with 8 uncommitted files:
+- .tokencap/graph/summary.md
+- .tokencap/savings.json
+- .tokencap/snapshot.md
+- .tokencap/stats.json
+- android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
+- src/components/LocationPicker.tsx
+- src/hooks/useLocationDetection.ts
+- src/pages/Location.tsx
+
+## Developer Intent
+
+Not inferred from local repository evidence.
+
+## Known Issues
+
+- .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+
+## Constraints
+
+- No additional constraints inferred.
+
+## Decisions Made
+
+- No decisions inferred from the current repository state.
+
+## Recent Changed Files
+
+- .tokencap/debug/notes.md
+- .tokencap/graph/summary.md
+- .tokencap/memory/dev-notes.md
+- .tokencap/savings.json
+- .tokencap/snapshot.md
+- .tokencap/stats.json
+- android/app/src/main/java/com/findlostpuppy/app/DeviceSettingsPlugin.java
+- src/components/LocationPicker.tsx
+- src/hooks/useLocationDetection.ts
+- src/pages/Location.tsx
+
+## Next Steps
+
+- Review the changed files and recent commits listed above.
+```
+
+### .tokencap/memory/dev-notes.md
+
+| Field | Value |
+| --- | --- |
+| Bytes | 2814 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```markdown
+# TokenCap Notes
+
+<!-- Managed by TokenCap. Generated 2026-10-11T06:39:48.897Z. -->
+
+## Current Task
+
+Working on `main` with 30 uncommitted files:
+- .tokencap/agent/START_HERE.md
+- .tokencap/agent/agent-pack.md
+- .tokencap/agent/agent.json
+- .tokencap/agent/architecture.md
+- .tokencap/agent/context-manifest.json
+- .tokencap/agent/model-instructions.md
+- .tokencap/agent/review-rules.md
+- .tokencap/agent/risk-map.md
+- .tokencap/agent/rules.md
+- .tokencap/agent/skills.md
+- .tokencap/agent/tech-stack.md
+- .tokencap/constitution/compliance-rules.md
+
+## Developer Intent
+
+Not inferred from local repository evidence.
+
+## Known Issues
+
+- .tokencap/memory/current.md:25:- .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/current.md:26:- .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/current.md:27:- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/current.md:28:- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/memory/current.md:29:- .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/memory/dev-notes.md:23:- .tokencap/memory/current.md:29:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:24:- .tokencap/memory/dev-notes.md:27:- No failing test output or TODO/FIXME markers detected.
+- .tokencap/memory/dev-notes.md:25:- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/memory/dev-notes.md:26:- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+- .tokencap/memory/dev-notes.md:27:- .tokencap/snapshot.md:656:No TODO/FIXME/HACK notes found in selected files.
+- .tokencap/snapshot.md:47:| TODO notes | 0 |
+- .tokencap/snapshot.md:654:## TODO / FIXME / HACK Notes
+
+## Recent Commits
+
+- 51954f9 chore(release): bump version to 45 (1.0.6) and add Cloudinary production fallbacks
+- 529f061 Merge branch 'fixes' into main: unified location flow, CodeRabbit fixes, and owner photo reliability
+- 388a6e1 Merge remote-tracking branch 'origin/main' into main (resolve Location.tsx conflicts)
+- de0ac3d fix(review): address CodeRabbit feedback on location flow, consent check, and navigation
+- 9d38e2d feat(reliability): unified location flow, native dialog handling, and owner photo upload reliability
+- d124f3e Enforce mandatory owner photo, name, phone and block tab navigation until completed
+- 3c2f2e7 feat(location): add in-app location enablement, permission modals, and fresh fix
+- 333560c Merge branch 'fixes' - location detection platform-specific error handling
+
+## Constraints
+
+- No additional constraints inferred.
+
+## Decisions Made
+
+- No decisions inferred from the current repository state.
+
+## Next Steps
+
+- Review the changed files and recent commits listed above.
+```
+
+### scripts/check_btn_state.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 852 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/F71A143ACA0EF3B342F4BA0C48E20EC8');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+  ws.send(JSON.stringify({ id: 2, method: 'Log.enable' }));
+
+  // Evaluate detecting state in the component
+  ws.send(JSON.stringify({
+    id: 10,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(() => {
+        const btn = document.querySelector('.location-detect-primary-btn');
+        return {
+          btnText: btn?.innerText,
+          isDisabled: btn?.disabled,
+        };
+      })()`,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg.toString());
+  if (data.id === 10) {
+    console.log('Button State:', data.result?.result?.value);
+    process.exit(0);
+  }
+});
+```
+
+### scripts/check_webview_state.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1303 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/773E5B600F2D20260AD61C182F2C1042');
+
+ws.on('open', () => {
+  // Enable console and runtime
+  ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+  ws.send(JSON.stringify({ id: 2, method: 'Log.enable' }));
+  
+  // Evaluate DOM state
+  ws.send(JSON.stringify({
+    id: 3,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `({
+        detectingBtn: document.querySelector('.loc-hero-detect-btn')?.innerText,
+        stateText: document.querySelector('.loc-gsq-state .loc-gsq-value')?.innerText,
+        districtText: document.querySelector('.loc-gsq-district .loc-gsq-value')?.innerText,
+        mandalText: document.querySelector('.loc-gsq-mandal .loc-gsq-value')?.innerText,
+        homeText: document.querySelector('.loc-gsq-home .loc-gsq-value')?.innerText,
+        localStorageProfile: localStorage.getItem('findlostpuppy_owner_profiles'),
+      })`,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg.toString());
+  if (data.id === 3) {
+    console.log('DOM Evaluation:', JSON.stringify(data.result, null, 2));
+    process.exit(0);
+  }
+});
+
+setTimeout(() => {
+  console.log('Timeout waiting for response');
+  process.exit(1);
+}, 4000);
+```
+
+### scripts/debug_runtime.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 1053 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/773E5B600F2D20260AD61C182F2C1042');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Log.enable' }));
+  ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
+  
+  // Inspect what happened in the app
+  ws.send(JSON.stringify({
+    id: 3,
+    method: 'Runtime.evaluate',
+    params: {
+      expression: `(() => {
+        return {
+          windowKeys: Object.keys(window).filter(k => k.includes('location') || k.includes('detect') || k.includes('geo')),
+          navOnline: navigator.onLine,
+        };
+      })()`,
+      returnByValue: true
+    }
+  }));
+});
+
+ws.on('message', (msg) => {
+  const d = JSON.parse(msg.toString());
+  if (d.method === 'Runtime.consoleAPICalled') {
+    console.log('[CONSOLE]', d.params.type, d.params.args.map(a => a.value || a.description).join(' '));
+  }
+  if (d.id === 3) {
+    console.log('Result:', JSON.stringify(d.result, null, 2));
+    process.exit(0);
+  }
+});
+
+setTimeout(() => process.exit(0), 4000);
+```
+
+### scripts/get_logs.mjs
+
+| Field | Value |
+| --- | --- |
+| Bytes | 555 |
+| Score | 120 |
+| Why | changed |
+| Status | Full content |
+
+
+```mjs
+import WebSocket from 'ws';
+
+const ws = new WebSocket('ws://localhost:9222/devtools/page/F71A143ACA0EF3B342F4BA0C48E20EC8');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({ id: 1, method: 'Log.enable' }));
+  ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
+
+  // Evaluate any errors or logs
+  ws.send(JSON.stringify({
+    id: 3,
+    method: 'Log.getLog',
+  }));
+});
+
+ws.on('message', (msg) => {
+  const d = JSON.parse(msg.toString());
+  console.log('CDP message:', JSON.stringify(d, null, 2));
+});
+
+setTimeout(() => process.exit(0), 3000);
+```
+
+### src/vite-env.d.ts
+
+| Field | Value |
+| --- | --- |
+| Bytes | 38 |
 | Score | 30 |
 | Why | source |
 | Status | Full content |
 
 
-```js
-
+```ts
+/// <reference types="vite/client" />
 ```

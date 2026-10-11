@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-02T04:45:29.739Z",
+  "generatedAt": "2026-10-11T13:34:02.584Z",
   "entry": "START_HERE.md",
   "project": {
     "name": "findlostpuppy",
@@ -10,18 +10,21 @@
   "clusters": [
     "database",
     "scripts-(qa_lib)",
+    "unit-(test-support)",
     "unit-(test_harness)",
-    "components-(authcontext)",
+    "components-(storageservice)",
     "components-(toastcontext)",
+    "pages-(imagecompressor)",
     "pages-(index)",
+    "components-(legalcontent)",
+    "fallbacks-(fallbackshell)",
     "other",
     "config",
     "services",
-    "authentication",
-    "frontend",
-    "testing",
-    "components-(fallbackshell)",
     "dashboard",
+    "frontend",
+    "authentication",
+    "testing",
     "utilities"
   ],
   "criticalFiles": [
@@ -32,8 +35,8 @@
     "src/utils/dogPhotoHelper.ts",
     "src/services/storageBucketService.ts",
     "scripts/qa_lib.mjs",
+    "scripts/unit/test-support.mjs",
     "scripts/unit/test_harness.mjs",
-    "src/utils/imageCompressor.ts",
     "src/services/locationService.ts"
   ],
   "riskAreas": [
@@ -46,15 +49,23 @@
       "level": "HIGH"
     },
     {
+      "cluster": "unit-(test-support)",
+      "level": "HIGH"
+    },
+    {
       "cluster": "unit-(test_harness)",
       "level": "HIGH"
     },
     {
-      "cluster": "components-(authcontext)",
+      "cluster": "components-(storageservice)",
       "level": "HIGH"
     },
     {
       "cluster": "components-(toastcontext)",
+      "level": "HIGH"
+    },
+    {
+      "cluster": "pages-(imagecompressor)",
       "level": "HIGH"
     },
     {
@@ -72,16 +83,24 @@
       "fileCount": 10
     },
     {
+      "name": "Unit (test-support) Review Group",
+      "fileCount": 9
+    },
+    {
       "name": "Unit (test_harness) Review Group",
       "fileCount": 9
     },
     {
-      "name": "Components (AuthContext) Review Group",
+      "name": "Components (storageService) Review Group",
       "fileCount": 14
     },
     {
       "name": "Components (ToastContext) Review Group",
       "fileCount": 14
+    },
+    {
+      "name": "Pages (imageCompressor) Review Group",
+      "fileCount": 10
     },
     {
       "name": "Pages (index) Review Group",
@@ -97,36 +116,57 @@
       "scratch/test_consent_flow*",
       "scripts/**"
     ],
+    "unit-test-support": [
+      "scripts/unit/**"
+    ],
     "unit-testharness": [
       "scripts/unit/**"
     ],
-    "components-authcontext": [
+    "components-storageservice": [
       "src/context/AuthContext*",
-      "src/pages/**",
       "src/components/**",
-      "src/utils/**",
       "src/services/**",
-      "src/data/dogBreeds*"
+      "src/pages/**",
+      "src/utils/**",
+      "src/hooks/useOnlineStatus*"
     ],
     "components-toastcontext": [
       "src/context/ToastContext*",
       "src/pages/**",
       "src/components/**",
-      "src/services/locationService*",
+      "src/services/**",
+      "src/hooks/**",
+      "src/utils/**"
+    ],
+    "pages-imagecompressor": [
+      "src/pages/**",
       "src/utils/**",
-      "src/hooks/useCrashSafeDraft*"
+      "src/components/PetProfileSelector*",
+      "src/data/dogBreeds*"
     ],
     "pages-index": [
-      "src/services/**",
       "src/pages/**",
       "src/components/**",
       "src/types/index*",
-      "src/utils/**"
+      "src/utils/**",
+      "src/services/seedData*"
+    ],
+    "components-legalcontent": [
+      "src/App.tsx",
+      "src/components/**",
+      "src/services/geoBlockService*",
+      "src/pages/**",
+      "src/data/legal/legalContent*",
+      "src/utils/locationMatchHelper*"
+    ],
+    "fallbacks-fallbackshell": [
+      "src/components/**",
+      "src/main*"
     ],
     "other": [
       ".github/workflows/deploy*",
       ".tokencap/constitution/**",
-      "android/app/src/main/assets/public/**",
+      "android/app/src/main/assets/public/assets/**",
       "cleanup_cloudinary*",
       "functions/index*",
       "scratch/**",
@@ -146,24 +186,21 @@
       "scratch/**",
       "scripts/**"
     ],
-    "authentication": [
-      "scratch/extract_session*",
-      "scripts/test_auth_consent_flow*"
+    "dashboard": [
+      "scratch/**"
     ],
     "frontend": [
       "scratch/**",
       "scripts/**",
       "src/components/**"
     ],
+    "authentication": [
+      "scratch/extract_session*",
+      "scripts/test_auth_consent_flow*"
+    ],
     "testing": [
       "scratch/**",
       "scripts/**"
-    ],
-    "components-fallbackshell": [
-      "src/**"
-    ],
-    "dashboard": [
-      "scratch/**"
     ],
     "utilities": [
       "src/lib/utils*"
@@ -182,13 +219,19 @@
       "risk-map.md",
       "review-rules.md"
     ],
+    "unit-(test-support)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
     "unit-(test_harness)": [
       "architecture.md",
       "rules.md",
       "risk-map.md",
       "review-rules.md"
     ],
-    "components-(authcontext)": [
+    "components-(storageservice)": [
       "architecture.md",
       "rules.md",
       "risk-map.md",
@@ -200,37 +243,23 @@
       "risk-map.md",
       "review-rules.md"
     ],
+    "pages-(imagecompressor)": [
+      "architecture.md",
+      "rules.md",
+      "risk-map.md",
+      "review-rules.md"
+    ],
     "pages-(index)": [
       "architecture.md",
       "rules.md",
       "risk-map.md",
       "review-rules.md"
     ],
-    "config": [
+    "components-(legalcontent)": [
       "architecture.md",
       "rules.md"
     ],
-    "services": [
-      "architecture.md",
-      "rules.md"
-    ],
-    "authentication": [
-      "architecture.md",
-      "rules.md"
-    ],
-    "frontend": [
-      "architecture.md",
-      "rules.md"
-    ],
-    "testing": [
-      "architecture.md",
-      "rules.md"
-    ],
-    "unclassified:-scripts": [
-      "architecture.md",
-      "rules.md"
-    ],
-    "components-(fallbackshell)": [
+    "fallbacks-(fallbackshell)": [
       "architecture.md",
       "rules.md"
     ]

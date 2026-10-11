@@ -4,7 +4,7 @@
 > Paste this entire file into ChatGPT, Claude, Gemini, Cursor, Windsurf, Cline, Roo Code, or OpenHands
 > to give the AI agent full project intelligence before it touches any code.
 
-**Generated:** 2026-10-02T04:45:29.736Z
+**Generated:** 2026-10-11T13:34:02.582Z
 **Project:** findlostpuppy
 **Type:** React
 
@@ -25,7 +25,7 @@
 Component Layer -> Service Layer
 ```
 
-The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; AuthContext.tsx -> authService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Pages (index), Components (legalContent), Services (AuthContext).
+The import graph supports a **Component Layer -> Service Layer** flow. Observed imports: App.tsx -> storageService.ts; App.tsx -> consentService.ts; App.tsx -> geoBlockService.ts. **Testing** is the largest detected subsystem by file count. Detected subsystems: Unclassified, Testing, Components (AuthContext), Components (index), Components (storageBucketService).
 
 ---
 
@@ -54,9 +54,9 @@ The import graph supports a **Component Layer -> Service Layer** flow. Observed 
 - `src/utils/dogPhotoHelper.ts`
 - `src/services/storageBucketService.ts`
 - `scripts/qa_lib.mjs`
+- `scripts/unit/test-support.mjs`
 - `scripts/unit/test_harness.mjs`
-- `src/services/consentService.ts`
-- `src/utils/imageCompressor.ts`
+- `src/services/locationService.ts`
 
 ---
 
@@ -64,10 +64,10 @@ The import graph supports a **Component Layer -> Service Layer** flow. Observed 
 
 - [HIGH] **Database** - HIGH: Database layer holds all persistent state. Schema changes can corrupt or lose data.
 - [HIGH] **Scripts (qa_lib)** - HIGH: Scripts (qa_lib) contains 11 modules with elevated risk. Most-connected file: qa_lib.mjs (10 importers).
+- [HIGH] **Unit (test-support)** - HIGH: Unit (test-support) contains 9 modules with elevated risk. Most-connected file: test-support.mjs (8 importers).
 - [HIGH] **Unit (test_harness)** - HIGH: Unit (test_harness) contains 9 modules with elevated risk. Most-connected file: test_harness.mjs (8 importers).
-- [HIGH] **Services (AuthContext)** - HIGH: Services (AuthContext) contains 17 modules with elevated risk. Most-connected file: AuthContext.tsx (20 importers).
-- [HIGH] **Utils (ToastContext)** - HIGH: Utils (ToastContext) contains 15 modules with elevated risk. Most-connected file: ToastContext.tsx (18 importers).
-- [HIGH] **Pages (index)** - HIGH: Pages (index) contains 25 modules with elevated risk. Most-connected file: index.ts (31 importers).
+- [HIGH] **Components (AuthContext)** - HIGH: Components (AuthContext) contains 23 modules with elevated risk. Most-connected file: AuthContext.tsx (21 importers).
+- [HIGH] **Components (index)** - HIGH: Components (index) contains 21 modules with elevated risk. Most-connected file: index.ts (31 importers).
 
 ---
 
@@ -96,6 +96,19 @@ Shared dependency chain (11 files). Central file: qa_lib.mjs with 10 importers. 
 - `scripts/execute_onboarding_and_alert_flows.mjs`
 - `scripts/release_regression_verify.mjs`
 
+### [HIGH] Unit (test-support) Review Group
+
+Shared dependency chain (9 files). Central file: test-support.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
+
+- `scripts/unit/test-support.mjs`
+- `scripts/unit/consent-page.test.mjs`
+- `scripts/unit/drafts-consent.test.mjs`
+- `scripts/unit/firebase-sync.test.mjs`
+- `scripts/unit/geolocation.test.mjs`
+- `scripts/unit/media-functions.test.mjs`
+- `scripts/unit/media-storage.test.mjs`
+- `scripts/unit/media-worker.test.mjs`
+
 ### [HIGH] Unit (test_harness) Review Group
 
 Shared dependency chain (9 files). Central file: test_harness.mjs with 8 importers. Changes in this group carry HIGH risk - review all listed files together.
@@ -109,57 +122,70 @@ Shared dependency chain (9 files). Central file: test_harness.mjs with 8 importe
 - `scripts/unit/media_functions.test.mjs`
 - `scripts/unit/media_worker.test.mjs`
 
-### [HIGH] Services (AuthContext) Review Group
+### [HIGH] Components (AuthContext) Review Group
 
-Shared dependency chain (17 files). Central file: AuthContext.tsx with 20 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+Shared dependency chain (23 files). Central file: AuthContext.tsx with 21 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
 
 - `src/context/AuthContext.tsx`
-- `src/services/storageBucketService.ts`
 - `src/services/consentService.ts`
-- `src/utils/imageCompressor.ts`
-- `src/services/firebaseSyncService.ts`
-- `src/services/firebaseConfig.ts`
-- `src/services/authService.ts`
-- `src/components/PetProfileSelector.tsx`
+- `src/data/legal/legalContent.ts`
+- `src/components/ui/LoadingButton.tsx`
+- `src/components/admin/AdminShortcuts.tsx`
+- `src/App.tsx`
+- `src/components/SidebarNav.tsx`
+- `src/components/Footer.tsx`
 
-### [HIGH] Utils (ToastContext) Review Group
+### [HIGH] Components (index) Review Group
 
-Shared dependency chain (15 files). Central file: ToastContext.tsx with 18 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+Shared dependency chain (21 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
 
+- `src/types/index.ts`
 - `src/context/ToastContext.tsx`
 - `src/services/locationService.ts`
 - `src/utils/geolocationHelper.ts`
 - `src/utils/indicTransliteration.ts`
 - `src/components/PermissionRationaleModal.tsx`
-- `src/utils/locationMatchHelper.ts`
-- `src/pages/LocationOnboardingPage.tsx`
-- `src/pages/DashboardPage.tsx`
+- `src/components/SuggestionWidget.tsx`
+- `src/hooks/useLocationDetection.ts`
 
-### [HIGH] Pages (index) Review Group
+### [HIGH] Pages (storageService) Review Group
 
-Shared dependency chain (25 files). Central file: index.ts with 31 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+Shared dependency chain (15 files). Central file: storageService.ts with 25 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
 
-- `src/types/index.ts`
 - `src/services/storageService.ts`
 - `src/utils/dogPhotoHelper.ts`
 - `src/components/ui/VillageDogTransition.tsx`
 - `src/components/ui/back-button.tsx`
-- `src/utils/privacyUtils.ts`
-- `src/utils/phoneValidator.ts`
 - `src/utils/shareHelper.ts`
+- `src/components/StatusBadge.tsx`
+- `src/utils/confettiHelper.ts`
+- `src/components/DogCard.tsx`
+
+### [HIGH] Components (storageBucketService) Review Group
+
+Shared dependency chain (20 files). Central file: storageBucketService.ts with 11 importers. Changes here affect 4 neighboring module(s) outside this cluster. Changes in this group carry HIGH risk - review all listed files together.
+
+- `src/services/storageBucketService.ts`
+- `src/utils/phoneValidator.ts`
+- `src/utils/imageCompressor.ts`
+- `src/services/firebaseSyncService.ts`
+- `src/services/firebaseConfig.ts`
+- `src/utils/privacyUtils.ts`
+- `src/services/authService.ts`
+- `src/components/PetProfileSelector.tsx`
 
 ---
 
 ## 7. Core Features
 
-- Pages (index)
-- Components (legalContent)
-- Services (AuthContext)
-- Utils (ToastContext)
+- Components (AuthContext)
+- Components (index)
+- Components (storageBucketService)
+- Pages (storageService)
 - Services
 - Frontend
 - Scripts (qa_lib)
-- Fallbacks (FallbackShell)
+- Unit (test-support)
 
 ---
 

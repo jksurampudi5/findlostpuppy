@@ -20,10 +20,34 @@ import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.SettingsClient;
 
-@CapacitorPlugin(name = "DeviceSettings")
+@CapacitorPlugin(name = "DeviceSettings", requestCodes = {9207})
 public class DeviceSettingsPlugin extends Plugin {
 
-    private static final int REQUEST_CODE_ENABLE_LOCATION = 9207;
+    public static final int REQUEST_CODE_ENABLE_LOCATION = 9207;
+    private static PluginCall sPendingCall = null;
+
+    public static void onLocationResolutionResult(int resultCode) {
+        if (sPendingCall != null) {
+            JSObject result = new JSObject();
+            if (resultCode == Activity.RESULT_OK) {
+                result.put("resolved", true);
+                result.put("enabled", true);
+                result.put("status", "enabled");
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                result.put("resolved", false);
+                result.put("enabled", false);
+                result.put("status", "cancelled");
+            } else {
+                result.put("resolved", false);
+                result.put("enabled", false);
+                result.put("status", "dismissed");
+            }
+            try {
+                sPendingCall.resolve(result);
+            } catch (Exception ignored) {}
+            sPendingCall = null;
+        }
+    }
 
     private boolean isLocationEnabledInternal() {
         try {
@@ -111,9 +135,11 @@ public class DeviceSettingsPlugin extends Plugin {
                                     existingCall.resolve(cancelOld);
                                     freeSavedCall();
                                 }
+                                sPendingCall = call;
                                 saveCall(call);
                                 ((ResolvableApiException) exception).startResolutionForResult(activity, REQUEST_CODE_ENABLE_LOCATION);
                             } catch (IntentSender.SendIntentException sendEx) {
+                                sPendingCall = null;
                                 freeSavedCall();
                                 JSObject result = new JSObject();
                                 result.put("resolved", false);
@@ -121,6 +147,7 @@ public class DeviceSettingsPlugin extends Plugin {
                                 result.put("status", "launch_failed");
                                 call.resolve(result);
                             } catch (Exception ex) {
+                                sPendingCall = null;
                                 freeSavedCall();
                                 JSObject result = new JSObject();
                                 result.put("resolved", false);
@@ -149,24 +176,9 @@ public class DeviceSettingsPlugin extends Plugin {
     protected void handleOnActivityResult(int requestCode, int resultCode, Intent data) {
         super.handleOnActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_ENABLE_LOCATION) {
+            onLocationResolutionResult(resultCode);
             PluginCall savedCall = getSavedCall();
             if (savedCall != null) {
-                JSObject result = new JSObject();
-                if (resultCode == Activity.RESULT_OK) {
-                    boolean actuallyEnabled = isLocationEnabledInternal();
-                    result.put("resolved", actuallyEnabled);
-                    result.put("enabled", actuallyEnabled);
-                    result.put("status", actuallyEnabled ? "enabled" : "failed_to_enable");
-                } else if (resultCode == Activity.RESULT_CANCELED) {
-                    result.put("resolved", false);
-                    result.put("enabled", false);
-                    result.put("status", "cancelled");
-                } else {
-                    result.put("resolved", false);
-                    result.put("enabled", false);
-                    result.put("status", "dismissed");
-                }
-                savedCall.resolve(result);
                 freeSavedCall();
             }
         }
@@ -183,10 +195,20 @@ public class DeviceSettingsPlugin extends Plugin {
             result.put("opened", true);
             call.resolve(result);
         } catch (Exception ex) {
-            JSObject result = new JSObject();
-            result.put("opened", false);
-            result.put("error", ex.getMessage());
-            call.resolve(result);
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+
+                JSObject result = new JSObject();
+                result.put("opened", true);
+                call.resolve(result);
+            } catch (Exception fallbackEx) {
+                JSObject result = new JSObject();
+                result.put("opened", false);
+                result.put("error", ex.getMessage());
+                call.resolve(result);
+            }
         }
     }
 

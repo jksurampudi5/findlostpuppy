@@ -7,36 +7,57 @@
     "scratch/test_consent_flow*",
     "scripts/**"
   ],
+  "unit-test-support": [
+    "scripts/unit/**"
+  ],
   "unit-testharness": [
     "scripts/unit/**"
   ],
-  "components-authcontext": [
+  "components-storageservice": [
     "src/context/AuthContext*",
-    "src/pages/**",
     "src/components/**",
-    "src/utils/**",
     "src/services/**",
-    "src/data/dogBreeds*"
+    "src/pages/**",
+    "src/utils/**",
+    "src/hooks/useOnlineStatus*"
   ],
   "components-toastcontext": [
     "src/context/ToastContext*",
     "src/pages/**",
     "src/components/**",
-    "src/services/locationService*",
+    "src/services/**",
+    "src/hooks/**",
+    "src/utils/**"
+  ],
+  "pages-imagecompressor": [
+    "src/pages/**",
     "src/utils/**",
-    "src/hooks/useCrashSafeDraft*"
+    "src/components/PetProfileSelector*",
+    "src/data/dogBreeds*"
   ],
   "pages-index": [
-    "src/services/**",
     "src/pages/**",
     "src/components/**",
     "src/types/index*",
-    "src/utils/**"
+    "src/utils/**",
+    "src/services/seedData*"
+  ],
+  "components-legalcontent": [
+    "src/App.tsx",
+    "src/components/**",
+    "src/services/geoBlockService*",
+    "src/pages/**",
+    "src/data/legal/legalContent*",
+    "src/utils/locationMatchHelper*"
+  ],
+  "fallbacks-fallbackshell": [
+    "src/components/**",
+    "src/main*"
   ],
   "other": [
     ".github/workflows/deploy*",
     ".tokencap/constitution/**",
-    "android/app/src/main/assets/public/**",
+    "android/app/src/main/assets/public/assets/**",
     "cleanup_cloudinary*",
     "functions/index*",
     "scratch/**",
@@ -56,24 +77,21 @@
     "scratch/**",
     "scripts/**"
   ],
-  "authentication": [
-    "scratch/extract_session*",
-    "scripts/test_auth_consent_flow*"
+  "dashboard": [
+    "scratch/**"
   ],
   "frontend": [
     "scratch/**",
     "scripts/**",
     "src/components/**"
   ],
+  "authentication": [
+    "scratch/extract_session*",
+    "scripts/test_auth_consent_flow*"
+  ],
   "testing": [
     "scratch/**",
     "scripts/**"
-  ],
-  "components-fallbackshell": [
-    "src/**"
-  ],
-  "dashboard": [
-    "scratch/**"
   ],
   "utilities": [
     "src/lib/utils*"

@@ -1,10 +1,10 @@
 # TokenCap Constitution Engine
-# Generated: 2026-10-02T04:45:56.225Z
+# Generated: 2026-10-11T13:34:27.978Z
 # Version: 1.2
 
 constitution:
   version: "1.2"
-  generated_at: "2026-10-02T04:45:56.225Z"
+  generated_at: "2026-10-11T13:34:27.978Z"
   rule_count: 21
 
   score:
@@ -47,16 +47,16 @@ constitution:
       source: "firebase"
       manual: false
       description: |-
-        Authentication middleware (scripts/test_auth_consent_flow.mjs, scripts/unit/firebase_sync.test.mjs) must remain enabled on all protected routes.
+        Authentication middleware (scratch/check_firebase_storage.mjs, scripts/test_auth_consent_flow.mjs) must remain enabled on all protected routes.
       reason: |-
         These files guard access to protected resources. Disabling or bypassing them exposes all protected data.
       what_breaks: |-
         Unauthorized users gain access to protected routes, user data, and admin features.
       derived_from:
+        - "scratch/check_firebase_storage.mjs"
         - "scripts/test_auth_consent_flow.mjs"
+        - "scripts/unit/firebase-sync.test.mjs"
         - "scripts/unit/firebase_sync.test.mjs"
-        - "scripts/validate_firebase_env.mjs"
-        - "src/context/AuthContext.tsx"
       relationships:
         - "protects:CONST-SEC-001"
         - "protects:CONST-SEC-003"
@@ -77,7 +77,8 @@ constitution:
       what_breaks: |-
         All existing users are locked out. Passwords unverifiable without a migration.
       derived_from:
-        - "android/app/src/main/assets/public/assets/index-CDlfJJiG.js"
+        - "android/app/src/main/assets/public/assets/index-CR8f12aF.js"
+        - "scripts/unit/media-worker.test.mjs"
       relationships:
         - "protects:CONST-SEC-001"
         - "protects:CONST-SEC-003"
@@ -116,10 +117,10 @@ constitution:
       what_breaks: |-
         All protected routes return 401. User sessions invalidated. Logout flows break.
       derived_from:
+        - "scratch/check_firebase_storage.mjs"
         - "scripts/test_auth_consent_flow.mjs"
+        - "scripts/unit/firebase-sync.test.mjs"
         - "scripts/unit/firebase_sync.test.mjs"
-        - "scripts/validate_firebase_env.mjs"
-        - "src/context/AuthContext.tsx"
 
     - id: "CONST-SEC-006"
       category: "Security"
@@ -201,10 +202,10 @@ constitution:
       what_breaks: |-
         GDPR violation. Regulatory fines. User data rights cannot be exercised.
       derived_from:
+        - ".agents/rules/workflow.md"
         - ".tokencap/agent/START_HERE.md"
         - ".tokencap/agent/agent-pack.md"
         - ".tokencap/agent/architecture.md"
-        - ".tokencap/agent/model-instructions.md"
 
     - id: "CONST-COMP-003"
       category: "Compliance"
@@ -222,7 +223,7 @@ constitution:
         - ".tokencap/constitution/compliance-rules.md"
         - ".tokencap/constitution/constitution.md"
         - ".tokencap/constitution/constitution.yaml"
-        - "android/app/src/main/assets/public/assets/516-VkbN94rn.js"
+        - ".tokencap/snapshot.md"
 
     - id: "CONST-COMP-004"
       category: "Compliance"
@@ -240,7 +241,7 @@ constitution:
         - ".tokencap/constitution/compliance-rules.md"
         - ".tokencap/constitution/constitution.md"
         - ".tokencap/constitution/constitution.yaml"
-        - "ADMIN_TRACKER.md"
+        - ".tokencap/snapshot.md"
 
     - id: "CONST-FLOW-001"
       category: "CriticalFlow"
@@ -281,9 +282,8 @@ constitution:
       derived_from:
         - "scripts/execute_onboarding_and_alert_flows.mjs"
         - "scripts/run_continuous_onboarding.mjs"
-        - "src/pages/DogOnboardingPage.tsx"
-        - "src/pages/LocationOnboardingPage.tsx"
-        - "src/pages/OnboardingChoicePage.tsx"
+        - "src/pages/OwnerOnboardingPage.tsx"
+        - "src/pages/RegisteredPet.tsx"
       relationships:
         - "dependsOn:CONST-SEC-001"
         - "dependsOn:CONST-SEC-002"

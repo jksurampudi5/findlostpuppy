@@ -1,3 +1,4 @@
+
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 
@@ -59,15 +60,42 @@ export async function promptEnableDeviceLocation(): Promise<PromptLocationResult
   }
 
   try {
-    const result = await DeviceSettings.promptEnableLocation();
-    const enabled = Boolean(result?.enabled || result?.alreadyEnabled);
-    const status: PromptLocationStatus =
-      (result?.status as PromptLocationStatus) || (enabled ? 'enabled' : 'unavailable');
-    return {
-      resolved: Boolean(result?.resolved),
-      enabled,
-      status,
-    };
+    const alreadyOn = await isDeviceLocationEnabled();
+    if (alreadyOn) {
+      return { resolved: true, enabled: true, status: 'already_enabled' };
+    }
+
+    let pollTimer: any = null;
+    const pollGpsPromise = new Promise<PromptLocationResult>((resolve) => {
+      let checks = 0;
+      pollTimer = setInterval(async () => {
+        checks++;
+        const enabled = await isDeviceLocationEnabled();
+        if (enabled) {
+          if (pollTimer) clearInterval(pollTimer);
+          resolve({ resolved: true, enabled: true, status: 'enabled' });
+        } else if (checks >= 40) { // 10 seconds (40 * 250ms)
+          if (pollTimer) clearInterval(pollTimer);
+          resolve({ resolved: false, enabled: false, status: 'cancelled' });
+        }
+      }, 250);
+    });
+
+    const nativePromise = (async (): Promise<PromptLocationResult> => {
+      const result = await DeviceSettings.promptEnableLocation();
+      const enabled = Boolean(result?.enabled || result?.alreadyEnabled);
+      const status: PromptLocationStatus =
+        (result?.status as PromptLocationStatus) || (enabled ? 'enabled' : 'unavailable');
+      return {
+        resolved: Boolean(result?.resolved),
+        enabled,
+        status,
+      };
+    })();
+
+    const winner = await Promise.race([nativePromise, pollGpsPromise]);
+    if (pollTimer) clearInterval(pollTimer);
+    return winner;
   } catch (error) {
     console.warn('[nativeSettingsService] Unable to show Android Location enable dialog:', error);
     return { resolved: false, enabled: false, status: 'error' };

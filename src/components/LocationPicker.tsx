@@ -276,15 +276,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               });
 
               if (match) {
+                const subName = match.subDistrict?.subDistrictName || detectedMandal || '';
                 updateFields({
                   state: match.state.name,
                   district: match.district.districtName,
-                  mandalOrMunicipality: match.subDistrict.subDistrictName,
-                  city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
+                  mandalOrMunicipality: subName,
+                  city: match.locality ? match.locality.localityName : (subName || pinValue.trim()),
                   pinCode: pinValue.trim(),
                 });
                 showToast(
-                  `✨ Auto-detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+                  `✨ Auto-detected: ${match.locality?.localityName || subName}, ${match.district.districtName}`,
                   'success'
                 );
               }
@@ -305,12 +306,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     setAccuracyRadius(geo.accuracyMeters || (geo.source === 'gps' ? 20 : 100));
 
     if (match) {
+      const effMandal = match.subDistrict?.subDistrictName || detectedMandal || '';
+      const effCity = match.locality?.localityName || effMandal || detectedCity || '';
       updateFields({
         state: match.state.name,
         district: match.district.districtName,
-        mandalOrMunicipality: match.subDistrict.subDistrictName,
+        mandalOrMunicipality: effMandal,
         streetOrLocality: detectedStreet,
-        city: match.locality ? match.locality.localityName : match.subDistrict.subDistrictName,
+        city: effCity,
         pinCode: detectedPin,
         latitude: geo.latitude,
         longitude: geo.longitude,
@@ -318,7 +321,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       setIsEditing(false);
       setIsConfirmed(false);
       showToast(
-        `🎯 Location detected: ${match.locality?.localityName || match.subDistrict.subDistrictName}, ${match.district.districtName}`,
+        `🎯 Location detected: ${effCity || effMandal}, ${match.district.districtName}`,
         'success'
       );
     } else {
@@ -385,7 +388,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     triggerDetectLocation,
     handlePermissionRationaleContinue,
     handleOpenLocationSettings,
-    handleOpenAppSettings,
   } = useLocationDetection({
     onSuccess: handleLocationDetected,
     onError: (err) => {
@@ -804,14 +806,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       <PermissionRationaleModal
         isOpen={showPermissionBlockedModal}
         title="Location Access Needed"
-        message="Location access is blocked. Please allow location in your device settings to detect your area automatically."
+        message="Location access is needed. Please ensure location is turned on in your device settings to detect your area automatically."
         continueLabel="Open Settings"
         cancelLabel="Enter Location Manually"
         onCancel={() => {
           setShowPermissionBlockedModal(false);
           setIsEditing(true);
         }}
-        onContinue={handleOpenAppSettings}
+        onContinue={handleOpenLocationSettings}
       />
     </div>
   );

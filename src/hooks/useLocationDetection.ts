@@ -59,6 +59,14 @@ export function useLocationDetection({
     isDetectingRef.current = true;
     setDetecting(true);
 
+    const watchdogTimer = setTimeout(() => {
+      if (isDetectingRef.current) {
+        console.warn('[useLocationDetection] Watchdog timeout: clearing detecting state');
+        isDetectingRef.current = false;
+        setDetecting(false);
+      }
+    }, 6000);
+
     try {
       if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__forceLocationError) {
         throw (window as any).__forceLocationError;
@@ -66,8 +74,8 @@ export function useLocationDetection({
 
       onClearFieldsForNewDetection?.();
 
-      // Acquire coordinates using native GPS/Network (no silent IP fallback for button clicks)
-      const geo = await detectResilientLocation({ allowIpFallback: false });
+      // Acquire coordinates using native GPS/Network (with graceful IP fallback if satellites/towers are unreachable indoors)
+      const geo = await detectResilientLocation({ allowIpFallback: true });
 
       // Stale attempt guard: if user reset or started a newer attempt, discard
       if (attemptIdRef.current !== attemptId) return;
@@ -85,16 +93,42 @@ export function useLocationDetection({
       let match: LocationMatchResult | null = null;
       if (detectedState || rawDistrict) {
         try {
-          match = await locationService.matchLocation({
-            state: detectedState,
-            district: rawDistrict,
-            mandal: detectedMandal,
-            locality: detectedCity,
-            pinCode: detectedPin,
-            stateCode: geo.stateCode,
-            districtCode: geo.districtCode,
-            subDistrictCode: geo.subDistrictCode,
-          });
+          if (geo.stateCode && geo.districtCode && geo.subDistrictCode) {
+            const stateObj = locationService.getState(geo.stateCode);
+            const distObj = locationService.getDistrict(geo.stateCode, geo.districtCode);
+            const subObj = locationService.getSubDistrict(geo.districtCode, geo.subDistrictCode);
+            if (stateObj && distObj && subObj) {
+              match = {
+                state: stateObj,
+                district: distObj,
+                subDistrict: subObj,
+                locality: {
+                  localityCode: 999999,
+                  localityName: detectedCity || subObj.subDistrictName,
+                  localityType: 'URBAN_LOCALITY',
+                  subDistrictCode: subObj.subDistrictCode,
+                  subDistrictName: subObj.subDistrictName,
+                  subDistrictType: (subObj.subDistrictType as any) || 'Mandal',
+                  districtCode: distObj.districtCode,
+                  districtName: distObj.districtName,
+                  stateCode: stateObj.code,
+                  stateName: stateObj.name,
+                },
+              };
+            }
+          }
+          if (!match) {
+            match = await locationService.matchLocation({
+              state: detectedState,
+              district: rawDistrict,
+              mandal: detectedMandal,
+              locality: detectedCity,
+              pinCode: detectedPin,
+              stateCode: geo.stateCode,
+              districtCode: geo.districtCode,
+              subDistrictCode: geo.subDistrictCode,
+            });
+          }
         } catch (matchErr) {
           console.warn('[useLocationDetection] matchLocation notice:', matchErr);
         }
@@ -112,10 +146,10 @@ export function useLocationDetection({
       onSuccess({
         geo,
         match,
-        detectedState,
-        detectedDistrict: rawDistrict,
-        detectedMandal,
-        detectedCity,
+        detectedState: detectedState || match?.state?.name || '',
+        detectedDistrict: rawDistrict || match?.district?.districtName || '',
+        detectedMandal: detectedMandal || match?.subDistrict?.subDistrictName || '',
+        detectedCity: detectedCity || match?.locality?.localityName || '',
         detectedStreet,
         detectedPin,
         isApproximate,
@@ -129,6 +163,11 @@ export function useLocationDetection({
           return;
         }
         if (err.code === 'PERMISSION_DENIED') {
+          const isLocOn = await isDeviceLocationEnabled();
+          if (!isLocOn) {
+            setShowTurnOnModal(true);
+            return;
+          }
           setShowPermissionBlockedModal(true);
           return;
         }
@@ -138,10 +177,9 @@ export function useLocationDetection({
       showToast('Could not detect location. Please select your area manually.', 'info');
       onError?.(err);
     } finally {
-      if (attemptIdRef.current === attemptId) {
-        isDetectingRef.current = false;
-        setDetecting(false);
-      }
+      clearTimeout(watchdogTimer);
+      isDetectingRef.current = false;
+      setDetecting(false);
     }
   }, [onSuccess, onError, onClearFieldsForNewDetection, showToast]);
 
@@ -154,47 +192,64 @@ export function useLocationDetection({
 
     pendingSettingsReturnRef.current = null;
     const currentAttemptId = ++attemptIdRef.current;
+    isDetectingRef.current = true;
+    setDetecting(true);
 
-    // 2. Check app permission state
-    const permStatus: AppLocationPermissionStatus = await checkAppLocationPermission();
+    try {
+      // 2. Check device location services (GPS switch) FIRST on native platforms
+      if (Capacitor.isNativePlatform()) {
+        const isLocationOn = await isDeviceLocationEnabled();
+        if (!isLocationOn) {
+          // Trigger Google Play Services in-app Location resolution dialog
+          const promptRes = await promptEnableDeviceLocation();
 
-    if (permStatus === 'prompt' && !options?.bypassRationale) {
-      setShowPermissionRationaleModal(true);
-      return;
-    }
+          if (promptRes.enabled) {
+            showToast('Device location enabled. Detecting your area...', 'info');
+            // Device GPS enabled: fall through to permission check and detection!
+          } else if (promptRes.status === 'cancelled') {
+            // User chose "No thanks" or pressed Back. End attempt gracefully.
+            showToast('Device location is required to auto-detect. You can enter details manually or try again.', 'info');
+            isDetectingRef.current = false;
+            setDetecting(false);
+            return;
+          } else {
+            // Dialog unavailable or technical failure: offer opening Location Settings
+            isDetectingRef.current = false;
+            setDetecting(false);
+            setShowTurnOnModal(true);
+            return;
+          }
+        }
+      }
 
-    if (permStatus === 'denied') {
-      setShowPermissionBlockedModal(true);
-      return;
-    }
+      // 3. Check and request app permission state
+      let permStatus: AppLocationPermissionStatus = await checkAppLocationPermission();
 
-    // 3. Check device location services (GPS switch) on native platforms
-    if (Capacitor.isNativePlatform()) {
-      const isLocationOn = await isDeviceLocationEnabled();
-      if (!isLocationOn) {
-        // Trigger Google Play Services in-app Location resolution dialog
-        const promptRes = await promptEnableDeviceLocation();
+      if (permStatus === 'prompt') {
+        if (!options?.bypassRationale) {
+          permStatus = await requestAppLocationPermission();
+        }
+      }
 
-        if (promptRes.enabled) {
-          showToast('Device location enabled. Detecting your area...', 'info');
-          await executeDetection(currentAttemptId);
+      if (permStatus === 'denied') {
+        const isLocationOn = await isDeviceLocationEnabled();
+        isDetectingRef.current = false;
+        setDetecting(false);
+        if (!isLocationOn) {
+          setShowTurnOnModal(true);
           return;
         }
-
-        if (promptRes.status === 'cancelled') {
-          // User chose "No thanks" or pressed Back. End attempt gracefully.
-          showToast('Device location is required to auto-detect. You can enter details manually or try again.', 'info');
-          return;
-        }
-
-        // Dialog unavailable or technical failure: offer opening Location Settings
-        setShowTurnOnModal(true);
+        setShowPermissionBlockedModal(true);
         return;
       }
-    }
 
-    // Prerequisites ready: execute detection
-    await executeDetection(currentAttemptId);
+      // 4. Prerequisites ready: execute detection immediately
+      await executeDetection(currentAttemptId);
+    } catch (err) {
+      console.warn('[useLocationDetection] triggerDetectLocation error:', err);
+      isDetectingRef.current = false;
+      setDetecting(false);
+    }
   }, [executeDetection, showToast]);
 
   /**
@@ -205,25 +260,30 @@ export function useLocationDetection({
     const currentAttemptId = ++attemptIdRef.current;
 
     if (Capacitor.isNativePlatform()) {
-      const reqStatus = await requestAppLocationPermission();
-      if (reqStatus === 'granted' || reqStatus === 'approximate') {
-        const isLocationOn = await isDeviceLocationEnabled();
-        if (!isLocationOn) {
-          const promptRes = await promptEnableDeviceLocation();
-          if (promptRes.enabled) {
-            await executeDetection(currentAttemptId);
-            return;
-          }
-          if (promptRes.status === 'cancelled') {
-            showToast('Device location is off. You can enter details manually.', 'info');
-            return;
-          }
+      const isLocationOn = await isDeviceLocationEnabled();
+      if (!isLocationOn) {
+        const promptRes = await promptEnableDeviceLocation();
+        if (promptRes.enabled) {
+          showToast('Device location enabled. Detecting your area...', 'info');
+        } else if (promptRes.status === 'cancelled') {
+          showToast('Device location is off. You can enter details manually.', 'info');
+          return;
+        } else {
           setShowTurnOnModal(true);
           return;
         }
+      }
+
+      const reqStatus = await requestAppLocationPermission();
+      if (reqStatus === 'granted' || reqStatus === 'approximate') {
         await executeDetection(currentAttemptId);
       } else if (reqStatus === 'denied') {
-        setShowPermissionBlockedModal(true);
+        const isLocStillOn = await isDeviceLocationEnabled();
+        if (!isLocStillOn) {
+          setShowTurnOnModal(true);
+        } else {
+          setShowPermissionBlockedModal(true);
+        }
       } else {
         showToast('Location access was not granted. Please enter your location manually.', 'info');
       }
@@ -233,10 +293,13 @@ export function useLocationDetection({
   }, [executeDetection, showToast]);
 
   /**
-   * User chooses to open Android Location settings from TurnOnModal.
+   * User chooses to open Android Location settings from TurnOnModal or PermissionBlockedModal.
+   * Directly opens Android's Location Settings (Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+   * where the user can toggle GPS on or off.
    */
   const handleOpenLocationSettings = useCallback(async () => {
     setShowTurnOnModal(false);
+    setShowPermissionBlockedModal(false);
     const currentAttemptId = ++attemptIdRef.current;
     pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'location_settings' };
 
@@ -248,17 +311,24 @@ export function useLocationDetection({
   }, [showToast]);
 
   /**
-   * User chooses to open Android App permission settings from PermissionBlockedModal.
+   * User chooses to open settings from PermissionBlockedModal.
+   * Prioritizes Android Location Settings so users can toggle Location on or off.
+   * Falls back to App Settings only if Location Settings cannot be opened.
    */
   const handleOpenAppSettings = useCallback(async () => {
     setShowPermissionBlockedModal(false);
     const currentAttemptId = ++attemptIdRef.current;
-    pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'app_settings' };
 
-    const opened = await openAppPermissionSettings();
+    // Prioritize Android Location Source Settings so the user can toggle Location ON/OFF
+    pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'location_settings' };
+    const opened = await openDeviceLocationSettings();
     if (!opened) {
-      pendingSettingsReturnRef.current = null;
-      showToast('Could not open App Settings. Please enable Location in your phone Settings -> Apps.', 'info');
+      pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'app_settings' };
+      const appOpened = await openAppPermissionSettings();
+      if (!appOpened) {
+        pendingSettingsReturnRef.current = null;
+        showToast('Could not open Settings. Please enable Location in your phone Settings.', 'info');
+      }
     }
   }, [showToast]);
 

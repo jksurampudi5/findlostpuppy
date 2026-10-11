@@ -20,7 +20,7 @@
 
 > **What breaks:** GDPR violation. Regulatory fines. User data rights cannot be exercised.
 
-*Files:* `.tokencap/agent/START_HERE.md`, `.tokencap/agent/agent-pack.md`, `.tokencap/agent/architecture.md`, `.tokencap/agent/model-instructions.md`
+*Files:* `.agents/rules/workflow.md`, `.tokencap/agent/START_HERE.md`, `.tokencap/agent/agent-pack.md`, `.tokencap/agent/architecture.md`
 
 ## 🔴 CONST-COMP-003 — CRITICAL
 
@@ -30,7 +30,7 @@
 
 > **What breaks:** HIPAA violation. Criminal liability. Patient data exposed.
 
-*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `android/app/src/main/assets/public/assets/516-VkbN94rn.js`
+*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `.tokencap/snapshot.md`
 
 ## 🔴 CONST-COMP-004 — CRITICAL
 
@@ -40,4 +40,4 @@
 
 > **What breaks:** Compliance audit failures. Inability to investigate security incidents. Regulatory violations.
 
-*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `ADMIN_TRACKER.md`
+*Files:* `.tokencap/constitution/compliance-rules.md`, `.tokencap/constitution/constitution.md`, `.tokencap/constitution/constitution.yaml`, `.tokencap/snapshot.md`

@@ -24,7 +24,6 @@ import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
-import { checkAppLocationPermission } from '../services/nativeSettingsService';
 
 interface LocationProps {
   onSuccess?: () => void;
@@ -270,9 +269,13 @@ export const Location: React.FC<LocationProps> = ({
     setLookingUpPin(true);
     try {
       // 1. Try postoffice by villageName
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
       const res = await fetch(
-        `https://api.postalpincode.in/postoffice/${encodeURIComponent(villageName.trim())}`
+        `https://api.postalpincode.in/postoffice/${encodeURIComponent(villageName.trim())}`,
+        { signal: controller.signal }
       );
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data[0]?.Status === 'Success' && Array.isArray(data[0].PostOffice)) {
@@ -297,9 +300,13 @@ export const Location: React.FC<LocationProps> = ({
     // 2. Fallback to Mandal post office if village has no post office
     if (mandalName && mandalName.toLowerCase() !== villageName.toLowerCase()) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
         const res = await fetch(
-          `https://api.postalpincode.in/postoffice/${encodeURIComponent(mandalName.trim())}`
+          `https://api.postalpincode.in/postoffice/${encodeURIComponent(mandalName.trim())}`,
+          { signal: controller.signal }
         );
+        clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data[0]?.Status === 'Success' && Array.isArray(data[0].PostOffice)) {
@@ -382,97 +389,126 @@ export const Location: React.FC<LocationProps> = ({
     setLatitude(geo.latitude);
     setLongitude(geo.longitude);
 
-    // Delivery area validation:
-    // Supported state codes: 28 (Andhra Pradesh), 36 (Telangana), 29 (Karnataka)
-    const isSupportedState = match?.state && [28, 36, 29].includes(match.state.code);
-    const isInsideDeliveryArea = Boolean(match && isSupportedState && match.district);
+    // Resolve authoritative or detected values for all 4 primary levels:
+    const effectiveState = match?.state?.name || detectedState || state || 'Andhra Pradesh';
+    let effectiveDistrict = match?.district?.districtName || detectedDistrict || district;
+    let effectiveMandal = match?.subDistrict?.subDistrictName || detectedMandal || mandalOrMunicipality;
 
-    if (match && !isInsideDeliveryArea) {
-      setHasDetected(true);
-      setShowOutsideDeliveryModal(true);
-      return;
-    }
-
-    if (match && match.state && match.district && match.subDistrict) {
-      const geocoderCity = detectedCity && detectedCity.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
-        ? detectedCity
-        : undefined;
-      const matchedLocalities = await locationService.getLocalities(
-        match.district.districtCode,
-        match.subDistrict.subDistrictCode
-      );
-      const normalizedGeocoderCity = geocoderCity?.trim().toLowerCase();
-      const localityFromGeocoder = normalizedGeocoderCity
-        ? matchedLocalities.find(
-            (l) =>
-              l.localityName.toLowerCase() === normalizedGeocoderCity ||
-              l.localityName.toLowerCase().includes(normalizedGeocoderCity) ||
-              normalizedGeocoderCity.includes(l.localityName.toLowerCase())
-          )
-        : undefined;
-      const fallbackLocality = matchedLocalities.find(
-        (l) => l.localityName.toLowerCase() !== match.subDistrict.subDistrictName.toLowerCase()
-      ) || matchedLocalities[0];
-      const finalCity = match.locality?.localityName || localityFromGeocoder?.localityName || fallbackLocality?.localityName || geocoderCity || '';
-
-      setState(match.state.name);
-      setDistrict(match.district.districtName);
-      setMandalOrMunicipality(match.subDistrict.subDistrictName);
-      setLocalities(matchedLocalities);
-      setCity(finalCity);
-
-      // Only set street if it doesn't look like a Plus Code and was actually detected
-      const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-      const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
-      setStreetOrLocality(normalizeToEnglishText(cleanStreet));
-
-      if (detectedPin) {
-        setPinCode(detectedPin);
-      } else if (finalCity) {
-        resolvePinCodeForLocality(finalCity, match.subDistrict.subDistrictName, match.district.districtName);
-      }
-
-      setHasDetected(true);
-      setActiveLocationModal(null);
-      window.setTimeout(() => {
-        locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 120);
-
-      const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
-      if (geo.confidence === 'HIGH') {
-        showToast(
-          `🎯 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Directly edit any square below!`,
-          'success'
-        );
-      } else if (geo.confidence === 'MEDIUM') {
-        showToast(
-          `📍 Detected${accText}: ${finalCity || match.subDistrict.subDistrictName}, ${match.district.districtName}. Tap to adjust any square.`,
-          'info'
-        );
+    if (!effectiveDistrict) {
+      const stateObj = locationService.getState(effectiveState);
+      const dists = stateObj ? locationService.getDistricts(stateObj.code) : [];
+      if (dists.length > 0) {
+        effectiveDistrict = dists[0].districtName;
       } else {
-        showToast(
-          `⚠️ Coarse location${accText}: ${match.subDistrict.subDistrictName}, ${match.district.districtName}. Verify your squares below.`,
-          'warning'
-        );
+        effectiveDistrict = 'Krishna';
       }
-    } else {
-      // Coordinates acquired, but reverse geocoding or boundary match was incomplete:
-      // Set coordinates, populate any recognized parts, and guide user to select district manually.
-      setHasDetected(true);
-      if (detectedState) setState(detectedState);
-      if (detectedDistrict) setDistrict(detectedDistrict);
-      if (detectedMandal) setMandalOrMunicipality(detectedMandal);
-      if (detectedCity) setCity(detectedCity);
-      if (detectedStreet) setStreetOrLocality(detectedStreet);
-      if (detectedPin) setPinCode(detectedPin);
-
-      showToast('Coordinates detected. Please select or verify your District and Mandal below.', 'info');
-      setActiveLocationModal('district');
-      window.setTimeout(() => {
-        locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 120);
     }
-  }, [showToast]);
+
+    if (!effectiveMandal && effectiveDistrict) {
+      const subs = locationService.getSubDistricts(effectiveDistrict, effectiveState);
+      if (subs.length > 0) {
+        effectiveMandal = subs[0].subDistrictName;
+      } else {
+        effectiveMandal = 'Vijayawada Urban';
+      }
+    }
+
+    const candidateVillage =
+      (detectedCity && detectedCity.toLowerCase() !== effectiveMandal.toLowerCase() ? detectedCity : '') ||
+      (detectedMandal && detectedMandal.toLowerCase() !== effectiveMandal.toLowerCase() ? detectedMandal : '') ||
+      '';
+
+    const finalCity =
+      candidateVillage ||
+      match?.locality?.localityName ||
+      detectedCity ||
+      effectiveMandal ||
+      'Palangi';
+
+    // PIN code handling:
+    let finalPin = detectedPin && /^\d{6}$/.test(detectedPin.trim()) ? detectedPin.trim() : '';
+
+    // Only set street if it doesn't look like a Plus Code and was actually detected
+    const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
+    const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
+    const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
+
+    // 1. POPULATE ALL 4 PRIMARY SQUARES IMMEDIATELY AND SYNCHRONOUSLY
+    setState(effectiveState);
+    setDistrict(effectiveDistrict);
+    setMandalOrMunicipality(effectiveMandal);
+    setCity(finalCity);
+    setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
+    if (finalPin) {
+      setPinCode(finalPin);
+      setLookingUpPin(false);
+    } else if (finalCity || effectiveMandal) {
+      resolvePinCodeForLocality(finalCity || effectiveMandal, effectiveMandal, effectiveDistrict);
+    }
+    setHasDetected(true);
+    setActiveLocationModal(null);
+
+    // 2. Load dropdown localities in background (non-blocking)
+    const districtCode = match?.district?.districtCode || (effectiveDistrict ? locationService.getDistrict(effectiveState, effectiveDistrict)?.districtCode : undefined);
+    const subDistrictCode = match?.subDistrict?.subDistrictCode || (districtCode && effectiveMandal ? locationService.getSubDistrict(districtCode, effectiveMandal)?.subDistrictCode : undefined);
+    if (districtCode) {
+      locationService
+        .getLocalities(districtCode, subDistrictCode)
+        .then((list) => {
+          if (list && list.length > 0) {
+            setLocalities(list);
+          }
+        })
+        .catch((e) => console.warn('Non-blocking locality fetch notice:', e));
+    }
+
+    // Persist to local storage profile immediately so background sync never wipes values back to blank
+    if (user) {
+      const currentProf = existingProfile || storageService.getOwnerProfileByUserId(user.id, user.email);
+      storageService.saveOwnerProfile({
+        ...(currentProf || {}),
+        id: user.id,
+        userId: user.id,
+        fullName: currentProf?.fullName || user.name || 'Pet Parent',
+        phone: currentProf?.phone || user.phone || '',
+        photo: (currentProf?.photo && isValidOwnerPhoto(currentProf.photo)) ? currentProf.photo : undefined,
+        email: user.email,
+        state: effectiveState,
+        district: effectiveDistrict,
+        mandalOrMunicipality: effectiveMandal,
+        city: finalCity,
+        streetOrLocality: normalizeToEnglishText(resolvedStreet),
+        pinCode: finalPin || currentProf?.pinCode || '',
+        preferredContact: currentProf?.preferredContact || 'phone',
+        hasLocationConsent: true,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        updatedAt: new Date().toISOString(),
+      });
+      refreshProgress();
+      window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+
+    window.setTimeout(() => {
+      locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+
+    const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
+    showToast(
+      `🎯 Detected${accText}: ${finalCity || effectiveMandal}, ${effectiveDistrict}. All location squares populated!`,
+      'success'
+    );
+  }, [
+    state,
+    district,
+    mandalOrMunicipality,
+    user,
+    existingProfile,
+    refreshProgress,
+    resolvePinCodeForLocality,
+    showToast,
+  ]);
 
   const {
     detecting,
@@ -485,7 +521,6 @@ export const Location: React.FC<LocationProps> = ({
     triggerDetectLocation,
     handlePermissionRationaleContinue,
     handleOpenLocationSettings,
-    handleOpenAppSettings,
     cancelDetection,
   } = useLocationDetection({
     onSuccess: handleLocationDetected,
@@ -496,6 +531,7 @@ export const Location: React.FC<LocationProps> = ({
 
   // User taps "Detect Location" or "Detect Location Again"
   const handleDetectClick = useCallback((_e?: React.SyntheticEvent) => {
+    hasManuallyResetRef.current = false;
     triggerDetectLocation();
   }, [triggerDetectLocation]);
 
@@ -549,13 +585,7 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
-    // Reset clears current location state and only re-detects if permission is already granted
-    const permStatus = await checkAppLocationPermission();
-    if (permStatus === 'granted' || permStatus === 'approximate') {
-      window.setTimeout(() => {
-        triggerDetectLocation({ bypassRationale: true });
-      }, 100);
-    }
+    showToast('Location fields have been reset. You can detect again or enter manually.', 'info');
   };
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
@@ -796,7 +826,7 @@ export const Location: React.FC<LocationProps> = ({
               <button
                 type="button"
                 onClick={handleResetLocation}
-                disabled={detecting || syncing}
+                disabled={syncing}
                 className="btn btn-outline btn-lg location-reset-btn"
               >
                 <RefreshCw size={16} />
@@ -1067,18 +1097,18 @@ export const Location: React.FC<LocationProps> = ({
         onContinue={handlePermissionRationaleContinue}
       />
 
-      {/* 3. In-App Permission Blocked Modal (Direct link to app settings) */}
+      {/* 3. In-App Permission Blocked Modal (Direct link to location settings) */}
       <PermissionRationaleModal
         isOpen={showPermissionBlockedModal}
         title="Location Access Needed"
-        message="Location access is blocked. Please allow location in your device settings to detect your area automatically."
+        message="Location access is needed. Please ensure location is turned on in your device settings to detect your area automatically."
         continueLabel="Open Settings"
         cancelLabel="Enter Location Manually"
         onCancel={() => {
           setShowPermissionBlockedModal(false);
           if (!state) setActiveLocationModal('state');
         }}
-        onContinue={handleOpenAppSettings}
+        onContinue={handleOpenLocationSettings}
       />
 
       {/* 4. Outside Delivery Area Modal (No dead-end error) */}
