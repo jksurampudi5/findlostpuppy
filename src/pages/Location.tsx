@@ -30,6 +30,12 @@ interface LocationProps {
   onBack?: () => void;
 }
 
+/** Keep saved streets readable without displaying machine-generated Plus Codes. */
+const cleanSavedStreet = (value?: string) => {
+  if (!value || /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(value.trim())) return '';
+  return normalizeToEnglishText(value.trim());
+};
+
 /** Supports manual or detected owner-location entry with separate state, district, mandal, and locality fields. */
 export const Location: React.FC<LocationProps> = ({
   onSuccess,
@@ -60,7 +66,9 @@ export const Location: React.FC<LocationProps> = ({
     };
   }, [refreshProgress]);
 
-  const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
+  // Storage returns a newly parsed object. Keep hydration stable until its contents change.
+  const profileJson = JSON.stringify(user ? storageService.getOwnerProfileByUserId(user.id, user.email) || null : null);
+  const existingProfile = useMemo<OwnerProfile | null>(() => JSON.parse(profileJson), [profileJson]);
   const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
   // Initial values from saved profile
@@ -79,14 +87,6 @@ export const Location: React.FC<LocationProps> = ({
   const [city, setCity] = useState<string>(
     savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase() ? savedCity : ''
   );
-  // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
-  const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes, and normalizes Indic scripts to English. */
-  const cleanSavedStreet = (v?: string) => {
-    if (!v || PLUS_CODE_RE.test(v.trim())) return '';
-    return normalizeToEnglishText(v.trim());
-  };
-
   const [streetOrLocality, setStreetOrLocality] = useState<string>(
     cleanSavedStreet(existingProfile?.streetOrLocality || (existingProfile as any)?.street)
   );
@@ -94,8 +94,20 @@ export const Location: React.FC<LocationProps> = ({
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
 
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    state: existingProfile?.state || initialValidState,
+    district: existingProfile?.district || '',
+    mandal: existingProfile?.mandalOrMunicipality || '',
+    city: existingProfile?.city || '',
+    street: existingProfile?.streetOrLocality || existingProfile?.street || '',
+    pinCode: existingProfile?.pinCode || '',
+  });
+
   const [showOutsideDeliveryModal, setShowOutsideDeliveryModal] = useState(false);
   const hasManuallyResetRef = useRef(false);
+  const hasEditedLocationRef = useRef(false);
+  const autoDetectAttemptedRef = useRef(false);
+  const pinLookupIdRef = useRef(0);
 
   // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
   useEffect(() => {
@@ -107,29 +119,25 @@ export const Location: React.FC<LocationProps> = ({
 
   // Auto-populate when profile data arrives from cloud/Firestore (unless user manually clicked reset)
   useEffect(() => {
-    if (hasManuallyResetRef.current) return;
+    if (hasManuallyResetRef.current || hasEditedLocationRef.current) return;
     if (existingProfile) {
       const rawStreet = existingProfile.streetOrLocality || (existingProfile as any).street || '';
       const pStreet = cleanSavedStreet(rawStreet);
-      if (pStreet && (!streetOrLocality || hasNonLatinScript(streetOrLocality))) {
-        setStreetOrLocality(pStreet);
-      }
-      if (existingProfile.state) setState(normalizeToEnglishText(existingProfile.state));
-      if (existingProfile.district) setDistrict(normalizeToEnglishText(existingProfile.district));
-      if (existingProfile.mandalOrMunicipality) {
-        setMandalOrMunicipality(normalizeToEnglishText(existingProfile.mandalOrMunicipality));
-      }
-      if (
-        existingProfile.city &&
-        existingProfile.city.trim().toLowerCase() !==
-        (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
-      ) {
-        const normCity = normalizeToEnglishText(existingProfile.city.trim());
-        if (!city || hasNonLatinScript(city)) {
-          setCity(normCity);
-        }
-      }
-      if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
+      const nextState = normalizeToEnglishText(existingProfile.state || '');
+      const nextDistrict = normalizeToEnglishText(existingProfile.district || '');
+      const nextMandal = normalizeToEnglishText(existingProfile.mandalOrMunicipality || '');
+      const rawCity = normalizeToEnglishText(existingProfile.city || '');
+      const nextCity = rawCity.trim().toLowerCase() !== nextMandal.trim().toLowerCase() ? rawCity : '';
+      setState(nextState);
+      setDistrict(nextDistrict);
+      setMandalOrMunicipality(nextMandal);
+      setCity(nextCity);
+      setStreetOrLocality(pStreet);
+      setPinCode(existingProfile.pinCode || '');
+      setLatitude(existingProfile.latitude);
+      setLongitude(existingProfile.longitude);
+      setSavedSnapshot({ state: nextState, district: nextDistrict, mandal: nextMandal,
+        city: nextCity, street: pStreet, pinCode: existingProfile.pinCode || '' });
     }
   }, [existingProfile]);
 
@@ -160,16 +168,6 @@ export const Location: React.FC<LocationProps> = ({
   const autoSyncTimerRef = useRef<number | null>(null);
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
-
-  // Snapshot of saved values — used to detect dirty/unsaved changes (Owner Profile pattern)
-  const [savedSnapshot, setSavedSnapshot] = useState({
-    state: existingProfile?.state || initialValidState,
-    district: existingProfile?.district || '',
-    mandal: existingProfile?.mandalOrMunicipality || '',
-    city: existingProfile?.city || '',
-    street: existingProfile?.streetOrLocality || (existingProfile as any)?.street || '',
-    pinCode: existingProfile?.pinCode || '',
-  });
 
   const hasUnsavedChanges =
     state !== savedSnapshot.state ||
@@ -260,12 +258,13 @@ export const Location: React.FC<LocationProps> = ({
   }, [localities, mandalOrMunicipality]);
 
   // Auto-lookup postal pincode for village / mandal
-  const resolvePinCodeForLocality = async (
+  const resolvePinCodeForLocality = useCallback(async (
     villageName: string,
     mandalName?: string,
     distName?: string
   ) => {
     if (!villageName) return;
+    const lookupId = ++pinLookupIdRef.current;
     setLookingUpPin(true);
     try {
       // 1. Try postoffice by villageName
@@ -278,6 +277,7 @@ export const Location: React.FC<LocationProps> = ({
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
+        if (lookupId !== pinLookupIdRef.current) return;
         if (Array.isArray(data) && data[0]?.Status === 'Success' && Array.isArray(data[0].PostOffice)) {
           const poList = data[0].PostOffice;
           const match =
@@ -296,6 +296,7 @@ export const Location: React.FC<LocationProps> = ({
     } catch (err) {
       console.warn('Locality PIN lookup error:', err);
     }
+    if (lookupId !== pinLookupIdRef.current) return;
 
     // 2. Fallback to Mandal post office if village has no post office
     if (mandalName && mandalName.toLowerCase() !== villageName.toLowerCase()) {
@@ -309,6 +310,7 @@ export const Location: React.FC<LocationProps> = ({
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
+          if (lookupId !== pinLookupIdRef.current) return;
           if (Array.isArray(data) && data[0]?.Status === 'Success' && Array.isArray(data[0].PostOffice)) {
             const match =
               data[0].PostOffice.find(
@@ -325,11 +327,23 @@ export const Location: React.FC<LocationProps> = ({
         console.warn('Mandal PIN fallback error:', err);
       }
     }
+    if (lookupId === pinLookupIdRef.current) setLookingUpPin(false);
+  }, []);
+
+  const beginLocationEdit = () => {
+    hasEditedLocationRef.current = true;
+    autoDetectAttemptedRef.current = true;
+    pinLookupIdRef.current++;
     setLookingUpPin(false);
+    cancelDetection();
   };
 
   // Cascading Selection Handlers with Strict Reset
   const handleStateChange = (newState: string) => {
+    beginLocationEdit();
+    setStreetOrLocality('');
+    setLatitude(undefined);
+    setLongitude(undefined);
     setState(newState);
     setDistrict('');
     setMandalOrMunicipality('');
@@ -340,6 +354,10 @@ export const Location: React.FC<LocationProps> = ({
   };
 
   const handleDistrictChange = (newDistrict: string) => {
+    beginLocationEdit();
+    setStreetOrLocality('');
+    setLatitude(undefined);
+    setLongitude(undefined);
     setDistrict(newDistrict);
     setMandalOrMunicipality('');
     setCity('');
@@ -349,6 +367,10 @@ export const Location: React.FC<LocationProps> = ({
   };
 
   const handleMandalSelect = (newMandal: string) => {
+    beginLocationEdit();
+    setStreetOrLocality('');
+    setLatitude(undefined);
+    setLongitude(undefined);
     setMandalOrMunicipality(newMandal);
     setCity('');
     setPinCode('');
@@ -356,16 +378,12 @@ export const Location: React.FC<LocationProps> = ({
     setActiveLocationModal('city');
   };
 
-  /** Selects a locality, fills a missing street placeholder, closes the picker, and resolves its PIN code. */
+  /** Selects a locality, closes the picker, and resolves its PIN code. */
   const handleCitySelect = (newCity: string) => {
+    beginLocationEdit();
+    setLatitude(undefined);
+    setLongitude(undefined);
     setCity(newCity);
-    // Only auto-fill street if there is no human-readable street already
-    // (and the existing value is not a Plus Code which we should treat as empty)
-    const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-    const currentStreet = streetOrLocality.trim();
-    if (!currentStreet || PLUS_CODE_RE.test(currentStreet)) {
-      setStreetOrLocality(`${newCity} Main Road`);
-    }
     setActiveLocationModal(null);
     resolvePinCodeForLocality(newCity, mandalOrMunicipality, district);
   };
@@ -373,65 +391,38 @@ export const Location: React.FC<LocationProps> = ({
   // Compute safe public preview string
   const calculatePublicArea = useCallback(() => {
     const parts = [
-      streetOrLocality.trim(),
       city.trim(),
       mandalOrMunicipality.trim() ? `${mandalOrMunicipality.trim()} (Mandal)` : '',
       district.trim(),
       state.trim(),
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : 'Your Community Area';
-  }, [city, district, mandalOrMunicipality, state, streetOrLocality]);
+  }, [city, district, mandalOrMunicipality, state]);
 
   // Handle successful detection from unified hook
-  const handleLocationDetected = useCallback(async (result: LocationDetectionResult) => {
+  const handleLocationDetected = useCallback((result: LocationDetectionResult) => {
     const { geo, match, detectedState, detectedDistrict, detectedMandal, detectedCity, detectedStreet, detectedPin } = result;
 
     setLatitude(geo.latitude);
     setLongitude(geo.longitude);
 
-    // Resolve authoritative or detected values for all 4 primary levels:
-    const effectiveState = match?.state?.name || detectedState || state || 'Andhra Pradesh';
-    let effectiveDistrict = match?.district?.districtName || detectedDistrict || district;
-    let effectiveMandal = match?.subDistrict?.subDistrictName || detectedMandal || mandalOrMunicipality;
-
-    if (!effectiveDistrict) {
-      const stateObj = locationService.getState(effectiveState);
-      const dists = stateObj ? locationService.getDistricts(stateObj.code) : [];
-      if (dists.length > 0) {
-        effectiveDistrict = dists[0].districtName;
-      } else {
-        effectiveDistrict = 'Krishna';
-      }
-    }
-
-    if (!effectiveMandal && effectiveDistrict) {
-      const subs = locationService.getSubDistricts(effectiveDistrict, effectiveState);
-      if (subs.length > 0) {
-        effectiveMandal = subs[0].subDistrictName;
-      } else {
-        effectiveMandal = 'Vijayawada Urban';
-      }
-    }
-
-    const candidateVillage =
-      (detectedCity && detectedCity.toLowerCase() !== effectiveMandal.toLowerCase() ? detectedCity : '') ||
-      (detectedMandal && detectedMandal.toLowerCase() !== effectiveMandal.toLowerCase() ? detectedMandal : '') ||
-      '';
-
-    const finalCity =
-      candidateVillage ||
-      match?.locality?.localityName ||
-      detectedCity ||
-      effectiveMandal ||
-      'Palangi';
+    hasEditedLocationRef.current = true;
+    hasManuallyResetRef.current = false;
+    // Keep unresolved levels editable; never substitute an arbitrary district or village.
+    const effectiveState = match?.state?.name || detectedState;
+    const effectiveDistrict = match?.district?.districtName || detectedDistrict;
+    const effectiveMandal = match?.subDistrict?.subDistrictName || detectedMandal;
+    const finalCity = [detectedCity, match?.locality?.localityName || ''].find(
+      (value) => value.trim() && value.trim().toLowerCase() !== effectiveMandal.trim().toLowerCase()
+    ) || '';
 
     // PIN code handling:
-    let finalPin = detectedPin && /^\d{6}$/.test(detectedPin.trim()) ? detectedPin.trim() : '';
+    const finalPin = detectedPin && /^\d{6}$/.test(detectedPin.trim()) ? detectedPin.trim() : '';
 
     // Only set street if it doesn't look like a Plus Code and was actually detected
     const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
     const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
-    const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
+    const resolvedStreet = cleanStreet;
 
     // 1. POPULATE ALL 4 PRIMARY SQUARES IMMEDIATELY AND SYNCHRONOUSLY
     setState(effectiveState);
@@ -439,8 +430,8 @@ export const Location: React.FC<LocationProps> = ({
     setMandalOrMunicipality(effectiveMandal);
     setCity(finalCity);
     setStreetOrLocality(normalizeToEnglishText(resolvedStreet));
+    setPinCode(finalPin);
     if (finalPin) {
-      setPinCode(finalPin);
       setLookingUpPin(false);
     } else if (finalCity || effectiveMandal) {
       resolvePinCodeForLocality(finalCity || effectiveMandal, effectiveMandal, effectiveDistrict);
@@ -448,23 +439,11 @@ export const Location: React.FC<LocationProps> = ({
     setHasDetected(true);
     setActiveLocationModal(null);
 
-    // 2. Load dropdown localities in background (non-blocking)
-    const districtCode = match?.district?.districtCode || (effectiveDistrict ? locationService.getDistrict(effectiveState, effectiveDistrict)?.districtCode : undefined);
-    const subDistrictCode = match?.subDistrict?.subDistrictCode || (districtCode && effectiveMandal ? locationService.getSubDistrict(districtCode, effectiveMandal)?.subDistrictCode : undefined);
-    if (districtCode) {
-      locationService
-        .getLocalities(districtCode, subDistrictCode)
-        .then((list) => {
-          if (list && list.length > 0) {
-            setLocalities(list);
-          }
-        })
-        .catch((e) => console.warn('Non-blocking locality fetch notice:', e));
-    }
+    // The selection effect loads localities with a stale-result guard.
 
     // Persist to local storage profile immediately so background sync never wipes values back to blank
     if (user) {
-      const currentProf = existingProfile || storageService.getOwnerProfileByUserId(user.id, user.email);
+      const currentProf = storageService.getOwnerProfileByUserId(user.id, user.email);
       storageService.saveOwnerProfile({
         ...(currentProf || {}),
         id: user.id,
@@ -478,7 +457,13 @@ export const Location: React.FC<LocationProps> = ({
         mandalOrMunicipality: effectiveMandal,
         city: finalCity,
         streetOrLocality: normalizeToEnglishText(resolvedStreet),
-        pinCode: finalPin || currentProf?.pinCode || '',
+        street: normalizeToEnglishText(resolvedStreet),
+        pinCode: finalPin,
+        stateCode: match?.state.code,
+        districtCode: match?.district.districtCode,
+        subDistrictCode: match?.subDistrict?.subDistrictCode,
+        localityCode: match?.locality?.localityCode === 999999 ? undefined : match?.locality?.localityCode,
+        approximateArea: [finalCity, effectiveMandal, effectiveDistrict, effectiveState].filter(Boolean).join(', '),
         preferredContact: currentProf?.preferredContact || 'phone',
         hasLocationConsent: true,
         latitude: geo.latitude,
@@ -494,17 +479,19 @@ export const Location: React.FC<LocationProps> = ({
       locationCardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
-    showToast(
-      `🎯 Detected${accText}: ${finalCity || effectiveMandal}, ${effectiveDistrict}. All location squares populated!`,
-      'success'
-    );
+    const isFallback = geo.confidenceReason?.includes('Fallback') || geo.source === 'ip';
+    if (isFallback) {
+      showToast('⚠️ Could not detect exact GPS coordinates. Loaded default area cards. Please verify details.', 'warning');
+    } else {
+      const accText = geo.accuracyMeters ? ` (±${Math.round(geo.accuracyMeters)}m)` : '';
+      const complete = Boolean(effectiveState && effectiveDistrict && effectiveMandal && finalCity);
+      showToast(complete
+        ? `🎯 Location detected${accText}. Please verify the four cards below.`
+        : 'Location detected partially. Select the missing State, District, Mandal, or Home Base below.',
+      complete ? 'success' : 'info');
+    }
   }, [
-    state,
-    district,
-    mandalOrMunicipality,
     user,
-    existingProfile,
     refreshProgress,
     resolvePinCodeForLocality,
     showToast,
@@ -531,12 +518,33 @@ export const Location: React.FC<LocationProps> = ({
 
   // User taps "Detect Location" or "Detect Location Again"
   const handleDetectClick = useCallback((_e?: React.SyntheticEvent) => {
+    hasEditedLocationRef.current = true;
+    autoDetectAttemptedRef.current = true;
     hasManuallyResetRef.current = false;
+    pinLookupIdRef.current++;
+    setLookingUpPin(false);
     triggerDetectLocation();
   }, [triggerDetectLocation]);
 
+  useEffect(() => {
+    if (!user || autoDetectAttemptedRef.current || hasEditedLocationRef.current || activeLocationModal) return;
+    if (state && district && mandalOrMunicipality && city) return;
+    if (!storageService.hasCompletedOwnerProfile(user.id, user.email)) return;
+    // Deferring lets hydration and StrictMode's effect replay settle before requesting permission.
+    const timer = window.setTimeout(() => {
+      autoDetectAttemptedRef.current = true;
+      hasEditedLocationRef.current = true;
+      triggerDetectLocation();
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [user, state, district, mandalOrMunicipality, city, activeLocationModal, triggerDetectLocation]);
+
   const handleResetLocation = async () => {
     hasManuallyResetRef.current = true;
+    hasEditedLocationRef.current = true;
+    autoDetectAttemptedRef.current = true;
+    pinLookupIdRef.current++;
+    setLookingUpPin(false);
     cancelDetection();
     if (autoSyncTimerRef.current) {
       window.clearTimeout(autoSyncTimerRef.current);
@@ -572,12 +580,15 @@ export const Location: React.FC<LocationProps> = ({
         mandalOrMunicipality: '',
         city: '',
         streetOrLocality: '',
+        street: '',
         pinCode: '',
         latitude: undefined,
         longitude: undefined,
         approximateArea: '',
         subDistrictCode: undefined,
         localityCode: undefined,
+        stateCode: undefined,
+        districtCode: undefined,
         updatedAt: new Date().toISOString(),
       });
       refreshProgress();
@@ -585,13 +596,18 @@ export const Location: React.FC<LocationProps> = ({
       window.dispatchEvent(new Event('storage'));
     }
 
-    showToast('Location fields have been reset. You can detect again or enter manually.', 'info');
+    triggerDetectLocation();
   };
 
   // Sync / Save Location: Updates local storage and broadcasts to whole application
   const [syncing, setSyncing] = useState(false);
 
   const handleSyncLocation = useCallback(async (options?: { silent?: boolean; auto?: boolean }) => {
+    if (!state.trim()) {
+      if (!options?.silent) showToast('Please select your State.', 'warning');
+      setActiveLocationModal('state');
+      return;
+    }
     if (!district.trim()) {
       if (!options?.silent) showToast('Please select your District.', 'warning');
       setActiveLocationModal('district');
@@ -602,7 +618,7 @@ export const Location: React.FC<LocationProps> = ({
       setActiveLocationModal('mandal');
       return;
     }
-    if (!city.trim()) {
+    if (!city.trim() || city.trim().toLowerCase() === mandalOrMunicipality.trim().toLowerCase()) {
       if (!options?.silent) showToast('Please select your Home Base (City / Village).', 'warning');
       setActiveLocationModal('city');
       return;
@@ -686,6 +702,7 @@ export const Location: React.FC<LocationProps> = ({
     refreshProgress,
     showToast,
     state,
+    streetOrLocality,
     user,
   ]);
 
@@ -697,11 +714,12 @@ export const Location: React.FC<LocationProps> = ({
 
     const canAutoSync =
       user &&
+      !detecting &&
       hasUnsavedChanges &&
       state.trim() &&
       district.trim() &&
       mandalOrMunicipality.trim() &&
-      city.trim();
+      city.trim() && city.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase();
 
     if (!canAutoSync) return;
 
@@ -715,13 +733,13 @@ export const Location: React.FC<LocationProps> = ({
         autoSyncTimerRef.current = null;
       }
     };
-  }, [user, hasUnsavedChanges, state, district, mandalOrMunicipality, city, pinCode, handleSyncLocation]);
+  }, [user, detecting, hasUnsavedChanges, state, district, mandalOrMunicipality, city, pinCode, handleSyncLocation]);
 
   const isLocationValid = Boolean(
     state.trim() &&
     district.trim() &&
     mandalOrMunicipality.trim() &&
-    city.trim()
+    city.trim() && city.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase()
   );
 
   useEffect(() => {
@@ -842,7 +860,7 @@ export const Location: React.FC<LocationProps> = ({
               <button
                 type="button"
                 className="loc-grid-square loc-gsq-state"
-                onClick={() => setActiveLocationModal('state')}
+                onClick={() => { beginLocationEdit(); setActiveLocationModal('state'); }}
                 title="Click to change State"
               >
                 <div className="loc-gsq-top">
@@ -860,7 +878,7 @@ export const Location: React.FC<LocationProps> = ({
               <button
                 type="button"
                 className="loc-grid-square loc-gsq-district"
-                onClick={() => setActiveLocationModal('district')}
+                onClick={() => { beginLocationEdit(); setActiveLocationModal('district'); }}
                 title="Click to change District"
               >
                 <div className="loc-gsq-top">
@@ -878,7 +896,7 @@ export const Location: React.FC<LocationProps> = ({
               <button
                 type="button"
                 className="loc-grid-square loc-gsq-mandal"
-                onClick={() => setActiveLocationModal('mandal')}
+                onClick={() => { beginLocationEdit(); setActiveLocationModal('mandal'); }}
                 title="Click to change Mandal"
               >
                 <div className="loc-gsq-top">
@@ -896,7 +914,7 @@ export const Location: React.FC<LocationProps> = ({
               <button
                 type="button"
                 className="loc-grid-square loc-gsq-home"
-                onClick={() => setActiveLocationModal('city')}
+                onClick={() => { beginLocationEdit(); setActiveLocationModal('city'); }}
                 title="Click to change Home Base (City / Village)"
               >
                 <div className="loc-gsq-top">
@@ -936,7 +954,7 @@ export const Location: React.FC<LocationProps> = ({
                   <input
                     type="text"
                     value={streetOrLocality}
-                    onChange={(e) => setStreetOrLocality(e.target.value)}
+                    onChange={(e) => { beginLocationEdit(); setStreetOrLocality(e.target.value); }}
                     onBlur={() => {
                       if (hasNonLatinScript(streetOrLocality)) {
                         setStreetOrLocality(normalizeToEnglishText(streetOrLocality));
@@ -1005,9 +1023,9 @@ export const Location: React.FC<LocationProps> = ({
                   </>
                 ) : (
                   <>
-                    <div className="sync-secondary-btn location-auto-synced-pill" title="Location is saved automatically.">
+                    <div className="sync-secondary-btn location-auto-synced-pill" title="Complete all four fields to save your location.">
                       <Check size={15} />
-                      <span>Location Synced</span>
+                      <span>{isLocationValid ? 'Location Saved' : 'Select your location'}</span>
                     </div>
                     <button
                       type="button"
@@ -1101,7 +1119,7 @@ export const Location: React.FC<LocationProps> = ({
       <PermissionRationaleModal
         isOpen={showPermissionBlockedModal}
         title="Location Access Needed"
-        message="Location access is needed. Please ensure location is turned on in your device settings to detect your area automatically."
+        message="Allow location access for FindLostPuppy in your app or browser permissions, then try detecting again."
         continueLabel="Open Settings"
         cancelLabel="Enter Location Manually"
         onCancel={() => {

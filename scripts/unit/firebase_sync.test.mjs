@@ -14,16 +14,18 @@ function fixture({ signedIn = true, configured = true } = {}) {
     setDoc: mock.fn(async () => {}),
   };
   const uploadMedia = mock.fn(async () => ({ publicUrl: 'https://media.example.invalid/photo' }));
+  const uploadMissingReportPhoto = mock.fn(async () => 'https://media.example.invalid/photo');
+  const uploadSightingPhoto = mock.fn(async () => 'https://media.example.invalid/photo');
   const service = loadModule('src/services/firebaseSyncService.ts', {
     mocks: {
       'firebase/firestore': firestore, 'firebase/storage': {},
       './firebaseConfig': { db: {}, storage: null, isFirebaseConfigured: () => configured,
         auth: { currentUser: signedIn ? { uid: 'user-a', email: 'owner@example.invalid' } : null } },
-      './storageBucketService': { storageBucketService: { uploadMedia } },
+      './storageBucketService': { storageBucketService: { uploadMedia, uploadMissingReportPhoto, uploadSightingPhoto }, isUploadablePhoto: () => false },
       '../utils/dogPhotoHelper': { isPetPhotoUrl: () => false },
     }, globals: { navigator: { onLine: true } },
   }).firebaseSyncService;
-  return { service, firestore, uploadMedia };
+  return { service, firestore, uploadMedia, uploadMissingReportPhoto, uploadSightingPhoto };
 }
 
 const report = () => ({
@@ -31,6 +33,28 @@ const report = () => ({
   dog: { name: 'Synthetic Pet', primaryPhoto: 'data:image/jpeg;base64,AQID' },
   lastKnownLatitude: 1.25, lastKnownLongitude: 2.5, lastKnownLocation: 'Synthetic Village',
   contactMechanism: { showPhone: false, showEmail: false, safeContactPhone: '9000000000', safeContactEmail: 'owner@example.invalid', contactNote: 'private-note' },
+});
+
+test('auth-only synchronization preserves saved owner location and onboarding metadata', async () => {
+  const f = fixture();
+  const persisted = { state: 'Saved State', district: 'Saved District', mandalOrMunicipality: 'Saved Mandal', city: 'Saved Village',
+    phone: 'saved-phone', photo: 'saved-photo', photoChangeCount: 2 };
+  f.firestore.setDoc.mock.mockImplementation(async (_ref, payload, options) => {
+    assert.equal(options.merge, true);
+    Object.assign(persisted, payload);
+  });
+  assert.equal(await f.service.syncUserProfile({ id: 'user-a', email: 'owner@example.invalid', name: 'Synthetic Owner' }), true);
+  assert.deepEqual([persisted.state, persisted.district, persisted.mandalOrMunicipality, persisted.city],
+    ['Saved State', 'Saved District', 'Saved Mandal', 'Saved Village']);
+  assert.deepEqual([persisted.phone, persisted.photo, persisted.photoChangeCount], ['saved-phone', 'saved-photo', 2]);
+});
+
+test('explicitly supplied empty location fields still support an intentional reset', async () => {
+  const f = fixture();
+  assert.equal(await f.service.syncUserProfile({ id: 'user-a', email: 'owner@example.invalid',
+    state: '', district: '', mandalOrMunicipality: '', city: '' }), true);
+  const payload = calls(f.firestore.setDoc)[0][1];
+  assert.deepEqual([payload.state, payload.district, payload.mandalOrMunicipality, payload.city], ['', '', '', '']);
 });
 const sighting = () => ({
   id: 'sighting-a', reportId: 'report-a', reporterUserId: 'owner-user-a',
@@ -53,7 +77,7 @@ for (const status of ['LOST', 'SAFE']) {
     assert.equal(data.lastKnownLocation, 'Synthetic Village');
     assert.equal(data.petPhoto, 'https://media.example.invalid/photo');
     assert.deepEqual(options, { merge: true });
-    assert.deepEqual(calls(f.uploadMedia), [['missing-reports/user-a/report-a/photo.jpg', 'data:image/jpeg;base64,AQID']]);
+    assert.deepEqual(calls(f.uploadMissingReportPhoto), [['report-a', 'data:image/jpeg;base64,AQID', 0]]);
     assert.equal(input.lastKnownLatitude, 1.25);
     assert.equal(input.contactMechanism.safeContactEmail, 'owner@example.invalid');
   });
@@ -70,7 +94,7 @@ test('sighting writes preserve recovery context while removing reporter identity
   assert.equal(data.reporterUserId, 'owner-user-a');
   assert.equal(data.location, 'Synthetic Village');
   assert.equal(data.reportId, 'report-a');
-  assert.deepEqual(calls(f.uploadMedia), [['sightings/user-a/report-a/sighting-a.jpg', 'data:image/jpeg;base64,AQID']]);
+  assert.deepEqual(calls(f.uploadSightingPhoto), [['report-a/sighting-a', 'data:image/jpeg;base64,AQID', 0]]);
   assert.equal(input.reporterName, 'Synthetic Reporter');
   assert.equal(input.latitude, 1.25);
 });
@@ -81,6 +105,8 @@ for (const [method, input, field, empty] of [
   test(`${method} can publish sanitized recovery data after an image upload failure`, async () => {
     const f = fixture();
     f.uploadMedia.mock.mockImplementation(async () => { throw new Error('offline'); });
+    f.uploadMissingReportPhoto.mock.mockImplementation(async () => { throw new Error('offline'); });
+    f.uploadSightingPhoto.mock.mockImplementation(async () => { throw new Error('offline'); });
     assert.equal(await f.service[method](input()), true);
     assert.equal(calls(f.firestore.setDoc)[0][1][field], empty);
     assert.doesNotMatch(JSON.stringify(calls(f.firestore.setDoc)), /data:image|9000000000|@example.invalid|private-note/);

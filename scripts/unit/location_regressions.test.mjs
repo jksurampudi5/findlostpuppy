@@ -16,6 +16,7 @@ function fixture(address = {}, boundary = { stateName: 'Boundary State', distric
       '@capgo/capacitor-nativegeocoder': { NativeGeocoder: { reverseGeocode: async () => ({ addresses: [address] }) } },
       './boundaryLookup': { findMandalByCoordinates: async () => boundary },
       './indicTransliteration': loadModule('src/utils/indicTransliteration.ts'),
+      '../data/location/subdistricts.json': [],
     }, globals: { fetch, console },
   });
   return { ...module, fetch, console };
@@ -31,10 +32,10 @@ test('missing village stays unresolved instead of reusing the boundary mandal', 
   assert.equal(result.district, 'Boundary District');
 });
 
-test('a detected village remains distinct and supplies the fallback street', async () => {
+test('a detected village remains distinct without inventing a street', async () => {
   const result = await fixture({ locality: 'Synthetic Village' }).detectResilientLocation();
   assert.equal(result.city, 'Synthetic Village');
-  assert.equal(result.street, 'Synthetic Village Main Road');
+  assert.equal(result.street, undefined);
   assert.equal(result.mandal, 'Boundary Mandal');
 });
 
@@ -47,7 +48,7 @@ test('no village or mandal leaves the street unresolved', async () => {
 
 for (const code of ['QMCX+3RF', 'vx5j+q3', '8FW4+RX Synthetic Village']) {
   test(`native geocoder skips plus code ${code} and uses the next real street`, async () => {
-    const f = fixture({ subAdministrativeArea: 'Native District', locality: 'Synthetic Village', thoroughfare: ` ${code} `, subThoroughfare: ' Synthetic Lane ' });
+    const f = fixture({ administrativeArea: 'Native State', subAdministrativeArea: 'Native District', subLocality: 'Native Mandal', locality: 'Synthetic Village', thoroughfare: ` ${code} `, subThoroughfare: ' Synthetic Lane ' });
     const result = await f.detectResilientLocation();
     assert.equal(result.street, 'Synthetic Lane');
     assert.equal(result.city, 'Synthetic Village');
@@ -57,7 +58,7 @@ for (const code of ['QMCX+3RF', 'vx5j+q3', '8FW4+RX Synthetic Village']) {
 
 test('plus codes in all three native street sources never become the displayed street', async () => {
   const result = await fixture({ locality: 'Synthetic Village', thoroughfare: 'QMCX+3RF', subThoroughfare: 'VX5J+Q3', areasOfInterest: ['8FW4+RX'] }).detectResilientLocation();
-  assert.equal(result.street, 'Synthetic Village Main Road');
+  assert.equal(result.street, undefined);
 });
 
 test('area of interest is used when both street fields are plus codes', async () => {

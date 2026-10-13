@@ -64,6 +64,17 @@ async function fetchWithTimeout(url: string): Promise<Response> {
  * Falls back to `allowed: true, indeterminate: true` if all providers fail.
  */
 export async function checkGeoAccess(): Promise<GeoCheckResult> {
+  // Always allow localhost and development environments immediately
+  if (
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '0.0.0.0'))
+  ) {
+    return { allowed: true, countryCode: 'IN', countryName: 'India' };
+  }
+
   // Return cached result for this browser tab
   const cached = cachedResult();
   if (cached) return cached;

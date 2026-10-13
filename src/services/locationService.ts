@@ -123,6 +123,7 @@ class LocationService {
       return districts.find((d) => d.districtCode === districtCodeOrName);
     }
     const clean = districtCodeOrName.trim().toLowerCase().replace(/\s*district/i, '');
+    if (!clean) return undefined;
     // 1. Exact match first
     const exact = districts.find(
       (d) => d.districtName.toLowerCase() === clean
@@ -218,6 +219,7 @@ class LocationService {
       .replace(/\s*\(rural\)/i, '')
       .trim();
 
+    if (!clean) return undefined;
     const exact = list.find((s) => s.subDistrictName.toLowerCase() === clean);
     if (exact) return exact;
 
@@ -369,20 +371,22 @@ class LocationService {
     }
 
     // 3. Match Mandal / SubDistrict
-    let matchedSubDistrict: LocationSubDistrict | undefined;
+    let matchedSubDistrict: LocationSubDistrict | undefined = explicitSubDistrictCode && matchedDistrict
+      ? this.getSubDistrict(matchedDistrict.districtCode, explicitSubDistrictCode)
+      : undefined;
 
-    // Search all subdistricts in the state for rawMandal, rawLocality, rawDistrict candidates
-    const candidates = [rawMandal, rawLocality, rawDistrict].filter(Boolean) as string[];
+    // A district name alone does not establish its same-named central mandal.
+    const candidates = [rawMandal, rawLocality].filter(Boolean) as string[];
     for (const cand of candidates) {
+      if (matchedSubDistrict) break;
       const cleanCand = cand.trim().toLowerCase().replace(/\s*mandal/i, '').replace(/\s*taluk/i, '').trim();
       const candStem = normalizeStem(cleanCand);
       const foundSub = this.subdistricts.find(
         (s) =>
           s.stateCode === matchedState.code &&
+          (!matchedDistrict || s.districtCode === matchedDistrict.districtCode) &&
           (s.subDistrictName.toLowerCase() === cleanCand ||
-            normalizeStem(s.subDistrictName) === candStem ||
-            s.subDistrictName.toLowerCase().includes(cleanCand) ||
-            cleanCand.includes(s.subDistrictName.toLowerCase()))
+            normalizeStem(s.subDistrictName) === candStem)
       );
       if (foundSub) {
         matchedSubDistrict = foundSub;
@@ -406,10 +410,7 @@ class LocationService {
       );
     }
 
-    // Safe fallback: ensure matchedDistrict is defined
-    if (!matchedDistrict) {
-      matchedDistrict = this.getDistricts(matchedState.code)[0];
-    }
+    // Unknown administrative levels must remain unresolved, not the first dropdown entry.
     if (!matchedDistrict) return null;
 
     if (!matchedSubDistrict && matchedDistrict) {
@@ -421,12 +422,6 @@ class LocationService {
       }
       if (!matchedSubDistrict && rawLocality) {
         matchedSubDistrict = this.getSubDistrict(matchedDistrict.districtCode, rawLocality);
-      }
-      if (!matchedSubDistrict) {
-        const distSubs = this.getSubDistricts(matchedDistrict.districtCode);
-        if (distSubs.length > 0) {
-          matchedSubDistrict = distSubs[0];
-        }
       }
     }
 
@@ -447,7 +442,9 @@ class LocationService {
       }
     }
 
-    if (rawLocality && localities.length > 0) {
+    const hasDistinctLocality = Boolean(rawLocality &&
+      rawLocality.trim().toLowerCase() !== matchedSubDistrict?.subDistrictName.trim().toLowerCase());
+    if (hasDistinctLocality && localities.length > 0) {
       const cleanLoc = rawLocality.trim().toLowerCase();
       const locStem = normalizeStem(cleanLoc);
       matchedLocality = localities.find(
@@ -458,19 +455,10 @@ class LocationService {
           cleanLoc.includes(l.localityName.toLowerCase())
       );
     }
-    if (!matchedLocality && !rawLocality && localities.length > 0) {
-      matchedLocality =
-        localities.find(
-          (l) =>
-            l.localityName.toLowerCase() ===
-            matchedSubDistrict?.subDistrictName.toLowerCase()
-        ) || localities[0];
-    }
-
-    if (!matchedLocality && (rawLocality || matchedSubDistrict)) {
+    if (!matchedLocality && hasDistinctLocality) {
       matchedLocality = {
         localityCode: 999999,
-        localityName: rawLocality || matchedSubDistrict?.subDistrictName || '',
+        localityName: rawLocality,
         localityType: 'URBAN_LOCALITY',
         subDistrictCode: matchedSubDistrict?.subDistrictCode || 0,
         subDistrictName: matchedSubDistrict?.subDistrictName || '',

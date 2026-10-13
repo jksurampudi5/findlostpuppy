@@ -12,11 +12,18 @@ import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
 import { auth } from '../services/firebaseConfig';
-import { isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
+import { isPetPhotoUrl, isValidOwnerPhoto, DEFAULT_OWNER_PHOTO } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
+
+const isLocalHostOrDev =
+  import.meta.env.DEV ||
+  (typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+     window.location.hostname === '127.0.0.1' ||
+     window.location.hostname === '0.0.0.0'));
 
 interface OwnerProfileProps {
   onSuccess?: () => void;
@@ -31,15 +38,16 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const initialCleanName = sanitizePersonName(existingProfile?.fullName || user?.name, user?.email || existingProfile?.email);
 
-  // Only genuine user-uploaded photos (from folder or camera) are accepted.
-  // Google avatar letter placeholders ("A", "B", "C") and pet images are strictly excluded.
+  // Genuine uploaded photo or local dev fallback avatar
   const rawInitialPhoto = (existingProfile?.photo && isValidOwnerPhoto(existingProfile.photo))
     ? existingProfile.photo
-    : '';
+    : (isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '');
   const initialPhoto = rawInitialPhoto;
 
   const [fullName, setFullName] = useState(initialCleanName);
-  const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
+  const [phone, setPhone] = useState(
+    existingProfile?.phone || user?.phone || (isLocalHostOrDev ? '9876543210' : '')
+  );
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string>(initialPhoto);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -113,21 +121,24 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       if (p) {
         const cleanedName = sanitizePersonName(p.fullName, user.email || p.email);
         setFullName(cleanedName);
-        if (p.phone) setPhone(p.phone);
-        const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo)) ? p.photo : '';
+        const resolvedPhone = p.phone || (isLocalHostOrDev ? '9876543210' : user.phone || '');
+        setPhone(resolvedPhone);
+        const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo))
+          ? p.photo
+          : (isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '');
         setPhoto(effectivePhoto);
         if (p.preferredContact) setPreferredContact(p.preferredContact);
 
         setSavedSnapshot({
           name: cleanedName,
-          phone: p.phone || user.phone || '',
+          phone: resolvedPhone,
           photo: effectivePhoto,
           contact: p.preferredContact || 'phone',
         });
 
         const hasAllThree = Boolean(
           cleanedName &&
-          p.phone &&
+          resolvedPhone &&
           effectivePhoto &&
           isValidOwnerPhoto(effectivePhoto)
         );
@@ -139,24 +150,45 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       } else {
         const cleanedName = sanitizePersonName(user.name, user.email);
         setFullName(cleanedName);
-        if (user.phone) setPhone(user.phone);
-        // Do not take Gmail photo / letter avatar
-        setPhoto('');
+        const resolvedPhone = user.phone || (isLocalHostOrDev ? '9876543210' : '');
+        setPhone(resolvedPhone);
+        const effectivePhoto = isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '';
+        setPhoto(effectivePhoto);
 
         setSavedSnapshot({
           name: cleanedName,
-          phone: user.phone || '',
-          photo: '',
+          phone: resolvedPhone,
+          photo: effectivePhoto,
           contact: 'phone',
         });
 
+        if (isLocalHostOrDev && cleanedName && resolvedPhone && effectivePhoto) {
+          const devProfile: OwnerProfileType = {
+            id: user.id,
+            userId: user.id,
+            fullName: cleanedName,
+            phone: resolvedPhone,
+            email: user.email,
+            photo: effectivePhoto,
+            preferredContact: 'phone',
+            address: '',
+            state: '',
+            district: '',
+            city: '',
+            hasLocationConsent: true,
+            updatedAt: new Date().toISOString(),
+          };
+          storageService.saveOwnerProfile(devProfile);
+          refreshProgress();
+        }
+
         if (!initialModeSetRef.current) {
           initialModeSetRef.current = true;
-          setIsEditing(true);
+          setIsEditing(!Boolean(cleanedName && resolvedPhone && effectivePhoto));
         }
       }
     }
-  }, [user?.id, user?.email]);
+  }, [user?.id, user?.email, refreshProgress]);
 
   const hasProfileData = Boolean(
     fullName.trim() &&
@@ -433,7 +465,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     }
 
     if (!fullName.trim()) {
-      showToast('Please enter your full name.', 'warning');
+      showToast('Please enter your name.', 'warning');
       hasError = true;
     }
 
@@ -657,7 +689,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                       <UserIcon size={20} />
                     </div>
                     <div className="owner-view-data">
-                      <span className="owner-view-label">Full Name</span>
+                      <span className="owner-view-label">Name</span>
                       <span className="owner-view-value">{fullName || user?.name || 'Owner Name'}</span>
                     </div>
                   </div>
@@ -667,7 +699,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                       <Phone size={20} />
                     </div>
                     <div className="owner-view-data">
-                      <span className="owner-view-label">Mobile Phone Number</span>
+                      <span className="owner-view-label">Mobile Number</span>
                       <div className="owner-view-phone-row">
                         <span className="owner-view-value">
                           {validateIndianPhoneNumber(phone).isValid
@@ -929,10 +961,10 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
 
               {/* 2. FORM INPUTS (Flows Directly from Avatar in the Same Card) */}
               <div className="owner-combined-fields">
-                {/* Full Name input */}
+                {/* Name input */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="owner-full-name">
-                    <span>Full Name</span>
+                    <span>Name</span>
                     <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
                   </label>
                   <div className="owner-modern-input-wrapper">
@@ -954,7 +986,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                 {/* 10-Digit Indian Phone Number */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="owner-phone">
-                    <span>Mobile Phone Number</span>
+                    <span>Mobile Number</span>
                     <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
                   </label>
                   <div className={`owner-modern-input-wrapper ${phoneError ? 'input-error' : ''}`}>

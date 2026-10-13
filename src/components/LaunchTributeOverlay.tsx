@@ -18,6 +18,9 @@ interface LaunchTributeOverlayProps {
 export const LaunchTributeOverlay: React.FC<LaunchTributeOverlayProps> = ({ forceOpen = false, onClose }) => {
   const [visible, setVisible] = useState(() => {
     if (forceOpen) return true;
+    if (typeof window !== 'undefined' && (window.location.search.includes('splash') || window.location.hash.includes('splash'))) {
+      return true;
+    }
     const isFeedbackPath = typeof window !== 'undefined' && (
       window.location.pathname === '/feedback' || 
       window.location.pathname === '/suggest' ||

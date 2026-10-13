@@ -161,6 +161,7 @@ function MainAppFlow() {
             <Navigate to="/owner" replace />
           ) : (
             <Location
+              key={user?.id}
               onSuccess={() => {
                 setActiveOnboardingTab('choice');
                 navigate('/choice');
@@ -289,7 +290,18 @@ export function App() {
 
   // ── India-only geo-block ────────────────────────────────────────────────
   // 'checking' → waiting for IP lookup | 'allowed' → IN or indeterminate | 'blocked' → non-IN
-  const [geoStatus, setGeoStatus] = useState<'checking' | 'allowed' | 'blocked'>('checking');
+  const [geoStatus, setGeoStatus] = useState<'checking' | 'allowed' | 'blocked'>(() => {
+    if (
+      import.meta.env.DEV ||
+      (typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.hostname === '0.0.0.0'))
+    ) {
+      return 'allowed';
+    }
+    return 'checking';
+  });
   const [geoInfo, setGeoInfo] = useState<GeoCheckResult | null>(null);
 
   useEffect(() => {

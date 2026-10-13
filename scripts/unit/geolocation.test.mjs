@@ -11,6 +11,8 @@ function setup(address, boundary = null) {
       '@capacitor/geolocation': { Geolocation: { checkPermissions: async () => ({ location: 'granted' }), getCurrentPosition: async () => ({ coords: { latitude: 1.25, longitude: 2.5, accuracy: 10 }, timestamp: 100 }) } },
       '@capgo/capacitor-nativegeocoder': { NativeGeocoder: { reverseGeocode: async () => ({ addresses: [address] }) } },
       './boundaryLookup': { findMandalByCoordinates: async () => boundary },
+      './indicTransliteration': loadModule('src/utils/indicTransliteration.ts'),
+      '../data/location/subdistricts.json': [],
     }, globals: { fetch, console: { log, warn() {}, error() {} } }, env: { DEV: false },
   });
   return { ...api, fetch, log };
@@ -21,7 +23,7 @@ for (const [fields, expected] of [
   [{ thoroughfare: ' QMCX+3RF ', subThoroughfare: ' Test street ' }, 'Test street'],
   [{ thoroughfare: 'vx5j+q3', subThoroughfare: '8FW4+RX Test village', areasOfInterest: ['Test park'] }, 'Test park'],
   [{ thoroughfare: 'Test road', subThoroughfare: 'Other street', areasOfInterest: ['Other park'] }, 'Test road'],
-  [{ thoroughfare: 'QMCX+3RF', subThoroughfare: 'VX5J+Q3', areasOfInterest: ['8FW4+RX Test village'] }, 'Test village Main Road'],
+   [{ thoroughfare: 'QMCX+3RF', subThoroughfare: 'VX5J+Q3', areasOfInterest: ['8FW4+RX Test village'] }, undefined],
 ]) {
   test(`native geocoding filters Plus Codes while preserving readable streets: ${JSON.stringify(fields)}`, async () => {
     const h = setup({ ...address, ...fields });
@@ -37,7 +39,7 @@ test('missing village stays unresolved instead of copying the mandal into the vi
   const result = await h.detectResilientLocation();
   assert.equal(result.city, undefined);
   assert.equal(result.mandal, 'Test mandal');
-  assert.equal(result.street, 'Test mandal Main Road');
+  assert.equal(result.street, undefined);
   assert.ok(h.fetch.mock.callCount() > 0, 'incomplete native results try web geocoding');
 });
 

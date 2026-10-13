@@ -1477,7 +1477,9 @@ class StorageService {
 
   hasCompletedLocation(userId: string, email?: string): boolean {
     const profile = this.getOwnerProfileByUserId(userId, email);
-    return !!(profile && (profile.district || profile.city));
+    return Boolean(profile?.state?.trim() && profile.district?.trim() &&
+      profile.mandalOrMunicipality?.trim() && profile.city?.trim() &&
+      profile.city.trim().toLowerCase() !== profile.mandalOrMunicipality.trim().toLowerCase());
   }
 
   // PET PROFILES:
