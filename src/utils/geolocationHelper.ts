@@ -370,6 +370,58 @@ export async function enrichWithPostalPin(
 }
 
 /**
+ * Validates that a string is a legitimate public street, road, colony, or area name,
+ * and NOT a private residence, personal house name (e.g. "Pitta's Home"), establishment POI, or administrative entity.
+ */
+export function isLegitimateStreetName(
+  candidate?: string,
+  city?: string,
+  mandal?: string,
+  district?: string,
+  state?: string
+): boolean {
+  if (!candidate || typeof candidate !== 'string') return false;
+  const trimmed = candidate.trim();
+  if (trimmed.length < 3) return false;
+
+  // 1. Plus Codes (e.g. "QMCX+3RF", "8FW4+RX")
+  if (/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(trimmed)) return false;
+
+  // 2. Pure numbers or pin codes
+  if (/^\d+$/.test(trimmed) || /^\d{5,6}$/.test(trimmed)) return false;
+
+  // Normalize apostrophes, backticks, and smart quotes
+  const normalizedLower = trimmed.toLowerCase().replace(/['’‘`]/g, "'");
+
+  // 3. Administrative entities (State, District, Mandal, Village/City, Country)
+  if (state && normalizedLower === state.toLowerCase()) return false;
+  if (district && normalizedLower === district.toLowerCase()) return false;
+  if (mandal && normalizedLower === mandal.toLowerCase()) return false;
+  if (city && normalizedLower === city.toLowerCase()) return false;
+  if (normalizedLower === 'india' || normalizedLower === 'unnamed road') return false;
+
+  // 4. Reject pure door numbers / plot numbers alone
+  if (/^(?:d\.?\s*no\.?|h\.?\s*no\.?|door\s*no\.?|plot\s*no\.?|flat\s*no\.?|#)\s*[\d\w\-\/]+/i.test(normalizedLower)) return false;
+
+  // 5. Reject private houses, residences, personal home names, POIs, establishments
+  // Explicitly rejects "Pitta's Home", "Rao's House", "Sita Nilayam", "Krishna Nivas", "Villa", etc.
+  const privateEntityRegex = /(?:'s\s*(?:home|house|residence|residency|villa|nilayam|nivas|place|palace|cottage|farm|quarters|bhavan))|\b(?:home|house|nilayam|nivas|residence|residency|villa|villas|bhavan|bhavanam|apartment|apartments|flats?|room|mess|hostel|temple|church|mosque|masjid|mandir|clinic|hospital|store|stores|shop|shops|mart|hotel|dhaba|restaurant|bakery|salon|parlour|school|college|bank|atm|complex|towers)\b/i;
+  if (privateEntityRegex.test(normalizedLower)) {
+    return false;
+  }
+
+  // 6. Reject personal possessive labels without legitimate road indicator (e.g. "Pitta's", "Rao's Garden")
+  if (/'s\b/i.test(normalizedLower)) {
+    const hasRoadSuffix = /\b(?:road|street|lane|gali|veedhi|marg|path|way|rasta|cross|main|highway|expressway|salai|avenue|boulevard|circle|chowk|bypass)\b/i.test(normalizedLower);
+    if (!hasRoadSuffix) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Reverse Geocoding with Nominatim and BigDataCloud.
  * Primarily used for Village / Locality and PIN code (authoritative boundaries take precedence for State/District/Mandal).
  */
@@ -426,63 +478,49 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
         addr.neighbourhood
       ) || undefined;
 
-      // Robust street / precise locality extraction:
-      // Check road, street, path, hamlet, residential, neighbourhood, suburb, quarter, colony, etc.
-      const candidateStreet =
-        namedetails['name:en'] ||
+      // Extract legitimate road / street or colony from OpenStreetMap address details
+      const osmRoad =
         namedetails['name:en:road'] ||
+        namedetails['name:en'] ||
         addr.road ||
         addr.street ||
+        addr.lane ||
         addr.pedestrian ||
         addr.footway ||
         addr.path ||
-        addr.cycleway ||
-        addr.lane ||
-        addr.hamlet ||
-        addr.residential ||
+        addr.cycleway;
+
+      const osmColony =
+        addr.colony ||
         addr.neighbourhood ||
         addr.suburb ||
         addr.quarter ||
-        addr.subdivision ||
-        addr.colony ||
-        addr.allotments ||
-        addr.amenity ||
-        addr.building ||
-        addr.house_number ||
-        addr.place;
+        addr.residential ||
+        addr.subdivision;
 
-      // Extract specific entity from display_name if available
+      let validOsmStreet: string | undefined;
+      if (osmRoad && isLegitimateStreetName(osmRoad, city, mandal, district, state)) {
+        validOsmStreet = osmRoad;
+      } else if (osmColony && isLegitimateStreetName(osmColony, city, mandal, district, state)) {
+        validOsmStreet = osmColony;
+      }
+
+      // If neither is present, inspect display_name parts ONLY for verified road/street/colony tokens
       let displayStreet: string | undefined;
-      if (data.display_name && typeof data.display_name === 'string') {
+      if (!validOsmStreet && data.display_name && typeof data.display_name === 'string') {
         const parts = data.display_name.split(',').map((p: string) => p.trim());
-        const firstSpecific = parts.find((part: string) => {
-          const lower = part.toLowerCase();
-          return (
-            lower &&
-            lower !== (city || '').toLowerCase() &&
-            lower !== (mandal || '').toLowerCase() &&
-            lower !== (district || '').toLowerCase() &&
-            lower !== (state || '').toLowerCase() &&
-            lower !== 'india' &&
-            !/^\d{6}$/.test(part) &&
-            !/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(part)
-          );
+        const validPart = parts.find((part: string) => {
+          if (!isLegitimateStreetName(part, city, mandal, district, state)) return false;
+          // Must contain typical road or colony indicator
+          return /\b(?:road|street|lane|gali|veedhi|marg|path|nagar|colony|layout|enclave|bazaar|thota|thotam|cross|main|sector|block)\b/i.test(part);
         });
-        if (firstSpecific) {
-          displayStreet = firstSpecific;
+        if (validPart) {
+          displayStreet = validPart;
         }
       }
 
-      const rawStreet =
-        candidateStreet &&
-        candidateStreet.toLowerCase() !== (city || '').toLowerCase() &&
-        candidateStreet.toLowerCase() !== (mandal || '').toLowerCase() &&
-        candidateStreet.toLowerCase() !== (district || '').toLowerCase() &&
-        candidateStreet.toLowerCase() !== (state || '').toLowerCase()
-          ? candidateStreet
-          : displayStreet;
-
-      street = normalizeToEnglishText(rawStreet) || undefined;
+      const rawStreet = validOsmStreet || displayStreet;
+      street = rawStreet ? normalizeToEnglishText(rawStreet) : undefined;
 
       pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
       provider = 'nominatim';
@@ -513,18 +551,17 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
           const infoLocality = data.localityInfo?.informative?.find(
             (i: any) =>
               i.name &&
-              i.name.toLowerCase() !== (city || '').toLowerCase() &&
-              i.name.toLowerCase() !== (mandal || '').toLowerCase() &&
-              i.name.toLowerCase() !== (district || '').toLowerCase() &&
-              i.name.toLowerCase() !== (state || '').toLowerCase() &&
-              !/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(i.name)
+              isLegitimateStreetName(i.name, city, mandal, district, state) &&
+              (i.description?.toLowerCase().includes('road') ||
+                i.description?.toLowerCase().includes('street') ||
+                i.description?.toLowerCase().includes('colony') ||
+                i.description?.toLowerCase().includes('nagar'))
           )?.name;
-          const candidate = admin4 || admin5 || infoLocality;
-          if (
-            candidate &&
-            candidate.toLowerCase() !== (city || '').toLowerCase() &&
-            candidate.toLowerCase() !== (mandal || '').toLowerCase()
-          ) {
+
+          const candidate = [admin4, admin5, infoLocality].find(
+            (c) => c && isLegitimateStreetName(c, city, mandal, district, state)
+          );
+          if (candidate) {
             street = normalizeToEnglishText(candidate) || undefined;
           }
         }
@@ -679,33 +716,19 @@ async function getNativeGeocodedAddress(
       city = areas[0];
     }
 
-    const rawFeature = normalizeToEnglishText((addr as any).featureName?.trim());
-    const rawPremises = normalizeToEnglishText((addr as any).premises?.trim());
+    // Street is strictly the road/thoroughfare or a secondary colony/area (NEVER personal building names like "Pitta's Home"):
+    let streetCandidate: string | undefined;
 
-    // Street is strictly the road/thoroughfare, feature, premises, or a secondary area:
-    let streetCandidate =
-      (rawThoroughfare && !PLUS_CODE_REGEX.test(rawThoroughfare) ? rawThoroughfare : undefined) ||
-      (rawSubThoroughfare && !PLUS_CODE_REGEX.test(rawSubThoroughfare) ? rawSubThoroughfare : undefined) ||
-      (rawFeature &&
-        !PLUS_CODE_REGEX.test(rawFeature) &&
-        rawFeature.toLowerCase() !== (city || '').toLowerCase() &&
-        rawFeature.toLowerCase() !== (mandal || '').toLowerCase() &&
-        rawFeature.toLowerCase() !== (district || '').toLowerCase() &&
-        rawFeature.toLowerCase() !== (state || '').toLowerCase()
-          ? rawFeature
-          : undefined) ||
-      (rawPremises && !PLUS_CODE_REGEX.test(rawPremises) ? rawPremises : undefined);
+    if (rawThoroughfare && isLegitimateStreetName(rawThoroughfare, city, mandal, district, state)) {
+      streetCandidate = rawThoroughfare;
+    } else if (rawSubThoroughfare && isLegitimateStreetName(rawSubThoroughfare, city, mandal, district, state)) {
+      streetCandidate = rawSubThoroughfare;
+    }
 
     if (!streetCandidate && areas.length > 0) {
-      const extra = areas.find(
-        (a: string) =>
-          a.toLowerCase() !== (city || '').toLowerCase() &&
-          a.toLowerCase() !== (mandal || '').toLowerCase() &&
-          a.toLowerCase() !== (district || '').toLowerCase() &&
-          a.toLowerCase() !== (state || '').toLowerCase()
-      );
-      if (extra) {
-        streetCandidate = extra;
+      const colonyOrArea = areas.find((a: string) => isLegitimateStreetName(a, city, mandal, district, state));
+      if (colonyOrArea) {
+        streetCandidate = colonyOrArea;
       }
     }
 

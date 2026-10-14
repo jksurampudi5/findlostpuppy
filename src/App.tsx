@@ -232,6 +232,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <PetSafety
               onBackToPet={() => {

@@ -11,7 +11,6 @@ import {
   Check,
   ArrowRight,
   X,
-  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -25,6 +24,7 @@ import { VillageDogTransition } from '../components/ui/VillageDogTransition';
 import { PermissionRationaleModal } from '../components/PermissionRationaleModal';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 import { useLocationDetection, type LocationDetectionResult } from '../hooks/useLocationDetection';
+import { isLegitimateStreetName } from '../utils/geolocationHelper';
 
 interface LocationProps {
   onSuccess?: () => void;
@@ -36,7 +36,7 @@ export const Location: React.FC<LocationProps> = ({
   onSuccess,
   onBack,
 }) => {
-  const { user, hasCompletedLocation, refreshProgress, setActiveOnboardingTab } = useAuth();
+  const { user, refreshProgress, setActiveOnboardingTab } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -62,7 +62,6 @@ export const Location: React.FC<LocationProps> = ({
   }, [refreshProgress]);
 
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
-  const hasExistingData = !!(existingProfile && (existingProfile.district || existingProfile.city));
 
   // Initial values from saved profile
   const initialValidState =
@@ -82,10 +81,12 @@ export const Location: React.FC<LocationProps> = ({
   );
   // Google Plus Code filter — these are machine-generated Open Location Codes, not street names
   const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-  /** Trims a saved street value, returning an empty string for missing values or leading Plus Codes, and normalizes Indic scripts to English. */
+  /** Trims a saved street value, returning an empty string for missing values, leading Plus Codes, or private building names, and normalizes Indic scripts to English. */
   const cleanSavedStreet = (v?: string) => {
     if (!v || PLUS_CODE_RE.test(v.trim())) return '';
-    return normalizeToEnglishText(v.trim());
+    const norm = normalizeToEnglishText(v.trim());
+    if (!isLegitimateStreetName(norm)) return '';
+    return norm;
   };
 
   const [streetOrLocality, setStreetOrLocality] = useState<string>(
@@ -145,15 +146,15 @@ export const Location: React.FC<LocationProps> = ({
   const [localities, setLocalities] = useState<LocationLocality[]>([]);
   const [loadingVillages, setLoadingVillages] = useState(false);
 
-  // Dynamic reactive check: Has location data been saved or loaded?
-  const hasSavedLocation = Boolean(
-    hasCompletedLocation ||
-    (existingProfile && (existingProfile.district && existingProfile.city && (existingProfile.streetOrLocality || (existingProfile as any)?.street))) ||
-    (district && (mandalOrMunicipality && city && streetOrLocality))
+  // Live reactive check: Has any location field been populated?
+  const hasAnyLocationData = Boolean(
+    state.trim() ||
+    district.trim() ||
+    mandalOrMunicipality.trim() ||
+    city.trim() ||
+    streetOrLocality.trim()
   );
 
-  // UI Flow States
-  const [hasDetected, setHasDetected] = useState<boolean>(hasExistingData || hasSavedLocation);
   const [pinConflictNote, setPinConflictNote] = useState<string>('');
   const [lookingUpPin, setLookingUpPin] = useState(false);
   const locationCardsRef = useRef<HTMLDivElement | null>(null);
@@ -162,12 +163,6 @@ export const Location: React.FC<LocationProps> = ({
   const autoSyncTimerRef = useRef<number | null>(null);
 
   const [activeLocationModal, setActiveLocationModal] = useState<'state' | 'district' | 'mandal' | 'city' | null>(null);
-
-  // Sequential lock rules (Owner Profile pattern: each level unlocked only when previous level is filled)
-  const isDistrictLocked = !state.trim();
-  const isMandalLocked = !district.trim();
-  const isHomeLocked = !mandalOrMunicipality.trim();
-  const isStreetLocked = !city.trim() || city.trim().toLowerCase() === mandalOrMunicipality.trim().toLowerCase();
 
   // Snapshot of saved values — used to detect dirty/unsaved changes (Owner Profile pattern)
   const [savedSnapshot, setSavedSnapshot] = useState({
@@ -377,67 +372,6 @@ export const Location: React.FC<LocationProps> = ({
     }, 150);
   };
 
-  // Sequential Card Click Handlers (Blocks access until previous level is complete)
-  const handleDistrictCardClick = () => {
-    if (isDistrictLocked) {
-      showToast('⚠️ Please select State first.', 'warning');
-      setActiveLocationModal('state');
-      return;
-    }
-    setActiveLocationModal('district');
-  };
-
-  const handleMandalCardClick = () => {
-    if (isMandalLocked) {
-      if (isDistrictLocked) {
-        showToast('⚠️ Please select State first.', 'warning');
-        setActiveLocationModal('state');
-      } else {
-        showToast('⚠️ Please select District first.', 'warning');
-        setActiveLocationModal('district');
-      }
-      return;
-    }
-    setActiveLocationModal('mandal');
-  };
-
-  const handleHomeCardClick = () => {
-    if (isHomeLocked) {
-      if (isDistrictLocked) {
-        showToast('⚠️ Please select State first.', 'warning');
-        setActiveLocationModal('state');
-      } else if (isMandalLocked) {
-        showToast('⚠️ Please select District first.', 'warning');
-        setActiveLocationModal('district');
-      } else {
-        showToast('⚠️ Please select Mandal first.', 'warning');
-        setActiveLocationModal('mandal');
-      }
-      return;
-    }
-    setActiveLocationModal('city');
-  };
-
-  const handleStreetCardClick = () => {
-    if (isStreetLocked) {
-      if (isDistrictLocked) {
-        showToast('⚠️ Please select State first.', 'warning');
-        setActiveLocationModal('state');
-      } else if (isMandalLocked) {
-        showToast('⚠️ Please select District first.', 'warning');
-        setActiveLocationModal('district');
-      } else if (isHomeLocked) {
-        showToast('⚠️ Please select Mandal first.', 'warning');
-        setActiveLocationModal('mandal');
-      } else {
-        showToast('⚠️ Please select Home Base (Village / City) first.', 'warning');
-        setActiveLocationModal('city');
-      }
-      return;
-    }
-    streetInputRef.current?.focus();
-  };
-
   // Compute safe public preview string
   const calculatePublicArea = useCallback(() => {
     const parts = [
@@ -496,9 +430,15 @@ export const Location: React.FC<LocationProps> = ({
     // PIN code handling:
     let finalPin = detectedPin && /^\d{6}$/.test(detectedPin.trim()) ? detectedPin.trim() : '';
 
-    // Only set street if it doesn't look like a Plus Code and was actually detected
+    // Only set street if it doesn't look like a Plus Code or private building and was verified as a legitimate street name
     const PLUS_CODE_RE = /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i;
-    const cleanStreet = detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim()) ? detectedStreet : '';
+    let cleanStreet = '';
+    if (detectedStreet && !PLUS_CODE_RE.test(detectedStreet.trim())) {
+      const normStreet = normalizeToEnglishText(detectedStreet.trim());
+      if (isLegitimateStreetName(normStreet, finalCity, effectiveMandal, effectiveDistrict, effectiveState)) {
+        cleanStreet = normStreet;
+      }
+    }
     const resolvedStreet = cleanStreet || (finalCity ? `${finalCity} Main Road` : '');
 
     // 1. POPULATE ALL 4 PRIMARY SQUARES IMMEDIATELY AND SYNCHRONOUSLY
@@ -513,7 +453,6 @@ export const Location: React.FC<LocationProps> = ({
     } else if (finalCity || effectiveMandal) {
       resolvePinCodeForLocality(finalCity || effectiveMandal, effectiveMandal, effectiveDistrict);
     }
-    setHasDetected(true);
     setActiveLocationModal(null);
 
     // 2. Load dropdown localities in background (non-blocking)
@@ -620,7 +559,6 @@ export const Location: React.FC<LocationProps> = ({
     setLongitude(undefined);
     setLocalities([]);
     setPinConflictNote('');
-    setHasDetected(false);
     setActiveLocationModal(null);
 
     setSavedSnapshot({
@@ -804,7 +742,8 @@ export const Location: React.FC<LocationProps> = ({
     mandalOrMunicipality.trim() &&
     city.trim() &&
     city.trim().toLowerCase() !== mandalOrMunicipality.trim().toLowerCase() &&
-    streetOrLocality.trim()
+    streetOrLocality.trim() &&
+    isLegitimateStreetName(streetOrLocality.trim(), city, mandalOrMunicipality, district, state)
   );
 
   useEffect(() => {
@@ -823,19 +762,22 @@ export const Location: React.FC<LocationProps> = ({
     if (isTransitioningBack || isTransitioningForward) return;
     if (!isLocationValid) {
       if (!state.trim()) {
-        showToast('⚠️ State is mandatory before continuing.', 'warning');
+        showToast('🔒 Location component is locked: State is mandatory before continuing.', 'warning');
         setActiveLocationModal('state');
       } else if (!district.trim()) {
-        showToast('⚠️ District is mandatory before continuing.', 'warning');
+        showToast('🔒 Location component is locked: District is mandatory before continuing.', 'warning');
         setActiveLocationModal('district');
       } else if (!mandalOrMunicipality.trim()) {
-        showToast('⚠️ Mandal is mandatory before continuing.', 'warning');
+        showToast('🔒 Location component is locked: Mandal is mandatory before continuing.', 'warning');
         setActiveLocationModal('mandal');
       } else if (!city.trim() || city.trim().toLowerCase() === mandalOrMunicipality.trim().toLowerCase()) {
-        showToast('⚠️ Home Base (Village / City) is mandatory before continuing.', 'warning');
+        showToast('🔒 Location component is locked: Home Base (Village / City) is mandatory before continuing.', 'warning');
         setActiveLocationModal('city');
       } else if (!streetOrLocality.trim()) {
-        showToast('⚠️ Street / Precise Area is mandatory before continuing.', 'warning');
+        showToast('🔒 Location component is locked: Street / Precise Area is mandatory before continuing.', 'warning');
+        streetInputRef.current?.focus();
+      } else if (!isLegitimateStreetName(streetOrLocality.trim(), city, mandalOrMunicipality, district, state)) {
+        showToast('⚠️ Please enter a legitimate public street or road name (not private home or building names).', 'warning');
         streetInputRef.current?.focus();
       }
       return;
@@ -873,7 +815,7 @@ export const Location: React.FC<LocationProps> = ({
 
   const handleExitToDashboard = () => {
     if (!isLocationValid) {
-      showToast('⚠️ Please complete your Location first (State, District, Mandal, Home Base, and Street are mandatory).', 'warning');
+      showToast('🔒 Location component is locked. Please complete State, District, Mandal, Home Base, and Street before exiting to another component.', 'warning');
       if (!state.trim()) {
         setActiveLocationModal('state');
       } else if (!district.trim()) {
@@ -932,7 +874,7 @@ export const Location: React.FC<LocationProps> = ({
                 ) : (
                   <>
                     <Navigation size={18} />
-                    <span>{hasDetected || hasSavedLocation ? 'Detect Location Again' : 'Detect Location'}</span>
+                    <span>{hasAnyLocationData ? 'Detect Location Again' : 'Detect Location'}</span>
                   </>
                 )}
               </button>
@@ -956,7 +898,7 @@ export const Location: React.FC<LocationProps> = ({
                 type="button"
                 className="loc-grid-square loc-gsq-state"
                 onClick={() => setActiveLocationModal('state')}
-                title="Click to change State"
+                title="Click to select State"
               >
                 <div className="loc-gsq-top">
                   <div className="loc-gsq-icon">
@@ -972,26 +914,19 @@ export const Location: React.FC<LocationProps> = ({
               {/* 2. DISTRICT SQUARE */}
               <button
                 type="button"
-                className={`loc-grid-square loc-gsq-district ${isDistrictLocked ? 'is-locked' : ''}`}
-                onClick={handleDistrictCardClick}
-                title={isDistrictLocked ? 'Locked: Please select State first' : 'Click to change District'}
-                aria-disabled={isDistrictLocked}
+                className="loc-grid-square loc-gsq-district"
+                onClick={() => setActiveLocationModal('district')}
+                title="Click to select District"
               >
                 <div className="loc-gsq-top">
                   <div className="loc-gsq-icon">
-                    {isDistrictLocked ? <Lock size={18} /> : <Building2 size={20} />}
+                    <Building2 size={20} />
                   </div>
-                  <span className="loc-gsq-label">
-                    District {isDistrictLocked && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>(Locked)</span>}
-                  </span>
+                  <span className="loc-gsq-label">District</span>
                 </div>
                 <div className="loc-gsq-value-wrap">
                   <strong className="loc-gsq-value">
-                    {district || (
-                      <span className="loc-gsq-placeholder">
-                        {isDistrictLocked ? 'Select State first' : 'Select District'}
-                      </span>
-                    )}
+                    {district || <span className="loc-gsq-placeholder">Select District</span>}
                   </strong>
                 </div>
               </button>
@@ -999,26 +934,19 @@ export const Location: React.FC<LocationProps> = ({
               {/* 3. MANDAL SQUARE */}
               <button
                 type="button"
-                className={`loc-grid-square loc-gsq-mandal ${isMandalLocked ? 'is-locked' : ''}`}
-                onClick={handleMandalCardClick}
-                title={isMandalLocked ? (isDistrictLocked ? 'Locked: Please select State first' : 'Locked: Please select District first') : 'Click to change Mandal'}
-                aria-disabled={isMandalLocked}
+                className="loc-grid-square loc-gsq-mandal"
+                onClick={() => setActiveLocationModal('mandal')}
+                title="Click to select Mandal"
               >
                 <div className="loc-gsq-top">
                   <div className="loc-gsq-icon">
-                    {isMandalLocked ? <Lock size={18} /> : <MapPin size={20} />}
+                    <MapPin size={20} />
                   </div>
-                  <span className="loc-gsq-label">
-                    Mandal {isMandalLocked && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>(Locked)</span>}
-                  </span>
+                  <span className="loc-gsq-label">Mandal</span>
                 </div>
                 <div className="loc-gsq-value-wrap">
                   <strong className="loc-gsq-value">
-                    {mandalOrMunicipality || (
-                      <span className="loc-gsq-placeholder">
-                        {isMandalLocked ? (isDistrictLocked ? 'Select State first' : 'Select District first') : 'Select Mandal'}
-                      </span>
-                    )}
+                    {mandalOrMunicipality || <span className="loc-gsq-placeholder">Select Mandal</span>}
                   </strong>
                 </div>
               </button>
@@ -1026,37 +954,28 @@ export const Location: React.FC<LocationProps> = ({
               {/* 4. HOME BASE SQUARE */}
               <button
                 type="button"
-                className={`loc-grid-square loc-gsq-home ${isHomeLocked ? 'is-locked' : ''}`}
-                onClick={handleHomeCardClick}
-                title={isHomeLocked ? 'Locked: Please select Mandal first' : 'Click to change Home Base (City / Village)'}
-                aria-disabled={isHomeLocked}
+                className="loc-grid-square loc-gsq-home"
+                onClick={() => setActiveLocationModal('city')}
+                title="Click to select Home Base (City / Village)"
               >
                 <div className="loc-gsq-top">
                   <div className="loc-gsq-icon">
-                    {isHomeLocked ? <Lock size={18} /> : <Home size={20} />}
+                    <Home size={20} />
                   </div>
-                  <span className="loc-gsq-label">
-                    Village / Home Base {isHomeLocked && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>(Locked)</span>}
-                  </span>
+                  <span className="loc-gsq-label">Village / Home Base</span>
                 </div>
                 <div className="loc-gsq-value-wrap">
                   <strong className="loc-gsq-value">
-                    {city || (
-                      <span className="loc-gsq-placeholder">
-                        {isHomeLocked ? 'Select Mandal first' : 'Select Village'}
-                      </span>
-                    )}
+                    {city || <span className="loc-gsq-placeholder">Select Village</span>}
                   </strong>
                   <span className="loc-gsq-pin-btn">
-                    {isHomeLocked
-                      ? 'Select Mandal first'
-                      : loadingVillages
-                        ? 'Loading home bases...'
-                        : lookingUpPin
-                          ? 'Resolving PIN...'
-                          : pinCode
-                            ? `PIN ${pinCode}`
-                            : 'PIN appears after selection'}
+                    {loadingVillages
+                      ? 'Loading home bases...'
+                      : lookingUpPin
+                        ? 'Resolving PIN...'
+                        : pinCode
+                          ? `PIN ${pinCode}`
+                          : 'PIN appears after selection'}
                   </span>
                 </div>
               </button>
@@ -1065,21 +984,20 @@ export const Location: React.FC<LocationProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', padding: '0.75rem 0.25rem 0' }}>
               {/* 5. STREET / LOCALITY SQUARE */}
               <div
-                className={`loc-grid-square loc-gsq-street ${isStreetLocked ? 'is-locked' : ''}`}
+                className="loc-grid-square loc-gsq-street"
                 style={{
-                  cursor: isStreetLocked ? 'not-allowed' : 'text',
-                  border: !isStreetLocked && !streetOrLocality.trim() ? '1.5px dashed rgba(245, 158, 11, 0.6)' : undefined,
+                  cursor: 'text',
+                  border: !streetOrLocality.trim() ? '1.5px dashed rgba(245, 158, 11, 0.6)' : undefined,
                 }}
-                onClick={handleStreetCardClick}
-                title={isStreetLocked ? 'Locked: Please select Home Base (Village / City) first' : 'Street / Precise Area is mandatory'}
+                onClick={() => streetInputRef.current?.focus()}
+                title="Street / Precise Area is mandatory"
               >
                 <div className="loc-gsq-top">
                   <div className="loc-gsq-icon">
-                    {isStreetLocked ? <Lock size={18} /> : <MapPin size={20} />}
+                    <MapPin size={20} />
                   </div>
                   <span className="loc-gsq-label">
                     Street / Precise Area <span style={{ color: '#EF4444', fontWeight: 'bold' }}>*</span>
-                    {isStreetLocked && <span style={{ fontSize: '0.72rem', opacity: 0.7, marginLeft: '0.25rem' }}>(Locked)</span>}
                   </span>
                 </div>
                 <div className="loc-gsq-value-wrap" style={{ width: '100%' }}>
@@ -1087,37 +1005,28 @@ export const Location: React.FC<LocationProps> = ({
                     ref={streetInputRef}
                     type="text"
                     value={streetOrLocality}
-                    disabled={isStreetLocked}
-                    onClick={(e) => {
-                      if (isStreetLocked) {
-                        e.preventDefault();
-                        handleStreetCardClick();
-                      }
-                    }}
                     onChange={(e) => setStreetOrLocality(e.target.value)}
                     onBlur={() => {
                       if (hasNonLatinScript(streetOrLocality)) {
                         setStreetOrLocality(normalizeToEnglishText(streetOrLocality));
                       }
                     }}
-                    placeholder={isStreetLocked ? 'Locked (Select Home Base first)' : 'Enter street / road / colony name *'}
+                    placeholder="Enter street / road / colony name *"
                     className="loc-gsq-value"
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: isStreetLocked ? 'rgba(255, 255, 255, 0.4)' : '#fff',
+                      color: '#fff',
                       width: '100%',
                       outline: 'none',
                       padding: 0,
                       fontWeight: 'bold',
                       textAlign: 'center',
-                      cursor: isStreetLocked ? 'not-allowed' : 'text',
+                      cursor: 'text',
                     }}
                   />
-                  <span className="loc-gsq-pin-btn" style={{ cursor: isStreetLocked ? 'not-allowed' : 'text' }}>
-                    {isStreetLocked ? (
-                      'Locked: Select Village / Home Base first'
-                    ) : streetOrLocality.trim() ? (
+                  <span className="loc-gsq-pin-btn" style={{ cursor: 'text' }}>
+                    {streetOrLocality.trim() ? (
                       'Editable street / colony'
                     ) : (
                       <span style={{ color: '#F59E0B', fontWeight: 600 }}>⚠️ Street name is mandatory *</span>
@@ -1161,7 +1070,7 @@ export const Location: React.FC<LocationProps> = ({
                       onClick={handleProceedToPup}
                       disabled={!isLocationValid}
                       className="btn btn-primary btn-lg continue-to-pup-btn"
-                      title={isLocationValid ? 'Continue to Pet Details' : 'Please complete State, District, Mandal, Home Base, and Street'}
+                      title={isLocationValid ? 'Continue to Pet Details' : '🔒 Location component is locked: Please complete State, District, Mandal, Home Base, and Street'}
                       style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                     >
                       <span>Continue to Pet Details</span>
@@ -1179,7 +1088,7 @@ export const Location: React.FC<LocationProps> = ({
                       onClick={handleProceedToPup}
                       disabled={!isLocationValid}
                       className="btn btn-primary btn-lg continue-to-pup-btn"
-                      title={isLocationValid ? 'Continue to Pet Details' : 'Please complete State, District, Mandal, Home Base, and Street'}
+                      title={isLocationValid ? 'Continue to Pet Details' : '🔒 Location component is locked: Please complete State, District, Mandal, Home Base, and Street'}
                       style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                     >
                       <span>Continue to Pet Details</span>
