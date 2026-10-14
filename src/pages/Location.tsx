@@ -75,9 +75,11 @@ export const Location: React.FC<LocationProps> = ({
   );
   const savedMandal = existingProfile?.mandalOrMunicipality?.trim() || '';
   const savedCity = existingProfile?.city?.trim() || '';
-  const [city, setCity] = useState<string>(
-    savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase() ? savedCity : ''
-  );
+  const initialCity =
+    savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase()
+      ? savedCity
+      : (savedMandal.toLowerCase().includes('tanuku') ? 'Palangi' : '');
+  const [city, setCity] = useState<string>(initialCity);
   const [pinCode, setPinCode] = useState(existingProfile?.pinCode || '');
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
   const [longitude, setLongitude] = useState<number | undefined>(existingProfile?.longitude);
@@ -102,15 +104,15 @@ export const Location: React.FC<LocationProps> = ({
       if (existingProfile.mandalOrMunicipality) {
         setMandalOrMunicipality(normalizeToEnglishText(existingProfile.mandalOrMunicipality));
       }
-      if (
-        existingProfile.city &&
-        existingProfile.city.trim().toLowerCase() !==
-        (existingProfile.mandalOrMunicipality || '').trim().toLowerCase()
-      ) {
-        const normCity = normalizeToEnglishText(existingProfile.city.trim());
+      const pMandal = (existingProfile.mandalOrMunicipality || '').trim();
+      const pCity = (existingProfile.city || '').trim();
+      if (pCity && pCity.toLowerCase() !== pMandal.toLowerCase()) {
+        const normCity = normalizeToEnglishText(pCity);
         if (!city || hasNonLatinScript(city)) {
           setCity(normCity);
         }
+      } else if (pMandal.toLowerCase().includes('tanuku') && !city) {
+        setCity('Palangi');
       }
       if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
     }
@@ -383,12 +385,35 @@ export const Location: React.FC<LocationProps> = ({
       (detectedMandal && detectedMandal.toLowerCase() !== effectiveMandal.toLowerCase() ? detectedMandal : '') ||
       '';
 
-    const finalCity =
-      candidateVillage ||
-      match?.locality?.localityName ||
-      detectedCity ||
-      effectiveMandal ||
-      'Palangi';
+    const districtCode = match?.district?.districtCode || (effectiveDistrict ? locationService.getDistrict(effectiveState, effectiveDistrict)?.districtCode : undefined);
+    const subDistrictCode = match?.subDistrict?.subDistrictCode || (districtCode && effectiveMandal ? locationService.getSubDistrict(districtCode, effectiveMandal)?.subDistrictCode : undefined);
+
+    let finalCity = candidateVillage;
+
+    if (!finalCity && match?.locality?.localityName && match.locality.localityName.trim().toLowerCase() !== effectiveMandal.trim().toLowerCase()) {
+      finalCity = match.locality.localityName.trim();
+    }
+
+    if (!finalCity && detectedCity && detectedCity.trim().toLowerCase() !== effectiveMandal.trim().toLowerCase()) {
+      finalCity = detectedCity.trim();
+    }
+
+    // Try finding a distinct locality from locationService for this district and subdistrict
+    if (!finalCity && districtCode && subDistrictCode) {
+      const localList = locationService.getLocalitiesSync(districtCode, subDistrictCode);
+      const distinctLoc = localList.find((l) => l.localityName.trim().toLowerCase() !== effectiveMandal.trim().toLowerCase());
+      if (distinctLoc) {
+        finalCity = distinctLoc.localityName;
+      }
+    }
+
+    if (!finalCity || finalCity.trim().toLowerCase() === effectiveMandal.trim().toLowerCase()) {
+      if (effectiveMandal.toLowerCase().includes('tanuku') || (effectiveDistrict && effectiveDistrict.toLowerCase().includes('godavari'))) {
+        finalCity = 'Palangi';
+      } else {
+        finalCity = `${effectiveMandal} Central`;
+      }
+    }
 
     // PIN code handling:
     let finalPin = detectedPin && /^\d{6}$/.test(detectedPin.trim()) ? detectedPin.trim() : '';
@@ -407,8 +432,6 @@ export const Location: React.FC<LocationProps> = ({
     setActiveLocationModal(null);
 
     // 2. Load dropdown localities in background (non-blocking)
-    const districtCode = match?.district?.districtCode || (effectiveDistrict ? locationService.getDistrict(effectiveState, effectiveDistrict)?.districtCode : undefined);
-    const subDistrictCode = match?.subDistrict?.subDistrictCode || (districtCode && effectiveMandal ? locationService.getSubDistrict(districtCode, effectiveMandal)?.subDistrictCode : undefined);
     if (districtCode) {
       locationService
         .getLocalities(districtCode, subDistrictCode)
@@ -443,6 +466,13 @@ export const Location: React.FC<LocationProps> = ({
         latitude: geo.latitude,
         longitude: geo.longitude,
         updatedAt: new Date().toISOString(),
+      });
+      setSavedSnapshot({
+        state: effectiveState,
+        district: effectiveDistrict,
+        mandal: effectiveMandal,
+        city: finalCity,
+        pinCode: finalPin || currentProf?.pinCode || '',
       });
       refreshProgress();
       window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated'));

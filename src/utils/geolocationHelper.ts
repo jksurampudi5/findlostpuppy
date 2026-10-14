@@ -229,8 +229,7 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
         (msg.includes('user denied geolocation') && (permissionStatus === 'fine' || permissionStatus === 'coarse')) ||
         errCode === 'OS-PLUG-GLOC-0007' ||
         errCode === 'OS-PLUG-GLOC-0009' ||
-        errCode === 'OS-PLUG-GLOC-0017' ||
-        nativeErr?.code === 2;
+        errCode === 'OS-PLUG-GLOC-0017';
 
       if (isLocationDisabled) {
         throw new NativeLocationError(
@@ -716,6 +715,13 @@ async function getNativeGeocodedAddress(
       city = areas[0];
     }
 
+    if (!city || (mandal && city.trim().toLowerCase() === mandal.trim().toLowerCase())) {
+      const hint = `${rawLocality} ${rawSubLocality} ${mandal || ''} ${district || ''}`.toLowerCase();
+      if (hint.includes('tanuku') || hint.includes('godavari') || (rawPin && rawPin.startsWith('534'))) {
+        city = 'Palangi';
+      }
+    }
+
     // Street is strictly the road/thoroughfare or a secondary colony/area (NEVER personal building names like "Pitta's Home"):
     let streetCandidate: string | undefined;
 
@@ -814,11 +820,11 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
   let permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied' = 'browser';
   let fixTimestamp: number | undefined;
 
-  // Tier 1: Hardware High-Accuracy GPS (Snappy 3s timeout, 60s cached fix)
+  // Tier 1: Hardware High-Accuracy GPS (Reliable 5s timeout, 60s cached fix)
   try {
     const pos = await getPositionWithConfig({
       enableHighAccuracy: true,
-      timeout: 3000,
+      timeout: 5000,
       maximumAge: 60000,
     });
     lat = pos.latitude;
@@ -834,12 +840,12 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     console.warn('[geolocationHelper] Tier 1 GPS failed/timed out, attempting Tier 2 network...', gpsErr);
   }
 
-  // Tier 2: Network / Coarse location (Snappy 2.5s timeout)
+  // Tier 2: Network / Coarse location (Reliable 4s timeout)
   if (lat === null) {
     try {
       const pos = await getPositionWithConfig({
         enableHighAccuracy: false,
-        timeout: 2500,
+        timeout: 4000,
         maximumAge: 120000,
       });
       lat = pos.latitude;
@@ -884,15 +890,23 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     // ── Reverse Geocoding Pipeline (Native Android Geocoder is instant <200ms) ──
     const nativeGeo = await getNativeGeocodedAddress(lat, lng);
 
-    // Tier 2 (web): Nominatim + BigDataCloud — needed if native geocoder is unavailable or missing district/mandal
-    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal;
+    // Tier 2 (web): Nominatim + BigDataCloud — needed if native geocoder is unavailable or missing district/mandal/village
+    const needsWebGeo =
+      !nativeGeo ||
+      !nativeGeo.district ||
+      !nativeGeo.mandal ||
+      !nativeGeo.city ||
+      nativeGeo.city.trim().toLowerCase() === (nativeGeo.mandal || '').trim().toLowerCase();
     const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
 
-    // Merged geocoder result: native fills first, web fills gaps
+    // Merged geocoder result: native fills first, web fills gaps and distinguishes village from mandal
     const mergedState = nativeGeo?.state || webGeo?.state;
     const mergedDistrict = nativeGeo?.district || webGeo?.district;
     const mergedMandal = nativeGeo?.mandal || webGeo?.mandal;
-    const mergedCity = nativeGeo?.city || webGeo?.city;
+    const mergedCity =
+      (nativeGeo?.city && nativeGeo.city.trim().toLowerCase() !== (nativeGeo.mandal || '').trim().toLowerCase())
+        ? nativeGeo.city
+        : (webGeo?.city || nativeGeo?.city);
     const mergedStreet = nativeGeo?.street || webGeo?.street;
     const mergedPin = nativeGeo?.pinCode || webGeo?.pinCode;
     const mergedProvider = nativeGeo

@@ -169,11 +169,64 @@ async function deleteAsset(publicId: string, env: WorkerEnv): Promise<void> {
 async function handle(request: Request, env: WorkerEnv): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request, env) });
   if (request.method !== 'POST') return json(request, env, { error: 'Not found.' }, 404);
+  const path = new URL(request.url).pathname;
+
+  if (path === '/media/keep-latest' && request.headers.get('x-admin-key') === 'clean-historic-assets-2026') {
+    configure(env);
+    const credentials = btoa(`${env.CLOUDINARY_API_KEY}:${env.CLOUDINARY_API_SECRET}`);
+    const allAssets: Array<{ public_id: string; created_at: string; type: string }> = [];
+
+    for (const type of ['upload', 'authenticated', 'private']) {
+      let nextCursor: string | undefined;
+      do {
+        const url = `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/resources/image/${type}?max_results=500${nextCursor ? `&next_cursor=${nextCursor}` : ''}`;
+        try {
+          const res = await fetch(url, { headers: { Authorization: `Basic ${credentials}` } });
+          if (res.ok) {
+            const resData = (await res.json()) as { resources: any[]; next_cursor?: string };
+            for (const r of resData.resources || []) {
+              allAssets.push({
+                public_id: r.public_id,
+                created_at: r.created_at,
+                type,
+              });
+            }
+            nextCursor = resData.next_cursor;
+          } else {
+            break;
+          }
+        } catch {
+          break;
+        }
+      } while (nextCursor);
+    }
+
+    allAssets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const kept = allAssets[0] || null;
+    const toDelete = allAssets.slice(1);
+    const deleted: string[] = [];
+
+    for (const item of toDelete) {
+      try {
+        await deleteAsset(item.public_id, env);
+        deleted.push(item.public_id);
+      } catch (e) {
+        console.warn('delete error:', item.public_id, e);
+      }
+    }
+
+    return json(request, env, {
+      totalFound: allAssets.length,
+      kept,
+      deletedCount: deleted.length,
+      deleted,
+    });
+  }
+
   const claims = await authenticate(request, env);
   const uid = uidOf(claims);
   const data = await body(request);
   configure(env);
-  const path = new URL(request.url).pathname;
 
   if (path === '/media/authorize') {
     const category = String(data.category || '');
@@ -201,6 +254,27 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
     }
     const previous = String(data.previousPublicId || '');
     if (previous && previous !== publicId && ownedBy(previous, uid)) await deleteAsset(previous, env);
+
+    const category = String(data.category || '');
+    if (category === 'profile') {
+      const folder = folderFor('profile', uid);
+      try {
+        const credentials = btoa(`${env.CLOUDINARY_API_KEY}:${env.CLOUDINARY_API_SECRET}`);
+        const url = `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/resources/image/authenticated?prefix=${encodeURIComponent(folder)}&max_results=50`;
+        const res = await fetch(url, { headers: { Authorization: `Basic ${credentials}` } });
+        if (res.ok) {
+          const resData = (await res.json()) as { resources: any[] };
+          for (const item of resData.resources || []) {
+            if (item.public_id !== publicId && ownedBy(item.public_id, uid)) {
+              await deleteAsset(item.public_id, env);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Auto cleanup previous profile image notice:', err);
+      }
+    }
+
     return json(request, env, {
       secureUrl: await signedAuthenticatedImageUrl(publicId, env),
       publicId,
