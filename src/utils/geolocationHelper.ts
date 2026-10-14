@@ -446,26 +446,39 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
         addr.subdivision ||
         addr.colony ||
         addr.allotments ||
-        addr.amenity;
+        addr.amenity ||
+        addr.building ||
+        addr.house_number ||
+        addr.place;
 
       // Extract specific entity from display_name if available
       let displayStreet: string | undefined;
       if (data.display_name && typeof data.display_name === 'string') {
         const parts = data.display_name.split(',').map((p: string) => p.trim());
-        // parts[0] is the most specific geographic entity (e.g. "Karravarisavaram", "Tanuku Velivennu Road")
-        if (
-          parts[0] &&
-          parts[0].toLowerCase() !== (city || '').toLowerCase() &&
-          parts[0].toLowerCase() !== (district || '').toLowerCase() &&
-          parts[0].toLowerCase() !== (state || '').toLowerCase() &&
-          parts[0].toLowerCase() !== 'india'
-        ) {
-          displayStreet = parts[0];
+        const firstSpecific = parts.find((part: string) => {
+          const lower = part.toLowerCase();
+          return (
+            lower &&
+            lower !== (city || '').toLowerCase() &&
+            lower !== (mandal || '').toLowerCase() &&
+            lower !== (district || '').toLowerCase() &&
+            lower !== (state || '').toLowerCase() &&
+            lower !== 'india' &&
+            !/^\d{6}$/.test(part) &&
+            !/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(part)
+          );
+        });
+        if (firstSpecific) {
+          displayStreet = firstSpecific;
         }
       }
 
       const rawStreet =
-        candidateStreet && candidateStreet.toLowerCase() !== (city || '').toLowerCase()
+        candidateStreet &&
+        candidateStreet.toLowerCase() !== (city || '').toLowerCase() &&
+        candidateStreet.toLowerCase() !== (mandal || '').toLowerCase() &&
+        candidateStreet.toLowerCase() !== (district || '').toLowerCase() &&
+        candidateStreet.toLowerCase() !== (state || '').toLowerCase()
           ? candidateStreet
           : displayStreet;
 
@@ -496,17 +509,22 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
         city = city || normalizeToEnglishText(data.city || data.locality) || undefined;
         if (!street) {
           const admin4 = data.localityInfo?.administrative?.[4]?.name;
+          const admin5 = data.localityInfo?.administrative?.[5]?.name;
           const infoLocality = data.localityInfo?.informative?.find(
             (i: any) =>
               i.name &&
               i.name.toLowerCase() !== (city || '').toLowerCase() &&
-              (i.description?.toLowerCase().includes('road') ||
-                i.description?.toLowerCase().includes('street') ||
-                i.description?.toLowerCase().includes('village') ||
-                i.order >= 8)
+              i.name.toLowerCase() !== (mandal || '').toLowerCase() &&
+              i.name.toLowerCase() !== (district || '').toLowerCase() &&
+              i.name.toLowerCase() !== (state || '').toLowerCase() &&
+              !/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(i.name)
           )?.name;
-          const candidate = admin4 || infoLocality;
-          if (candidate && candidate.toLowerCase() !== (city || '').toLowerCase()) {
+          const candidate = admin4 || admin5 || infoLocality;
+          if (
+            candidate &&
+            candidate.toLowerCase() !== (city || '').toLowerCase() &&
+            candidate.toLowerCase() !== (mandal || '').toLowerCase()
+          ) {
             street = normalizeToEnglishText(candidate) || undefined;
           }
         }
@@ -661,25 +679,36 @@ async function getNativeGeocodedAddress(
       city = areas[0];
     }
 
-    // Street is strictly the road/thoroughfare, or a secondary area:
+    const rawFeature = normalizeToEnglishText((addr as any).featureName?.trim());
+    const rawPremises = normalizeToEnglishText((addr as any).premises?.trim());
+
+    // Street is strictly the road/thoroughfare, feature, premises, or a secondary area:
     let streetCandidate =
       (rawThoroughfare && !PLUS_CODE_REGEX.test(rawThoroughfare) ? rawThoroughfare : undefined) ||
-      (rawSubThoroughfare && !PLUS_CODE_REGEX.test(rawSubThoroughfare) ? rawSubThoroughfare : undefined);
+      (rawSubThoroughfare && !PLUS_CODE_REGEX.test(rawSubThoroughfare) ? rawSubThoroughfare : undefined) ||
+      (rawFeature &&
+        !PLUS_CODE_REGEX.test(rawFeature) &&
+        rawFeature.toLowerCase() !== (city || '').toLowerCase() &&
+        rawFeature.toLowerCase() !== (mandal || '').toLowerCase() &&
+        rawFeature.toLowerCase() !== (district || '').toLowerCase() &&
+        rawFeature.toLowerCase() !== (state || '').toLowerCase()
+          ? rawFeature
+          : undefined) ||
+      (rawPremises && !PLUS_CODE_REGEX.test(rawPremises) ? rawPremises : undefined);
 
-    if (!streetCandidate && areas.length > 1) {
-      const extra = areas.find((a: string) => a !== city && a !== mandal);
+    if (!streetCandidate && areas.length > 0) {
+      const extra = areas.find(
+        (a: string) =>
+          a.toLowerCase() !== (city || '').toLowerCase() &&
+          a.toLowerCase() !== (mandal || '').toLowerCase() &&
+          a.toLowerCase() !== (district || '').toLowerCase() &&
+          a.toLowerCase() !== (state || '').toLowerCase()
+      );
       if (extra) {
         streetCandidate = extra;
       }
     }
 
-    if (!streetCandidate) {
-      if ((city && city.toLowerCase().includes('palangi')) || (rawLocality && rawLocality.toLowerCase().includes('tanuku'))) {
-        streetCandidate = 'Karravarisavaram';
-      } else if (city) {
-        streetCandidate = `${city} Main Road`;
-      }
-    }
     const street = streetCandidate;
 
     console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, street, pinCode,
@@ -832,8 +861,8 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     // ── Reverse Geocoding Pipeline (Native Android Geocoder is instant <200ms) ──
     const nativeGeo = await getNativeGeocodedAddress(lat, lng);
 
-    // Tier 2 (web): Nominatim + BigDataCloud — only needed if native geocoder is unavailable or missing district/mandal
-    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal;
+    // Tier 2 (web): Nominatim + BigDataCloud — needed if native geocoder is unavailable or missing district/mandal/street
+    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal || !nativeGeo.street;
     const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
 
     // Merged geocoder result: native fills first, web fills gaps
