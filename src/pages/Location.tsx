@@ -78,7 +78,7 @@ export const Location: React.FC<LocationProps> = ({
   const initialCity =
     savedCity && savedCity.toLowerCase() !== savedMandal.toLowerCase()
       ? savedCity
-      : (savedMandal.toLowerCase().includes('tanuku') ? 'Palangi' : '');
+      : '';
   const [city, setCity] = useState<string>(initialCity);
   const [pinCode, setPinCode] = useState(existingProfile?.pinCode || '');
   const [latitude, setLatitude] = useState<number | undefined>(existingProfile?.latitude);
@@ -111,8 +111,6 @@ export const Location: React.FC<LocationProps> = ({
         if (!city || hasNonLatinScript(city)) {
           setCity(normCity);
         }
-      } else if (pMandal.toLowerCase().includes('tanuku') && !city) {
-        setCity('Palangi');
       }
       if (!pinCode && existingProfile.pinCode) setPinCode(existingProfile.pinCode);
     }
@@ -408,11 +406,7 @@ export const Location: React.FC<LocationProps> = ({
     }
 
     if (!finalCity || finalCity.trim().toLowerCase() === effectiveMandal.trim().toLowerCase()) {
-      if (effectiveMandal.toLowerCase().includes('tanuku') || (effectiveDistrict && effectiveDistrict.toLowerCase().includes('godavari'))) {
-        finalCity = 'Palangi';
-      } else {
-        finalCity = `${effectiveMandal} Central`;
-      }
+      finalCity = `${effectiveMandal} Central`;
     }
 
     // PIN code handling:
