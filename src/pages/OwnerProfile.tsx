@@ -115,21 +115,26 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     if (p) {
       const cleanedName = sanitizePersonName(p.fullName, currentUser.email || p.email);
       if (cleanedName) setFullName(cleanedName);
-      if (p.phone) setPhone(p.phone);
-      const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo)) ? p.photo : '';
+      const resolvedPhone = p.phone || currentUser.phone || '';
+      if (resolvedPhone) setPhone(resolvedPhone);
+      const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo))
+        ? p.photo
+        : (currentUser.avatar && isValidOwnerPhoto(currentUser.avatar))
+          ? currentUser.avatar
+          : '';
       if (effectivePhoto) setPhoto(effectivePhoto);
       if (p.preferredContact) setPreferredContact(p.preferredContact);
 
       setSavedSnapshot({
         name: cleanedName,
-        phone: p.phone || currentUser.phone || '',
+        phone: resolvedPhone,
         photo: effectivePhoto,
         contact: p.preferredContact || 'phone',
       });
 
       const hasAllThree = Boolean(
         cleanedName &&
-        p.phone &&
+        resolvedPhone &&
         effectivePhoto &&
         isValidOwnerPhoto(effectivePhoto)
       );

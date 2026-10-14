@@ -110,27 +110,39 @@ export const firebaseSyncService = {
         }
       }
 
-      await setDoc(doc(db, 'profiles', cleanUserId), {
+      const payload: Record<string, any> = {
         id: cleanUserId,
         userId: cleanUserId,
-        fullName: user.fullName || user.name || user.email.split('@')[0],
         email: user.email.toLowerCase().trim(),
-        phone: user.phone || '',
-        photo: ownerAvatar || null,
-        photoChangeMonth: user.photoChangeMonth || null,
-        photoChangeCount: user.photoChangeCount || 0,
-        photoLastChangedAt: user.photoLastChangedAt || null,
-        photoChangeApprovalRequired: user.photoChangeApprovalRequired || false,
-        preferredContact: user.preferredContact || 'phone',
-        address: user.address || '',
-        state: user.state || '',
-        district: user.district || '',
-        mandalOrMunicipality: user.mandalOrMunicipality || '',
-        city: user.city || '',
-        pinCode: user.pinCode || '',
         updatedAt: new Date().toISOString(),
-        createdAt: user.createdAt || new Date().toISOString(),
-      }, { merge: true });
+      };
+
+      const resolvedName = user.fullName || user.name;
+      if (resolvedName && resolvedName.trim()) {
+        payload.fullName = resolvedName.trim();
+      }
+      if (user.phone && user.phone.trim()) {
+        payload.phone = user.phone.trim();
+      }
+      if (ownerAvatar && ownerAvatar.trim()) {
+        payload.photo = ownerAvatar.trim();
+      }
+      if (user.preferredContact) {
+        payload.preferredContact = user.preferredContact;
+      }
+      if (user.photoChangeMonth) payload.photoChangeMonth = user.photoChangeMonth;
+      if (typeof user.photoChangeCount === 'number') payload.photoChangeCount = user.photoChangeCount;
+      if (user.photoLastChangedAt) payload.photoLastChangedAt = user.photoLastChangedAt;
+      if (typeof user.photoChangeApprovalRequired === 'boolean') payload.photoChangeApprovalRequired = user.photoChangeApprovalRequired;
+      if (user.address && user.address.trim()) payload.address = user.address.trim();
+      if (user.state && user.state.trim()) payload.state = user.state.trim();
+      if (user.district && user.district.trim()) payload.district = user.district.trim();
+      if (user.mandalOrMunicipality && user.mandalOrMunicipality.trim()) payload.mandalOrMunicipality = user.mandalOrMunicipality.trim();
+      if (user.city && user.city.trim()) payload.city = user.city.trim();
+      if (user.pinCode && user.pinCode.trim()) payload.pinCode = user.pinCode.trim();
+      if (user.createdAt) payload.createdAt = user.createdAt;
+
+      await setDoc(doc(db, 'profiles', cleanUserId), payload, { merge: true });
       return true;
     } catch (err: any) {
       console.warn('[Firebase] syncUserProfile error:', err);
@@ -189,33 +201,44 @@ export const firebaseSyncService = {
       const payload: Record<string, any> = {
         id: cleanUserId,
         userId: cleanUserId,
-        fullName: profile.fullName || 'Pet Parent',
         email: profile.email ? profile.email.toLowerCase().trim() : '',
-        phone: profile.phone || '',
-        photo: ownerAvatar || null,
-        photoChangeMonth: profile.photoChangeMonth || null,
-        photoChangeCount: profile.photoChangeCount || 0,
-        photoLastChangedAt: profile.photoLastChangedAt || null,
-        photoChangeApprovalRequired: profile.photoChangeApprovalRequired || false,
-        preferredContact: profile.preferredContact || 'phone',
-        address: fullAddress,
-        state: profile.state || '',
-        district: profile.district || '',
-        mandalOrMunicipality: profile.mandalOrMunicipality || '',
-        city: profile.city || '',
-        street: resolvedStreet,
-        streetOrLocality: resolvedStreet,
-        pinCode: profile.pinCode || '',
-        stateCode: profile.stateCode || null,
-        districtCode: profile.districtCode || null,
-        subDistrictCode: profile.subDistrictCode || null,
-        localityCode: profile.localityCode || null,
-        latitude: profile.latitude || null,
-        longitude: profile.longitude || null,
-        approximateArea: profile.approximateArea || '',
-        hasLocationConsent: profile.hasLocationConsent ?? true,
         updatedAt: new Date().toISOString(),
       };
+
+      if (profile.fullName && profile.fullName.trim()) {
+        payload.fullName = profile.fullName.trim();
+      }
+      if (profile.phone && profile.phone.trim()) {
+        payload.phone = profile.phone.trim();
+      }
+      if (ownerAvatar && ownerAvatar.trim()) {
+        payload.photo = ownerAvatar.trim();
+      } else if (ownerAvatar === null || (profile as any).forceRemovePhoto) {
+        payload.photo = null;
+      }
+      if (profile.photoChangeMonth) payload.photoChangeMonth = profile.photoChangeMonth;
+      if (typeof profile.photoChangeCount === 'number') payload.photoChangeCount = profile.photoChangeCount;
+      if (profile.photoLastChangedAt) payload.photoLastChangedAt = profile.photoLastChangedAt;
+      if (typeof profile.photoChangeApprovalRequired === 'boolean') payload.photoChangeApprovalRequired = profile.photoChangeApprovalRequired;
+      if (profile.preferredContact) payload.preferredContact = profile.preferredContact;
+      if (fullAddress && fullAddress.trim()) payload.address = fullAddress.trim();
+      if (profile.state && profile.state.trim()) payload.state = profile.state.trim();
+      if (profile.district && profile.district.trim()) payload.district = profile.district.trim();
+      if (profile.mandalOrMunicipality && profile.mandalOrMunicipality.trim()) payload.mandalOrMunicipality = profile.mandalOrMunicipality.trim();
+      if (profile.city && profile.city.trim()) payload.city = profile.city.trim();
+      if (resolvedStreet && resolvedStreet.trim()) {
+        payload.street = resolvedStreet.trim();
+        payload.streetOrLocality = resolvedStreet.trim();
+      }
+      if (profile.pinCode && profile.pinCode.trim()) payload.pinCode = profile.pinCode.trim();
+      if (profile.stateCode !== undefined) payload.stateCode = profile.stateCode;
+      if (profile.districtCode !== undefined) payload.districtCode = profile.districtCode;
+      if (profile.subDistrictCode !== undefined) payload.subDistrictCode = profile.subDistrictCode;
+      if (profile.localityCode !== undefined) payload.localityCode = profile.localityCode;
+      if (profile.latitude !== undefined && profile.latitude !== null) payload.latitude = profile.latitude;
+      if (profile.longitude !== undefined && profile.longitude !== null) payload.longitude = profile.longitude;
+      if (profile.approximateArea) payload.approximateArea = profile.approximateArea;
+      if (profile.hasLocationConsent !== undefined) payload.hasLocationConsent = profile.hasLocationConsent;
 
       // SCD1: Overwrite in-place without duplicating or splitting documents
       await setDoc(docRef, payload, { merge: true });
