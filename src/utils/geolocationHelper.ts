@@ -884,8 +884,8 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     // ── Reverse Geocoding Pipeline (Native Android Geocoder is instant <200ms) ──
     const nativeGeo = await getNativeGeocodedAddress(lat, lng);
 
-    // Tier 2 (web): Nominatim + BigDataCloud — needed if native geocoder is unavailable or missing district/mandal/street
-    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal || !nativeGeo.street;
+    // Tier 2 (web): Nominatim + BigDataCloud — needed if native geocoder is unavailable or missing district/mandal
+    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal;
     const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
 
     // Merged geocoder result: native fills first, web fills gaps

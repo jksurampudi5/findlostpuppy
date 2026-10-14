@@ -65,7 +65,7 @@ export function useLocationDetection({
         isDetectingRef.current = false;
         setDetecting(false);
       }
-    }, 6000);
+    }, 10000);
 
     try {
       if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__forceLocationError) {

@@ -106,9 +106,16 @@ export const SidebarNav: React.FC = () => {
 
   const handleTabClick = (tab: OnboardingTab, routePath: string) => {
     if (isAuthenticated && !hasCompletedOwner && routePath !== '/owner' && routePath !== '/admin') {
-      showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+      showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
       navigate('/owner');
       setActiveOnboardingTab('owner');
+      setIsMobileMenuOpen(false);
+      return;
+    }
+    if (isAuthenticated && hasCompletedOwner && !hasCompletedLocation && routePath !== '/owner' && routePath !== '/location' && routePath !== '/admin') {
+      showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+      navigate('/location');
+      setActiveOnboardingTab('location');
       setIsMobileMenuOpen(false);
       return;
     }
@@ -321,14 +328,21 @@ export const SidebarNav: React.FC = () => {
       <header className="mobile-top-header" aria-label="Mobile Header">
         <div className={`mobile-top-header-inner ${!isAuthenticated ? 'mobile-top-header-inner-guest' : ''}`}>
           <Link
-            to={isAuthenticated ? (hasCompletedOwner ? '/homepage' : '/owner') : '/'}
+            to={isAuthenticated ? (hasCompletedOwner ? (hasCompletedLocation ? '/homepage' : '/location') : '/owner') : '/'}
             className="mobile-brand-logo"
             onClick={(e) => {
               if (isAuthenticated && !hasCompletedOwner) {
                 e.preventDefault();
-                showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
                 navigate('/owner');
                 setActiveOnboardingTab('owner');
+                return;
+              }
+              if (isAuthenticated && !hasCompletedLocation) {
+                e.preventDefault();
+                showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+                navigate('/location');
+                setActiveOnboardingTab('location');
                 return;
               }
               if (isAuthenticated) {
@@ -509,9 +523,16 @@ export const SidebarNav: React.FC = () => {
               onClick={(e) => {
                 if (isAuthenticated && !hasCompletedOwner) {
                   e.preventDefault();
-                  showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                  showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
                   navigate('/owner');
                   setActiveOnboardingTab('owner');
+                  return;
+                }
+                if (isAuthenticated && !hasCompletedLocation) {
+                  e.preventDefault();
+                  showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+                  navigate('/location');
+                  setActiveOnboardingTab('location');
                   return;
                 }
                 if (isAuthenticated) {

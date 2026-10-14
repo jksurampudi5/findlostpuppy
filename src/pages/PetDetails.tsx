@@ -94,7 +94,7 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
       showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
       navigate('/owner', { replace: true });
     } else if (user && !storageService.hasCompletedLocation(user.id, user.email)) {
-      showToast('⚠️ Please complete your Location first (State, District, Mandal, Home Base, and Street are mandatory).', 'warning');
+      showToast('⚠️ Please complete your Location first (State, District, Mandal, and Home Base are mandatory).', 'warning');
       navigate('/location', { replace: true });
     }
   }, [user, navigate, showToast]);

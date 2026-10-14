@@ -95,11 +95,6 @@ export const isPetPhotoUrl = (url?: string | null): boolean => {
   );
 };
 
-/**
- * Validates that an owner photo is genuinely uploaded to Cloudinary.
- * Explicitly rejects empty values, pet photos, Google account letter avatars/placeholders,
- * and requires a valid Cloudinary-hosted URL.
- */
 export const isValidOwnerPhoto = (url?: string | null): boolean => {
   if (!url || typeof url !== 'string') return false;
   const clean = url.trim();
@@ -116,11 +111,24 @@ export const isValidOwnerPhoto = (url?: string | null): boolean => {
   ) {
     return false;
   }
-  // Mandatory condition: Owner profile photo MUST be successfully uploaded to Cloudinary
-  return (
-    (clean.startsWith('https://') || clean.startsWith('http://')) &&
-    (clean.includes('cloudinary.com') || clean.includes('res.cloudinary.com'))
-  );
+
+  // Accept local data URLs (e.g. captured via camera/canvas before upload)
+  if (clean.startsWith('data:image/')) {
+    return true;
+  }
+
+  // Accept valid backend storage URLs (Cloudinary, Firebase Storage, Google Cloud Storage)
+  if (clean.startsWith('https://') || clean.startsWith('http://')) {
+    return (
+      clean.includes('cloudinary.com') ||
+      clean.includes('res.cloudinary.com') ||
+      clean.includes('firebasestorage.googleapis.com') ||
+      clean.includes('storage.googleapis.com') ||
+      clean.includes('firebase')
+    );
+  }
+
+  return false;
 };
 
 /**

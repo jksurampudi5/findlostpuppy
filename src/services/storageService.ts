@@ -1485,10 +1485,7 @@ class StorageService {
       profile.city?.trim() &&
       profile.city.trim().toLowerCase() !== (profile.mandalOrMunicipality || '').trim().toLowerCase()
     );
-    const hasStreet = Boolean(
-      (profile.streetOrLocality || (profile as any).street || '').trim()
-    );
-    return hasState && hasDistrict && hasMandal && hasCity && hasStreet;
+    return hasState && hasDistrict && hasMandal && hasCity;
   }
 
   // PET PROFILES:
