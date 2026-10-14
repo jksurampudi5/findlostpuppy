@@ -2607,8 +2607,8 @@ class StorageService {
                 prMap.set(key, {
                   ...existing,
                   ...pr,
-                  fullName: pr.fullName || existing.fullName,
-                  phone: pr.phone || existing.phone,
+                  fullName: pr.fullName?.trim() || existing.fullName,
+                  phone: pr.phone?.trim() || existing.phone,
                   state: existing.state || pr.state,
                   district: existing.district || pr.district,
                   mandalOrMunicipality: existing.mandalOrMunicipality || pr.mandalOrMunicipality,
@@ -2620,12 +2620,16 @@ class StorageService {
                   latitude: existing.latitude || pr.latitude,
                   longitude: existing.longitude || pr.longitude,
                   approximateArea: existing.approximateArea || pr.approximateArea,
-                  photo: (pr.photo && isValidOwnerPhoto(pr.photo)) ? pr.photo : (existing.photo && isValidOwnerPhoto(existing.photo) && pr.photo === undefined ? existing.photo : undefined),
+                  photo: (pr.photo && isValidOwnerPhoto(pr.photo))
+                    ? pr.photo
+                    : (existing.photo && isValidOwnerPhoto(existing.photo))
+                      ? existing.photo
+                      : undefined,
                 });
               } else {
                 prMap.set(key, {
                   ...pr,
-                  photo: isPetPhotoUrl(pr.photo) ? undefined : pr.photo,
+                  photo: (pr.photo && isValidOwnerPhoto(pr.photo)) ? pr.photo : undefined,
                 });
               }
             }
@@ -2694,29 +2698,53 @@ class StorageService {
         .filter((p: any) => !this.isUserDeleted(p.id))
         .map((p: any) => {
           const resolvedStreet = p.street || p.streetOrLocality || '';
+          const existingLocal = this.getOwnerProfileByUserId(p.id, p.email);
+
+          // 1. Resolve Phone: from Firestore doc, fallback to user's reports, fallback to local
+          let resolvedPhone = (p.phone || '').trim();
+          if (!resolvedPhone) {
+            const userReport = (reports || []).find(
+              (r: any) =>
+                (r.ownerId === p.id || r.user_id === p.id || r.id === p.id) &&
+                (r.contactMechanism?.safeContactPhone || r.contact_phone)
+            );
+            if (userReport) {
+              resolvedPhone = (userReport.contactMechanism?.safeContactPhone || userReport.contact_phone || '').trim();
+            }
+          }
+          if (!resolvedPhone && existingLocal?.phone) {
+            resolvedPhone = existingLocal.phone.trim();
+          }
+
+          // 2. Resolve Photo: from Firestore doc, fallback to existing local valid photo
+          let resolvedPhoto = isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url).trim() : undefined;
+          if (!resolvedPhoto && existingLocal?.photo && isValidOwnerPhoto(existingLocal.photo)) {
+            resolvedPhoto = existingLocal.photo.trim();
+          }
+
           return {
             id: p.id,
             userId: p.id,
             fullName: sanitizeName(p.fullName || p.name, p.email),
             email: p.email,
-            phone: p.phone || '',
-            address: p.address || '',
-            photo: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
-            preferredContact: p.preferredContact || 'phone',
-            state: p.state || '',
-            district: p.district || '',
-            mandalOrMunicipality: p.mandalOrMunicipality || '',
-            city: p.city || '',
-            street: resolvedStreet,
-            streetOrLocality: resolvedStreet,
-            pinCode: p.pinCode || '',
-            stateCode: p.stateCode ?? null,
-            districtCode: p.districtCode ?? null,
-            subDistrictCode: p.subDistrictCode ?? null,
-            localityCode: p.localityCode ?? null,
-            latitude: p.latitude !== undefined && p.latitude !== null ? Number(p.latitude) : undefined,
-            longitude: p.longitude !== undefined && p.longitude !== null ? Number(p.longitude) : undefined,
-            approximateArea: p.approximateArea || '',
+            phone: resolvedPhone,
+            address: p.address || existingLocal?.address || '',
+            photo: resolvedPhoto,
+            preferredContact: p.preferredContact || existingLocal?.preferredContact || 'phone',
+            state: p.state || existingLocal?.state || '',
+            district: p.district || existingLocal?.district || '',
+            mandalOrMunicipality: p.mandalOrMunicipality || existingLocal?.mandalOrMunicipality || '',
+            city: p.city || existingLocal?.city || '',
+            street: resolvedStreet || existingLocal?.street || '',
+            streetOrLocality: resolvedStreet || existingLocal?.streetOrLocality || '',
+            pinCode: p.pinCode || existingLocal?.pinCode || '',
+            stateCode: p.stateCode ?? existingLocal?.stateCode ?? null,
+            districtCode: p.districtCode ?? existingLocal?.districtCode ?? null,
+            subDistrictCode: p.subDistrictCode ?? existingLocal?.subDistrictCode ?? null,
+            localityCode: p.localityCode ?? existingLocal?.localityCode ?? null,
+            latitude: p.latitude !== undefined && p.latitude !== null ? Number(p.latitude) : existingLocal?.latitude,
+            longitude: p.longitude !== undefined && p.longitude !== null ? Number(p.longitude) : existingLocal?.longitude,
+            approximateArea: p.approximateArea || existingLocal?.approximateArea || '',
             hasLocationConsent: true,
             updatedAt: p.updatedAt || p.createdAt || new Date().toISOString(),
           };
@@ -2724,15 +2752,18 @@ class StorageService {
 
       const mappedUsers: User[] = (profiles || [])
         .filter((p: any) => !this.isUserDeleted(p.id))
-        .map((p: any) => ({
-        id: p.id,
-        name: sanitizeName(p.fullName || p.name, p.email),
-        email: p.email,
-        phone: p.phone,
-        avatar: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
-        isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
-        createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
-      }));
+        .map((p: any) => {
+          const matchedProfile = mappedProfiles.find((mp) => mp.id === p.id || mp.userId === p.id);
+          return {
+            id: p.id,
+            name: sanitizeName(p.fullName || p.name, p.email),
+            email: p.email,
+            phone: matchedProfile?.phone || p.phone,
+            avatar: matchedProfile?.photo || (isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined),
+            isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
+            createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
+          };
+        });
 
       // Map Firebase pets to DogProfile
       const mappedPets: DogProfile[] = (pets || []).map((p: any) => {
@@ -2837,6 +2868,40 @@ class StorageService {
         reports: mappedReports,
         sightings: mappedSightings,
       });
+
+      // Update active user session with resolved phone and photo
+      const activeUser = authService.getCurrentUser();
+      if (activeUser) {
+        const myProfile = this.getOwnerProfileByUserId(activeUser.id, activeUser.email);
+        if (myProfile) {
+          const userUpdates: Partial<User> = {};
+          if (myProfile.phone && myProfile.phone !== activeUser.phone) {
+            userUpdates.phone = myProfile.phone;
+          }
+          if (myProfile.photo && isValidOwnerPhoto(myProfile.photo) && myProfile.photo !== activeUser.avatar) {
+            userUpdates.avatar = myProfile.photo;
+          }
+          if (Object.keys(userUpdates).length > 0) {
+            authService.updateCurrentUser(userUpdates);
+          }
+
+          // If myProfile is still missing a valid photo, proactively query Cloudinary directly via worker!
+          if (!myProfile.photo || !isValidOwnerPhoto(myProfile.photo)) {
+            storageBucketService.getUserProfileAvatarFromCloudinary(activeUser.id).then((cloudPhoto) => {
+              if (cloudPhoto && isValidOwnerPhoto(cloudPhoto)) {
+                const refreshed = { ...myProfile, photo: cloudPhoto, updatedAt: new Date().toISOString() };
+                this.saveOwnerProfile(refreshed);
+                authService.updateCurrentUser({ avatar: cloudPhoto });
+                firebaseSyncService.syncOwnerProfile(refreshed, activeUser.id).catch(() => {});
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+                  window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced', { detail: null }));
+                }
+              }
+            }).catch(() => {});
+          }
+        }
+      }
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));

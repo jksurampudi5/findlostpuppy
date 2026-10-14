@@ -246,6 +246,7 @@ async function callMediaFunction<T>(name: string, data: Record<string, unknown>)
     const paths: Record<string, string> = {
       createMediaUploadAuthorization: '/media/authorize',
       finalizeMediaUpload:            '/media/finalize',
+      getProfilePhoto:                '/media/get-profile-photo',
       deleteMediaAsset:               '/media/delete',
       hardResetCloudinary:            '/media/reset',
       deleteMyAccount:                '/account/media-cleanup',
@@ -514,6 +515,19 @@ export const storageBucketService = {
 
     const fb = await this.uploadMedia(`profiles/${uid}/avatar.jpg`, image);
     return fb ? fb.publicUrl : null;
+  },
+
+  /**
+   * Retrieves the latest profile photo for an owner directly from Cloudinary via worker.
+   */
+  async getUserProfileAvatarFromCloudinary(userId: string): Promise<string | null> {
+    const uid = userId.replace(/^(owner-)+/, '').trim();
+    if (!uid) return null;
+    const res = await callMediaFunction<{ found: boolean; photoUrl: string | null }>('getProfilePhoto', { referenceId: uid });
+    if (res?.found && res?.photoUrl) {
+      return res.photoUrl;
+    }
+    return null;
   },
 
   /**

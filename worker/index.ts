@@ -281,6 +281,42 @@ async function handle(request: Request, env: WorkerEnv): Promise<Response> {
     });
   }
 
+  if (path === '/media/get-profile-photo') {
+    const folder = folderFor('profile', uid);
+    try {
+      const credentials = btoa(`${env.CLOUDINARY_API_KEY}:${env.CLOUDINARY_API_SECRET}`);
+      const prefixes = [folder, `findlostpuppy/owner_profile/${uid}`, `findlostpuppy/profiles/${uid}`];
+      for (const prefix of prefixes) {
+        for (const type of ['authenticated', 'upload']) {
+          const url = `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/resources/image/${type}?prefix=${encodeURIComponent(prefix)}&max_results=10`;
+          const res = await fetch(url, { headers: { Authorization: `Basic ${credentials}` } });
+          if (res.ok) {
+            const resData = (await res.json()) as { resources: any[] };
+            if (Array.isArray(resData.resources) && resData.resources.length > 0) {
+              resData.resources.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              const latest = resData.resources[0];
+              let secureUrl: string;
+              if (type === 'authenticated') {
+                secureUrl = await signedAuthenticatedImageUrl(latest.public_id, env);
+              } else {
+                secureUrl = latest.secure_url || `https://res.cloudinary.com/${env.CLOUDINARY_CLOUD_NAME}/image/upload/${latest.public_id}`;
+              }
+              return json(request, env, {
+                found: true,
+                publicId: latest.public_id,
+                photoUrl: secureUrl,
+              });
+            }
+          }
+        }
+      }
+      return json(request, env, { found: false, photoUrl: null });
+    } catch (e) {
+      console.warn('get-profile-photo error:', e);
+      return json(request, env, { found: false, photoUrl: null });
+    }
+  }
+
   if (path === '/media/delete') {
     let publicId = String(data.publicId || '');
     if (publicId.startsWith('http')) {
