@@ -88,11 +88,14 @@ export const PetDetails: React.FC<PetDetailsProps> = ({
   const [isEditing, setIsEditing] = useState<boolean>(!isPetFilled);
   const initialPetModeSetRef = useRef(false);
 
-  // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
+  // Redirect to Owner Profile or Location if prerequisites are not yet complete
   useEffect(() => {
     if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
       showToast('⚠️ Please complete your Owner Profile first (Photo, Name, and Phone are mandatory).', 'warning');
       navigate('/owner', { replace: true });
+    } else if (user && !storageService.hasCompletedLocation(user.id, user.email)) {
+      showToast('⚠️ Please complete your Location first (State, District, Mandal, and Home Base are mandatory).', 'warning');
+      navigate('/location', { replace: true });
     }
   }, [user, navigate, showToast]);
 

@@ -51,6 +51,17 @@ export function loadModule(path, { mocks = {}, globals = {}, env = {} } = {}) {
     if (specifier.includes('indicTransliteration')) {
       return { normalizeToEnglishText: (t) => t || '', transliterateIndicToEnglish: (t) => t || '' };
     }
+    if (specifier.includes('phoneValidator')) {
+      return { isValidPhoneNumber: () => true, formatPhoneForStorage: (p) => p, normalizePhoneNumberForDisplay: (p) => p };
+    }
+    if (specifier.endsWith('.json')) {
+      try {
+        const jsonPath = fileURLToPath(new URL(specifier, new URL(path, root)));
+        return JSON.parse(readFileSync(jsonPath, 'utf8'));
+      } catch {
+        return [];
+      }
+    }
     throw new Error(`Unmocked dependency ${specifier} in ${path}`);
   };
   compileFunction(compiled.get(filename), ['require', 'module', 'exports', ...Object.keys(scope)], {

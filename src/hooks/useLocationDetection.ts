@@ -50,12 +50,23 @@ export function useLocationDetection({
   const attemptIdRef = useRef(0);
   const pendingSettingsReturnRef = useRef<{ id: number; target: 'location_settings' | 'app_settings' } | null>(null);
 
+  // Keep callback refs fresh without causing re-registration of listeners
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const onClearRef = useRef(onClearFieldsForNewDetection);
+  const showToastRef = useRef(showToast);
+
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+    onClearRef.current = onClearFieldsForNewDetection;
+    showToastRef.current = showToast;
+  });
+
   /**
    * Executes physical coordinates and reverse geocoding for a specific attempt ID.
    */
   const executeDetection = useCallback(async (attemptId: number) => {
-    if (attemptIdRef.current !== attemptId) return;
-
     isDetectingRef.current = true;
     setDetecting(true);
 
@@ -65,14 +76,16 @@ export function useLocationDetection({
         isDetectingRef.current = false;
         setDetecting(false);
       }
-    }, 6000);
+    }, 20000);
 
     try {
+      if (attemptIdRef.current !== attemptId) return;
+
       if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__forceLocationError) {
         throw (window as any).__forceLocationError;
       }
 
-      onClearFieldsForNewDetection?.();
+      onClearRef.current?.();
 
       // Acquire coordinates using native GPS/Network (with graceful IP fallback if satellites/towers are unreachable indoors)
       const geo = await detectResilientLocation({ allowIpFallback: true });
@@ -137,13 +150,13 @@ export function useLocationDetection({
       if (attemptIdRef.current !== attemptId) return;
 
       if (isApproximate) {
-        showToast(
+        showToastRef.current(
           `📍 Approximate location detected (±${Math.round(geo.accuracyMeters || 200)}m). Please verify your Mandal & details.`,
           'info'
         );
       }
 
-      onSuccess({
+      onSuccessRef.current({
         geo,
         match,
         detectedState: detectedState || match?.state?.name || '',
@@ -174,14 +187,14 @@ export function useLocationDetection({
       }
 
       console.warn('[useLocationDetection] Detection failed:', err);
-      showToast('Could not detect location. Please select your area manually.', 'info');
-      onError?.(err);
+      showToastRef.current('Could not detect location. Please select your area manually.', 'info');
+      onErrorRef.current?.(err);
     } finally {
       clearTimeout(watchdogTimer);
       isDetectingRef.current = false;
       setDetecting(false);
     }
-  }, [onSuccess, onError, onClearFieldsForNewDetection, showToast]);
+  }, []);
 
   /**
    * Main entry point when user taps "Detect Location", "Detect Location Again", or "Auto-Locate".
@@ -362,17 +375,17 @@ export function useLocationDetection({
     const isPermReady = permStatus === 'granted' || permStatus === 'approximate';
 
     if (isLocationOn && isPermReady) {
-      showToast('Location ready. Detecting your area...', 'info');
+      showToastRef.current('Location ready. Detecting your area...', 'info');
       await executeDetection(attemptId);
     } else {
       // Prerequisites still missing: end attempt cleanly, provide non-blocking feedback
       isDetectingRef.current = false;
       setDetecting(false);
-      showToast('Location was not enabled. You can select your area manually or try again.', 'info');
+      showToastRef.current('Location was not enabled. You can select your area manually or try again.', 'info');
     }
-  }, [executeDetection, showToast]);
+  }, [executeDetection]);
 
-  // Return-from-Settings lifecycle listeners
+  // Return-from-Settings lifecycle listeners (registered once per mount)
   useEffect(() => {
     let isMounted = true;
     let nativeHandle: any = null;
@@ -413,8 +426,6 @@ export function useLocationDetection({
     return () => {
       isMounted = false;
       pendingSettingsReturnRef.current = null;
-      attemptIdRef.current++;
-      isDetectingRef.current = false;
       if (nativeHandle) {
         nativeHandle.remove();
       }

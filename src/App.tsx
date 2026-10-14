@@ -54,6 +54,7 @@ function MainAppFlow() {
     isAuthenticated,
     isLoading,
     hasCompletedOwner,
+    hasCompletedLocation,
     setActiveOnboardingTab,
     hasValidConsent,
     isFirstTimeUser,
@@ -184,6 +185,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <RegisteredPet />
           )
@@ -200,6 +203,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <PetDetails
               onBackToLocation={() => {
@@ -227,6 +232,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <PetSafety
               onBackToPet={() => {

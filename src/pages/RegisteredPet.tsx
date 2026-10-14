@@ -20,10 +20,12 @@ export const RegisteredPet: React.FC = () => {
   const hasExistingPet = Boolean(existingPet?.id && (existingPet?.name || existingPet?.breed));
   const petPhotoUrl = existingPet ? getDogPhotoUrl(existingPet) : '';
 
-  // Redirect to Owner Profile if owner profile components (Photo, Name, Phone) are not yet complete
+  // Redirect to Owner Profile or Location if prerequisites are not yet complete
   React.useEffect(() => {
     if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
       navigate('/owner', { replace: true });
+    } else if (user && !storageService.hasCompletedLocation(user.id, user.email)) {
+      navigate('/location', { replace: true });
     }
   }, [user, navigate]);
 

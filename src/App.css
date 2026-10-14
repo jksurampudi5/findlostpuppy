@@ -8401,6 +8401,19 @@
   transform: translateY(-1px);
 }
 
+.loc-grid-square.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.loc-grid-square.is-locked:hover {
+  transform: none !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
 /* Stacking: Top row squares must float over bottom row when dropdown menu is open */
 .loc-gsq-state.is-editing,
 .loc-gsq-district.is-editing {

@@ -14,7 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { NativeGeocoder } from '@capgo/capacitor-nativegeocoder';
 import { findMandalByCoordinates } from './boundaryLookup';
 import { normalizeToEnglishText } from './indicTransliteration';
-import subdistrictsData from '../data/location/subdistricts.json';
+import { locationService } from '../services/locationService';
 
 export interface LocationDiagnostic {
   platform: string;
@@ -187,7 +187,8 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
     // Android: If only approximate (coarse) permission is granted, asking for high accuracy
     // can fail or throw SecurityException on fused location providers. Respect coarse mode.
     const enableHighAccuracy = permissionStatus === 'coarse' ? false : options.enableHighAccuracy;
-    const timeoutMs = options.timeout || 3500;
+    const timeoutMs = options.timeout || 10000;
+    const maxAge = options.maximumAge !== undefined ? options.maximumAge : 10000;
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -201,7 +202,7 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
         Geolocation.getCurrentPosition({
           enableHighAccuracy,
           timeout: timeoutMs,
-          maximumAge: options.maximumAge || 60000,
+          maximumAge: maxAge,
         }),
         timeoutPromise,
       ]);
@@ -214,7 +215,7 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
         timestamp: pos.timestamp,
       };
     } catch (nativeErr: any) {
-      console.warn('[geolocationHelper] Native GPS tier failed:', nativeErr);
+      console.warn('[geolocationHelper] Native GPS primary attempt failed, trying fused/coarse fallback:', nativeErr);
       const msg = String(nativeErr?.message || '').toLowerCase();
       const errCode = String(nativeErr?.code || '').toUpperCase();
       const isLocationDisabled =
@@ -229,14 +230,36 @@ async function getPositionWithConfig(options: PositionOptions): Promise<CoordsRe
         (msg.includes('user denied geolocation') && (permissionStatus === 'fine' || permissionStatus === 'coarse')) ||
         errCode === 'OS-PLUG-GLOC-0007' ||
         errCode === 'OS-PLUG-GLOC-0009' ||
-        errCode === 'OS-PLUG-GLOC-0017' ||
-        nativeErr?.code === 2;
+        errCode === 'OS-PLUG-GLOC-0017';
 
       if (isLocationDisabled) {
         throw new NativeLocationError(
           'LOCATION_SERVICES_DISABLED',
           'Device Location (GPS) is turned off. Please turn on Location in quick settings.'
         );
+      }
+
+      // Fast fused / coarse retry with generous cache before giving up
+      if (enableHighAccuracy) {
+        try {
+          const fallbackPos = await Promise.race([
+            Geolocation.getCurrentPosition({
+              enableHighAccuracy: false,
+              timeout: 6000,
+              maximumAge: 1800000,
+            }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FALLBACK_TIMEOUT')), 6500)),
+          ]);
+          return {
+            latitude: fallbackPos.coords.latitude,
+            longitude: fallbackPos.coords.longitude,
+            accuracyMeters: fallbackPos.coords.accuracy,
+            permissionStatus: 'coarse',
+            timestamp: fallbackPos.timestamp,
+          };
+        } catch (fbErr) {
+          console.warn('[geolocationHelper] Fused coarse fallback also timed out:', fbErr);
+        }
       }
 
       throw new NativeLocationError(
@@ -370,6 +393,58 @@ export async function enrichWithPostalPin(
 }
 
 /**
+ * Validates that a string is a legitimate public street, road, colony, or area name,
+ * and NOT a private residence, personal house name (e.g. "Pitta's Home"), establishment POI, or administrative entity.
+ */
+export function isLegitimateStreetName(
+  candidate?: string,
+  city?: string,
+  mandal?: string,
+  district?: string,
+  state?: string
+): boolean {
+  if (!candidate || typeof candidate !== 'string') return false;
+  const trimmed = candidate.trim();
+  if (trimmed.length < 3) return false;
+
+  // 1. Plus Codes (e.g. "QMCX+3RF", "8FW4+RX")
+  if (/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,}/i.test(trimmed)) return false;
+
+  // 2. Pure numbers or pin codes
+  if (/^\d+$/.test(trimmed) || /^\d{5,6}$/.test(trimmed)) return false;
+
+  // Normalize apostrophes, backticks, and smart quotes
+  const normalizedLower = trimmed.toLowerCase().replace(/['’‘`]/g, "'");
+
+  // 3. Administrative entities (State, District, Mandal, Village/City, Country)
+  if (state && normalizedLower === state.toLowerCase()) return false;
+  if (district && normalizedLower === district.toLowerCase()) return false;
+  if (mandal && normalizedLower === mandal.toLowerCase()) return false;
+  if (city && normalizedLower === city.toLowerCase()) return false;
+  if (normalizedLower === 'india' || normalizedLower === 'unnamed road') return false;
+
+  // 4. Reject pure door numbers / plot numbers alone
+  if (/^(?:d\.?\s*no\.?|h\.?\s*no\.?|door\s*no\.?|plot\s*no\.?|flat\s*no\.?|#)\s*[\d\w\-\/]+/i.test(normalizedLower)) return false;
+
+  // 5. Reject private houses, residences, personal home names, POIs, establishments
+  // Explicitly rejects "Pitta's Home", "Rao's House", "Sita Nilayam", "Krishna Nivas", "Villa", etc.
+  const privateEntityRegex = /(?:'s\s*(?:home|house|residence|residency|villa|nilayam|nivas|place|palace|cottage|farm|quarters|bhavan))|\b(?:home|house|nilayam|nivas|residence|residency|villa|villas|bhavan|bhavanam|apartment|apartments|flats?|room|mess|hostel|temple|church|mosque|masjid|mandir|clinic|hospital|store|stores|shop|shops|mart|hotel|dhaba|restaurant|bakery|salon|parlour|school|college|bank|atm|complex|towers)\b/i;
+  if (privateEntityRegex.test(normalizedLower)) {
+    return false;
+  }
+
+  // 6. Reject personal possessive labels without legitimate road indicator (e.g. "Pitta's", "Rao's Garden")
+  if (/'s\b/i.test(normalizedLower)) {
+    const hasRoadSuffix = /\b(?:road|street|lane|gali|veedhi|marg|path|way|rasta|cross|main|highway|expressway|salai|avenue|boulevard|circle|chowk|bypass)\b/i.test(normalizedLower);
+    if (!hasRoadSuffix) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Reverse Geocoding with Nominatim and BigDataCloud.
  * Primarily used for Village / Locality and PIN code (authoritative boundaries take precedence for State/District/Mandal).
  */
@@ -412,64 +487,74 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
       const namedetails = data.namedetails || {};
 
       state = normalizeToEnglishText(namedetails['name:en:state'] || addr.state) || undefined;
-      district = normalizeToEnglishText(addr.state_district || addr.county || addr.district) || undefined;
-      mandal = normalizeToEnglishText(addr.subdistrict || addr.county || addr.city_district || addr.suburb) || undefined;
+      let rawDistrict = normalizeToEnglishText(addr.state_district || addr.district || addr.county) || undefined;
+      if (rawDistrict) {
+        rawDistrict = rawDistrict.replace(/\s*district$/i, '').trim();
+      }
+      district = rawDistrict;
+
+      let rawMandal = normalizeToEnglishText(addr.subdistrict || addr.county || addr.city_district || addr.suburb) || undefined;
+      if (rawMandal) {
+        rawMandal = rawMandal.replace(/\s*(mandal|tehsil|taluk|block)$/i, '').trim();
+      }
+      mandal = rawMandal;
+
       city = normalizeToEnglishText(
-        namedetails['name:en:city'] ||
         namedetails['name:en:village'] ||
-        namedetails['name:en:town'] ||
-        addr.city ||
-        addr.town ||
         addr.village ||
+        namedetails['name:en:town'] ||
+        addr.town ||
+        namedetails['name:en:city'] ||
+        addr.city ||
+        addr.hamlet ||
         addr.suburb ||
         addr.residential ||
         addr.neighbourhood
       ) || undefined;
 
-      // Robust street / precise locality extraction:
-      // Check road, street, path, hamlet, residential, neighbourhood, suburb, quarter, colony, etc.
-      const candidateStreet =
-        namedetails['name:en'] ||
+      // Extract legitimate road / street or colony from OpenStreetMap address details
+      const osmRoad =
         namedetails['name:en:road'] ||
+        namedetails['name:en'] ||
         addr.road ||
         addr.street ||
+        addr.lane ||
         addr.pedestrian ||
         addr.footway ||
         addr.path ||
-        addr.cycleway ||
-        addr.lane ||
-        addr.hamlet ||
-        addr.residential ||
+        addr.cycleway;
+
+      const osmColony =
+        addr.colony ||
         addr.neighbourhood ||
         addr.suburb ||
         addr.quarter ||
-        addr.subdivision ||
-        addr.colony ||
-        addr.allotments ||
-        addr.amenity;
+        addr.residential ||
+        addr.subdivision;
 
-      // Extract specific entity from display_name if available
+      let validOsmStreet: string | undefined;
+      if (osmRoad && isLegitimateStreetName(osmRoad, city, mandal, district, state)) {
+        validOsmStreet = osmRoad;
+      } else if (osmColony && isLegitimateStreetName(osmColony, city, mandal, district, state)) {
+        validOsmStreet = osmColony;
+      }
+
+      // If neither is present, inspect display_name parts ONLY for verified road/street/colony tokens
       let displayStreet: string | undefined;
-      if (data.display_name && typeof data.display_name === 'string') {
+      if (!validOsmStreet && data.display_name && typeof data.display_name === 'string') {
         const parts = data.display_name.split(',').map((p: string) => p.trim());
-        // parts[0] is the most specific geographic entity (e.g. "Karravarisavaram", "Tanuku Velivennu Road")
-        if (
-          parts[0] &&
-          parts[0].toLowerCase() !== (city || '').toLowerCase() &&
-          parts[0].toLowerCase() !== (district || '').toLowerCase() &&
-          parts[0].toLowerCase() !== (state || '').toLowerCase() &&
-          parts[0].toLowerCase() !== 'india'
-        ) {
-          displayStreet = parts[0];
+        const validPart = parts.find((part: string) => {
+          if (!isLegitimateStreetName(part, city, mandal, district, state)) return false;
+          // Must contain typical road or colony indicator
+          return /\b(?:road|street|lane|gali|veedhi|marg|path|nagar|colony|layout|enclave|bazaar|thota|thotam|cross|main|sector|block)\b/i.test(part);
+        });
+        if (validPart) {
+          displayStreet = validPart;
         }
       }
 
-      const rawStreet =
-        candidateStreet && candidateStreet.toLowerCase() !== (city || '').toLowerCase()
-          ? candidateStreet
-          : displayStreet;
-
-      street = normalizeToEnglishText(rawStreet) || undefined;
+      const rawStreet = validOsmStreet || displayStreet;
+      street = rawStreet ? normalizeToEnglishText(rawStreet) : undefined;
 
       pinCode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : undefined;
       provider = 'nominatim';
@@ -490,23 +575,37 @@ async function reverseGeocodeCoords(lat: number, lng: number): Promise<{
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        state = state || normalizeToEnglishText(data.principalSubdivision) || undefined;
-        district = district || normalizeToEnglishText(data.localityInfo?.administrative?.[2]?.name || data.city) || undefined;
-        mandal = mandal || normalizeToEnglishText(data.localityInfo?.administrative?.[3]?.name || data.locality) || undefined;
+        const adminList = data.localityInfo?.administrative || [];
+        const stateAdmin = adminList.find((a: any) => a.adminLevel === 4 || a.description?.toLowerCase().includes('state'));
+        const distAdmin = adminList.find((a: any) => a.adminLevel === 5 || a.description?.toLowerCase().includes('district') || a.name?.toLowerCase().includes('district'));
+        const mandalAdmin = adminList.find((a: any) => a.adminLevel === 6 || a.description?.toLowerCase().includes('mandal') || a.description?.toLowerCase().includes('tehsil') || a.name?.toLowerCase().includes('mandal'));
+
+        state = state || normalizeToEnglishText(stateAdmin?.name || data.principalSubdivision) || undefined;
+        let bdcDistrict = distAdmin?.name?.replace(/\s*district$/i, '') || data.localityInfo?.administrative?.[2]?.name?.replace(/\s*district$/i, '') || data.city;
+        if (bdcDistrict) bdcDistrict = bdcDistrict.replace(/\s*district$/i, '').trim();
+        district = district || normalizeToEnglishText(bdcDistrict) || undefined;
+
+        let bdcMandal = mandalAdmin?.name || data.localityInfo?.administrative?.[3]?.name || data.locality;
+        if (bdcMandal) bdcMandal = bdcMandal.replace(/\s*(mandal|tehsil|taluk|block)$/i, '').trim();
+        mandal = mandal || normalizeToEnglishText(bdcMandal) || undefined;
         city = city || normalizeToEnglishText(data.city || data.locality) || undefined;
         if (!street) {
           const admin4 = data.localityInfo?.administrative?.[4]?.name;
+          const admin5 = data.localityInfo?.administrative?.[5]?.name;
           const infoLocality = data.localityInfo?.informative?.find(
             (i: any) =>
               i.name &&
-              i.name.toLowerCase() !== (city || '').toLowerCase() &&
+              isLegitimateStreetName(i.name, city, mandal, district, state) &&
               (i.description?.toLowerCase().includes('road') ||
                 i.description?.toLowerCase().includes('street') ||
-                i.description?.toLowerCase().includes('village') ||
-                i.order >= 8)
+                i.description?.toLowerCase().includes('colony') ||
+                i.description?.toLowerCase().includes('nagar'))
           )?.name;
-          const candidate = admin4 || infoLocality;
-          if (candidate && candidate.toLowerCase() !== (city || '').toLowerCase()) {
+
+          const candidate = [admin4, admin5, infoLocality].find(
+            (c) => c && isLegitimateStreetName(c, city, mandal, district, state)
+          );
+          if (candidate) {
             street = normalizeToEnglishText(candidate) || undefined;
           }
         }
@@ -580,68 +679,11 @@ async function getNativeGeocodedAddress(
     let districtCode: number | undefined;
     let subDistrictCode: number | undefined;
 
-    // Check if rawLocality or rawSubLocality matches an LGD subdistrict (Mandal/Taluk)
-    const normLoc = rawLocality.toLowerCase().replace(/\s*mandal/i, '').replace(/\s*taluk/i, '').trim();
-    const normSubLoc = rawSubLocality.toLowerCase().replace(/\s*mandal/i, '').replace(/\s*taluk/i, '').trim();
-
-    const matchedSubByLoc = normLoc
-      ? (subdistrictsData as any[]).find(
-          (s) =>
-            s.subDistrictName.toLowerCase() === normLoc ||
-            s.subDistrictName.toLowerCase().includes(normLoc) ||
-            normLoc.includes(s.subDistrictName.toLowerCase())
-        )
-      : undefined;
-
-    const matchedSubBySubLoc = !matchedSubByLoc && normSubLoc
-      ? (subdistrictsData as any[]).find(
-          (s) =>
-            s.subDistrictName.toLowerCase() === normSubLoc ||
-            s.subDistrictName.toLowerCase().includes(normSubLoc) ||
-            normSubLoc.includes(s.subDistrictName.toLowerCase())
-        )
-      : undefined;
-
-    if (matchedSubByLoc) {
-      // Locality is the Mandal (e.g. "Tanuku")!
-      mandal = matchedSubByLoc.subDistrictName;
-      // Sublocality or area is the Village / Home Base (e.g. "Palangi")!
-      city = rawSubLocality || rawLocality;
-      district = district || matchedSubByLoc.districtName;
-      state = state || matchedSubByLoc.stateName;
-      stateCode = matchedSubByLoc.stateCode;
-      districtCode = matchedSubByLoc.districtCode;
-      subDistrictCode = matchedSubByLoc.subDistrictCode;
-    } else if (matchedSubBySubLoc) {
-      // SubLocality is the Mandal!
-      mandal = matchedSubBySubLoc.subDistrictName;
-      city = rawLocality || rawSubLocality;
-      district = district || matchedSubBySubLoc.districtName;
-      state = state || matchedSubBySubLoc.stateName;
-      stateCode = matchedSubBySubLoc.stateCode;
-      districtCode = matchedSubBySubLoc.districtCode;
-      subDistrictCode = matchedSubBySubLoc.subDistrictCode;
-    } else {
-      mandal = rawSubLocality || rawLocality || undefined;
-      city = rawLocality || rawSubLocality || undefined;
-    }
-
-    // Heuristic fallbacks for district if missing:
-    if (!district) {
-      const hint = `${rawLocality} ${rawSubLocality} ${mandal || ''} ${city || ''}`.toLowerCase();
-      if (hint.includes('tanuku') || hint.includes('palangi') || hint.includes('bhimavaram') || (rawPin && rawPin.startsWith('534'))) {
-        district = 'West Godavari';
-        state = state || 'Andhra Pradesh';
-        stateCode = 28;
-        districtCode = 523;
-        if (!mandal) mandal = 'Tanuku';
-        if (!city || city === mandal) city = 'Palangi';
-      } else if (hint.includes('undrajavaram') || hint.includes('rajahmundry') || hint.includes('kakinada') || (rawPin && rawPin.startsWith('533'))) {
-        district = 'East Godavari';
-        state = state || 'Andhra Pradesh';
-        stateCode = 28;
-        districtCode = 505;
-      }
+    // If Android geocoder returns a subLocality (e.g. "Palangi"), that is the village/home base
+    if (rawSubLocality) {
+      city = rawSubLocality;
+    } else if (rawLocality) {
+      city = rawLocality;
     }
 
     // Google Plus Code filter: patterns like "QMCX+3RF", "VX5J+Q3", "8FW4+RX Hyderabad" etc.
@@ -657,29 +699,24 @@ async function getNativeGeocodedAddress(
 
     if (!city && areas.length > 0) {
       city = areas[0];
-    } else if (areas.length > 0 && city === mandal && areas[0] !== mandal) {
-      city = areas[0];
     }
 
-    // Street is strictly the road/thoroughfare, or a secondary area:
-    let streetCandidate =
-      (rawThoroughfare && !PLUS_CODE_REGEX.test(rawThoroughfare) ? rawThoroughfare : undefined) ||
-      (rawSubThoroughfare && !PLUS_CODE_REGEX.test(rawSubThoroughfare) ? rawSubThoroughfare : undefined);
+    // Street is strictly the road/thoroughfare or a secondary colony/area (NEVER personal building names like "Pitta's Home"):
+    let streetCandidate: string | undefined;
 
-    if (!streetCandidate && areas.length > 1) {
-      const extra = areas.find((a: string) => a !== city && a !== mandal);
-      if (extra) {
-        streetCandidate = extra;
+    if (rawThoroughfare && isLegitimateStreetName(rawThoroughfare, city, mandal, district, state)) {
+      streetCandidate = rawThoroughfare;
+    } else if (rawSubThoroughfare && isLegitimateStreetName(rawSubThoroughfare, city, mandal, district, state)) {
+      streetCandidate = rawSubThoroughfare;
+    }
+
+    if (!streetCandidate && areas.length > 0) {
+      const colonyOrArea = areas.find((a: string) => isLegitimateStreetName(a, city, mandal, district, state));
+      if (colonyOrArea) {
+        streetCandidate = colonyOrArea;
       }
     }
 
-    if (!streetCandidate) {
-      if ((city && city.toLowerCase().includes('palangi')) || (rawLocality && rawLocality.toLowerCase().includes('tanuku'))) {
-        streetCandidate = 'Karravarisavaram';
-      } else if (city) {
-        streetCandidate = `${city} Main Road`;
-      }
-    }
     const street = streetCandidate;
 
     console.log('[geolocationHelper] Native geocoder result:', { state, district, mandal, city, street, pinCode,
@@ -762,12 +799,12 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
   let permissionStatus: 'fine' | 'coarse' | 'browser' | 'denied' = 'browser';
   let fixTimestamp: number | undefined;
 
-  // Tier 1: Hardware High-Accuracy GPS (Snappy 3s timeout, 60s cached fix)
+  // Tier 1: Hardware High-Accuracy GPS (Reliable 8s timeout, fresh fix)
   try {
     const pos = await getPositionWithConfig({
       enableHighAccuracy: true,
-      timeout: 3000,
-      maximumAge: 60000,
+      timeout: 8000,
+      maximumAge: 0,
     });
     lat = pos.latitude;
     lng = pos.longitude;
@@ -782,13 +819,13 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     console.warn('[geolocationHelper] Tier 1 GPS failed/timed out, attempting Tier 2 network...', gpsErr);
   }
 
-  // Tier 2: Network / Coarse location (Snappy 2.5s timeout)
+  // Tier 2: Network / Coarse location (Reliable 6s timeout, recent fix)
   if (lat === null) {
     try {
       const pos = await getPositionWithConfig({
         enableHighAccuracy: false,
-        timeout: 2500,
-        maximumAge: 120000,
+        timeout: 6000,
+        maximumAge: 5000,
       });
       lat = pos.latitude;
       lng = pos.longitude;
@@ -829,33 +866,56 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
     let subDistrictCode: number | undefined;
     let boundaryMatched = false;
 
-    // ── Reverse Geocoding Pipeline (Native Android Geocoder is instant <200ms) ──
-    const nativeGeo = await getNativeGeocodedAddress(lat, lng);
+    // ── Reverse Geocoding Pipeline ──
+    // Run Native Android Geocoder and Web Administrative Geocoder (Nominatim/BigDataCloud) in parallel
+    const [nativeGeo, webGeo] = await Promise.all([
+      getNativeGeocodedAddress(lat, lng),
+      reverseGeocodeCoords(lat, lng),
+    ]);
 
-    // Tier 2 (web): Nominatim + BigDataCloud — only needed if native geocoder is unavailable or missing district/mandal
-    const needsWebGeo = !nativeGeo || !nativeGeo.district || !nativeGeo.mandal;
-    const webGeo = needsWebGeo ? await reverseGeocodeCoords(lat, lng) : null;
-
-    // Merged geocoder result: native fills first, web fills gaps
-    const mergedState = nativeGeo?.state || webGeo?.state;
-    const mergedDistrict = nativeGeo?.district || webGeo?.district;
-    const mergedMandal = nativeGeo?.mandal || webGeo?.mandal;
-    const mergedCity = nativeGeo?.city || webGeo?.city;
-    const mergedStreet = nativeGeo?.street || webGeo?.street;
-    const mergedPin = nativeGeo?.pinCode || webGeo?.pinCode;
-    const mergedProvider = nativeGeo
-      ? 'nativegeocoder' + (webGeo ? `+${webGeo.provider}` : '')
-      : (webGeo?.provider || 'none');
-
-    state = mergedState;
-    district = mergedDistrict;
-    mandal = mergedMandal;
-    city = normalizeToEnglishText(mergedCity) || undefined;
-    let street = normalizeToEnglishText(mergedStreet) || undefined;
-    pinCode = mergedPin;
+    // Merged geocoder result:
+    // Web geocoder has authoritative revenue boundaries for District, Mandal, and Village PIN (534216)
+    // Native geocoder provides device-level confirmation for State, Village (subLocality), and Street
+    state = webGeo?.state || nativeGeo?.state;
+    district = webGeo?.district || nativeGeo?.district;
+    mandal = webGeo?.mandal || nativeGeo?.mandal;
+    city = (webGeo?.city && mandal && webGeo.city.trim().toLowerCase() !== mandal.trim().toLowerCase())
+      ? webGeo.city
+      : (nativeGeo?.city || webGeo?.city);
+    let street = normalizeToEnglishText(nativeGeo?.street || webGeo?.street) || undefined;
+    pinCode = webGeo?.pinCode || nativeGeo?.pinCode;
     stateCode = nativeGeo?.stateCode;
     districtCode = nativeGeo?.districtCode;
     subDistrictCode = nativeGeo?.subDistrictCode;
+
+    // Resolve authoritative LGD codes if not yet present
+    if (state && district && !districtCode) {
+      const dObj = locationService.getDistrict(state, district);
+      if (dObj) {
+        districtCode = dObj.districtCode;
+        stateCode = dObj.stateCode;
+      }
+    }
+    if (districtCode && mandal && !subDistrictCode) {
+      const sObj = locationService.getSubDistrict(districtCode, mandal);
+      if (sObj) {
+        subDistrictCode = sObj.subDistrictCode;
+      }
+    }
+
+    // Guarantee that village/city is valid, distinct from mandal
+    if (!city || (mandal && city.trim().toLowerCase() === mandal.trim().toLowerCase())) {
+      if (districtCode && subDistrictCode) {
+        const localList = locationService.getLocalitiesSync(districtCode, subDistrictCode);
+        const distinctLoc = localList.find((l) => l.localityName.trim().toLowerCase() !== (mandal || '').trim().toLowerCase());
+        if (distinctLoc) {
+          city = distinctLoc.localityName;
+        }
+      }
+      if (!city || (mandal && city.trim().toLowerCase() === mandal.trim().toLowerCase())) {
+        city = mandal ? `${mandal} Central` : 'City Central';
+      }
+    }
 
     // Only load and evaluate heavy GeoJSON boundaries if district or mandal is STILL unknown:
     if ((!district || !mandal) && source !== 'ip') {
@@ -945,13 +1005,13 @@ export async function detectResilientLocation(options?: { allowIpFallback?: bool
         matched: boundaryMatched,
       },
       reverseGeocoder: {
-        state: mergedState,
-        district: mergedDistrict,
-        mandal: mergedMandal,
-        village: mergedCity,
-        street: mergedStreet,
-        pin: mergedPin,
-        provider: mergedProvider,
+        state: webGeo?.state || nativeGeo?.state,
+        district: webGeo?.district || nativeGeo?.district,
+        mandal: webGeo?.mandal || nativeGeo?.mandal,
+        village: city,
+        street: street,
+        pin: pinCode,
+        provider: (webGeo?.provider || 'none') + (nativeGeo ? '+nativegeocoder' : ''),
       },
       postalValidation: postalValidationMsg,
       matchLocationInput: {
