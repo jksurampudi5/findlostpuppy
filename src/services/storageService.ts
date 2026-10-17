@@ -85,62 +85,7 @@ const firebaseSyncService = {
     (await import('./firebaseSyncService')).firebaseSyncService.hardResetAllFirestoreData(),
 };
 
-export const COMMUNITY_BASELINE_ADOPTION_PETS: AdoptionPet[] = [
-  {
-    id: 'ADOPT-1001',
-    petName: 'Chintu',
-    breed: 'Indie / Desi Puppy',
-    gender: 'Male',
-    age: '3 Months',
-    size: 'Small (5-10kg)',
-    photo: abulluImg,
-    description: 'Playful, healthy indie puppy found near village park. Vaccinated and ready for a loving home!',
-    healthNotes: 'First round vaccinations completed. Very energetic and social with children.',
-    vaccinated: true,
-    dewormed: true,
-    state: 'Andhra Pradesh',
-    district: 'East Godavari',
-    mandal: 'Undrajavaram',
-    village: 'Palangi',
-    city: 'Palangi',
-    pinCode: '534216',
-    approximateLocation: 'Palangi, Undrajavaram, East Godavari',
-    contactName: 'Ramesh Varma',
-    contactPhone: '9848022338',
-    contactEmail: 'ramesh.varma@example.com',
-    rawContactEmail: 'ramesh.varma@example.com',
-    status: 'AVAILABLE',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: 'ADOPT-1002',
-    petName: 'Bella',
-    breed: 'Golden Retriever Mix',
-    gender: 'Female',
-    age: '8 Months',
-    size: 'Medium (10-25kg)',
-    photo: sonuImg,
-    description: 'Gentle and affectionate puppy looking for an adoptive family who loves outdoor walks.',
-    healthNotes: 'Fully vaccinated & dewormed. Very friendly and leash trained.',
-    vaccinated: true,
-    dewormed: true,
-    state: 'Andhra Pradesh',
-    district: 'East Godavari',
-    mandal: 'Undrajavaram',
-    village: 'Undrajavaram',
-    city: 'Undrajavaram',
-    pinCode: '534216',
-    approximateLocation: 'Undrajavaram, East Godavari',
-    contactName: 'Suresh Kumar',
-    contactPhone: '9849011223',
-    contactEmail: 'suresh.kumar@example.com',
-    rawContactEmail: 'suresh.kumar@example.com',
-    status: 'AVAILABLE',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+export const COMMUNITY_BASELINE_ADOPTION_PETS: AdoptionPet[] = [];
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   {
@@ -748,11 +693,15 @@ class StorageService {
         try {
           this.adoptionPets = JSON.parse(storedAdoption);
         } catch {
-          this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
+          this.adoptionPets = [];
         }
       } else {
-        this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
+        this.adoptionPets = [];
       }
+      // Purge any legacy example pets (ADOPT-1001, ADOPT-1002, Chintu, Bella)
+      this.adoptionPets = (this.adoptionPets || []).filter(
+        (p) => p && p.id !== 'ADOPT-1001' && p.id !== 'ADOPT-1002' && p.petName !== 'Chintu' && p.petName !== 'Bella'
+      );
 
       this.enforceIntegrityInvariants();
       this.commitAllStorage();
@@ -2521,9 +2470,9 @@ class StorageService {
         this.adoptionPets = JSON.parse(stored);
       }
     } catch {}
-    if (!this.adoptionPets || this.adoptionPets.length === 0) {
-      this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
-    }
+    this.adoptionPets = (this.adoptionPets || []).filter(
+      (p) => p && p.id !== 'ADOPT-1001' && p.id !== 'ADOPT-1002' && p.petName !== 'Chintu' && p.petName !== 'Bella'
+    );
 
     // Automatic deduplication to guarantee no duplicate listings ever exist
     const deduplicated: AdoptionPet[] = [];
@@ -2675,6 +2624,10 @@ class StorageService {
     return this.deletePetProfile(petId);
   }
 
+  deleteAdoptionPetAsAdmin(petId: string): boolean {
+    return this.deleteAdoptionPet(petId);
+  }
+
   deleteSightingAsAdmin(sightingId: string): boolean {
     return this.executeTransaction(() => {
       const target = this.sightings.find((s) => s.id === sightingId);
@@ -2704,6 +2657,7 @@ class StorageService {
       pets: this.getAllPets(),
       reports: this.getAllReports(),
       sightings: this.getAllSightings(),
+      adoptionPets: this.getAllAdoptionPets(),
       listingReports: this.getListingReports(),
       userReports: this.getUserReports(),
       blockedUsers: this.getBlockedUsers(),
