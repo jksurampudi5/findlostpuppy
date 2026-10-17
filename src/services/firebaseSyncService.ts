@@ -14,13 +14,14 @@ import {
   getDownloadURL,
 } from 'firebase/storage';
 import { auth, db, storage, isFirebaseConfigured } from './firebaseConfig';
-import { storageBucketService, isUploadablePhoto } from './storageBucketService';
+import { storageBucketService, isUploadablePhoto, isCloudinaryUrl } from './storageBucketService';
 import type {
   OwnerProfile,
   DogProfile,
   LostReport,
   Sighting,
   AppSuggestion,
+  AdoptionPet,
 } from '../types';
 import { isPetPhotoUrl } from '../utils/dogPhotoHelper';
 
@@ -32,6 +33,7 @@ export interface FirebaseSyncStatus {
   syncedPetsCount: number;
   syncedReportsCount: number;
   syncedSightingsCount: number;
+  syncedAdoptionPetsCount?: number;
   errorMessage: string | null;
 }
 
@@ -41,6 +43,7 @@ let lastSyncCounts = {
   pets: 0,
   reports: 0,
   sightings: 0,
+  adoptionPets: 0,
 };
 let lastSyncError: string | null = null;
 
@@ -78,6 +81,7 @@ export const firebaseSyncService = {
       syncedPetsCount: lastSyncCounts.pets,
       syncedReportsCount: lastSyncCounts.reports,
       syncedSightingsCount: lastSyncCounts.sightings,
+      syncedAdoptionPetsCount: lastSyncCounts.adoptionPets,
       errorMessage: currentUser ? lastSyncError : null,
     };
   },
@@ -494,6 +498,201 @@ export const firebaseSyncService = {
   },
 
   /**
+   * Sync an adoption pet to Firestore `adoption_pets` collection.
+   * Ensures photos & flyers are stored in Cloudinary (never base64/blob in Firestore).
+   * Automatically replaces and deletes previous Cloudinary images when updated (no duplicates).
+   */
+  async syncAdoptionPet(pet: AdoptionPet): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const cleanPetId = pet.id;
+      if (!cleanPetId) return false;
+
+      const docRef = doc(db, 'adoption_pets', cleanPetId);
+
+      // Fetch existing doc from Firestore if it exists to get previous photo URLs for cleanup
+      let previousPhotoUrl: string | undefined;
+      let previousFlyerUrl: string | undefined;
+      try {
+        const existingDoc = await getDoc(docRef);
+        if (existingDoc.exists()) {
+          const data = existingDoc.data();
+          previousPhotoUrl = data.photo || (Array.isArray(data.photos) ? data.photos[0] : undefined);
+          previousFlyerUrl = data.flyerPhoto;
+        }
+      } catch {}
+
+      let primaryPhoto = pet.photo || '';
+      // If photo is uploadable (base64, blob, or non-Cloudinary URL), upload to Cloudinary
+      if (primaryPhoto && (isInlineImage(primaryPhoto) || isUploadablePhoto(primaryPhoto))) {
+        try {
+          const uploaded = await storageBucketService.uploadAdoptionPetPhoto(
+            cleanPetId,
+            primaryPhoto,
+            0,
+            previousPhotoUrl,
+          );
+          if (uploaded) {
+            if (previousPhotoUrl && previousPhotoUrl !== uploaded && isCloudinaryUrl(previousPhotoUrl)) {
+              storageBucketService.deleteMedia(previousPhotoUrl).catch(() => {});
+            }
+            primaryPhoto = uploaded;
+            pet.photo = primaryPhoto;
+          } else {
+            primaryPhoto = await uploadInlineImage(`adoption-pets/${cleanPetId}/photo.jpg`, primaryPhoto);
+            pet.photo = primaryPhoto;
+          }
+        } catch (uploadErr) {
+          console.warn('[Cloud Image Storage] Adoption pet photo upload notice:', uploadErr);
+        }
+      }
+
+      // Photos array synchronization
+      const syncedPhotos: string[] = [];
+      const rawPhotos = pet.photos || (primaryPhoto ? [primaryPhoto] : []);
+      for (let i = 0; i < rawPhotos.length; i++) {
+        let p = rawPhotos[i];
+        if (p && (isInlineImage(p) || isUploadablePhoto(p))) {
+          try {
+            const up = await storageBucketService.uploadAdoptionPetPhoto(
+              cleanPetId,
+              p,
+              i,
+              i === 0 ? previousPhotoUrl : undefined,
+            );
+            if (up) p = up;
+          } catch {}
+        }
+        if (p && !isInlineImage(p)) syncedPhotos.push(p);
+      }
+      pet.photos = syncedPhotos.length > 0 ? syncedPhotos : (primaryPhoto ? [primaryPhoto] : []);
+
+      // Flyer photo synchronization
+      let currentFlyer = pet.flyerPhoto || '';
+      if (currentFlyer && (isInlineImage(currentFlyer) || isUploadablePhoto(currentFlyer))) {
+        try {
+          const uploadedFlyer = await storageBucketService.uploadAdoptionFlyer(
+            cleanPetId,
+            currentFlyer,
+            previousFlyerUrl,
+          );
+          if (uploadedFlyer) {
+            if (previousFlyerUrl && previousFlyerUrl !== uploadedFlyer && isCloudinaryUrl(previousFlyerUrl)) {
+              storageBucketService.deleteMedia(previousFlyerUrl).catch(() => {});
+            }
+            currentFlyer = uploadedFlyer;
+            pet.flyerPhoto = currentFlyer;
+          } else {
+            currentFlyer = await uploadInlineImage(`adoption-flyers/${cleanPetId}/flyer.jpg`, currentFlyer);
+            pet.flyerPhoto = currentFlyer;
+          }
+        } catch (flyerErr) {
+          console.warn('[Cloud Image Storage] Adoption flyer upload notice:', flyerErr);
+        }
+      }
+
+      const payload: Record<string, any> = {
+        id: cleanPetId,
+        petName: pet.petName,
+        breed: pet.breed || 'Indie / Desi Dog',
+        gender: pet.gender || 'Male',
+        age: pet.age || 'Young',
+        size: pet.size || 'Medium (10-25kg)',
+        photo: cloudPhotoOrEmpty(primaryPhoto),
+        photos: pet.photos.map((p) => cloudPhotoOrEmpty(p)).filter(Boolean),
+        flyerPhoto: cloudPhotoOrEmpty(currentFlyer),
+        isFlyerUpload: Boolean(pet.isFlyerUpload || currentFlyer),
+        description: pet.description || '',
+        healthNotes: pet.healthNotes || '',
+        vaccinated: typeof pet.vaccinated === 'boolean' ? pet.vaccinated : true,
+        dewormed: typeof pet.dewormed === 'boolean' ? pet.dewormed : true,
+        spayedOrNeutered: typeof pet.spayedOrNeutered === 'boolean' ? pet.spayedOrNeutered : false,
+        state: pet.state || '',
+        district: pet.district || '',
+        mandal: pet.mandal || '',
+        village: pet.village || pet.city || '',
+        city: pet.city || pet.village || '',
+        pinCode: pet.pinCode || '',
+        contactName: pet.contactName || 'Pet Caretaker',
+        contactPhone: pet.contactPhone || '',
+        status: pet.status || 'AVAILABLE',
+        createdAt: pet.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (pet.listingGroupId) payload.listingGroupId = pet.listingGroupId;
+      if (pet.userId) payload.userId = pet.userId;
+      if (pet.locationHint) payload.locationHint = pet.locationHint;
+      if (pet.approximateLocation) payload.approximateLocation = pet.approximateLocation;
+      if (pet.latitude !== undefined) payload.latitude = pet.latitude;
+      if (pet.longitude !== undefined) payload.longitude = pet.longitude;
+      if (pet.contactEmail) payload.contactEmail = pet.contactEmail;
+      if (pet.rawContactPhone) payload.rawContactPhone = pet.rawContactPhone;
+      if (pet.rawContactEmail) payload.rawContactEmail = pet.rawContactEmail;
+      if (pet.fieldConfidence) payload.fieldConfidence = pet.fieldConfidence;
+      if (pet.fieldSource) payload.fieldSource = pet.fieldSource;
+
+      await setDoc(docRef, payload, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] syncAdoptionPet error:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete an adoption pet from Firestore `adoption_pets` collection.
+   * Also purges associated images from Cloudinary to prevent orphaned or duplicate files.
+   */
+  async deleteAdoptionPet(petId: string): Promise<boolean> {
+    if (!db || !isFirebaseConfigured()) return false;
+    try {
+      const docRef = doc(db, 'adoption_pets', petId);
+      try {
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.photo && isCloudinaryUrl(data.photo)) {
+            storageBucketService.deleteMedia(data.photo).catch(() => {});
+          }
+          if (Array.isArray(data.photos)) {
+            data.photos.forEach((p: string) => {
+              if (p && p !== data.photo && isCloudinaryUrl(p)) {
+                storageBucketService.deleteMedia(p).catch(() => {});
+              }
+            });
+          }
+          if (data.flyerPhoto && isCloudinaryUrl(data.flyerPhoto)) {
+            storageBucketService.deleteMedia(data.flyerPhoto).catch(() => {});
+          }
+        }
+      } catch {}
+
+      await deleteDoc(docRef);
+      return true;
+    } catch (err: any) {
+      console.warn('[Firebase] deleteAdoptionPet error:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Fetch all adoption pets from Firestore `adoption_pets` collection.
+   */
+  async fetchAllAdoptionPets(): Promise<AdoptionPet[]> {
+    if (!db || !isFirebaseConfigured()) return [];
+    try {
+      const snap = await getDocs(collection(db, 'adoption_pets'));
+      const pets: AdoptionPet[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AdoptionPet));
+      lastSyncCounts.adoptionPets = pets.length;
+      return pets;
+    } catch (err) {
+      console.warn('[Firebase] fetchAllAdoptionPets notice:', err);
+      return [];
+    }
+  },
+
+  /**
    * Pull all cloud records from Firestore collections.
    */
   async fetchAllCloudData(): Promise<{
@@ -571,6 +770,7 @@ export const firebaseSyncService = {
         pets: pets.length,
         reports: reports.length,
         sightings: sightings.length,
+        adoptionPets: lastSyncCounts.adoptionPets,
       };
       lastSyncError = null;
 
@@ -591,12 +791,13 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return true;
     try {
       const firestore = db;
-      const [profilesSnap, petsSnap, reportsSnap, sightingsSnap, suggestionsSnap] = await Promise.all([
+      const [profilesSnap, petsSnap, reportsSnap, sightingsSnap, suggestionsSnap, adoptionSnap] = await Promise.all([
         getDocs(collection(firestore, 'profiles')).catch(() => ({ docs: [] } as any)),
         getDocs(collection(firestore, 'pets')).catch(() => ({ docs: [] } as any)),
         getDocs(collection(firestore, 'missing_reports')).catch(() => ({ docs: [] } as any)),
         getDocs(collection(firestore, 'sightings')).catch(() => ({ docs: [] } as any)),
         getDocs(collection(firestore, 'app_suggestions')).catch(() => ({ docs: [] } as any)),
+        getDocs(collection(firestore, 'adoption_pets')).catch(() => ({ docs: [] } as any)),
       ]);
 
       const deletePromises: Promise<any>[] = [];
@@ -609,6 +810,16 @@ export const firebaseSyncService = {
       });
       sightingsSnap.docs.forEach((d: any) => deletePromises.push(deleteDoc(d.ref)));
       suggestionsSnap.docs.forEach((d: any) => deletePromises.push(deleteDoc(d.ref)));
+      adoptionSnap.docs.forEach((d: any) => {
+        const data = d.data();
+        if (data?.photo && isCloudinaryUrl(data.photo)) {
+          storageBucketService.deleteMedia(data.photo).catch(() => {});
+        }
+        if (data?.flyerPhoto && isCloudinaryUrl(data.flyerPhoto)) {
+          storageBucketService.deleteMedia(data.flyerPhoto).catch(() => {});
+        }
+        deletePromises.push(deleteDoc(d.ref));
+      });
 
       await Promise.allSettled(deletePromises);
       return true;
