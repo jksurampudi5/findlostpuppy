@@ -240,3 +240,93 @@ export interface AppSuggestion {
   createdAt: string;
   status: 'NEW' | 'REVIEWED' | 'PLANNED' | 'COMPLETED';
 }
+
+export interface ExtractedPetItem {
+  id?: string;
+  name?: string | null;
+  petName?: string;
+  breed?: string | null;
+  age_text?: string | null;
+  age?: string;
+  gender?: 'Male' | 'Female' | 'Unknown' | null;
+  size?: DogSize | string | null;
+  vaccinated?: boolean | null;
+  dewormed?: boolean | null;
+  spayedOrNeutered?: boolean | null;
+  temperament?: string | null;
+  health_notes?: string | null;
+  healthNotes?: string;
+  about?: string | null;
+  description?: string;
+  photo?: string;
+  field_confidence?: Record<string, number>;
+  fieldConfidence?: Record<string, number>;
+  field_source?: Record<string, string>;
+  fieldSource?: Record<string, string>;
+}
+
+export interface ExtractedCaretaker {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_channel: string | null;
+}
+
+export interface ExtractedLocation {
+  location_hint: string | null;
+  state: string | null;
+  district: string | null;
+  mandal: string | null;
+  village: string | null;
+  pin_code: string | null;
+}
+
+export interface PosterExtractionResult {
+  unreadable_text: boolean;
+  pets: ExtractedPetItem[];
+  caretaker: ExtractedCaretaker;
+  location: ExtractedLocation;
+}
+
+export type AdoptionStatus = 'AVAILABLE' | 'ADOPTED' | 'PENDING';
+
+export interface AdoptionPet {
+  id: string; // e.g. "ADOPT-123456"
+  listingGroupId?: string; // Groups multiple pets from the same poster submission
+  userId?: string;
+  petName: string;
+  breed: string;
+  gender: DogGender;
+  age: string;
+  size: DogSize;
+  photo: string;
+  photos?: string[];
+  description: string;
+  healthNotes?: string;
+  vaccinated?: boolean;
+  dewormed?: boolean;
+  spayedOrNeutered?: boolean;
+  state: string;
+  district: string;
+  mandal?: string;
+  village?: string;
+  city?: string;
+  pinCode?: string;
+  latitude?: number;
+  longitude?: number;
+  locationHint?: string; // Poster location hint (e.g. "Hyderabad")
+  approximateLocation?: string;
+  contactName: string;
+  contactPhone: string; // Masked public phone (e.g. "+91 96••••••14")
+  contactEmail?: string; // Masked public email (e.g. "c•••r@example.com")
+  rawContactPhone?: string; // Private unmasked phone readable only by creator & admin
+  rawContactEmail?: string; // Private unmasked email readable only by creator & admin
+  flyerPhoto?: string; // Original uploaded adoption flyer/poster image (base64 or URL)
+  isFlyerUpload?: boolean; // Flag if listing was created/populated via flyer scan
+  extractedRawText?: string; // Audit raw text extracted from flyer
+  fieldConfidence?: Record<string, number>;
+  fieldSource?: Record<string, string>;
+  status: AdoptionStatus;
+  createdAt: string;
+  updatedAt: string;
+}

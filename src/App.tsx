@@ -19,6 +19,7 @@ import { PetDetails } from './pages/PetDetails';
 import { PetSafety } from './pages/PetSafety';
 import { GuestSightingPage } from './pages/GuestSightingPage';
 import { RegisteredPet } from './pages/RegisteredPet';
+import { AdoptionDetailsPage } from './pages/AdoptionDetailsPage';
 import { AnimationShowcaseStudio } from './components/ui/AnimationShowcaseStudio';
 
 // Unlocked Experience Pages
@@ -54,6 +55,7 @@ function MainAppFlow() {
     isAuthenticated,
     isLoading,
     hasCompletedOwner,
+    hasCompletedLocation,
     setActiveOnboardingTab,
     hasValidConsent,
     isFirstTimeUser,
@@ -185,12 +187,22 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <RegisteredPet />
           )
         }
       />
       <Route path="/pet-choice" element={<Navigate to="/choice" replace />} />
+
+      <Route path="/adoption-details" element={<AdoptionDetailsPage />} />
+      <Route path="/adoption_details" element={<AdoptionDetailsPage />} />
+      <Route path="/add-adoption" element={<AdoptionDetailsPage />} />
+      <Route path="/add_adoption" element={<AdoptionDetailsPage />} />
+      <Route path="/adoption-pet" element={<AdoptionDetailsPage />} />
+      <Route path="/adoption_pet" element={<AdoptionDetailsPage />} />
+      <Route path="/adoption" element={<Navigate to="/homepage" state={{ tab: 'ADOPTION' }} replace />} />
 
       <Route
         path="/pet"
@@ -201,6 +213,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <PetDetails
               onBackToLocation={() => {
@@ -228,6 +242,8 @@ function MainAppFlow() {
             <Navigate to="/consent" replace />
           ) : !hasCompletedOwner ? (
             <Navigate to="/owner" replace />
+          ) : !hasCompletedLocation ? (
+            <Navigate to="/location" replace />
           ) : (
             <PetSafety
               onBackToPet={() => {

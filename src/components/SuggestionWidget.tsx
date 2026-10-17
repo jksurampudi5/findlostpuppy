@@ -218,7 +218,7 @@ export const SuggestionWidget: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="rating-review-row">
+                  <div className="rating-review-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
                     {/* Stars */}
                     <div className="suggestion-stars-row">
                       {[1, 2, 3, 4, 5].map((val) => {
@@ -243,6 +243,17 @@ export const SuggestionWidget: React.FC = () => {
                       })}
                     </div>
 
+                    <a
+                      href={PLAY_STORE_REVIEW_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="suggestion-playstore-link-btn"
+                      aria-label="Rate FindLostPuppy on Google Play Store"
+                    >
+                      <Star size={14} fill="#FFB800" stroke="#FFB800" />
+                      <span>Rate on Play Store</span>
+                      <ExternalLink size={12} />
+                    </a>
                   </div>
                 </div>
 

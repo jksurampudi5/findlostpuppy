@@ -167,13 +167,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           storageService.migrateUserDataToAuthenticatedUser(mappedUser.id, mappedUser.email);
           refreshProgressForUser(mappedUser);
           storageService.pullFromFirebase().then(() => {
-            if (isMounted) refreshProgressForUser(mappedUser);
+            if (isMounted) {
+              const freshest = authService.getCurrentUser() || mappedUser;
+              setUser(freshest);
+              refreshProgressForUser(freshest);
+            }
           }).catch(() => {});
         } else {
           const cachedUser = authService.getCurrentUser();
           if (cachedUser) {
             storageService.pullFromFirebase().then(() => {
-              if (isMounted) refreshProgressForUser(cachedUser);
+              if (isMounted) {
+                const freshest = authService.getCurrentUser() || cachedUser;
+                setUser(freshest);
+                refreshProgressForUser(freshest);
+              }
             }).catch(() => {});
           }
           setUser(cachedUser);

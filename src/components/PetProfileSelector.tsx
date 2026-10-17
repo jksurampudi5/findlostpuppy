@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, Check } from 'lucide-react';
 import { BreedAvatarFallback } from '../utils/breedAssetHelper';
 import './PetProfileSelector.css';
@@ -28,6 +29,7 @@ export interface PetProfileSelectorProps {
   searchPlaceholder?: string;
   showAlphabetScrubber?: boolean;
   closeOnSelect?: boolean;
+  autoFocusSearch?: boolean;
 }
 
 const ALPHABET = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
@@ -43,6 +45,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
   searchPlaceholder = 'Search...',
   showAlphabetScrubber = false,
   closeOnSelect = true,
+  autoFocusSearch = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLetter, setActiveLetter] = useState<string>('#');
@@ -52,16 +55,18 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  // Reset search query and focus when opening
+  // Reset search query when opening (do NOT auto-focus unless requested, allowing direct dropdown choice)
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
       setActiveLetter('#');
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
+      if (autoFocusSearch) {
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 50);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, autoFocusSearch]);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -80,7 +85,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
     const q = searchQuery.toLowerCase().trim();
     return options.filter(
       (opt) =>
-        opt.label.toLowerCase().includes(q) ||
+        (opt.label || '').toLowerCase().includes(q) ||
         (opt.secondaryLabel && opt.secondaryLabel.toLowerCase().includes(q))
     );
   }, [options, searchQuery]);
@@ -89,7 +94,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
   const letterTargetMap = useMemo(() => {
     const map = new Map<string, string>();
     filteredOptions.forEach((opt) => {
-      const firstChar = opt.letter || opt.label.charAt(0).toUpperCase();
+      const firstChar = opt.letter || (opt.label ? opt.label.charAt(0).toUpperCase() : '#');
       const key = /^[A-Z]$/.test(firstChar) ? firstChar : '#';
       if (!map.has(key)) {
         map.set(key, opt.id);
@@ -128,13 +133,16 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="pet-selector-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div
         className="pet-selector-modal"
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
       >
+        {/* Mobile drag handle pill for sheet feel */}
+        <div className="pet-selector-sheet-handle" aria-hidden="true" />
+
         {/* Header */}
         <div className="pet-selector-header">
           <h3 className="pet-selector-title">{title}</h3>
@@ -180,9 +188,12 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
           <div className="pet-selector-list" ref={listRef}>
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => {
+                const sel = (selectedValue || '').toLowerCase();
                 const isSelected =
-                  selectedValue.toLowerCase() === opt.id.toLowerCase() ||
-                  selectedValue.toLowerCase() === opt.label.toLowerCase();
+                  Boolean(sel) && (
+                    sel === (opt.id || '').toLowerCase() ||
+                    sel === (opt.label || '').toLowerCase()
+                  );
 
                 return (
                   <button
@@ -282,6 +293,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -3,7 +3,7 @@
 .pet-selector-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 100000;
   background: rgba(8, 9, 12, 0.78);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -12,6 +12,10 @@
   justify-content: center;
   padding: 1rem;
   animation: petSelectorFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pet-selector-sheet-handle {
+  display: none;
 }
 
 @keyframes petSelectorFadeIn {
@@ -346,15 +350,38 @@
   .pet-selector-overlay {
     align-items: flex-end;
     padding: 0;
+    z-index: 100000;
   }
 
   .pet-selector-modal {
     max-width: 100%;
-    max-height: 82vh;
+    width: 100%;
+    height: 86dvh;
+    height: 86vh;
+    max-height: 90dvh;
+    max-height: 90vh;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     border-bottom: none;
     animation: petSelectorSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pet-selector-sheet-handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 9999px;
+    margin: 10px auto 2px;
+    flex-shrink: 0;
+  }
+
+  .pet-selector-content {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
   }
 
   @keyframes petSelectorSlideUp {
@@ -367,7 +394,7 @@
   }
 
   .pet-selector-list {
-    padding: 0.5rem 0.65rem 1.5rem 0.85rem;
+    padding: 0.5rem 0.85rem calc(2rem + env(safe-area-inset-bottom, 16px)) 0.85rem;
   }
 }
 

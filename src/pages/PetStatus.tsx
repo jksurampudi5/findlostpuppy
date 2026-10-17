@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Calendar, Camera, Check, Dog, Eye, Home, MapPin, Navigation, RotateCcw, ShieldCheck, Sparkles, Star, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Calendar, Camera, Check, Dog, Eye, Home, MapPin, Navigation, RotateCcw, ShieldCheck, Sparkles, Trash2, X, HeartHandshake, Heart, Phone, Mail, MessageCircle, Plus, Search, Share2, FileText, Copy, Edit3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { locationService } from '../services/locationService';
-import type { LostReport, Sighting, OwnerProfile, DogProfile, LocationLocality } from '../types';
+import type { LostReport, Sighting, OwnerProfile, DogProfile, LocationLocality, AdoptionPet } from '../types';
 import { getDogDisplayName, getDogPhotoUrl, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { isMatchState, isMatchDistrict, isMatchMandal, isMatchCity, getReportGeo } from '../utils/locationMatchHelper';
 import { EmptyState } from '../components/fallbacks/EmptyState';
 import { PlayStoreEarlyAccessButton } from '../components/SuggestionWidget';
 import { detectResilientLocation } from '../utils/geolocationHelper';
+import { AdoptionShareModal } from '../components/AdoptionShareModal';
+import { getRevealedAdoptionPhone } from '../utils/adoptionCardHelper';
 
 /** Displays pet-status categories and grouped sightings with owner-gated safe-pet detail dialogs. */
 export const PetStatus: React.FC = () => {
@@ -25,8 +27,12 @@ export const PetStatus: React.FC = () => {
   const [allPets, setAllPets] = useState<DogProfile[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
+  const [adoptionPets, setAdoptionPets] = useState<AdoptionPet[]>([]);
   const [detailReport, setDetailReport] = useState<LostReport | null>(null);
   const [detailSighting, setDetailSighting] = useState<Sighting | null>(null);
+  const [detailAdoptionPet, setDetailAdoptionPet] = useState<AdoptionPet | null>(null);
+  const [shareModalAdoptionPet, setShareModalAdoptionPet] = useState<AdoptionPet | null>(null);
+  const [adoptionSearchQuery, setAdoptionSearchQuery] = useState('');
   const [activeSightingPhotoIndex, setActiveSightingPhotoIndex] = useState(0);
   const [statusPanelOpen, setStatusPanelOpen] = useState(false);
 
@@ -61,23 +67,23 @@ export const PetStatus: React.FC = () => {
 
   const initialTab = (() => {
     const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
-    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
+    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS' || stateTab === 'ADOPTION') {
       return stateTab;
     }
     return null;
   })();
-  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'SAFE' | 'LOST' | null>(initialTab);
+  const [selectedStatus, setSelectedStatus] = useState<'SIGHTINGS' | 'ADOPTION' | 'SAFE' | 'LOST' | null>(initialTab);
 
   useEffect(() => {
     const stateTab = (location.state as any)?.activeTab || (location.state as any)?.tab;
-    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS') {
+    if (stateTab === 'SAFE' || stateTab === 'LOST' || stateTab === 'SIGHTINGS' || stateTab === 'ADOPTION') {
       setSelectedStatus(stateTab);
       setStatusPanelOpen(true);
     }
   }, [location.state]);
 
   /** Selects a pet-status category and opens its list modal. */
-  const selectStatusAndScroll = (status: 'SIGHTINGS' | 'SAFE' | 'LOST') => {
+  const selectStatusAndScroll = (status: 'SIGHTINGS' | 'ADOPTION' | 'SAFE' | 'LOST') => {
     setSelectedStatus(status);
     setStatusPanelOpen(true);
     window.setTimeout(() => {
@@ -92,13 +98,16 @@ export const PetStatus: React.FC = () => {
       setAllPets(storageService.getAllPets());
       setSightings(storageService.getAllSightings().filter((sighting) => sighting.isCurrent !== false));
       setProfiles(storageService.getAllOwnerProfiles());
+      setAdoptionPets(storageService.getAllAdoptionPets());
     };
 
     loadDashboardData();
     window.addEventListener('findlostpuppy_reports_updated', loadDashboardData);
+    window.addEventListener('findlostpuppy_adoption_pets_updated', loadDashboardData);
     window.addEventListener('storage', loadDashboardData);
     return () => {
       window.removeEventListener('findlostpuppy_reports_updated', loadDashboardData);
+      window.removeEventListener('findlostpuppy_adoption_pets_updated', loadDashboardData);
       window.removeEventListener('storage', loadDashboardData);
     };
   }, []);
@@ -388,6 +397,20 @@ export const PetStatus: React.FC = () => {
     return list;
   }, [visiblePets, selectedStatus, missingFilterState, missingFilterDistrict, missingFilterMandal, missingFilterVillage, profiles]);
 
+  const filteredAdoptionPets = useMemo(() => {
+    if (!adoptionSearchQuery.trim()) return adoptionPets;
+    const q = adoptionSearchQuery.toLowerCase().trim();
+    return adoptionPets.filter(
+      (p) =>
+        (p.petName || '').toLowerCase().includes(q) ||
+        (p.breed || '').toLowerCase().includes(q) ||
+        (p.village || '').toLowerCase().includes(q) ||
+        (p.mandal || '').toLowerCase().includes(q) ||
+        (p.district || '').toLowerCase().includes(q) ||
+        (p.state || '').toLowerCase().includes(q)
+    );
+  }, [adoptionPets, adoptionSearchQuery]);
+
   const missingStateOptions = useMemo(() => {
     const lostReports = reports.filter((r) => r.status === 'LOST');
     return locationService.getStates().map((s) => {
@@ -582,19 +605,31 @@ export const PetStatus: React.FC = () => {
             <h1>Pet Status</h1>
           </div>
 
-          <button
-            type="button"
-            className="dashboard-top-capture-btn"
-            onClick={() => navigate('/capture?mode=unknown')}
-            aria-label="Quick Capture Roaming Pet"
-          >
-            <Camera size={24} />
-            <span>Capture Pet</span>
-          </button>
+          <div className="dashboard-top-actions-row">
+            <button
+              type="button"
+              className="dashboard-top-capture-btn"
+              onClick={() => navigate('/capture?mode=unknown')}
+              aria-label="Quick Capture Roaming Pet"
+            >
+              <Camera size={22} />
+              <span>Capture Pet</span>
+            </button>
+            <button
+              type="button"
+              className="dashboard-top-capture-btn dashboard-top-adoption-btn"
+              onClick={() => navigate('/adoption-details')}
+              aria-label="Add Pet For Adoption"
+            >
+              <HeartHandshake size={22} />
+              <span>Add Adoption Pet</span>
+            </button>
+          </div>
 
-          <p className="dashboard-status-choice-hint">Pick one status below to view sightings, safe pets, or missing pets.</p>
+          <p className="dashboard-status-choice-hint">Pick one status below to view sightings, adoption, safe pets, or missing pets.</p>
 
-          <div className="dashboard-status-filter-buttons" role="tablist" aria-label="Pet safety list filter">
+          <div className="dashboard-status-filter-buttons dashboard-2x2-status-grid loc-grid-2x2" role="tablist" aria-label="Pet safety and adoption status filter">
+            {/* 1. SIGHTINGS (Top Left) */}
             <button
               type="button"
               className={`dashboard-status-filter-btn sighting-filter ${selectedStatus === 'SIGHTINGS' ? 'active' : ''}`}
@@ -602,18 +637,73 @@ export const PetStatus: React.FC = () => {
               role="tab"
               aria-selected={selectedStatus === 'SIGHTINGS'}
             >
+              <div className="dashboard-status-card-top">
+                <div className="dashboard-status-card-icon-badge sighting-badge">
+                  <Navigation size={22} />
+                  <Camera size={13} className="dashboard-status-card-mini-icon" />
+                </div>
+                <div className="dashboard-status-card-top-meta">
+                  <span className="dashboard-status-card-label">SIGHTINGS</span>
+                  <span className="dashboard-status-count-pill">{sightings.length}</span>
+                </div>
+              </div>
               <span className="dashboard-status-select-mark">
-                {selectedStatus === 'SIGHTINGS' && <Check size={22} />}
-              </span>
-              <span className="dashboard-status-card-icon sighting-icon">
-                <Navigation size={46} />
-                <Camera size={18} className="dashboard-status-card-mini-icon" />
+                {selectedStatus === 'SIGHTINGS' && <Check size={20} />}
               </span>
               <span className="dashboard-status-card-copy">
                 <strong>Sightings</strong>
                 <span>Captured pet photos and location details.</span>
               </span>
             </button>
+
+            {/* 2. ADOPTION (Top Right) */}
+            <button
+              type="button"
+              className={`dashboard-status-filter-btn adoption-filter ${selectedStatus === 'ADOPTION' ? 'active' : ''}`}
+              onClick={() => selectStatusAndScroll('ADOPTION')}
+              role="tab"
+              aria-selected={selectedStatus === 'ADOPTION'}
+            >
+              <div className="dashboard-status-card-top">
+                <div className="dashboard-status-card-icon-badge adoption-badge">
+                  <HeartHandshake size={22} />
+                </div>
+                <div className="dashboard-status-card-top-meta">
+                  <span className="dashboard-status-card-label">ADOPTION</span>
+                  <span className="dashboard-status-count-pill">{adoptionPets.length}</span>
+                </div>
+              </div>
+              <span className="dashboard-status-select-mark">
+                {selectedStatus === 'ADOPTION' && <Check size={20} />}
+              </span>
+              <span className="dashboard-status-card-copy">
+                <strong>Adoption</strong>
+                <span>Find forever homes for loving pets.</span>
+              </span>
+              <div className="dashboard-status-card-direct-action">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="dashboard-card-mini-add-link"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/adoption-details');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      navigate('/adoption-details');
+                    }
+                  }}
+                  title="Directly add adoption photo & details"
+                >
+                  <Plus size={13} />
+                  <span>Add</span>
+                </span>
+              </div>
+            </button>
+
+            {/* 3. SAFE PETS (Bottom Left) */}
             <button
               type="button"
               className={`dashboard-status-filter-btn safe-filter ${selectedStatus === 'SAFE' ? 'active' : ''}`}
@@ -621,18 +711,26 @@ export const PetStatus: React.FC = () => {
               role="tab"
               aria-selected={selectedStatus === 'SAFE'}
             >
+              <div className="dashboard-status-card-top">
+                <div className="dashboard-status-card-icon-badge safe-badge">
+                  <Home size={22} />
+                  <ShieldCheck size={13} className="dashboard-status-card-mini-icon" />
+                </div>
+                <div className="dashboard-status-card-top-meta">
+                  <span className="dashboard-status-card-label">SAFE PETS</span>
+                  <span className="dashboard-status-count-pill">{visiblePets.length}</span>
+                </div>
+              </div>
               <span className="dashboard-status-select-mark">
-                {selectedStatus === 'SAFE' && <Check size={22} />}
-              </span>
-              <span className="dashboard-status-card-icon safe-icon">
-                <Home size={46} />
-                <ShieldCheck size={18} className="dashboard-status-card-mini-icon" />
+                {selectedStatus === 'SAFE' && <Check size={20} />}
               </span>
               <span className="dashboard-status-card-copy">
                 <strong>Safe Pets</strong>
                 <span>Pets marked safe at home.</span>
               </span>
             </button>
+
+            {/* 4. MISSING PETS (Bottom Right) */}
             <button
               type="button"
               className={`dashboard-status-filter-btn missing-filter ${selectedStatus === 'LOST' ? 'active' : ''}`}
@@ -640,11 +738,17 @@ export const PetStatus: React.FC = () => {
               role="tab"
               aria-selected={selectedStatus === 'LOST'}
             >
+              <div className="dashboard-status-card-top">
+                <div className="dashboard-status-card-icon-badge missing-badge">
+                  <AlertTriangle size={22} />
+                </div>
+                <div className="dashboard-status-card-top-meta">
+                  <span className="dashboard-status-card-label">MISSING PETS</span>
+                  <span className="dashboard-status-count-pill">{filteredMissingPets.length}</span>
+                </div>
+              </div>
               <span className="dashboard-status-select-mark">
-                {selectedStatus === 'LOST' && <Check size={22} />}
-              </span>
-              <span className="dashboard-status-card-icon missing-icon">
-                <AlertTriangle size={46} />
+                {selectedStatus === 'LOST' && <Check size={20} />}
               </span>
               <span className="dashboard-status-card-copy">
                 <strong>Missing Pets</strong>
@@ -672,9 +776,20 @@ export const PetStatus: React.FC = () => {
                     ? 'Sightings'
                     : selectedStatus === 'SAFE'
                       ? 'Safe Pets'
-                      : 'Missing Pets'}
+                      : selectedStatus === 'ADOPTION'
+                        ? 'Pets for Adoption'
+                        : 'Missing Pets'}
                 </h2>
-                <span>{selectedStatus === 'SIGHTINGS' ? sightings.length : (selectedStatus === 'LOST' ? filteredMissingPets.length : visiblePets.length)} listed</span>
+                <span>
+                  {selectedStatus === 'SIGHTINGS'
+                    ? sightings.length
+                    : selectedStatus === 'LOST'
+                      ? filteredMissingPets.length
+                      : selectedStatus === 'ADOPTION'
+                        ? filteredAdoptionPets.length
+                        : visiblePets.length}{' '}
+                  listed
+                </span>
                 <button
                   type="button"
                   className="dashboard-status-modal-close dashboard-list-modal-close"
@@ -813,6 +928,42 @@ export const PetStatus: React.FC = () => {
                   </button>
                 </>
               )}
+              {selectedStatus === 'ADOPTION' && (
+                <div className="dashboard-adoption-header-controls">
+                  <button
+                    type="button"
+                    className="dashboard-capture-shortcut-btn dashboard-post-adoption-btn"
+                    onClick={() => navigate('/adoption-details')}
+                    style={{
+                      background: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+                      borderColor: '#BE185D',
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>Post Pet for Adoption</span>
+                  </button>
+                  <div className="dashboard-adoption-search-wrap">
+                    <Search size={16} className="dashboard-adoption-search-icon" />
+                    <input
+                      type="text"
+                      className="dashboard-adoption-search-input"
+                      placeholder="Search adoption pets by name, breed, location..."
+                      value={adoptionSearchQuery}
+                      onChange={(e) => setAdoptionSearchQuery(e.target.value)}
+                    />
+                    {adoptionSearchQuery && (
+                      <button
+                        type="button"
+                        className="dashboard-adoption-search-clear"
+                        onClick={() => setAdoptionSearchQuery('')}
+                        aria-label="Clear search"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               {selectedStatus === 'SAFE' && (
                 <button
                   type="button"
@@ -899,6 +1050,97 @@ export const PetStatus: React.FC = () => {
                       title="No sightings reported yet."
                       message="Open a missing pet alert to report a sighting."
                       action={<button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/find')}>View Missing Pets</button>}
+                    />
+                  )
+                ) : selectedStatus === 'ADOPTION' ? (
+                  filteredAdoptionPets.length > 0 ? (
+                    filteredAdoptionPets.map((pet) => {
+                      const photo = pet.photo || pet.photos?.[0] || '';
+                      const traits = [pet.breed, pet.gender, pet.age, pet.size].filter(Boolean).join(' • ');
+                      const loc = [pet.village, pet.mandal, pet.district].filter(Boolean).join(', ') || pet.city || 'Location available';
+                      return (
+                        <article
+                          key={pet.id}
+                          className="dashboard-status-pet-row dashboard-adoption-pet-row"
+                          onClick={() => setDetailAdoptionPet(pet)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className="dashboard-status-pet-photo-wrap">
+                            {photo ? (
+                              <img
+                                src={photo}
+                                alt={pet.petName}
+                                className="dashboard-status-pet-photo"
+                                onError={handleDogImageError}
+                              />
+                            ) : (
+                              <div className="dashboard-status-pet-photo-placeholder" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(236,72,153,0.12)', borderRadius: '10px' }}>
+                                <Heart size={24} style={{ color: '#F472B6' }} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="dashboard-status-pet-copy">
+                            <div className="dashboard-pet-name-row">
+                              <strong>{pet.petName}</strong>
+                              <span className="dashboard-adoption-badge-tag" style={{ fontSize: '0.72rem', color: '#F472B6', background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(244,114,182,0.3)', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                <Heart size={11} fill="#F472B6" /> Ready to Adopt
+                              </span>
+                              {pet.flyerPhoto && (
+                                <span className="dashboard-poster-tag" style={{ fontSize: '0.7rem', color: '#C084FC', background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)', padding: '2px 7px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                  📄 Has Poster
+                                </span>
+                              )}
+                              {pet.vaccinated && (
+                                <span className="dashboard-safe-tag" style={{ fontSize: '0.72rem', color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                  <Check size={11} /> Vaccinated
+                                </span>
+                              )}
+                            </div>
+                            <span className="dashboard-pet-location-snippet">
+                              {traits || 'Companion pet'}
+                            </span>
+                            <span className="dashboard-status-pet-location" style={{ fontSize: '0.78rem', color: '#9CA3AF', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                              <MapPin size={12} style={{ color: '#F472B6' }} />
+                              {loc}
+                            </span>
+                          </div>
+                          <div className="dashboard-status-row-actions">
+                            <button
+                              type="button"
+                              className="dashboard-status-view-details-btn dashboard-adopt-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailAdoptionPet(pet);
+                              }}
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(236,72,153,0.2), rgba(190,24,93,0.3))',
+                                borderColor: '#F472B6',
+                                color: '#FCE7F3',
+                              }}
+                            >
+                              <Heart size={13} fill="#F472B6" />
+                              <span>Adopt</span>
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <EmptyState
+                      icon={<HeartHandshake size={32} style={{ color: '#F472B6' }} />}
+                      title={adoptionSearchQuery ? "No adoption pets match your search" : "No adoption pets listed yet"}
+                      message={adoptionSearchQuery ? "Try clearing your search term or searching another location." : "Be the first to list a pet looking for a loving home."}
+                      action={
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => navigate('/adoption-details')}
+                          style={{ background: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)', border: 'none' }}
+                        >
+                          <Plus size={16} />
+                          <span>Add Adoption Pet</span>
+                        </button>
+                      }
                     />
                   )
                 ) : (selectedStatus === 'LOST' ? filteredMissingPets : visiblePets).length > 0 ? (
@@ -1016,8 +1258,9 @@ export const PetStatus: React.FC = () => {
           )}
         </section>
 
-        {/* Feedback + Play Store actions */}
-        <section className="dashboard-bottom-feedback-section" aria-label="App feedback and rating">
+        {/* Play Store Rating (First) + Feedback Action (Second) */}
+        <section className="dashboard-bottom-feedback-section" aria-label="App rating and feedback">
+          <PlayStoreEarlyAccessButton className="dashboard-playstore-rating-btn" />
           <button
             type="button"
             id="dashboard-feedback-btn"
@@ -1028,10 +1271,9 @@ export const PetStatus: React.FC = () => {
             }}
             aria-label="Submit App Feedback"
           >
-            <Star size={18} fill="#FFB800" stroke="#FFB800" />
+            <MessageCircle size={18} />
             <span>Submit Feedback</span>
           </button>
-          <PlayStoreEarlyAccessButton className="dashboard-playstore-rating-btn" />
         </section>
       </div>
 
@@ -1285,6 +1527,453 @@ export const PetStatus: React.FC = () => {
       })(),
       document.body
     )}
+
+    {detailAdoptionPet && createPortal(
+      (() => {
+        const photo = detailAdoptionPet.photo || detailAdoptionPet.photos?.[0] || '';
+        const fullLocation = [
+          detailAdoptionPet.village,
+          detailAdoptionPet.mandal,
+          detailAdoptionPet.district,
+          detailAdoptionPet.state,
+        ].filter(Boolean).join(', ') || detailAdoptionPet.city || 'Location available';
+
+        return (
+          <div
+            className="dashboard-status-modal-backdrop"
+            role="presentation"
+            onClick={() => setDetailAdoptionPet(null)}
+          >
+            <section
+              className="dashboard-status-pet-popover dashboard-status-pet-modal dashboard-adoption-detail-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Adoption details for ${detailAdoptionPet.petName}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="dashboard-status-modal-close"
+                onClick={() => setDetailAdoptionPet(null)}
+                aria-label="Close adoption pet details"
+              >
+                <X size={22} />
+              </button>
+
+              <div className="dashboard-adoption-left-col">
+                <div className="dashboard-adoption-media-card">
+                  {photo ? (
+                    <img
+                      src={photo}
+                      alt={detailAdoptionPet.petName}
+                      className="dashboard-adoption-photo"
+                      onError={handleDogImageError}
+                    />
+                  ) : (
+                    <div className="dashboard-status-popover-photo-placeholder" style={{ width: '100%', height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(236,72,153,0.1)' }}>
+                      <HeartHandshake size={56} style={{ color: '#F472B6' }} />
+                    </div>
+                  )}
+                  <div className="dashboard-adoption-media-badges">
+                    <span className="dashboard-adoption-badge-pill">
+                      <Heart size={13} fill="#FFFFFF" /> Ready for Adoption
+                    </span>
+                    {detailAdoptionPet.flyerPhoto && (
+                      <span className="dashboard-adoption-flyer-badge">
+                        <FileText size={12} /> Rescue Poster
+                      </span>
+                    )}
+                  </div>
+                  {detailAdoptionPet.flyerPhoto && (
+                    <button
+                      type="button"
+                      className="dashboard-adoption-media-zoom-btn"
+                      onClick={() => setShareModalAdoptionPet(detailAdoptionPet)}
+                      title="View Full Size Flyer / Poster"
+                    >
+                      <Eye size={14} /> Full Poster View & Share
+                    </button>
+                  )}
+                </div>
+
+                {/* Left column Adoption Fast Facts & Guidelines - utilizes remaining space seamlessly */}
+                <div className="dashboard-adoption-guidelines-card">
+                  <div className="dashboard-adoption-guidelines-header">
+                    <Sparkles size={16} style={{ color: '#F472B6' }} />
+                    <strong>Adoption Fast Facts & Process</strong>
+                  </div>
+
+                  <div className="dashboard-adoption-facts-grid">
+                    <div className="dashboard-adoption-fact-item">
+                      <span className="fact-label">Adoption Fee</span>
+                      <strong className="fact-value" style={{ color: '#34D399' }}>₹0 (Free Adoption)</strong>
+                    </div>
+                    <div className="dashboard-adoption-fact-item">
+                      <span className="fact-label">Ref ID</span>
+                      <strong className="fact-value" style={{ color: '#E2E8F0' }}>#{detailAdoptionPet.id.slice(-6).toUpperCase()}</strong>
+                    </div>
+                    <div className="dashboard-adoption-fact-item">
+                      <span className="fact-label">Medical Care</span>
+                      <strong className="fact-value" style={{ color: '#60A5FA' }}>
+                        {detailAdoptionPet.vaccinated ? '✓ Vaccinated' : 'To be scheduled'}
+                      </strong>
+                    </div>
+                    <div className="dashboard-adoption-fact-item">
+                      <span className="fact-label">Location Area</span>
+                      <strong className="fact-value" style={{ color: '#F472B6' }}>
+                        {detailAdoptionPet.district || detailAdoptionPet.city || 'Local Area'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="dashboard-adoption-steps-box">
+                    <span className="steps-title">3 Steps to Welcome {detailAdoptionPet.petName}:</span>
+                    <ol className="adoption-steps-list">
+                      <li>
+                        <span className="step-num">1</span>
+                        <span><strong>Connect:</strong> Call or WhatsApp the caretaker directly below</span>
+                      </li>
+                      <li>
+                        <span className="step-num">2</span>
+                        <span><strong>Meet & Greet:</strong> Schedule a friendly visit to bond with {detailAdoptionPet.petName}</span>
+                      </li>
+                      <li>
+                        <span className="step-num">3</span>
+                        <span><strong>Forever Promise:</strong> Sign adoption pledge & welcome the pup home</span>
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="dashboard-adoption-share-callout">
+                    <p>Help this loving pup find a home faster by sharing with local animal lovers & WhatsApp groups!</p>
+                    <button
+                      type="button"
+                      className="dashboard-adoption-quick-share-btn"
+                      onClick={() => setShareModalAdoptionPet(detailAdoptionPet)}
+                    >
+                      <Share2 size={14} /> Share Card & WhatsApp Flyer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-status-popover-copy">
+                <div className="dashboard-status-modal-title-block">
+                  <strong>{detailAdoptionPet.petName}</strong>
+                  <span style={{ color: '#F472B6' }}>Looking for a forever home</span>
+                </div>
+
+                <div className="dashboard-adoption-attributes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', margin: '0.75rem 0' }}>
+                  <div className="dashboard-adoption-attr-card" style={{ background: 'rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <small style={{ color: '#9CA3AF', display: 'block', fontSize: '0.7rem' }}>BREED</small>
+                    <strong style={{ fontSize: '0.88rem' }}>{detailAdoptionPet.breed || 'Mixed'}</strong>
+                  </div>
+                  <div className="dashboard-adoption-attr-card" style={{ background: 'rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <small style={{ color: '#9CA3AF', display: 'block', fontSize: '0.7rem' }}>AGE</small>
+                    <strong style={{ fontSize: '0.88rem' }}>{detailAdoptionPet.age || 'Not specified'}</strong>
+                  </div>
+                  <div className="dashboard-adoption-attr-card" style={{ background: 'rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <small style={{ color: '#9CA3AF', display: 'block', fontSize: '0.7rem' }}>GENDER</small>
+                    <strong style={{ fontSize: '0.88rem' }}>{detailAdoptionPet.gender || 'Unknown'}</strong>
+                  </div>
+                  <div className="dashboard-adoption-attr-card" style={{ background: 'rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <small style={{ color: '#9CA3AF', display: 'block', fontSize: '0.7rem' }}>SIZE</small>
+                    <strong style={{ fontSize: '0.88rem' }}>{detailAdoptionPet.size || 'Medium'}</strong>
+                  </div>
+                </div>
+
+                <span className="dashboard-status-popover-line">
+                  <MapPin size={15} style={{ color: '#F472B6' }} />
+                  {fullLocation} {detailAdoptionPet.pinCode ? `(PIN: ${detailAdoptionPet.pinCode})` : ''}
+                </span>
+
+                {/* Medical / Care tags */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', margin: '0.5rem 0' }}>
+                  {detailAdoptionPet.vaccinated && (
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(16,185,129,0.15)', color: '#34D399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Check size={11} /> Vaccinated
+                    </span>
+                  )}
+                  {detailAdoptionPet.dewormed && (
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(59,130,246,0.15)', color: '#60A5FA', border: '1px solid rgba(59,130,246,0.3)', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Check size={11} /> Dewormed
+                    </span>
+                  )}
+                  {detailAdoptionPet.spayedOrNeutered && (
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(168,85,247,0.15)', color: '#C084FC', border: '1px solid rgba(168,85,247,0.3)', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Check size={11} /> Neutered / Spayed
+                    </span>
+                  )}
+                </div>
+
+                {detailAdoptionPet.description && (
+                  <p style={{ margin: '0.5rem 0', color: '#D1D5DB', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                    {detailAdoptionPet.description}
+                  </p>
+                )}
+
+                {detailAdoptionPet.healthNotes && (
+                  <div style={{ margin: '0.5rem 0', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #F472B6' }}>
+                    <strong style={{ fontSize: '0.78rem', color: '#F472B6', display: 'block' }}>Health & Care Notes:</strong>
+                    <span style={{ fontSize: '0.82rem', color: '#E5E7EB' }}>{detailAdoptionPet.healthNotes}</span>
+                  </div>
+                )}
+
+                {detailAdoptionPet.flyerPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setShareModalAdoptionPet(detailAdoptionPet)}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 1rem',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, rgba(236,72,153,0.15) 0%, rgba(139,92,246,0.15) 100%)',
+                      border: '1px solid rgba(236,72,153,0.35)',
+                      color: '#F472B6',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      margin: '0.5rem 0',
+                    }}
+                  >
+                    <FileText size={15} />
+                    <span>View & Share Original Adoption Poster</span>
+                  </button>
+                )}
+
+                {/* Caretaker / Contact Card with Revealed Phone */}
+                {(() => {
+                  const isCreator = Boolean(
+                    user &&
+                    (detailAdoptionPet.userId === user.id ||
+                     (user.email && detailAdoptionPet.contactEmail?.toLowerCase().trim() === user.email.toLowerCase().trim()))
+                  );
+                  const displayCaretakerName = detailAdoptionPet.contactName?.trim() || (isCreator ? 'You (Caretaker)' : 'Pet Caretaker / Rescuer');
+                  const revealedPhone = getRevealedAdoptionPhone(detailAdoptionPet);
+                  const cleanDigits = revealedPhone.replace(/[^0-9]/g, '');
+                  const displayEmail = isCreator
+                    ? (detailAdoptionPet.rawContactEmail || detailAdoptionPet.contactEmail)
+                    : (detailAdoptionPet.contactEmail || '');
+
+                  return (
+                    <div className="dashboard-adoption-contact-card" style={{ marginTop: '0.85rem', padding: '0.85rem', background: 'linear-gradient(145deg, rgba(236,72,153,0.12), rgba(0,0,0,0.4))', borderRadius: '14px', border: '1px solid rgba(244,114,182,0.3)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                        <div>
+                          <strong style={{ display: 'block', fontSize: '0.92rem', color: '#FFFFFF' }}>
+                            {displayCaretakerName} {isCreator ? '(You - Caretaker)' : ''}
+                          </strong>
+                          <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>
+                            {isCreator ? 'Your Contact Information' : 'Direct Rescuer / Caretaker Contact'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: '#10B981', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                          <ShieldCheck size={12} /> {isCreator ? 'Your Profile' : 'Verified Contact'}
+                        </span>
+                      </div>
+
+                      {/* Contact Lines with Copy Action */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '0.75rem' }}>
+                        {revealedPhone && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.84rem', color: '#E2E8F0', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Phone size={14} style={{ color: '#10B981' }} />
+                              <span>Phone: <strong style={{ color: '#34D399', fontSize: '0.92rem' }}>{revealedPhone}</strong></span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(revealedPhone);
+                                showToast(`Phone copied: ${revealedPhone}`, 'success');
+                              }}
+                              title="Copy Phone Number"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: 'rgba(16,185,129,0.2)',
+                                border: '1px solid rgba(16,185,129,0.4)',
+                                color: '#A7F3D0',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <Copy size={11} /> Copy
+                            </button>
+                          </div>
+                        )}
+                        {displayEmail && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: '#E2E8F0', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <Mail size={14} style={{ color: '#60A5FA' }} />
+                            <span>Email: <strong>{displayEmail}</strong></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Direct Adoption Phone Notice */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.75rem', color: '#A7F3D0', background: 'rgba(16,185,129,0.1)', padding: '7px 10px', borderRadius: '8px', marginBottom: '0.75rem', border: '1px solid rgba(16,185,129,0.25)' }}>
+                        <ShieldCheck size={14} style={{ color: '#34D399', flexShrink: 0, marginTop: '1px' }} />
+                        <span>
+                          Direct Adoption Phone: Revealed for immediate adoption inquiries, meeting arrangements, and community sharing.
+                        </span>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'grid', gridTemplateColumns: revealedPhone ? '1fr 1fr' : '1fr', gap: '0.5rem' }}>
+                        {revealedPhone && (
+                          <>
+                            <a
+                              href={`tel:${cleanDigits.startsWith('91') ? '+' + cleanDigits : (cleanDigits.length === 10 ? '+91' + cleanDigits : cleanDigits)}`}
+                              className="btn btn-sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                background: '#10B981',
+                                color: '#FFFFFF',
+                                borderRadius: '10px',
+                                padding: '0.55rem',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                                fontSize: '0.84rem',
+                              }}
+                            >
+                              <Phone size={14} />
+                              <span>Call Caretaker</span>
+                            </a>
+                            <a
+                              href={`https://wa.me/${cleanDigits.startsWith('91') ? cleanDigits : (cleanDigits.length === 10 ? '91' + cleanDigits : cleanDigits)}?text=${encodeURIComponent(`Hi, I am interested in adopting ${detailAdoptionPet.petName} posted on FindLostPuppy! Is the puppy still available?`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                background: '#25D366',
+                                color: '#FFFFFF',
+                                borderRadius: '10px',
+                                padding: '0.55rem',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                                fontSize: '0.84rem',
+                              }}
+                            >
+                              <MessageCircle size={15} />
+                              <span>WhatsApp</span>
+                            </a>
+                          </>
+                        )}
+                        {displayEmail && (
+                          <a
+                            href={`mailto:${displayEmail}?subject=${encodeURIComponent(`Adoption inquiry: ${detailAdoptionPet.petName}`)}&body=${encodeURIComponent(`Hi ${displayCaretakerName},\n\nI saw ${detailAdoptionPet.petName} on FindLostPuppy and would love to know more about the adoption process.\n\nMy Details:\nName: ${user?.name || ''}\nPhone: ${user?.phone || ''}\n\nThank you!`)}`}
+                            className="btn btn-sm"
+                            style={{
+                              gridColumn: !revealedPhone ? '1 / -1' : undefined,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              background: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+                              border: 'none',
+                              color: '#FFFFFF',
+                              borderRadius: '10px',
+                              padding: '0.55rem',
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              fontSize: '0.82rem',
+                            }}
+                          >
+                            <Mail size={14} />
+                            <span>Inquire to Adopt via Email</span>
+                          </a>
+                        )}
+
+                        {/* Share Adoption Card Action */}
+                        <button
+                          type="button"
+                          onClick={() => setShareModalAdoptionPet(detailAdoptionPet)}
+                          style={{
+                            gridColumn: '1 / -1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '0.65rem 1rem',
+                            borderRadius: '10px',
+                            background: 'rgba(236, 72, 153, 0.18)',
+                            border: '1.5px solid rgba(244, 114, 182, 0.45)',
+                            color: '#FCE7F3',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            cursor: 'pointer',
+                            marginTop: '0.35rem',
+                          }}
+                        >
+                          <Share2 size={15} style={{ color: '#F472B6' }} />
+                          <span>Share Public Adoption Card (Image & WhatsApp)</span>
+                        </button>
+
+                        {/* Edit & Update Listing Action (For Caretaker to prevent duplicates) */}
+                        {isCreator && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const petToEdit = detailAdoptionPet;
+                              setDetailAdoptionPet(null);
+                              navigate('/adoption-details', {
+                                state: { adoptionPetId: petToEdit.id },
+                              });
+                            }}
+                            style={{
+                              gridColumn: '1 / -1',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '0.65rem 1rem',
+                              borderRadius: '10px',
+                              background: 'rgba(59, 130, 246, 0.16)',
+                              border: '1.5px solid rgba(96, 165, 250, 0.45)',
+                              color: '#BFDBFE',
+                              fontWeight: 700,
+                              fontSize: '0.84rem',
+                              cursor: 'pointer',
+                              marginTop: '0.2rem',
+                            }}
+                          >
+                            <Edit3 size={15} style={{ color: '#60A5FA' }} />
+                            <span>Edit & Update Pet Details (No Duplicates)</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </section>
+          </div>
+        );
+      })(),
+      document.body
+    )}
+
+      {/* Public Adoption Share Modal */}
+      <AdoptionShareModal
+        isOpen={Boolean(shareModalAdoptionPet)}
+        onClose={() => setShareModalAdoptionPet(null)}
+        pet={shareModalAdoptionPet}
+        continueLabel="Close"
+        onContinue={() => setShareModalAdoptionPet(null)}
+      />
     </div>
   );
 };

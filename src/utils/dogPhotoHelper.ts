@@ -2,11 +2,8 @@ import abulluImg from '../assets/abullu.jpg';
 import sonuImg from '../assets/sonu.jpg';
 import safePuppyImg from '../assets/safe_puppy.jpg';
 import missingPuppyImg from '../assets/missing_puppy.jpg';
-import ownerDefaultImg from '../assets/owner_default.jpg';
 import { storageService } from '../services/storageService';
 import type { DogProfile, LostReport } from '../types';
-
-export const DEFAULT_OWNER_PHOTO = ownerDefaultImg;
 
 /**
  * Tiered generic media resolver:
@@ -50,9 +47,6 @@ export const resolveGenericMediaUrl = (url?: string | null): string => {
   }
   if (lower === missingPuppyImg.toLowerCase() || lower.endsWith('/missing_puppy.jpg') || lower === 'missing_puppy.jpg' || lower.includes('missing_puppy')) {
     return missingPuppyImg;
-  }
-  if (lower === ownerDefaultImg.toLowerCase() || lower.endsWith('/owner_default.jpg') || lower === 'owner_default.jpg' || lower.includes('owner_default')) {
-    return ownerDefaultImg;
   }
 
   // Production build asset paths (e.g. /findlostpuppy/assets/... or /assets/... or /images/...)
@@ -101,11 +95,6 @@ export const isPetPhotoUrl = (url?: string | null): boolean => {
   );
 };
 
-/**
- * Validates that an owner photo is genuinely uploaded to Cloudinary.
- * Explicitly rejects empty values, pet photos, Google account letter avatars/placeholders,
- * and requires a valid Cloudinary-hosted URL.
- */
 export const isValidOwnerPhoto = (url?: string | null): boolean => {
   if (!url || typeof url !== 'string') return false;
   const clean = url.trim();
@@ -123,28 +112,23 @@ export const isValidOwnerPhoto = (url?: string | null): boolean => {
     return false;
   }
 
-  // Permit bundled default owner photo
-  if (lower.includes('owner_default') || lower === ownerDefaultImg.toLowerCase()) {
+  // Accept local data URLs (e.g. captured via camera/canvas before upload)
+  if (clean.startsWith('data:image/')) {
     return true;
   }
 
-  // Support local dev / localhost environment
-  const isLocalHostOrDev =
-    import.meta.env.DEV ||
-    (typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' ||
-       window.location.hostname === '127.0.0.1' ||
-       window.location.hostname === '0.0.0.0'));
-
-  if (isLocalHostOrDev && (clean.startsWith('data:image/') || clean.startsWith('/images/') || clean.startsWith('/assets/'))) {
-    return true;
+  // Accept valid backend storage URLs (Cloudinary, Firebase Storage, Google Cloud Storage)
+  if (clean.startsWith('https://') || clean.startsWith('http://')) {
+    return (
+      clean.includes('cloudinary.com') ||
+      clean.includes('res.cloudinary.com') ||
+      clean.includes('firebasestorage.googleapis.com') ||
+      clean.includes('storage.googleapis.com') ||
+      clean.includes('firebase')
+    );
   }
 
-  // Mandatory condition: Owner profile photo MUST be successfully uploaded to Cloudinary
-  return (
-    (clean.startsWith('https://') || clean.startsWith('http://')) &&
-    (clean.includes('cloudinary.com') || clean.includes('res.cloudinary.com'))
-  );
+  return false;
 };
 
 /**

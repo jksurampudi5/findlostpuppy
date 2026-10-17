@@ -17,7 +17,27 @@ export default defineConfig({
         }
       },
     },
+    {
+      name: 'adoption-api-endpoints',
+      configureServer(server) {
+        server.middlewares.use(async (req, res, next) => {
+          const url = req.url?.split('?')[0];
+          if (url === '/api/extract-pet-from-image') {
+            const { handleExtractPetFromImage } = await import('./server/adoptionApiServer.js');
+            return handleExtractPetFromImage(req, res);
+          }
+          if (url === '/api/adoption-listings') {
+            const { handleAdoptionListings } = await import('./server/adoptionApiServer.js');
+            return handleAdoptionListings(req, res);
+          }
+          next();
+        });
+      },
+    },
   ],
+  server: {
+    host: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

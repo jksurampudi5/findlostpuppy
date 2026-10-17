@@ -359,10 +359,10 @@ class LocationService {
     if (!matchedDistrict && (rawDistrict || rawMandal || rawLocality || rawPin)) {
       const hint = `${rawDistrict || ''} ${rawMandal || ''} ${rawLocality || ''}`.toLowerCase();
       const districts = this.getDistricts(matchedState.code);
-      if (hint.includes('tanuku') || hint.includes('palangi') || hint.includes('bhimavaram') || hint.includes('eluru') || (rawPin && rawPin.startsWith('534'))) {
-        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'west godavari') || districts.find((d) => d.districtName.toLowerCase().includes('godavari'));
-      } else if (hint.includes('undrajavaram') || hint.includes('rajahmundry') || hint.includes('kakinada') || (rawPin && rawPin.startsWith('533'))) {
+      if (hint.includes('undrajavaram') || hint.includes('palangi') || hint.includes('rajahmundry') || hint.includes('kakinada') || (rawPin && (rawPin === '534216' || rawPin.startsWith('533')))) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'east godavari') || districts.find((d) => d.districtName.toLowerCase().includes('godavari'));
+      } else if (hint.includes('tanuku') || hint.includes('bhimavaram') || hint.includes('eluru') || (rawPin && rawPin.startsWith('534'))) {
+        matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'west godavari') || districts.find((d) => d.districtName.toLowerCase().includes('godavari'));
       } else if (hint.includes('vikarabad')) {
         matchedDistrict = districts.find((d) => d.districtName.toLowerCase() === 'vikarabad');
       } else if (hint.includes('vijayawada') || (rawPin && (rawPin.startsWith('520') || rawPin.startsWith('521')))) {

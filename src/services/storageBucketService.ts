@@ -49,6 +49,12 @@ export function sightingPublicId(reportId: string, index = 0): string {
   return `${CF}/sightings_pets/${reportId}/${suffix}`;
 }
 
+/** Returns the canonical Cloudinary public_id for an adoption pet photo. */
+export function adoptionPetPublicId(petId: string, index = 0): string {
+  const suffix = index > 0 ? `photo_${index}` : 'photo';
+  return `${CF}/adoption_pets/${petId}/${suffix}`;
+}
+
 // =============================================================================
 // Internal helpers
 // =============================================================================
@@ -246,6 +252,7 @@ async function callMediaFunction<T>(name: string, data: Record<string, unknown>)
     const paths: Record<string, string> = {
       createMediaUploadAuthorization: '/media/authorize',
       finalizeMediaUpload:            '/media/finalize',
+      getProfilePhoto:                '/media/get-profile-photo',
       deleteMediaAsset:               '/media/delete',
       hardResetCloudinary:            '/media/reset',
       deleteMyAccount:                '/account/media-cleanup',
@@ -517,6 +524,19 @@ export const storageBucketService = {
   },
 
   /**
+   * Retrieves the latest profile photo for an owner directly from Cloudinary via worker.
+   */
+  async getUserProfileAvatarFromCloudinary(userId: string): Promise<string | null> {
+    const uid = userId.replace(/^(owner-)+/, '').trim();
+    if (!uid) return null;
+    const res = await callMediaFunction<{ found: boolean; photoUrl: string | null }>('getProfilePhoto', { referenceId: uid });
+    if (res?.found && res?.photoUrl) {
+      return res.photoUrl;
+    }
+    return null;
+  },
+
+  /**
    * Pet profile photo → findlostpuppy/pet_profile/{userId}/{petId}/photo
    */
   async uploadPetPhoto(
@@ -582,6 +602,45 @@ export const storageBucketService = {
     return fb ? fb.publicUrl : null;
   },
 
+  /**
+   * Adoption pet photo → findlostpuppy/private/pets/{userId}/...
+   */
+  async uploadAdoptionPetPhoto(
+    petId: string,
+    image: File | Blob | string,
+    index = 0,
+    previousUrl?: string,
+  ): Promise<string | null> {
+    const pid = petId.trim();
+    if (!pid) { console.error('[storageBucketService] Missing petId'); return null; }
+
+    const cloudinaryUrl = await secureCloudinaryUpload('pet', pid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
+    if (SECURE_CLOUDINARY_FUNCTIONS) return null;
+
+    const fb = await this.uploadMedia(`adoption-pets/${pid}/${index > 0 ? `photo_${index}.jpg` : 'photo.jpg'}`, image);
+    return fb ? fb.publicUrl : null;
+  },
+
+  /**
+   * Adoption flyer/poster photo → findlostpuppy/adoption_flyers/{adoptionId}/flyer
+   */
+  async uploadAdoptionFlyer(
+    adoptionId: string,
+    image: File | Blob | string,
+    previousUrl?: string,
+  ): Promise<string | null> {
+    const aid = adoptionId.trim();
+    if (!aid) { console.error('[storageBucketService] Missing adoptionId'); return null; }
+
+    const cloudinaryUrl = await secureCloudinaryUpload('pet', aid, image, previousUrl);
+    if (cloudinaryUrl) return cloudinaryUrl;
+    if (SECURE_CLOUDINARY_FUNCTIONS) return null;
+
+    const fb = await this.uploadMedia(`adoption-flyers/${aid}/flyer.jpg`, image);
+    return fb ? fb.publicUrl : null;
+  },
+
   // ---------------------------------------------------------------------------
   // Low-level upload (Firebase Storage fallback)
   // ---------------------------------------------------------------------------
@@ -595,7 +654,7 @@ export const storageBucketService = {
     if (!blobData?.blob) { console.warn('[storageBucketService] Invalid image data.'); return null; }
 
     const { blob, mimeType } = blobData;
-    const allowed = ['profiles/', 'pets/', 'missing-reports/', 'sightings/'];
+    const allowed = ['profiles/', 'pets/', 'missing-reports/', 'sightings/', 'adoption-flyers/', 'adoption-pets/'];
     if (!allowed.some((p) => storagePath.startsWith(p))) {
       console.error('[storageBucketService] Blocked path:', storagePath);
       return null;

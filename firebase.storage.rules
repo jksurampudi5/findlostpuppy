@@ -52,6 +52,18 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    match /adoption-pets/{petId}/{path=**} {
+      allow read: if true;
+      allow write: if signedIn() && isImage();
+      allow delete: if signedIn() || isAdmin();
+    }
+
+    match /adoption-flyers/{petId}/{path=**} {
+      allow read: if true;
+      allow write: if signedIn() && isImage();
+      allow delete: if signedIn() || isAdmin();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

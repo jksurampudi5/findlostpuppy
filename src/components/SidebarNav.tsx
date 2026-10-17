@@ -73,9 +73,11 @@ export const SidebarNav: React.FC = () => {
       refreshProgress();
     };
     window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('findlostpuppy_adoption_pets_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('findlostpuppy_adoption_pets_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, [refreshProgress]);
@@ -83,6 +85,8 @@ export const SidebarNav: React.FC = () => {
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const existingPet = user ? storageService.getPetProfileByUserId(user.id, user.email) : null;
   const existingReport = user ? storageService.getLatestReportByUserId(user.id, user.email) : null;
+  const userAdoptionPets = user ? storageService.getAdoptionPetsByUserId(user.id, user.email, user.phone) : [];
+  const existingAdoptionPet = userAdoptionPets.length > 0 ? userAdoptionPets[0] : null;
 
   // ACID compliance: derive effective status
   const effectiveStatus: 'LOST' | 'SAFE' | 'UNDECIDED' = (() => {
@@ -106,9 +110,16 @@ export const SidebarNav: React.FC = () => {
 
   const handleTabClick = (tab: OnboardingTab, routePath: string) => {
     if (isAuthenticated && !hasCompletedOwner && routePath !== '/owner' && routePath !== '/admin') {
-      showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+      showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
       navigate('/owner');
       setActiveOnboardingTab('owner');
+      setIsMobileMenuOpen(false);
+      return;
+    }
+    if (isAuthenticated && hasCompletedOwner && !hasCompletedLocation && routePath !== '/owner' && routePath !== '/location' && routePath !== '/admin') {
+      showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+      navigate('/location');
+      setActiveOnboardingTab('location');
       setIsMobileMenuOpen(false);
       return;
     }
@@ -131,6 +142,10 @@ export const SidebarNav: React.FC = () => {
     location.pathname === '/pet' ||
     location.pathname === '/dog' ||
     location.pathname === '/dog-profile' ||
+    location.pathname === '/adoption-details' ||
+    location.pathname === '/adoption_details' ||
+    location.pathname === '/add-adoption' ||
+    location.pathname === '/add_adoption' ||
     (location.pathname === '/' && (activeOnboardingTab === 'choice' || activeOnboardingTab === 'dog' || activeOnboardingTab === 'pet'));
 
   const isAlertActive =
@@ -153,25 +168,7 @@ export const SidebarNav: React.FC = () => {
   // Used identically in both Desktop Sidebar and Mobile Drawer
   // =========================================================================
   const navigationItems: NavigationItem[] = useMemo(() => [
-    // 1. Dashboard
-    {
-      id: 'dashboard',
-      title: 'Dashboard',
-      subtitle: 'Recovery Network',
-      isActive: isDashboardActive,
-      circleClass: 'circle-dashboard',
-      icon: (
-        <svg viewBox="0 0 48 48" className="nav-animated-svg radar-scanner-svg" fill="none">
-          <circle cx="24" cy="24" r="16" stroke="#22C55E" strokeWidth="2.5" fill="#DCFCE7" />
-          <circle cx="24" cy="24" r="10" stroke="#16A34A" strokeWidth="1.8" strokeDasharray="3 3" />
-          <circle cx="24" cy="24" r="3.5" fill="#15803D" />
-          <line x1="24" y1="24" x2="38" y2="14" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" className="scanner-line" />
-        </svg>
-      ),
-      drawerIcon: <Radio size={18} />,
-      onClick: () => handleTabClick('dashboard', '/homepage'),
-    },
-    // 2. Owner Profile
+    // 1. Owner Profile
     {
       id: 'owner',
       title: 'Owner Profile',
@@ -191,18 +188,7 @@ export const SidebarNav: React.FC = () => {
       drawerIcon: <User size={18} />,
       onClick: () => handleTabClick('owner', '/owner'),
     },
-    // 3. Pet Profile
-    {
-      id: 'pet-form',
-      title: 'Pet Profile',
-      subtitle: 'Add My Pet',
-      isActive: location.pathname === '/pet',
-      circleClass: 'circle-pet',
-      icon: <PawPrint size={20} className="text-orange-500" />,
-      drawerIcon: <PawPrint size={18} className="text-orange-500" />,
-      onClick: () => handleTabClick('dog', '/pet'),
-    },
-    // 4. Location
+    // 2. Location
     {
       id: 'location',
       title: 'Location',
@@ -224,7 +210,29 @@ export const SidebarNav: React.FC = () => {
       drawerIcon: <MapPin size={18} />,
       onClick: () => handleTabClick('location', '/location'),
     },
-    // 5. Pet Safety
+    // 3. Pet Choice (Add My Pet / Adoption / Skip)
+    {
+      id: 'pet-form',
+      title: 'Pet Choice',
+      subtitle: existingPet?.name
+        ? `${existingPet.name} • Registered`
+        : existingAdoptionPet?.petName
+        ? `Adoption: ${existingAdoptionPet.petName}`
+        : 'Add Pet or Adopt',
+      isActive: isPetActive,
+      isCompleted: hasCompletedDog || Boolean(existingPet),
+      circleClass: 'circle-pet',
+      icon: existingPet?.primaryPhoto ? (
+        <img src={existingPet.primaryPhoto} alt={existingPet.name} className="nav-tab-avatar-img" />
+      ) : existingAdoptionPet?.photo ? (
+        <img src={existingAdoptionPet.photo} alt={existingAdoptionPet.petName} className="nav-tab-avatar-img" />
+      ) : (
+        <PawPrint size={20} className="text-orange-500" />
+      ),
+      drawerIcon: <PawPrint size={18} className="text-orange-500" />,
+      onClick: () => handleTabClick('choice', '/choice'),
+    },
+    // 4. Pet Safety
     {
       id: 'alert',
       title: 'Pet Safety',
@@ -254,6 +262,24 @@ export const SidebarNav: React.FC = () => {
       ),
       drawerIcon: <AlertTriangle size={18} />,
       onClick: () => handleTabClick('report', '/alert'),
+    },
+    // 5. Pet Status (Dashboard / Recovery Network)
+    {
+      id: 'dashboard',
+      title: 'Pet Status',
+      subtitle: 'Recovery Network',
+      isActive: isDashboardActive,
+      circleClass: 'circle-dashboard',
+      icon: (
+        <svg viewBox="0 0 48 48" className="nav-animated-svg radar-scanner-svg" fill="none">
+          <circle cx="24" cy="24" r="16" stroke="#22C55E" strokeWidth="2.5" fill="#DCFCE7" />
+          <circle cx="24" cy="24" r="10" stroke="#16A34A" strokeWidth="1.8" strokeDasharray="3 3" />
+          <circle cx="24" cy="24" r="3.5" fill="#15803D" />
+          <line x1="24" y1="24" x2="38" y2="14" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" className="scanner-line" />
+        </svg>
+      ),
+      drawerIcon: <Radio size={18} />,
+      onClick: () => handleTabClick('dashboard', '/homepage'),
     },
     // 6. Capture Pet
     {
@@ -304,6 +330,7 @@ export const SidebarNav: React.FC = () => {
     hasCompletedDog,
     existingProfile,
     existingPet,
+    existingAdoptionPet,
     isUserAdmin,
     isLost,
     isSafe,
@@ -321,14 +348,21 @@ export const SidebarNav: React.FC = () => {
       <header className="mobile-top-header" aria-label="Mobile Header">
         <div className={`mobile-top-header-inner ${!isAuthenticated ? 'mobile-top-header-inner-guest' : ''}`}>
           <Link
-            to={isAuthenticated ? (hasCompletedOwner ? '/homepage' : '/owner') : '/'}
+            to={isAuthenticated ? (hasCompletedOwner ? (hasCompletedLocation ? '/homepage' : '/location') : '/owner') : '/'}
             className="mobile-brand-logo"
             onClick={(e) => {
               if (isAuthenticated && !hasCompletedOwner) {
                 e.preventDefault();
-                showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
                 navigate('/owner');
                 setActiveOnboardingTab('owner');
+                return;
+              }
+              if (isAuthenticated && !hasCompletedLocation) {
+                e.preventDefault();
+                showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+                navigate('/location');
+                setActiveOnboardingTab('location');
                 return;
               }
               if (isAuthenticated) {
@@ -447,18 +481,18 @@ export const SidebarNav: React.FC = () => {
           <button
             type="button"
             className={`drawer-pet-avatar-shortcut ${isLost ? 'pet-card-lost' : 'pet-card-safe'}`}
-            onClick={() => handleTabClick('pet', '/pet')}
-            aria-label={`Open pet details for ${previewDogName}`}
+            onClick={() => handleTabClick('choice', '/choice')}
+            aria-label={`Open pet choice for ${previewDogName}`}
           >
             <img src={previewPhoto} alt={previewDogName} className="drawer-pet-img" />
-            <span className="drawer-pet-avatar-copy">Tap to view pet details</span>
+            <span className="drawer-pet-avatar-copy">Tap to view pet choice</span>
           </button>
         )}
 
         {/* Shared navigation array rendering in mobile drawer */}
         <div className="drawer-nav-links">
           {navigationItems
-            .filter(item => ['dashboard', 'pet-form', 'capture', 'suggest', 'admin'].includes(item.id))
+            .filter(item => ['owner', 'location', 'pet-form', 'alert', 'dashboard', 'capture', 'suggest', 'admin'].includes(item.id))
             .map(item => (
             <button
               key={item.id}
@@ -509,9 +543,16 @@ export const SidebarNav: React.FC = () => {
               onClick={(e) => {
                 if (isAuthenticated && !hasCompletedOwner) {
                   e.preventDefault();
-                  showToast('⚠️ Please complete your Owner Profile first (Profile photo, full name, and phone number are mandatory).', 'warning');
+                  showToast('⚠️ Please complete your Owner Profile first (Profile photo, name, and phone number are mandatory).', 'warning');
                   navigate('/owner');
                   setActiveOnboardingTab('owner');
+                  return;
+                }
+                if (isAuthenticated && !hasCompletedLocation) {
+                  e.preventDefault();
+                  showToast('🔒 Location component is locked. Please select State, District, Mandal, and Home Base first.', 'warning');
+                  navigate('/location');
+                  setActiveOnboardingTab('location');
                   return;
                 }
                 if (isAuthenticated) {
@@ -623,14 +664,19 @@ export const SidebarNav: React.FC = () => {
       {isAuthenticated && (
         <nav className="mobile-dog-dock-nav" aria-label="Mobile Navigation">
           <div className="mobile-dock-inner" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {/* 1. Owner */}
+            {/* 1. Owner Profile */}
             <button
               type="button"
               className={`dock-tab-btn ${isOwnerActive ? 'active' : ''}`}
               onClick={() => handleTabClick('owner', '/owner')}
+              title="Owner Profile"
             >
               <div className="dock-icon-wrap">
-                <User size={19} />
+                {existingProfile?.photo ? (
+                  <img src={existingProfile.photo} alt="Owner" className="dock-pet-mini-avatar" />
+                ) : (
+                  <User size={19} />
+                )}
               </div>
               <span className="dock-label">Owner</span>
             </button>
@@ -641,6 +687,7 @@ export const SidebarNav: React.FC = () => {
               className={`dock-tab-btn ${isLocationActive ? 'active' : ''}`}
               style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
               onClick={() => handleTabClick('location', '/location')}
+              title="Location"
             >
               <div className="dock-icon-wrap">
                 <MapPin size={19} />
@@ -648,55 +695,60 @@ export const SidebarNav: React.FC = () => {
               <span className="dock-label">Location</span>
             </button>
 
-            {/* 3. Pet Safety */}
-            <button
-              type="button"
-              className={`dock-center-sos-btn ${
-                isLost ? 'dock-sos-lost' : isSafe ? 'dock-sos-safe' : ''
-              } ${isAlertActive ? 'active' : ''}`}
-              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
-              onClick={() => handleTabClick('report', '/alert')}
-              title="Pet Safety Alert"
-            >
-              <div className="center-sos-icon-glow">
-                <span className="sos-badge-icon">
-                  {isLost ? '🚨' : isSafe ? '🏡' : '🐾'}
-                </span>
-              </div>
-              <span className="dock-label sos-label" style={isLost ? { color: '#DC2626', fontWeight: 800 } : {}}>
-                {isLost ? '⚠ Missing!' : 'Pet Safety'}
-              </span>
-            </button>
-
-            {/* 4. Pet Details */}
+            {/* 3. Pet Choice */}
             <button
               type="button"
               className={`dock-tab-btn ${isPetActive ? 'active' : ''}`}
               style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
               onClick={() => handleTabClick('choice', '/choice')}
+              title="Pet Choice"
             >
               <div className="dock-icon-wrap">
                 {existingPet?.primaryPhoto ? (
                   <img src={existingPet.primaryPhoto} alt="Pet" className="dock-pet-mini-avatar" />
+                ) : existingAdoptionPet?.photo ? (
+                  <img src={existingAdoptionPet.photo} alt="Adoption Pet" className="dock-pet-mini-avatar" />
                 ) : (
                   <PawPrint size={19} />
                 )}
               </div>
-              <span className="dock-label">Pet Details</span>
+              <span className="dock-label">Pet Choice</span>
             </button>
 
-            {/* 5. Logout */}
+            {/* 4. Pet Safety */}
             <button
               type="button"
-              className="dock-tab-btn dock-logout-btn"
-              onClick={logout}
-              title="Sign Out"
-              aria-label="Sign Out"
+              className={`dock-tab-btn ${isAlertActive ? 'active' : ''}`}
+              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
+              onClick={() => handleTabClick('report', '/alert')}
+              title="Pet Safety Alert"
             >
               <div className="dock-icon-wrap">
-                <LogOut size={19} />
+                {isLost ? (
+                  <span style={{ fontSize: '1.2rem' }}>🚨</span>
+                ) : isSafe ? (
+                  <span style={{ fontSize: '1.2rem' }}>🏡</span>
+                ) : (
+                  <AlertTriangle size={19} />
+                )}
               </div>
-              <span className="dock-label">Logout</span>
+              <span className="dock-label" style={isLost ? { color: '#DC2626', fontWeight: 800 } : {}}>
+                {isLost ? 'Missing!' : 'Pet Safety'}
+              </span>
+            </button>
+
+            {/* 5. Pet Status (Dashboard) */}
+            <button
+              type="button"
+              className={`dock-tab-btn ${isDashboardActive ? 'active' : ''}`}
+              style={isAuthenticated && !hasCompletedOwner ? { opacity: 0.45 } : undefined}
+              onClick={() => handleTabClick('dashboard', '/homepage')}
+              title="Pet Status / Dashboard"
+            >
+              <div className="dock-icon-wrap">
+                <Radio size={19} />
+              </div>
+              <span className="dock-label">Pet Status</span>
             </button>
           </div>
         </nav>

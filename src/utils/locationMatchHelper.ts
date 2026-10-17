@@ -51,7 +51,8 @@ export const getReportGeo = (r: LostReport, profiles: OwnerProfile[] = []): Repo
     else if (/hyderabad/i.test(combinedText)) district = 'Hyderabad';
     else if (/rangareddy|ranga reddy/i.test(combinedText)) district = 'Rangareddy';
     else if (/bengaluru|bangalore/i.test(combinedText)) district = 'Bengaluru Urban';
-    else if (/palangi|undrajavaram|tanuku/i.test(combinedText)) district = 'West Godavari';
+    else if (/palangi|undrajavaram/i.test(combinedText)) district = 'East Godavari';
+    else if (/tanuku/i.test(combinedText)) district = 'West Godavari';
   }
 
   // If mandal is missing, infer

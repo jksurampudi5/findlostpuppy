@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Check, ArrowRight, Camera, Trash2, Edit3, AlertCircle, CheckCircle2, X, Upload, Phone, Mail, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -12,18 +12,11 @@ import { sanitizePersonName } from '../utils/privacyUtils';
 import { storageBucketService } from '../services/storageBucketService';
 import { firebaseSyncService } from '../services/firebaseSyncService';
 import { auth } from '../services/firebaseConfig';
-import { isPetPhotoUrl, isValidOwnerPhoto, DEFAULT_OWNER_PHOTO } from '../utils/dogPhotoHelper';
+import { isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
 import { applyPhotoChangeTracking, canChangePhoto } from '../utils/photoChangePolicy';
 import { CameraModal } from '../components/CameraModal';
 import { BackButton } from '../components/ui/back-button';
 import { VillageDogTransition } from '../components/ui/VillageDogTransition';
-
-const isLocalHostOrDev =
-  import.meta.env.DEV ||
-  (typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' ||
-     window.location.hostname === '127.0.0.1' ||
-     window.location.hostname === '0.0.0.0'));
 
 interface OwnerProfileProps {
   onSuccess?: () => void;
@@ -38,16 +31,15 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const existingProfile = user ? storageService.getOwnerProfileByUserId(user.id, user.email) : null;
   const initialCleanName = sanitizePersonName(existingProfile?.fullName || user?.name, user?.email || existingProfile?.email);
 
-  // Genuine uploaded photo or local dev fallback avatar
+  // Only genuine user-uploaded photos (from folder or camera) are accepted.
+  // Google avatar letter placeholders ("A", "B", "C") and pet images are strictly excluded.
   const rawInitialPhoto = (existingProfile?.photo && isValidOwnerPhoto(existingProfile.photo))
     ? existingProfile.photo
-    : (isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '');
+    : '';
   const initialPhoto = rawInitialPhoto;
 
   const [fullName, setFullName] = useState(initialCleanName);
-  const [phone, setPhone] = useState(
-    existingProfile?.phone || user?.phone || (isLocalHostOrDev ? '9876543210' : '')
-  );
+  const [phone, setPhone] = useState(existingProfile?.phone || user?.phone || '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string>(initialPhoto);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -110,85 +102,102 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
   const ownerActionsRef = useRef<HTMLDivElement | null>(null);
   const initialActionScrollRef = useRef(false);
 
-  // Sync when user or profile loads
-  useEffect(() => {
-    if (user) {
-      if (user.avatar && isPetPhotoUrl(user.avatar)) {
-        authService.updateCurrentUser({ avatar: undefined });
+  // Rehydrates form and view state from local and cloud storage
+  const rehydrateFromStorage = useCallback(() => {
+    if (!user) return;
+    if (user.avatar && isPetPhotoUrl(user.avatar)) {
+      authService.updateCurrentUser({ avatar: undefined });
+    }
+
+    const p = storageService.getOwnerProfileByUserId(user.id, user.email);
+    const currentUser = authService.getCurrentUser() || user;
+
+    if (p) {
+      const cleanedName = sanitizePersonName(p.fullName, currentUser.email || p.email);
+      if (cleanedName) setFullName(cleanedName);
+      const resolvedPhone = p.phone || currentUser.phone || '';
+      if (resolvedPhone) setPhone(resolvedPhone);
+      const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo))
+        ? p.photo
+        : (currentUser.avatar && isValidOwnerPhoto(currentUser.avatar))
+          ? currentUser.avatar
+          : '';
+      if (effectivePhoto) setPhoto(effectivePhoto);
+      if (p.preferredContact) setPreferredContact(p.preferredContact);
+
+      setSavedSnapshot({
+        name: cleanedName,
+        phone: resolvedPhone,
+        photo: effectivePhoto,
+        contact: p.preferredContact || 'phone',
+      });
+
+      const hasAllThree = Boolean(
+        cleanedName &&
+        resolvedPhone &&
+        effectivePhoto &&
+        isValidOwnerPhoto(effectivePhoto)
+      );
+
+      if (hasAllThree) {
+        setIsEditing(false);
+      } else if (!initialModeSetRef.current) {
+        initialModeSetRef.current = true;
+        setIsEditing(true);
+      }
+    } else if (currentUser) {
+      const cleanedName = sanitizePersonName(currentUser.name, currentUser.email);
+      if (cleanedName) setFullName(cleanedName);
+      if (currentUser.phone) setPhone(currentUser.phone);
+      if (currentUser.avatar && isValidOwnerPhoto(currentUser.avatar)) {
+        setPhoto(currentUser.avatar);
       }
 
-      const p = storageService.getOwnerProfileByUserId(user.id, user.email);
-      if (p) {
-        const cleanedName = sanitizePersonName(p.fullName, user.email || p.email);
-        setFullName(cleanedName);
-        const resolvedPhone = p.phone || (isLocalHostOrDev ? '9876543210' : user.phone || '');
-        setPhone(resolvedPhone);
-        const effectivePhoto = (p.photo && isValidOwnerPhoto(p.photo))
-          ? p.photo
-          : (isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '');
-        setPhoto(effectivePhoto);
-        if (p.preferredContact) setPreferredContact(p.preferredContact);
+      setSavedSnapshot({
+        name: cleanedName,
+        phone: currentUser.phone || '',
+        photo: currentUser.avatar && isValidOwnerPhoto(currentUser.avatar) ? currentUser.avatar : '',
+        contact: 'phone',
+      });
 
-        setSavedSnapshot({
-          name: cleanedName,
-          phone: resolvedPhone,
-          photo: effectivePhoto,
-          contact: p.preferredContact || 'phone',
-        });
-
-        const hasAllThree = Boolean(
-          cleanedName &&
-          resolvedPhone &&
-          effectivePhoto &&
-          isValidOwnerPhoto(effectivePhoto)
-        );
-
-        if (!initialModeSetRef.current) {
-          initialModeSetRef.current = true;
-          setIsEditing(!hasAllThree);
-        }
-      } else {
-        const cleanedName = sanitizePersonName(user.name, user.email);
-        setFullName(cleanedName);
-        const resolvedPhone = user.phone || (isLocalHostOrDev ? '9876543210' : '');
-        setPhone(resolvedPhone);
-        const effectivePhoto = isLocalHostOrDev ? DEFAULT_OWNER_PHOTO : '';
-        setPhoto(effectivePhoto);
-
-        setSavedSnapshot({
-          name: cleanedName,
-          phone: resolvedPhone,
-          photo: effectivePhoto,
-          contact: 'phone',
-        });
-
-        if (isLocalHostOrDev && cleanedName && resolvedPhone && effectivePhoto) {
-          const devProfile: OwnerProfileType = {
-            id: user.id,
-            userId: user.id,
-            fullName: cleanedName,
-            phone: resolvedPhone,
-            email: user.email,
-            photo: effectivePhoto,
-            preferredContact: 'phone',
-            address: '',
-            state: '',
-            district: '',
-            city: '',
-            hasLocationConsent: true,
-            updatedAt: new Date().toISOString(),
-          };
-          storageService.saveOwnerProfile(devProfile);
-          refreshProgress();
-        }
-
-        if (!initialModeSetRef.current) {
-          initialModeSetRef.current = true;
-          setIsEditing(!Boolean(cleanedName && resolvedPhone && effectivePhoto));
-        }
+      if (!initialModeSetRef.current) {
+        initialModeSetRef.current = true;
+        setIsEditing(true);
       }
     }
-  }, [user?.id, user?.email, refreshProgress]);
+  }, [user]);
+
+  // Initial rehydration on mount or user identity change
+  useEffect(() => {
+    rehydrateFromStorage();
+  }, [rehydrateFromStorage]);
+
+  // Listen for backend data synchronization, Cloudinary media updates, and storage events
+  useEffect(() => {
+    const handleUpdate = () => {
+      rehydrateFromStorage();
+      refreshProgress();
+    };
+
+    window.addEventListener('findlostpuppy_reports_updated', handleUpdate);
+    window.addEventListener('findlostpuppy_data_synced', handleUpdate);
+    window.addEventListener('findlostpuppy_session_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    // Proactively pull fresh data from Firebase/Cloudinary if profile is missing on device
+    if (user && !storageService.hasCompletedOwnerProfile(user.id, user.email)) {
+      storageService.pullFromFirebase().then(() => {
+        rehydrateFromStorage();
+      }).catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener('findlostpuppy_reports_updated', handleUpdate);
+      window.removeEventListener('findlostpuppy_data_synced', handleUpdate);
+      window.removeEventListener('findlostpuppy_session_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [rehydrateFromStorage, refreshProgress, user]);
 
   const hasProfileData = Boolean(
     fullName.trim() &&
@@ -288,7 +297,8 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
       const compressed = await compressImage(file, 600, 600, 0.85);
       const activeUserId = currentAuthUser?.uid || user?.id;
       if (!activeUserId) throw new Error('AUTH_REQUIRED');
-      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed);
+      const oldPhoto = existingOwnerProfile?.photo || photo;
+      const finalPhotoUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed, oldPhoto);
       if (!finalPhotoUrl) {
         const errorDetail = storageBucketService.getLastError();
         showToast(errorDetail || 'Photo upload to Cloudinary failed. Please check connection and try again.', 'error');
@@ -470,8 +480,8 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
     }
 
     if (!phone.trim()) {
-      setPhoneError('Please enter your contact phone number.');
-      showToast('Please enter your contact phone number.', 'warning');
+      setPhoneError('Please enter your phone number.');
+      showToast('Please enter your phone number.', 'warning');
       hasError = true;
     } else {
       const phoneValidation = validateIndianPhoneNumber(phone);
@@ -699,7 +709,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                       <Phone size={20} />
                     </div>
                     <div className="owner-view-data">
-                      <span className="owner-view-label">Mobile Number</span>
+                      <span className="owner-view-label">Phone Number</span>
                       <div className="owner-view-phone-row">
                         <span className="owner-view-value">
                           {validateIndianPhoneNumber(phone).isValid
@@ -986,7 +996,7 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
                 {/* 10-Digit Indian Phone Number */}
                 <div className="owner-modern-form-group">
                   <label className="owner-modern-label" htmlFor="owner-phone">
-                    <span>Mobile Number</span>
+                    <span>Phone Number</span>
                     <span className="required-tag" style={{ color: 'var(--color-primary)', marginLeft: '3px' }}>*</span>
                   </label>
                   <div className={`owner-modern-input-wrapper ${phoneError ? 'input-error' : ''}`}>
@@ -1125,7 +1135,8 @@ export const OwnerProfile: React.FC<OwnerProfileProps> = ({ onSuccess }) => {
             if (!activeUserId) throw new Error('AUTH_REQUIRED');
             const currentProfile = storageService.getOwnerProfileByUserId(activeUserId, user?.email);
             if (!compressed) throw new Error('COMPRESSION_FAILED');
-            const uploadedUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed);
+            const oldPhoto = currentProfile?.photo || photo;
+            const uploadedUrl = await storageBucketService.uploadProfileAvatar(activeUserId, compressed, oldPhoto);
             if (!uploadedUrl) {
               const errorDetail = storageBucketService.getLastError();
               showToast(errorDetail || 'Photo upload to Cloudinary failed. Please check connection and try again.', 'error');

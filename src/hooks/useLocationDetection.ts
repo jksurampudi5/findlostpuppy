@@ -28,7 +28,7 @@ export interface LocationDetectionResult {
 }
 
 export interface UseLocationDetectionOptions {
-  onSuccess: (result: LocationDetectionResult) => void | Promise<void>;
+  onSuccess: (result: LocationDetectionResult) => void;
   onError?: (error: any) => void;
   onClearFieldsForNewDetection?: () => void;
 }
@@ -49,41 +49,51 @@ export function useLocationDetection({
   const isDetectingRef = useRef(false);
   const attemptIdRef = useRef(0);
   const pendingSettingsReturnRef = useRef<{ id: number; target: 'location_settings' | 'app_settings' } | null>(null);
-  const callbacksRef = useRef({ onSuccess, onError, onClearFieldsForNewDetection });
+
+  // Keep callback refs fresh without causing re-registration of listeners
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const onClearRef = useRef(onClearFieldsForNewDetection);
+  const showToastRef = useRef(showToast);
+
   useEffect(() => {
-    callbacksRef.current = { onSuccess, onError, onClearFieldsForNewDetection };
-  }, [onSuccess, onError, onClearFieldsForNewDetection]);
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+    onClearRef.current = onClearFieldsForNewDetection;
+    showToastRef.current = showToast;
+  });
 
   /**
    * Executes physical coordinates and reverse geocoding for a specific attempt ID.
    */
   const executeDetection = useCallback(async (attemptId: number) => {
-    if (attemptIdRef.current !== attemptId) return;
-
     isDetectingRef.current = true;
     setDetecting(true);
 
-    let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    const watchdogTimer = setTimeout(() => {
+      if (isDetectingRef.current) {
+        console.warn('[useLocationDetection] Watchdog timeout: clearing detecting state');
+        isDetectingRef.current = false;
+        setDetecting(false);
+      }
+    }, 20000);
 
     try {
+      if (attemptIdRef.current !== attemptId) return;
+
       if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__forceLocationError) {
         throw (window as any).__forceLocationError;
       }
 
-      callbacksRef.current.onClearFieldsForNewDetection?.();
+      onClearRef.current?.();
 
-      // Bound the whole resolver to 6 seconds so users never wait indefinitely
-      const geo = await Promise.race([
-        detectResilientLocation({ allowIpFallback: true }),
-        new Promise<never>((_, reject) => {
-          watchdogTimer = setTimeout(() => reject(new NativeLocationError('TIMEOUT', 'Location detection timed out after 6 seconds')), 6000);
-        }),
-      ]);
+      // Acquire coordinates using native GPS/Network (with graceful IP fallback if satellites/towers are unreachable indoors)
+      const geo = await detectResilientLocation({ allowIpFallback: true });
 
       // Stale attempt guard: if user reset or started a newer attempt, discard
       if (attemptIdRef.current !== attemptId) return;
 
-      const isApproximate = geo.source === 'network' || geo.source === 'ip' || geo.permissionStatus === 'coarse' || (geo.accuracyMeters != null && geo.accuracyMeters > 150);
+      const isApproximate = geo.source === 'network' || geo.permissionStatus === 'coarse' || (geo.accuracyMeters != null && geo.accuracyMeters > 150);
 
       // Extract fresh values only — NEVER fall back to old address fields
       const detectedState = normalizeToEnglishText(geo.state || '');
@@ -105,9 +115,9 @@ export function useLocationDetection({
                 state: stateObj,
                 district: distObj,
                 subDistrict: subObj,
-                locality: detectedCity && detectedCity.toLowerCase() !== subObj.subDistrictName.toLowerCase() ? {
+                locality: {
                   localityCode: 999999,
-                  localityName: detectedCity,
+                  localityName: detectedCity || subObj.subDistrictName,
                   localityType: 'URBAN_LOCALITY',
                   subDistrictCode: subObj.subDistrictCode,
                   subDistrictName: subObj.subDistrictName,
@@ -116,7 +126,7 @@ export function useLocationDetection({
                   districtName: distObj.districtName,
                   stateCode: stateObj.code,
                   stateName: stateObj.name,
-                } : undefined,
+                },
               };
             }
           }
@@ -140,13 +150,13 @@ export function useLocationDetection({
       if (attemptIdRef.current !== attemptId) return;
 
       if (isApproximate) {
-        showToast(
+        showToastRef.current(
           `📍 Approximate location detected (±${Math.round(geo.accuracyMeters || 200)}m). Please verify your Mandal & details.`,
           'info'
         );
       }
 
-      await callbacksRef.current.onSuccess({
+      onSuccessRef.current({
         geo,
         match,
         detectedState: detectedState || match?.state?.name || '',
@@ -160,14 +170,13 @@ export function useLocationDetection({
     } catch (err: any) {
       if (attemptIdRef.current !== attemptId) return;
 
-      if (err instanceof NativeLocationError && Capacitor.isNativePlatform()) {
+      if (err instanceof NativeLocationError) {
         if (err.code === 'LOCATION_SERVICES_DISABLED') {
           setShowTurnOnModal(true);
           return;
         }
         if (err.code === 'PERMISSION_DENIED') {
           const isLocOn = await isDeviceLocationEnabled();
-          if (attemptIdRef.current !== attemptId) return;
           if (!isLocOn) {
             setShowTurnOnModal(true);
             return;
@@ -177,66 +186,15 @@ export function useLocationDetection({
         }
       }
 
-      console.warn('[useLocationDetection] Detection failed or timed out, loading fallback cards:', err);
-      showToast('⚠️ Could not detect GPS coordinates. Loaded default area cards. Please verify details.', 'warning');
-
-      // Populate resilient fallback cards (State, District, Mandal, Home Base with Village & PIN)
-      const fallbackGeo: LocationGeoResult = {
-        latitude: 16.7725,
-        longitude: 81.6854,
-        state: 'Andhra Pradesh',
-        district: 'East Godavari',
-        mandal: 'Undrajavaram',
-        city: 'Palangi',
-        pinCode: '534216',
-        source: 'network',
-        accuracyMeters: 500,
-        stateCode: 28,
-        districtCode: 505,
-        subDistrictCode: 4970,
-        confidence: 'LOW',
-        confidenceReason: 'Fallback default location populated due to GPS detection timeout',
-        boundaryMatched: true,
-        permissionStatus: 'coarse',
-      };
-
-      let fallbackMatch: LocationMatchResult | null = null;
-      try {
-        fallbackMatch = await locationService.matchLocation({
-          state: 'Andhra Pradesh',
-          district: 'East Godavari',
-          mandal: 'Undrajavaram',
-          locality: 'Palangi',
-          pinCode: '534216',
-          stateCode: 28,
-          districtCode: 505,
-          subDistrictCode: 4970,
-        });
-      } catch (matchErr) {
-        console.warn('[useLocationDetection] fallback matchLocation notice:', matchErr);
-      }
-
-      await callbacksRef.current.onSuccess({
-        geo: fallbackGeo,
-        match: fallbackMatch,
-        detectedState: 'Andhra Pradesh',
-        detectedDistrict: 'East Godavari',
-        detectedMandal: 'Undrajavaram',
-        detectedCity: 'Palangi',
-        detectedStreet: '',
-        detectedPin: '534216',
-        isApproximate: true,
-      });
-
-      callbacksRef.current.onError?.(err);
+      console.warn('[useLocationDetection] Detection failed:', err);
+      showToastRef.current('Could not detect location. Please select your area manually.', 'info');
+      onErrorRef.current?.(err);
     } finally {
       clearTimeout(watchdogTimer);
-      if (attemptIdRef.current === attemptId) {
-        isDetectingRef.current = false;
-        setDetecting(false);
-      }
+      isDetectingRef.current = false;
+      setDetecting(false);
     }
-  }, [showToast]);
+  }, []);
 
   /**
    * Main entry point when user taps "Detect Location", "Detect Location Again", or "Auto-Locate".
@@ -254,11 +212,9 @@ export function useLocationDetection({
       // 2. Check device location services (GPS switch) FIRST on native platforms
       if (Capacitor.isNativePlatform()) {
         const isLocationOn = await isDeviceLocationEnabled();
-        if (attemptIdRef.current !== currentAttemptId) return;
         if (!isLocationOn) {
           // Trigger Google Play Services in-app Location resolution dialog
           const promptRes = await promptEnableDeviceLocation();
-          if (attemptIdRef.current !== currentAttemptId) return;
 
           if (promptRes.enabled) {
             showToast('Device location enabled. Detecting your area...', 'info');
@@ -281,18 +237,15 @@ export function useLocationDetection({
 
       // 3. Check and request app permission state
       let permStatus: AppLocationPermissionStatus = await checkAppLocationPermission();
-      if (attemptIdRef.current !== currentAttemptId) return;
 
       if (permStatus === 'prompt') {
         if (!options?.bypassRationale) {
           permStatus = await requestAppLocationPermission();
-          if (attemptIdRef.current !== currentAttemptId) return;
         }
       }
 
       if (permStatus === 'denied') {
         const isLocationOn = await isDeviceLocationEnabled();
-        if (attemptIdRef.current !== currentAttemptId) return;
         isDetectingRef.current = false;
         setDetecting(false);
         if (!isLocationOn) {
@@ -306,7 +259,6 @@ export function useLocationDetection({
       // 4. Prerequisites ready: execute detection immediately
       await executeDetection(currentAttemptId);
     } catch (err) {
-      if (attemptIdRef.current !== currentAttemptId) return;
       console.warn('[useLocationDetection] triggerDetectLocation error:', err);
       isDetectingRef.current = false;
       setDetecting(false);
@@ -318,8 +270,40 @@ export function useLocationDetection({
    */
   const handlePermissionRationaleContinue = useCallback(async () => {
     setShowPermissionRationaleModal(false);
-    await triggerDetectLocation();
-  }, [triggerDetectLocation]);
+    const currentAttemptId = ++attemptIdRef.current;
+
+    if (Capacitor.isNativePlatform()) {
+      const isLocationOn = await isDeviceLocationEnabled();
+      if (!isLocationOn) {
+        const promptRes = await promptEnableDeviceLocation();
+        if (promptRes.enabled) {
+          showToast('Device location enabled. Detecting your area...', 'info');
+        } else if (promptRes.status === 'cancelled') {
+          showToast('Device location is off. You can enter details manually.', 'info');
+          return;
+        } else {
+          setShowTurnOnModal(true);
+          return;
+        }
+      }
+
+      const reqStatus = await requestAppLocationPermission();
+      if (reqStatus === 'granted' || reqStatus === 'approximate') {
+        await executeDetection(currentAttemptId);
+      } else if (reqStatus === 'denied') {
+        const isLocStillOn = await isDeviceLocationEnabled();
+        if (!isLocStillOn) {
+          setShowTurnOnModal(true);
+        } else {
+          setShowPermissionBlockedModal(true);
+        }
+      } else {
+        showToast('Location access was not granted. Please enter your location manually.', 'info');
+      }
+    } else {
+      await executeDetection(currentAttemptId);
+    }
+  }, [executeDetection, showToast]);
 
   /**
    * User chooses to open Android Location settings from TurnOnModal or PermissionBlockedModal.
@@ -341,17 +325,23 @@ export function useLocationDetection({
 
   /**
    * User chooses to open settings from PermissionBlockedModal.
-   * App permission denial must open this application's permission settings.
+   * Prioritizes Android Location Settings so users can toggle Location on or off.
+   * Falls back to App Settings only if Location Settings cannot be opened.
    */
   const handleOpenAppSettings = useCallback(async () => {
     setShowPermissionBlockedModal(false);
     const currentAttemptId = ++attemptIdRef.current;
 
-    pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'app_settings' };
-    const opened = await openAppPermissionSettings();
+    // Prioritize Android Location Source Settings so the user can toggle Location ON/OFF
+    pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'location_settings' };
+    const opened = await openDeviceLocationSettings();
     if (!opened) {
-      pendingSettingsReturnRef.current = null;
-      showToast('Allow location for FindLostPuppy in your app or browser permissions, then try again.', 'info');
+      pendingSettingsReturnRef.current = { id: currentAttemptId, target: 'app_settings' };
+      const appOpened = await openAppPermissionSettings();
+      if (!appOpened) {
+        pendingSettingsReturnRef.current = null;
+        showToast('Could not open Settings. Please enable Location in your phone Settings.', 'info');
+      }
     }
   }, [showToast]);
 
@@ -382,21 +372,20 @@ export function useLocationDetection({
     // Recheck both device location and app permissions
     const isLocationOn = await isDeviceLocationEnabled();
     const permStatus = await checkAppLocationPermission();
-    if (attemptIdRef.current !== attemptId) return;
     const isPermReady = permStatus === 'granted' || permStatus === 'approximate';
 
     if (isLocationOn && isPermReady) {
-      showToast('Location ready. Detecting your area...', 'info');
+      showToastRef.current('Location ready. Detecting your area...', 'info');
       await executeDetection(attemptId);
     } else {
       // Prerequisites still missing: end attempt cleanly, provide non-blocking feedback
       isDetectingRef.current = false;
       setDetecting(false);
-      showToast('Location was not enabled. You can select your area manually or try again.', 'info');
+      showToastRef.current('Location was not enabled. You can select your area manually or try again.', 'info');
     }
-  }, [executeDetection, showToast]);
+  }, [executeDetection]);
 
-  // Return-from-Settings lifecycle listeners
+  // Return-from-Settings lifecycle listeners (registered once per mount)
   useEffect(() => {
     let isMounted = true;
     let nativeHandle: any = null;
@@ -429,9 +418,6 @@ export function useLocationDetection({
 
       return () => {
         isMounted = false;
-        pendingSettingsReturnRef.current = null;
-        attemptIdRef.current++;
-        isDetectingRef.current = false;
         window.removeEventListener('focus', onFocus);
         document.removeEventListener('visibilitychange', onVisibilityChange);
       };
@@ -440,8 +426,6 @@ export function useLocationDetection({
     return () => {
       isMounted = false;
       pendingSettingsReturnRef.current = null;
-      attemptIdRef.current++;
-      isDetectingRef.current = false;
       if (nativeHandle) {
         nativeHandle.remove();
       }

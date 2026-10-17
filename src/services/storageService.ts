@@ -11,12 +11,13 @@ import type {
   ListingReportCategory,
   UserReportCategory,
   AppSuggestion,
+  AdoptionPet,
 } from '../types';
 import { consentService } from './consentService';
 import { isFirebaseConfigured } from './firebaseConfig';
 import { authService } from './authService';
 import { resolveGenericMediaUrl, isPetPhotoUrl, isValidOwnerPhoto } from '../utils/dogPhotoHelper';
-import { storageBucketService, isUploadablePhoto } from './storageBucketService';
+import { storageBucketService, isUploadablePhoto, isCloudinaryUrl } from './storageBucketService';
 import { normalizeToEnglishText, hasNonLatinScript } from '../utils/indicTransliteration';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
 
@@ -27,6 +28,7 @@ const REPORTS_KEY = 'findlostpuppy_reports_v1';
 const SIGHTINGS_KEY = 'findlostpuppy_sightings_v1';
 const PROFILES_KEY = 'findlostpuppy_profiles_v1';
 const PETS_KEY = 'findlostpuppy_pets_v1';
+const ADOPTION_PETS_KEY = 'findlostpuppy_adoption_pets_v1';
 const SKIPPED_PET_KEY = 'findlostpuppy_skipped_pets_v1';
 const SKIPPED_REPORT_KEY = 'findlostpuppy_skipped_reports_v1';
 const LISTING_REPORTS_KEY = 'findlostpuppy_listing_reports_v1';
@@ -73,9 +75,72 @@ const firebaseSyncService = {
     (await import('./firebaseSyncService')).firebaseSyncService.deleteUserDataByEmail(...args),
   syncSuggestion: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncSuggestion>) =>
     (await import('./firebaseSyncService')).firebaseSyncService.syncSuggestion(...args),
+  syncAdoptionPet: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.syncAdoptionPet>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.syncAdoptionPet(...args),
+  deleteAdoptionPet: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.deleteAdoptionPet>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.deleteAdoptionPet(...args),
+  fetchAllAdoptionPets: async (...args: Parameters<typeof import('./firebaseSyncService').firebaseSyncService.fetchAllAdoptionPets>) =>
+    (await import('./firebaseSyncService')).firebaseSyncService.fetchAllAdoptionPets(...args),
   hardResetAllFirestoreData: async () =>
     (await import('./firebaseSyncService')).firebaseSyncService.hardResetAllFirestoreData(),
 };
+
+export const COMMUNITY_BASELINE_ADOPTION_PETS: AdoptionPet[] = [
+  {
+    id: 'ADOPT-1001',
+    petName: 'Chintu',
+    breed: 'Indie / Desi Puppy',
+    gender: 'Male',
+    age: '3 Months',
+    size: 'Small (5-10kg)',
+    photo: abulluImg,
+    description: 'Playful, healthy indie puppy found near village park. Vaccinated and ready for a loving home!',
+    healthNotes: 'First round vaccinations completed. Very energetic and social with children.',
+    vaccinated: true,
+    dewormed: true,
+    state: 'Andhra Pradesh',
+    district: 'East Godavari',
+    mandal: 'Undrajavaram',
+    village: 'Palangi',
+    city: 'Palangi',
+    pinCode: '534216',
+    approximateLocation: 'Palangi, Undrajavaram, East Godavari',
+    contactName: 'Ramesh Varma',
+    contactPhone: '9848022338',
+    contactEmail: 'ramesh.varma@example.com',
+    rawContactEmail: 'ramesh.varma@example.com',
+    status: 'AVAILABLE',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+  {
+    id: 'ADOPT-1002',
+    petName: 'Bella',
+    breed: 'Golden Retriever Mix',
+    gender: 'Female',
+    age: '8 Months',
+    size: 'Medium (10-25kg)',
+    photo: sonuImg,
+    description: 'Gentle and affectionate puppy looking for an adoptive family who loves outdoor walks.',
+    healthNotes: 'Fully vaccinated & dewormed. Very friendly and leash trained.',
+    vaccinated: true,
+    dewormed: true,
+    state: 'Andhra Pradesh',
+    district: 'East Godavari',
+    mandal: 'Undrajavaram',
+    village: 'Undrajavaram',
+    city: 'Undrajavaram',
+    pinCode: '534216',
+    approximateLocation: 'Undrajavaram, East Godavari',
+    contactName: 'Suresh Kumar',
+    contactPhone: '9849011223',
+    contactEmail: 'suresh.kumar@example.com',
+    rawContactEmail: 'suresh.kumar@example.com',
+    status: 'AVAILABLE',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+];
 
 export const COMMUNITY_BASELINE_REPORTS: LostReport[] = [
   {
@@ -192,6 +257,7 @@ class StorageService {
   private deletedUserEmails: string[] = [];
   private deletedSightingIds: string[] = [];
   private suggestions: AppSuggestion[] = [];
+  private adoptionPets: AdoptionPet[] = [];
   private isTransactionActive: boolean = false;
 
   constructor() {
@@ -234,6 +300,7 @@ class StorageService {
       sightings: JSON.stringify(this.sightings),
       profiles: JSON.stringify(this.profiles),
       pets: JSON.stringify(this.pets),
+      adoptionPets: JSON.stringify(this.adoptionPets),
       skippedPetUserIds: JSON.stringify(this.skippedPetUserIds),
       skippedReportUserIds: JSON.stringify(this.skippedReportUserIds),
       listingReports: JSON.stringify(this.listingReports),
@@ -262,6 +329,7 @@ class StorageService {
       this.sightings = JSON.parse(snapshot.sightings);
       this.profiles = JSON.parse(snapshot.profiles);
       this.pets = JSON.parse(snapshot.pets);
+      if ((snapshot as any).adoptionPets) this.adoptionPets = JSON.parse((snapshot as any).adoptionPets);
       this.skippedPetUserIds = JSON.parse(snapshot.skippedPetUserIds);
       this.skippedReportUserIds = JSON.parse(snapshot.skippedReportUserIds);
       this.listingReports = JSON.parse(snapshot.listingReports);
@@ -439,6 +507,9 @@ class StorageService {
           photos: (s.photos || []).filter((ph) => ph && !ph.startsWith('data:image/')),
         }));
         localStorage.setItem(SIGHTINGS_KEY, JSON.stringify(cleanSightings));
+
+        // Save clean adoption pets
+        localStorage.setItem(ADOPTION_PETS_KEY, JSON.stringify(this.adoptionPets));
 
         // Persist minimal deleted tombstones and skipped states
         localStorage.setItem(DELETED_REPORTS_KEY, JSON.stringify(this.deletedReportIds));
@@ -672,6 +743,17 @@ class StorageService {
       const storedSuggestions = localStorage.getItem(SUGGESTIONS_KEY);
       this.suggestions = storedSuggestions ? JSON.parse(storedSuggestions) : [];
 
+      const storedAdoption = localStorage.getItem(ADOPTION_PETS_KEY);
+      if (storedAdoption !== null) {
+        try {
+          this.adoptionPets = JSON.parse(storedAdoption);
+        } catch {
+          this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
+        }
+      } else {
+        this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
+      }
+
       this.enforceIntegrityInvariants();
       this.commitAllStorage();
     } catch {
@@ -681,6 +763,7 @@ class StorageService {
       this.sightings = [];
       this.profiles = [];
       this.pets = this.reports.map((r) => r.dog);
+      this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
       this.skippedPetUserIds = [];
       this.skippedReportUserIds = [];
       this.listingReports = [];
@@ -1477,9 +1560,15 @@ class StorageService {
 
   hasCompletedLocation(userId: string, email?: string): boolean {
     const profile = this.getOwnerProfileByUserId(userId, email);
-    return Boolean(profile?.state?.trim() && profile.district?.trim() &&
-      profile.mandalOrMunicipality?.trim() && profile.city?.trim() &&
-      profile.city.trim().toLowerCase() !== profile.mandalOrMunicipality.trim().toLowerCase());
+    if (!profile) return false;
+    const hasState = Boolean(profile.state?.trim());
+    const hasDistrict = Boolean(profile.district?.trim());
+    const hasMandal = Boolean(profile.mandalOrMunicipality?.trim());
+    const hasCity = Boolean(
+      profile.city?.trim() &&
+      profile.city.trim().toLowerCase() !== (profile.mandalOrMunicipality || '').trim().toLowerCase()
+    );
+    return hasState && hasDistrict && hasMandal && hasCity;
   }
 
   // PET PROFILES:
@@ -2322,6 +2411,245 @@ class StorageService {
     );
   }
 
+  /**
+   * Determines if two adoption pet records represent the exact same pet
+   * based on pet ID, caretaker ID, normalized pet name, phone, email, or flyer.
+   */
+  isSameAdoptionPet(a: AdoptionPet, b: AdoptionPet): boolean {
+    if (a.id && b.id && a.id === b.id) return true;
+
+    // Do not collapse baseline demo pets against each other unless explicit IDs match
+    const isBaselineA = a.id === 'ADOPT-1001' || a.id === 'ADOPT-1002';
+    const isBaselineB = b.id === 'ADOPT-1001' || b.id === 'ADOPT-1002';
+    if (isBaselineA || isBaselineB) return a.id === b.id;
+
+    const nameA = a.petName?.trim().toLowerCase();
+    const nameB = b.petName?.trim().toLowerCase();
+    if (!nameA || !nameB || nameA !== nameB) return false;
+
+    // Same User ID
+    if (a.userId && b.userId) {
+      const uA = a.userId.replace(/^owner-/, '');
+      const uB = b.userId.replace(/^owner-/, '');
+      if (uA === uB) return true;
+    }
+
+    // Same caretaker phone (matching last 10 digits)
+    const phoneA = (a.rawContactPhone || a.contactPhone || '').replace(/\D/g, '');
+    const phoneB = (b.rawContactPhone || b.contactPhone || '').replace(/\D/g, '');
+    if (phoneA.length >= 10 && phoneB.length >= 10 && phoneA.slice(-10) === phoneB.slice(-10)) {
+      return true;
+    }
+
+    // Same caretaker email
+    const emailA = (a.rawContactEmail || a.contactEmail || '').trim().toLowerCase();
+    const emailB = (b.rawContactEmail || b.contactEmail || '').trim().toLowerCase();
+    if (emailA && emailB && emailA === emailB && !emailA.includes('•') && !emailB.includes('•')) {
+      return true;
+    }
+
+    // Same listingGroupId
+    if (a.listingGroupId && b.listingGroupId && a.listingGroupId === b.listingGroupId) {
+      return true;
+    }
+
+    // Same flyer poster image
+    if (a.flyerPhoto && b.flyerPhoto && a.flyerPhoto === b.flyerPhoto) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds an existing adoption pet matching the query to update instead of creating duplicates.
+   */
+  findMatchingAdoptionPet(query: Partial<AdoptionPet>): AdoptionPet | undefined {
+    const all = this.getAllAdoptionPets();
+    if (query.id) {
+      const byId = all.find((p) => p.id === query.id);
+      if (byId) return byId;
+    }
+
+    const queryName = query.petName?.trim().toLowerCase();
+    if (!queryName) return undefined;
+
+    return all.find((p) => {
+      if (p.id === 'ADOPT-1001' || p.id === 'ADOPT-1002') return false;
+      const pName = p.petName?.trim().toLowerCase();
+      if (pName !== queryName) return false;
+
+      // Match user ID
+      if (query.userId && p.userId) {
+        const uA = query.userId.replace(/^owner-/, '');
+        const uB = p.userId.replace(/^owner-/, '');
+        if (uA === uB) return true;
+      }
+
+      // Match phone digits
+      const qPhone = (query.rawContactPhone || query.contactPhone || '').replace(/\D/g, '');
+      const pPhone = (p.rawContactPhone || p.contactPhone || '').replace(/\D/g, '');
+      if (qPhone.length >= 10 && pPhone.length >= 10 && qPhone.slice(-10) === pPhone.slice(-10)) {
+        return true;
+      }
+
+      // Match email
+      const qEmail = (query.rawContactEmail || query.contactEmail || '').trim().toLowerCase();
+      const pEmail = (p.rawContactEmail || p.contactEmail || '').trim().toLowerCase();
+      if (qEmail && pEmail && qEmail === pEmail && !qEmail.includes('•') && !pEmail.includes('•')) {
+        return true;
+      }
+
+      // Match listingGroupId
+      if (query.listingGroupId && p.listingGroupId && query.listingGroupId === p.listingGroupId) {
+        return true;
+      }
+
+      // Match flyerPhoto
+      if (query.flyerPhoto && p.flyerPhoto && query.flyerPhoto === p.flyerPhoto) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
+  getAllAdoptionPets(): AdoptionPet[] {
+    try {
+      const stored = localStorage.getItem(ADOPTION_PETS_KEY);
+      if (stored) {
+        this.adoptionPets = JSON.parse(stored);
+      }
+    } catch {}
+    if (!this.adoptionPets || this.adoptionPets.length === 0) {
+      this.adoptionPets = [...COMMUNITY_BASELINE_ADOPTION_PETS];
+    }
+
+    // Automatic deduplication to guarantee no duplicate listings ever exist
+    const deduplicated: AdoptionPet[] = [];
+    for (const pet of this.adoptionPets) {
+      const existingIdx = deduplicated.findIndex((existing) => this.isSameAdoptionPet(existing, pet));
+      if (existingIdx === -1) {
+        deduplicated.push(pet);
+      } else {
+        const existing = deduplicated[existingIdx];
+        const petTime = new Date(pet.updatedAt || pet.createdAt || 0).getTime();
+        const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        if (petTime >= existingTime) {
+          deduplicated[existingIdx] = { ...existing, ...pet, id: existing.id || pet.id };
+        }
+      }
+    }
+
+    if (deduplicated.length !== this.adoptionPets.length) {
+      this.adoptionPets = deduplicated;
+      this.commitAllStorage();
+    }
+
+    return [...this.adoptionPets].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  getAdoptionPetById(id: string): AdoptionPet | undefined {
+    return this.getAllAdoptionPets().find((p) => p.id === id);
+  }
+
+  getAdoptionPetsByUserId(userId?: string, email?: string, phone?: string): AdoptionPet[] {
+    const all = this.getAllAdoptionPets();
+    if (!userId && !email && !phone) return [];
+    const cleanEmail = email?.trim().toLowerCase();
+    const rawUserId = (userId || '').replace(/^owner-/, '');
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+
+    return all.filter((p) => {
+      // Exclude community baseline demo pets from user-created list
+      if (p.id === 'ADOPT-1001' || p.id === 'ADOPT-1002') return false;
+      if (userId && (p.userId === userId || p.userId === `owner-${userId}` || p.userId === rawUserId)) return true;
+      if (cleanEmail && p.contactEmail && p.contactEmail.trim().toLowerCase() === cleanEmail) return true;
+      if (cleanPhone && cleanPhone.length >= 10 && p.contactPhone && p.contactPhone.replace(/\D/g, '') === cleanPhone) return true;
+      return false;
+    });
+  }
+
+  getAdoptionPetByUserId(userId?: string, email?: string, phone?: string): AdoptionPet | undefined {
+    const list = this.getAdoptionPetsByUserId(userId, email, phone);
+    return list.length > 0 ? list[0] : undefined;
+  }
+
+  addAdoptionPet(pet: AdoptionPet): AdoptionPet {
+    return this.executeTransaction(() => {
+      const now = new Date().toISOString();
+      const existing = this.findMatchingAdoptionPet(pet);
+      const targetId = existing?.id || pet.id || `ADOPT-${Date.now().toString().slice(-6)}`;
+
+      const savedPet: AdoptionPet = {
+        ...(existing || {}),
+        ...pet,
+        id: targetId,
+        status: pet.status || existing?.status || 'AVAILABLE',
+        createdAt: existing?.createdAt || pet.createdAt || now,
+        updatedAt: now,
+      };
+
+      // Remove any existing records that match this pet to enforce strict uniqueness (no duplicates)
+      this.adoptionPets = [
+        savedPet,
+        ...this.adoptionPets.filter((p) => p.id !== targetId && !this.isSameAdoptionPet(p, savedPet))
+      ];
+
+      this.commitAllStorage();
+      this.notifyUpdate();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_adoption_pets_updated', { detail: savedPet }));
+      }
+      firebaseSyncService.syncAdoptionPet(savedPet).catch((e) => console.warn('[Firebase Sync Adoption Notice]:', e));
+      return savedPet;
+    });
+  }
+
+  updateAdoptionPet(id: string, updates: Partial<AdoptionPet>): AdoptionPet | null {
+    return this.executeTransaction(() => {
+      const index = this.adoptionPets.findIndex((p) => p.id === id);
+      if (index === -1) return null;
+      const updated: AdoptionPet = {
+        ...this.adoptionPets[index],
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      this.adoptionPets[index] = updated;
+      this.commitAllStorage();
+      this.notifyUpdate();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_adoption_pets_updated', { detail: updated }));
+      }
+      firebaseSyncService.syncAdoptionPet(updated).catch((e) => console.warn('[Firebase Sync Adoption Notice]:', e));
+      return updated;
+    });
+  }
+
+  deleteAdoptionPet(id: string): boolean {
+    return this.executeTransaction(() => {
+      const petToDelete = this.adoptionPets.find((p) => p.id === id);
+      if (petToDelete) {
+        if (petToDelete.photo && isCloudinaryUrl(petToDelete.photo)) {
+          storageBucketService.deleteMedia(petToDelete.photo).catch(() => {});
+        }
+        if (petToDelete.flyerPhoto && isCloudinaryUrl(petToDelete.flyerPhoto)) {
+          storageBucketService.deleteMedia(petToDelete.flyerPhoto).catch(() => {});
+        }
+      }
+      this.adoptionPets = this.adoptionPets.filter((p) => p.id !== id);
+      this.commitAllStorage();
+      this.notifyUpdate();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('findlostpuppy_adoption_pets_updated', { detail: { id, deleted: true } }));
+      }
+      firebaseSyncService.deleteAdoptionPet(id).catch((e) => console.warn('[Firebase Delete Adoption Notice]:', e));
+      return true;
+    });
+  }
+
   deleteUserAsAdmin(userId: string, email?: string): boolean {
     const userEmail = email?.toLowerCase().trim() ||
       this.profiles.find((p) => p.userId === userId || p.id === userId || p.id === userId.replace(/^owner-/, ''))?.email?.toLowerCase().trim() ||
@@ -2601,8 +2929,8 @@ class StorageService {
                 prMap.set(key, {
                   ...existing,
                   ...pr,
-                  fullName: pr.fullName || existing.fullName,
-                  phone: pr.phone || existing.phone,
+                  fullName: pr.fullName?.trim() || existing.fullName,
+                  phone: pr.phone?.trim() || existing.phone,
                   state: existing.state || pr.state,
                   district: existing.district || pr.district,
                   mandalOrMunicipality: existing.mandalOrMunicipality || pr.mandalOrMunicipality,
@@ -2614,12 +2942,16 @@ class StorageService {
                   latitude: existing.latitude || pr.latitude,
                   longitude: existing.longitude || pr.longitude,
                   approximateArea: existing.approximateArea || pr.approximateArea,
-                  photo: (pr.photo && isValidOwnerPhoto(pr.photo)) ? pr.photo : (existing.photo && isValidOwnerPhoto(existing.photo) && pr.photo === undefined ? existing.photo : undefined),
+                  photo: (pr.photo && isValidOwnerPhoto(pr.photo))
+                    ? pr.photo
+                    : (existing.photo && isValidOwnerPhoto(existing.photo))
+                      ? existing.photo
+                      : undefined,
                 });
               } else {
                 prMap.set(key, {
                   ...pr,
-                  photo: isPetPhotoUrl(pr.photo) ? undefined : pr.photo,
+                  photo: (pr.photo && isValidOwnerPhoto(pr.photo)) ? pr.photo : undefined,
                 });
               }
             }
@@ -2688,29 +3020,53 @@ class StorageService {
         .filter((p: any) => !this.isUserDeleted(p.id))
         .map((p: any) => {
           const resolvedStreet = p.street || p.streetOrLocality || '';
+          const existingLocal = this.getOwnerProfileByUserId(p.id, p.email);
+
+          // 1. Resolve Phone: from Firestore doc, fallback to user's reports, fallback to local
+          let resolvedPhone = (p.phone || '').trim();
+          if (!resolvedPhone) {
+            const userReport = (reports || []).find(
+              (r: any) =>
+                (r.ownerId === p.id || r.user_id === p.id || r.id === p.id) &&
+                (r.contactMechanism?.safeContactPhone || r.contact_phone)
+            );
+            if (userReport) {
+              resolvedPhone = (userReport.contactMechanism?.safeContactPhone || userReport.contact_phone || '').trim();
+            }
+          }
+          if (!resolvedPhone && existingLocal?.phone) {
+            resolvedPhone = existingLocal.phone.trim();
+          }
+
+          // 2. Resolve Photo: from Firestore doc, fallback to existing local valid photo
+          let resolvedPhoto = isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url).trim() : undefined;
+          if (!resolvedPhoto && existingLocal?.photo && isValidOwnerPhoto(existingLocal.photo)) {
+            resolvedPhoto = existingLocal.photo.trim();
+          }
+
           return {
             id: p.id,
             userId: p.id,
             fullName: sanitizeName(p.fullName || p.name, p.email),
             email: p.email,
-            phone: p.phone || '',
-            address: p.address || '',
-            photo: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
-            preferredContact: p.preferredContact || 'phone',
-            state: p.state || '',
-            district: p.district || '',
-            mandalOrMunicipality: p.mandalOrMunicipality || '',
-            city: p.city || '',
-            street: resolvedStreet,
-            streetOrLocality: resolvedStreet,
-            pinCode: p.pinCode || '',
-            stateCode: p.stateCode ?? null,
-            districtCode: p.districtCode ?? null,
-            subDistrictCode: p.subDistrictCode ?? null,
-            localityCode: p.localityCode ?? null,
-            latitude: p.latitude !== undefined && p.latitude !== null ? Number(p.latitude) : undefined,
-            longitude: p.longitude !== undefined && p.longitude !== null ? Number(p.longitude) : undefined,
-            approximateArea: p.approximateArea || '',
+            phone: resolvedPhone,
+            address: p.address || existingLocal?.address || '',
+            photo: resolvedPhoto,
+            preferredContact: p.preferredContact || existingLocal?.preferredContact || 'phone',
+            state: p.state || existingLocal?.state || '',
+            district: p.district || existingLocal?.district || '',
+            mandalOrMunicipality: p.mandalOrMunicipality || existingLocal?.mandalOrMunicipality || '',
+            city: p.city || existingLocal?.city || '',
+            street: resolvedStreet || existingLocal?.street || '',
+            streetOrLocality: resolvedStreet || existingLocal?.streetOrLocality || '',
+            pinCode: p.pinCode || existingLocal?.pinCode || '',
+            stateCode: p.stateCode ?? existingLocal?.stateCode ?? null,
+            districtCode: p.districtCode ?? existingLocal?.districtCode ?? null,
+            subDistrictCode: p.subDistrictCode ?? existingLocal?.subDistrictCode ?? null,
+            localityCode: p.localityCode ?? existingLocal?.localityCode ?? null,
+            latitude: p.latitude !== undefined && p.latitude !== null ? Number(p.latitude) : existingLocal?.latitude,
+            longitude: p.longitude !== undefined && p.longitude !== null ? Number(p.longitude) : existingLocal?.longitude,
+            approximateArea: p.approximateArea || existingLocal?.approximateArea || '',
             hasLocationConsent: true,
             updatedAt: p.updatedAt || p.createdAt || new Date().toISOString(),
           };
@@ -2718,15 +3074,18 @@ class StorageService {
 
       const mappedUsers: User[] = (profiles || [])
         .filter((p: any) => !this.isUserDeleted(p.id))
-        .map((p: any) => ({
-        id: p.id,
-        name: sanitizeName(p.fullName || p.name, p.email),
-        email: p.email,
-        phone: p.phone,
-        avatar: isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined,
-        isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
-        createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
-      }));
+        .map((p: any) => {
+          const matchedProfile = mappedProfiles.find((mp) => mp.id === p.id || mp.userId === p.id);
+          return {
+            id: p.id,
+            name: sanitizeName(p.fullName || p.name, p.email),
+            email: p.email,
+            phone: matchedProfile?.phone || p.phone,
+            avatar: matchedProfile?.photo || (isValidOwnerPhoto(p.photo || p.avatar_url) ? (p.photo || p.avatar_url) : undefined),
+            isAdmin: p.email?.toLowerCase().trim() === 'jksurampudi5@gmail.com',
+            createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
+          };
+        });
 
       // Map Firebase pets to DogProfile
       const mappedPets: DogProfile[] = (pets || []).map((p: any) => {
@@ -2832,10 +3191,57 @@ class StorageService {
         sightings: mappedSightings,
       });
 
+      // Update active user session with resolved phone and photo
+      const activeUser = authService.getCurrentUser();
+      if (activeUser) {
+        const myProfile = this.getOwnerProfileByUserId(activeUser.id, activeUser.email);
+        if (myProfile) {
+          const userUpdates: Partial<User> = {};
+          if (myProfile.phone && myProfile.phone !== activeUser.phone) {
+            userUpdates.phone = myProfile.phone;
+          }
+          if (myProfile.photo && isValidOwnerPhoto(myProfile.photo) && myProfile.photo !== activeUser.avatar) {
+            userUpdates.avatar = myProfile.photo;
+          }
+          if (Object.keys(userUpdates).length > 0) {
+            authService.updateCurrentUser(userUpdates);
+          }
+
+          // If myProfile is still missing a valid photo, proactively query Cloudinary directly via worker!
+          if (!myProfile.photo || !isValidOwnerPhoto(myProfile.photo)) {
+            storageBucketService.getUserProfileAvatarFromCloudinary(activeUser.id).then((cloudPhoto) => {
+              if (cloudPhoto && isValidOwnerPhoto(cloudPhoto)) {
+                const refreshed = { ...myProfile, photo: cloudPhoto, updatedAt: new Date().toISOString() };
+                this.saveOwnerProfile(refreshed);
+                authService.updateCurrentUser({ avatar: cloudPhoto });
+                firebaseSyncService.syncOwnerProfile(refreshed, activeUser.id).catch(() => {});
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
+                  window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced', { detail: null }));
+                }
+              }
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Pull adoption pets from Firestore
+      try {
+        const cloudAdoptionPets = await firebaseSyncService.fetchAllAdoptionPets();
+        if (Array.isArray(cloudAdoptionPets) && cloudAdoptionPets.length > 0) {
+          for (const adoptPet of cloudAdoptionPets) {
+            this.addAdoptionPet(adoptPet);
+          }
+        }
+      } catch (adoptErr) {
+        if (import.meta.env.DEV) console.warn('Failed to pull adoption pets from Firebase:', adoptErr);
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('findlostpuppy_session_updated', { detail: null }));
         window.dispatchEvent(new CustomEvent('findlostpuppy_data_synced', { detail: { count: profiles.length } }));
         window.dispatchEvent(new CustomEvent('findlostpuppy_reports_updated', { detail: null }));
+        window.dispatchEvent(new CustomEvent('findlostpuppy_adoption_pets_updated', { detail: null }));
       }
 
       // Automatically backfill any existing offline/base64 photos to Cloudinary & Firestore
@@ -3024,6 +3430,39 @@ class StorageService {
             }
           }
         } catch {}
+      }
+
+      // 6. Backfill Adoption Pets
+      for (const adoptPet of [...this.adoptionPets]) {
+        let changed = false;
+        let photo = adoptPet.photo;
+        if (photo && isUploadablePhoto(photo)) {
+          try {
+            const uploaded = await storageBucketService.uploadAdoptionPetPhoto(adoptPet.id, photo, 0);
+            if (uploaded) {
+              photo = uploaded;
+              adoptPet.photo = photo;
+              adoptPet.photos = [photo];
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+        let flyer = adoptPet.flyerPhoto;
+        if (flyer && isUploadablePhoto(flyer)) {
+          try {
+            const uploadedFlyer = await storageBucketService.uploadAdoptionFlyer(adoptPet.id, flyer);
+            if (uploadedFlyer) {
+              adoptPet.flyerPhoto = uploadedFlyer;
+              changed = true;
+              migratedCount++;
+            }
+          } catch {}
+        }
+        if (changed) {
+          this.addAdoptionPet(adoptPet);
+          firebaseSyncService.syncAdoptionPet(adoptPet).catch(() => {});
+        }
       }
 
       if (migratedCount > 0) {
