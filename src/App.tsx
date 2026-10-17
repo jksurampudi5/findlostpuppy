@@ -20,7 +20,6 @@ import { PetSafety } from './pages/PetSafety';
 import { GuestSightingPage } from './pages/GuestSightingPage';
 import { RegisteredPet } from './pages/RegisteredPet';
 import { AdoptionDetailsPage } from './pages/AdoptionDetailsPage';
-import { AnimationShowcaseStudio } from './components/ui/AnimationShowcaseStudio';
 
 // Unlocked Experience Pages
 import { DiscoveryPage } from './pages/DiscoveryPage';
@@ -81,12 +80,6 @@ function MainAppFlow() {
 
   return (
     <Routes>
-      {/* 0. INTERACTIVE DEMO ROUTE */}
-      <Route
-        path="/demo"
-        element={<AnimationShowcaseStudio />}
-      />
-
       {/* 1. PUBLIC EMERGENCY & DIRECT DETAIL ROUTES (Instant 0-roadblock access anywhere) */}
       <Route path="/report-sighting/:id" element={<GuestSightingPage />} />
       <Route path="/found/:id" element={<GuestSightingPage />} />

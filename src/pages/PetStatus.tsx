@@ -578,6 +578,15 @@ export const PetStatus: React.FC = () => {
     showToast(`Deleted ${sightingIds.length > 1 ? `all ${sightingIds.length} sightings` : 'sighting'} for this pet.`, 'success');
   };
 
+  const handleDeleteAdoptionPet = (petId: string, petName: string) => {
+    const confirmed = window.confirm(`Permanently delete adoption listing for "${petName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    storageService.deleteAdoptionPet(petId);
+    setAdoptionPets(storageService.getAllAdoptionPets());
+    if (detailAdoptionPet?.id === petId) setDetailAdoptionPet(null);
+    showToast(`🗑️ Adoption listing "${petName}" deleted.`, 'info');
+  };
+
   const handleHardResetSightings = () => {
     if (sightings.length === 0) return;
     sightings.forEach((sighting) => storageService.deleteSightingAsAdmin(sighting.id));
@@ -1121,6 +1130,20 @@ export const PetStatus: React.FC = () => {
                               <Heart size={13} fill="#F472B6" />
                               <span>Adopt</span>
                             </button>
+                            {((user && (pet.userId === user.id || (user.email && pet.contactEmail?.toLowerCase().trim() === user.email.toLowerCase().trim()))) || isDashboardAdmin) && (
+                              <button
+                                type="button"
+                                className="dashboard-sighting-delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAdoptionPet(pet.id, pet.petName);
+                                }}
+                                aria-label="Delete adoption listing"
+                                title="Delete adoption listing"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
                           </div>
                         </article>
                       );
@@ -1952,6 +1975,35 @@ export const PetStatus: React.FC = () => {
                           >
                             <Edit3 size={15} style={{ color: '#60A5FA' }} />
                             <span>Edit & Update Pet Details (No Duplicates)</span>
+                          </button>
+                        )}
+
+                        {/* Delete Listing Action (For Caretaker or Admin) */}
+                        {(isCreator || isDashboardAdmin) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDeleteAdoptionPet(detailAdoptionPet.id, detailAdoptionPet.petName);
+                            }}
+                            style={{
+                              gridColumn: '1 / -1',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '0.65rem 1rem',
+                              borderRadius: '10px',
+                              background: 'rgba(239, 68, 68, 0.16)',
+                              border: '1.5px solid rgba(248, 113, 113, 0.45)',
+                              color: '#FCA5A5',
+                              fontWeight: 700,
+                              fontSize: '0.84rem',
+                              cursor: 'pointer',
+                              marginTop: '0.2rem',
+                            }}
+                          >
+                            <Trash2 size={15} style={{ color: '#F87171' }} />
+                            <span>Delete Adoption Listing</span>
                           </button>
                         )}
                       </div>

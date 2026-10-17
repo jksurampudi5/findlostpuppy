@@ -579,27 +579,6 @@ export const AdminShortcuts: React.FC<AdminShortcutsProps> = ({ embedded = false
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
-              onClick={() => navigate('/demo')}
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 121, 0, 0.2), rgba(230, 81, 0, 0.35))',
-                border: '1px solid #FF7900',
-                color: '#FF9800',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 0 12px rgba(255, 121, 0, 0.25)',
-              }}
-            >
-              <Sparkles size={14} color="#FF7900" />
-              <span>🎬 Animation & Button Showcase</span>
-            </button>
-            <button
-              type="button"
               onClick={() => navigate('/admin')}
               style={{
                 background: 'rgba(255, 255, 255, 0.08)',

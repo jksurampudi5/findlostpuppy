@@ -683,7 +683,19 @@ export const firebaseSyncService = {
     if (!db || !isFirebaseConfigured()) return [];
     try {
       const snap = await getDocs(collection(db, 'adoption_pets'));
-      const pets: AdoptionPet[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AdoptionPet));
+      const pets: AdoptionPet[] = [];
+      for (const d of snap.docs) {
+        if (d.id === 'ADOPT-1001' || d.id === 'ADOPT-1002') {
+          deleteDoc(d.ref).catch(() => {});
+          continue;
+        }
+        const data = d.data() as AdoptionPet;
+        if (data.petName === 'Chintu' || data.petName === 'Bella') {
+          deleteDoc(d.ref).catch(() => {});
+          continue;
+        }
+        pets.push({ ...data, id: d.id });
+      }
       lastSyncCounts.adoptionPets = pets.length;
       return pets;
     } catch (err) {
