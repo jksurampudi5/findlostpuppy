@@ -102,10 +102,10 @@ function buildUpdateEmail(recipientEmail) {
             <div style="background:#16191E;border-left:4px solid #FF7900;padding:16px 20px;border-radius:8px;margin-bottom:24px;">
               <h3 style="margin:0 0 10px;font-size:14px;color:#FF7900;text-transform:uppercase;letter-spacing:0.5px;">What's New in ${VERSION}:</h3>
               <ul style="margin:0;padding-left:18px;color:#CBD5E1;font-size:14px;line-height:1.8;">
-                <li><strong>Automatic Profile Restore:</strong> Your profile photo and phone number automatically restore upon signing in or on a fresh install.</li>
-                <li><strong>Faster Location Selection:</strong> Spacious dropdowns for selecting State, District, Mandal, and Village with direct one-tap choosing.</li>
-                <li><strong>Zero Typing Interruption:</strong> Keyboard no longer pops up uninvited when browsing areas.</li>
-                <li><strong>Stability & Speed:</strong> Upgraded offline cache and smooth navigation transitions.</li>
+                <li><strong>Community Adoptions Management:</strong> Pet parents and moderators can now easily manage, view, and delete adoption listings directly from cards and detail views.</li>
+                <li><strong>Clean Dog Registry:</strong> Removed all demo and sample dog entries so only genuine, active community listings are displayed.</li>
+                <li><strong>Enhanced Mobile Layout:</strong> Fixed bottom dock navigation and footer clearance so Terms &amp; Conditions and legal disclosures are easily readable.</li>
+                <li><strong>Performance &amp; Speed:</strong> Streamlined dashboard navigation and faster local and cloud synchronization.</li>
               </ul>
             </div>
 
