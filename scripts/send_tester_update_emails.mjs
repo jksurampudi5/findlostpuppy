@@ -29,6 +29,7 @@ if (fs.existsSync(ENV_FILE)) {
 if (!APP_PASSWORD) {
   APP_PASSWORD = process.env.MAIL_APP_PASSWORD || process.env.EMAIL_PASS || '';
 }
+APP_PASSWORD = APP_PASSWORD.replace(/\s+/g, '');
 
 const STORE_LINK = 'https://play.google.com/store/apps/details?id=om.findlostpuppy.app';
 const TESTING_LINK = 'https://play.google.com/apps/testing/om.findlostpuppy.app';
@@ -65,115 +66,93 @@ const recipients = isTestOnly
 
 // ── 4. EMAIL TEMPLATE ────────────────────────────────────────────────────────
 function buildUpdateEmail(recipientEmail) {
-  const subject = `🐾 FindLostPuppy update ${VERSION} is ready on Google Play`;
-  
-  const html = `
-<!DOCTYPE html>
+  const subject = `🐾 FindLostPuppy update is ready — update your app`;
+
+  const html = `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#E2E8F0;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#111111;border-radius:16px;border:1.5px solid #FF7900;box-shadow:0 0 32px rgba(255,121,0,0.22);overflow:hidden;max-width:560px;width:100%;">
-
-        <!-- Header -->
-        <tr>
-          <td style="background:linear-gradient(135deg,#1A0D00 0%,#2A1500 100%);padding:32px 32px 24px;text-align:center;border-bottom:1px solid rgba(255,121,0,0.25);">
-            <div style="font-size:42px;margin-bottom:8px;">🐾</div>
-            <h1 style="margin:0;font-size:24px;font-weight:800;color:#FF7900;letter-spacing:-0.5px;">FindLostPuppy</h1>
-            <p style="margin:6px 0 0;font-size:13px;color:#94A3B8;letter-spacing:0.5px;text-transform:uppercase;font-weight:700;">NEW UPDATE READY (v${VERSION})</p>
-          </td>
-        </tr>
-
-        <!-- Content Body -->
-        <tr>
-          <td style="padding:28px 32px 16px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#F8F9FA;line-height:1.6;">
-              Hi early access tester! 🐶
-            </p>
-            <p style="margin:0 0 24px;font-size:15px;color:#CBD5E1;line-height:1.7;">
-              Google Play has approved our newest build (<strong>Version ${VERSION}</strong>). This update delivers major reliability and experience improvements:
-            </p>
-
-            <!-- What's New Box -->
-            <div style="background:#16191E;border-left:4px solid #FF7900;padding:16px 20px;border-radius:8px;margin-bottom:24px;">
-              <h3 style="margin:0 0 10px;font-size:14px;color:#FF7900;text-transform:uppercase;letter-spacing:0.5px;">What's New in ${VERSION}:</h3>
-              <ul style="margin:0;padding-left:18px;color:#CBD5E1;font-size:14px;line-height:1.8;">
-                <li><strong>Community Adoptions Management:</strong> Pet parents and moderators can now easily manage, view, and delete adoption listings directly from cards and detail views.</li>
-                <li><strong>Clean Dog Registry:</strong> Removed all demo and sample dog entries so only genuine, active community listings are displayed.</li>
-                <li><strong>Enhanced Mobile Layout:</strong> Fixed bottom dock navigation and footer clearance so Terms &amp; Conditions and legal disclosures are easily readable.</li>
-                <li><strong>Performance &amp; Speed:</strong> Streamlined dashboard navigation and faster local and cloud synchronization.</li>
-              </ul>
-            </div>
-
-            <!-- Action Button -->
-            <div style="text-align:center;margin:30px 0 24px;">
-              <a href="${STORE_LINK}" style="display:inline-block;background:linear-gradient(135deg,#FF7900 0%,#E56B00 100%);color:#FFFFFF;text-decoration:none;font-size:16px;font-weight:800;padding:14px 32px;border-radius:10px;box-shadow:0 4px 18px rgba(255,121,0,0.4);">
-                Update on Google Play →
-              </a>
-            </div>
-
-            <!-- Steps -->
-            <p style="margin:0 0 8px;font-size:14px;color:#94A3B8;text-align:center;">
-              1. Tap the button above on your Android phone.<br/>
-              2. Tap <strong>Update</strong> in Google Play.<br/>
-              3. Open the app and verify your profile &amp; area.
-            </p>
-
-            <div style="border-top:1px solid rgba(255,255,255,0.08);margin:24px 0 16px;padding-top:16px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:12px;color:#64748B;">Haven't joined the tester program yet?</p>
-              <a href="${TESTING_LINK}" style="font-size:13px;color:#FF9B42;text-decoration:underline;">
-                Join Google Play Testing Program
-              </a>
-            </div>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="padding:18px 32px 24px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;background:#0C0D0F;">
-            <p style="margin:0 0 4px;font-size:12px;color:#64748B;">
-              Thank you for helping us reunite lost dogs with their loving families!
-            </p>
-            <p style="margin:0;font-size:13px;color:#FF7900;font-weight:700;">
-              — Jayakrishna &amp; FindLostPuppy Team 🐾
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:Arial,Helvetica,sans-serif;color:#E2E8F0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111111;border:1px solid #FF7900;border-radius:16px;">
+          <!-- Header -->
+          <tr>
+            <td style="padding:28px 24px 20px;text-align:center;border-bottom:1px solid #332315;">
+              <p style="margin:0 0 8px;font-size:28px;">🐾</p>
+              <p style="margin:0;color:#FF7900;font-size:22px;font-weight:bold;">FindLostPuppy</p>
+              <p style="margin:8px 0 0;color:#CBD5E1;font-size:13px;letter-spacing:0.5px;">EARLY ACCESS UPDATE</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 24px;">
+              <h1 style="margin:0 0 14px;color:#FFFFFF;font-size:26px;line-height:1.25;">Your new update is ready.</h1>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.65;color:#CBD5E1;">
+                Hi everyone! The latest FindLostPuppy update is available. Thank you for helping us test the app.
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
+                <tr>
+                  <td bgcolor="#FF7900" style="border-radius:9px;text-align:center;">
+                    <a href="${STORE_LINK}" style="display:inline-block;padding:16px 28px;color:#111111;font-size:17px;font-weight:bold;text-decoration:none;border:1px solid #FF7900;border-radius:9px;">
+                      Update App →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:20px 0 22px;font-size:16px;line-height:1.7;color:#FFFFFF;">
+                1. Tap the button on your Android phone.<br>
+                2. Tap <strong>Update</strong> in Google Play.<br>
+                3. Tap <strong>Open</strong> and try the app.
+              </p>
+              <p style="margin:0 0 16px;color:#CBD5E1;font-size:13px;line-height:1.6;">
+                Use the same Google account you joined the testers group with. If you see <strong>Open</strong>, you may already have the latest version available to your account.
+              </p>
+              <p style="margin:0 0 24px;color:#CBD5E1;font-size:13px;line-height:1.6;">
+                Not installed yet? <a href="${TESTING_LINK}" style="color:#FF9B42;text-decoration:underline;">Join the test and install</a>.
+              </p>
+              <p style="margin:0;color:#E2E8F0;font-size:15px;line-height:1.7;">
+                Need help or spotted a problem?<br>
+                <strong>Just reply to this email.</strong>
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 24px;border-top:1px solid #332315;">
+              <p style="margin:0;color:#CBD5E1;font-size:14px;line-height:1.7;">
+                Thank you,<br>
+                <strong style="color:#FF9B42;">Jayakrishna · FindLostPuppy 🐾</strong>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
-</html>
-`;
+</html>`;
 
-  const text = `Hi early access tester! 🐶
+  const text = `Hi everyone! The latest FindLostPuppy update is available. Thank you for helping us test the app.
 
-FindLostPuppy update version ${VERSION} is now available on Google Play!
+1. Open this link on your Android phone: ${STORE_LINK}
+2. Tap Update in Google Play.
+3. Tap Open and try the app.
 
-What's New in v${VERSION}:
-• Automatic Profile Restore: Profile photo & phone number automatically restore on sign-in.
-• Faster Location Selection: Spacious selector for State, District, Mandal, and Village with direct tap.
-• Zero Keyboard Occlusion: Virtual keyboard stays closed so you can pick from dropdowns directly.
-• Stability, speed, and offline resilience improvements.
+Use the same Google account you joined the testers group with. If you see Open, you may already have the latest version available to your account.
 
-How to update:
-1. Open this link on your phone: ${STORE_LINK}
-2. Tap "Update" in Google Play.
-3. Open the app and test your profile and area.
+Not installed yet? Join the test and install: ${TESTING_LINK}
 
-Haven't joined testing yet?
-Join here: ${TESTING_LINK}
+Need help or spotted a problem? Just reply to this email.
 
-Thank you so much for your support!
-— Jayakrishna & FindLostPuppy Team 🐾`;
+Thank you,
+Jayakrishna · FindLostPuppy 🐾`;
 
   return {
-    from: `"FindLostPuppy 🐾" <${SENDER_EMAIL}>`,
+    from: `"Jayakrishna Surampudi" <${SENDER_EMAIL}>`,
     to: recipientEmail,
     subject,
     html,
