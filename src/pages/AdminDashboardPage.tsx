@@ -26,7 +26,7 @@ import {
   Clock,
   Lightbulb,
   Star,
-  Radar,
+  HeartHandshake,
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -34,11 +34,10 @@ import { useToast } from '../context/ToastContext';
 import { storageService } from '../services/storageService';
 import { storageBucketService } from '../services/storageBucketService';
 import { StatusBadge } from '../components/StatusBadge';
-import { AdminUserProximityMap } from '../components/AdminUserProximityMap';
 import { AdminShortcuts } from '../components/admin/AdminShortcuts';
 import { LoadingButton } from '../components/ui/LoadingButton';
-import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion, OwnerProfile } from '../types';
-import { getDogPhotoUrl, getDogDisplayName, handleDogImageError } from '../utils/dogPhotoHelper';
+import type { User, DogProfile, LostReport, Sighting, ReportStatus, AppSuggestion, OwnerProfile, AdoptionPet } from '../types';
+import { getDogPhotoUrl, getDogDisplayName, handleDogImageError, resolveGenericMediaUrl } from '../utils/dogPhotoHelper';
 import { generateWhatsAppSosMessage } from '../utils/shareHelper';
 import { triggerStarCelebration } from '../utils/confettiHelper';
 import { validateIndianPhoneNumber } from '../utils/phoneValidator';
@@ -50,17 +49,18 @@ export const AdminDashboardPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<
-    'members' | 'pets' | 'alerts' | 'sightings' | 'suggestions' | 'backup' | 'radar' | 'shortcuts'
+    'members' | 'pets' | 'alerts' | 'sightings' | 'adoptions' | 'suggestions' | 'backup' | 'shortcuts'
   >('members');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Data states
   const [users, setUsers] = useState<User[]>([]);
-  const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
+  const [, setProfiles] = useState<OwnerProfile[]>([]);
   const [pets, setPets] = useState<DogProfile[]>([]);
   const [reports, setReports] = useState<LostReport[]>([]);
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [suggestions, setSuggestions] = useState<AppSuggestion[]>([]);
+  const [adoptionPets, setAdoptionPets] = useState<AdoptionPet[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -73,6 +73,7 @@ export const AdminDashboardPage: React.FC = () => {
     setReports(storageService.getAllReports());
     setSightings(storageService.getAllSightings());
     setSuggestions(storageService.getAllSuggestions());
+    setAdoptionPets(storageService.getAllAdoptionPets());
   };
 
   useEffect(() => {
@@ -84,11 +85,13 @@ export const AdminDashboardPage: React.FC = () => {
 
     window.addEventListener('findlostpuppy_reports_updated', handleDataUpdate);
     window.addEventListener('findlostpuppy_session_updated', handleDataUpdate);
+    window.addEventListener('findlostpuppy_adoption_pets_updated', handleDataUpdate);
     window.addEventListener('storage', handleDataUpdate);
 
     return () => {
       window.removeEventListener('findlostpuppy_reports_updated', handleDataUpdate);
       window.removeEventListener('findlostpuppy_session_updated', handleDataUpdate);
+      window.removeEventListener('findlostpuppy_adoption_pets_updated', handleDataUpdate);
       window.removeEventListener('storage', handleDataUpdate);
     };
   }, []);
@@ -388,6 +391,31 @@ export const AdminDashboardPage: React.FC = () => {
     );
   }, [suggestions, searchQuery]);
 
+  const filteredAdoptions = useMemo(() => {
+    if (!searchQuery.trim()) return adoptionPets;
+    const q = searchQuery.toLowerCase();
+    return adoptionPets.filter(
+      (a) =>
+        a.petName?.toLowerCase().includes(q) ||
+        a.breed?.toLowerCase().includes(q) ||
+        a.description?.toLowerCase().includes(q) ||
+        a.contactName?.toLowerCase().includes(q) ||
+        a.contactEmail?.toLowerCase().includes(q) ||
+        a.contactPhone?.includes(q) ||
+        a.city?.toLowerCase().includes(q) ||
+        a.state?.toLowerCase().includes(q) ||
+        a.district?.toLowerCase().includes(q)
+    );
+  }, [adoptionPets, searchQuery]);
+
+  const handleDeleteAdoptionPet = (petId: string, petName: string) => {
+    const confirmed = window.confirm(`Admin Action: Permanently delete adoption listing for "${petName}"? This will remove the listing and its images from Cloudinary and Firebase.`);
+    if (!confirmed) return;
+    storageService.deleteAdoptionPetAsAdmin(petId);
+    loadAllAdminData();
+    showToast(`🗑️ Adoption post "${petName}" deleted permanently.`, 'info');
+  };
+
   const handleDeleteSuggestion = (id: string) => {
     if (window.confirm('Delete this user suggestion?')) {
       storageService.deleteSuggestion(id);
@@ -657,6 +685,21 @@ export const AdminDashboardPage: React.FC = () => {
                 <span className="admin-metric-label">Sightings Logged</span>
               </div>
             </div>
+
+            <div
+              className={`admin-metric-card ${activeTab === 'adoptions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('adoptions')}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="metric-icon-wrap bg-pink-50 text-pink-600">
+                <HeartHandshake size={22} />
+              </div>
+              <div>
+                <span className="admin-metric-num text-pink-600">{adoptionPets.length}</span>
+                <span className="admin-metric-label">Adoption Posts</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -726,12 +769,13 @@ export const AdminDashboardPage: React.FC = () => {
             </button>
 
             <button
-              className={`admin-tab-btn ${activeTab === 'radar' ? 'active' : ''}`}
-              onClick={() => setActiveTab('radar')}
+              className={`admin-tab-btn ${activeTab === 'adoptions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('adoptions')}
               role="tab"
             >
-              <Radar size={17} />
-              <span>🛰️ Proximity Radar & Map</span>
+              <HeartHandshake size={17} />
+              <span>🐾 Community Adoptions</span>
+              <span className="admin-count-pill purple-pill">{adoptionPets.length}</span>
             </button>
 
             <button
@@ -749,7 +793,7 @@ export const AdminDashboardPage: React.FC = () => {
             </button>
           </div>
 
-          {activeTab !== 'backup' && activeTab !== 'radar' && activeTab !== 'shortcuts' && (
+          {activeTab !== 'backup' && activeTab !== 'shortcuts' && (
             <div className="admin-search-wrapper">
               <Search size={16} className="admin-search-icon" />
               <input
@@ -1376,6 +1420,125 @@ export const AdminDashboardPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
+        {/* TAB: COMMUNITY ADOPTION LISTINGS & MODERATION */}
+        {/* ========================================================================= */}
+        {activeTab === 'adoptions' && (
+          <div className="admin-tab-content">
+            <div className="admin-section-header">
+              <div>
+                <h2 className="admin-section-title">🐾 Community Adoption Listings</h2>
+                <p className="admin-section-desc">
+                  Review, moderate, and manage user-posted adoption and rescue dogs. Any post or inappropriate entry can be permanently deleted by admin.
+                </p>
+              </div>
+              <span className="admin-count-pill purple-pill">
+                {filteredAdoptions.length} {filteredAdoptions.length === 1 ? 'Adoption Listing' : 'Adoption Listings'}
+              </span>
+            </div>
+
+            {filteredAdoptions.length === 0 ? (
+              <div className="admin-empty-state card">
+                <HeartHandshake size={48} className="text-gray-300 mx-auto mb-3" />
+                <h3>No Adoption Dogs Found</h3>
+                <p>
+                  {searchQuery
+                    ? 'No adoption listings matched your search query.'
+                    : 'No community adoption dogs posted yet. When users post rescue dogs for adoption, they will appear here with full deletion and moderation controls.'}
+                </p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper card">
+                <table className="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Dog & Breed</th>
+                      <th>Caretaker Details</th>
+                      <th>Location</th>
+                      <th>Age & Gender</th>
+                      <th>Status</th>
+                      <th>Photos</th>
+                      <th>Posted Date</th>
+                      <th>Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAdoptions.map((pet) => (
+                      <tr key={pet.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <img
+                              src={resolveGenericMediaUrl(pet.photo)}
+                              alt={pet.petName}
+                              style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }}
+                            />
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#FFFFFF' }}>{pet.petName}</div>
+                              <div style={{ fontSize: '11px', color: '#94A3B8' }}>{pet.breed || 'Companion'} • {pet.size || ''}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{pet.contactName || 'Anonymous'}</div>
+                          {pet.contactPhone && (
+                            <div style={{ fontSize: '12px', color: '#CBD5E1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Phone size={12} /> {pet.contactPhone}
+                            </div>
+                          )}
+                          {(pet.rawContactEmail || pet.contactEmail) && (
+                            <div style={{ fontSize: '11px', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Mail size={12} /> {pet.rawContactEmail || pet.contactEmail}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '12px', color: '#CBD5E1' }}>
+                            {pet.city ? `${pet.city}, ` : ''}
+                            {pet.district ? `${pet.district}, ` : ''}
+                            {pet.state || 'India'}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="admin-table-tag">{pet.gender || 'Unknown'}</span>
+                          {pet.age ? (
+                            <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '6px' }}>
+                              {pet.age}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>
+                          <span className={`admin-status-pill ${pet.status === 'AVAILABLE' ? 'status-safe' : 'status-lost'}`}>
+                            {pet.status}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                            {pet.photos?.length ? `${pet.photos.length} photos` : '1 photo'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '11px', color: '#94A3B8' }}>
+                          {new Date(pet.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAdoptionPet(pet.id, pet.petName)}
+                            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+                            title={`Delete adoption listing for ${pet.petName}`}
+                          >
+                            <Trash2 size={15} />
+                            <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: 600 }}>Delete</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
         {/* TAB 5: USER APP SUGGESTIONS & FEEDBACK */}
         {/* ========================================================================= */}
         {activeTab === 'suggestions' && (
@@ -1707,12 +1870,6 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 7: ADMIN USER PROXIMITY RADAR & DISTANCE MAP */}
-        {/* ========================================================================= */}
-        {activeTab === 'radar' && (
-          <AdminUserProximityMap users={users} profiles={profiles} />
-        )}
 
         {/* ========================================================================= */}
         {/* TAB 8: ADMIN SHORTCUTS, FLOWS, SPEC PDFS, SKILLS & SECURITY */}
