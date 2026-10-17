@@ -1,0 +1,6 @@
+{
+  "visionModelUrl": "http://localhost:11434/api/chat",
+  "visionModelName": "qwen2.5-vl:7b-instruct",
+  "timeoutMs": 30000,
+  "description": "Config for server vision model (Qwen2.5-VL-7B-Instruct via Ollama/vLLM). The app calls POST /api/extract-pet-from-image and never calls the model directly."
+}

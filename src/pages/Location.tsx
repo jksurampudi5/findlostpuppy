@@ -972,10 +972,10 @@ export const Location: React.FC<LocationProps> = ({
                       onClick={handleProceedToPup}
                       disabled={!isLocationValid}
                       className="btn btn-primary btn-lg continue-to-pup-btn"
-                      title={isLocationValid ? 'Continue to Pet Details' : '🔒 Location component is locked: Please complete State, District, Mandal, and Home Base'}
+                      title={isLocationValid ? 'Continue to Pet Choice' : '🔒 Location component is locked: Please complete State, District, Mandal, and Home Base'}
                       style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                     >
-                      <span>Continue to Pet Details</span>
+                      <span>Continue to Pet Choice</span>
                       <ArrowRight size={18} />
                     </button>
                   </>
@@ -990,10 +990,10 @@ export const Location: React.FC<LocationProps> = ({
                       onClick={handleProceedToPup}
                       disabled={!isLocationValid}
                       className="btn btn-primary btn-lg continue-to-pup-btn"
-                      title={isLocationValid ? 'Continue to Pet Details' : '🔒 Location component is locked: Please complete State, District, Mandal, and Home Base'}
+                      title={isLocationValid ? 'Continue to Pet Choice' : '🔒 Location component is locked: Please complete State, District, Mandal, and Home Base'}
                       style={!isLocationValid ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
                     >
-                      <span>Continue to Pet Details</span>
+                      <span>Continue to Pet Choice</span>
                       <ArrowRight size={18} />
                     </button>
                   </>

@@ -85,7 +85,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
     const q = searchQuery.toLowerCase().trim();
     return options.filter(
       (opt) =>
-        opt.label.toLowerCase().includes(q) ||
+        (opt.label || '').toLowerCase().includes(q) ||
         (opt.secondaryLabel && opt.secondaryLabel.toLowerCase().includes(q))
     );
   }, [options, searchQuery]);
@@ -94,7 +94,7 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
   const letterTargetMap = useMemo(() => {
     const map = new Map<string, string>();
     filteredOptions.forEach((opt) => {
-      const firstChar = opt.letter || opt.label.charAt(0).toUpperCase();
+      const firstChar = opt.letter || (opt.label ? opt.label.charAt(0).toUpperCase() : '#');
       const key = /^[A-Z]$/.test(firstChar) ? firstChar : '#';
       if (!map.has(key)) {
         map.set(key, opt.id);
@@ -188,9 +188,12 @@ export const PetProfileSelector: React.FC<PetProfileSelectorProps> = ({
           <div className="pet-selector-list" ref={listRef}>
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => {
+                const sel = (selectedValue || '').toLowerCase();
                 const isSelected =
-                  selectedValue.toLowerCase() === opt.id.toLowerCase() ||
-                  selectedValue.toLowerCase() === opt.label.toLowerCase();
+                  Boolean(sel) && (
+                    sel === (opt.id || '').toLowerCase() ||
+                    sel === (opt.label || '').toLowerCase()
+                  );
 
                 return (
                   <button
